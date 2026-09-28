@@ -78,8 +78,9 @@ omnisurg-4dsg/
 ├── evalkit/           frozen 2 + track_metrics paired_stats kmerge compare_eval
 │                      condition_inventory check_env  (scripts, not a package)
 ├── pipeline/          depth → segmentation → tracking → viewer export
-├── da3_surgery_wrapper/  sam3_wrapper/  pi3_wrapper/
-├── atlas97_meta/      crop rectangles, cuts, clip population (no video)
+├── recon3d_wrapper/   3D reconstruction — DA3 and Pi3 behind one interface
+├── sam3_wrapper/      promptable segmentation and tracking (SAM 3)
+├── atlas120k_meta/    crop rectangles, cuts, clip population (no video)
 ├── viewer/
 ├── docs/              data_contract.md, pipeline.md, ja/ (Japanese, until translated)
 ├── tests/
@@ -89,6 +90,15 @@ omnisurg-4dsg/
 `evalkit/` is a directory of scripts, deliberately not a package: the frozen
 files import their siblings by bare name (`from eval_track import …`) and that
 cannot be rewritten. Only `surgical_core` is packaged.
+
+Names say what a thing is, not how much of it one experiment used. The dataset
+is ATLAS-120k, spelled `atlas120k` as upstream spells it; which of its videos
+and clips enter a measurement is data, kept in the population file under
+`atlas120k_meta/`, never a count in a directory name. Two names stay as they are
+because frozen code spells them: `surgical_core/atlas/` together with the
+evaluation-domain key `--dataset atlas`, which is recorded with every score and
+must match for two scores to be compared; and `sam3_wrapper/`, which
+`eval_gt_clips.py` puts on `PYTHONPATH` by name.
 
 ---
 
