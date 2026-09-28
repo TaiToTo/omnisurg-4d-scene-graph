@@ -31,3 +31,6 @@ viewer/dist/
 .env
 **/.DS_Store
 *.orig
+
+# Machine-specific notes (paths, usernames) — not portable, never committed
+docs/local/
