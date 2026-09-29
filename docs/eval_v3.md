@@ -131,13 +131,18 @@ Every class gets exactly one type:
 | `tool` | an instrument | in `all` only |
 | `tissue` | anatomy that the scene's geometry can separate | in every view |
 | `appearance` | tissue told apart only by colour or texture (blood, for one), which depth and shape cannot recover | in `all` and `tissue` views |
+| `expert` | tissue whose boundary is set by anatomical convention — which vessel it is, where one stretch of a tube ends — so that neither shape nor colour shows it without anatomical knowledge | in `all` and `tissue` views |
+| `backdrop` | a surface the scene sits against, close to background (abdominal wall, diaphragm) | in `all` and `tissue` views (proposed) |
+
+`expert` and `backdrop` came out of looking at every ATLAS-120k class: many
+classes were neither shape nor colour, but one of these two.
 
 There are three views, and every metric is computed over each of them the same
 way:
 
 - `all`: every class that is not `background` or `excluded`
 - `tissue`: without `tool`
-- `geometric`: without `tool` or `appearance`
+- `geometric`: `tissue` classes only
 
 The table is data (one file per dataset), and its sha is recorded with every
 score.
@@ -147,7 +152,7 @@ score.
 | id | class | type |
 |---:|---|---|
 | 0 | Black Background | background |
-| 1 | Abdominal Wall | tissue |
+| 1 | Abdominal Wall | **backdrop?** (as in ATLAS-120k) |
 | 2 | Liver | tissue |
 | 3 | Gastrointestinal Tract | tissue |
 | 4 | Fat | tissue |
@@ -179,15 +184,53 @@ ATLAS-bench repository:
 Proposed: the 30 classes, so that numbers read the same way as the dataset's
 own benchmark.
 
-**DECISION — ATLAS-120k types.** ATLAS-120k itself defines no types: its
-benchmark scores `Tools/camera` like any other class. The types are therefore
-ours to set, class by class, from looking at the masks. Proposed as a starting
-point:
+The review supports the 30 classes. Its main difficulties were stretches of
+one tube (cystic duct against ductus choledochus) and one kind of vessel (vena
+cava against V azygos) told apart by anatomical convention. The merge removes
+exactly those boundaries.
 
-- `Tools/camera` (1), Catheter (30) and Non anatomical structures (41) are
-  tools.
-- Excluded frames (42) is excluded.
-- Everything else is tissue.
+**ATLAS-120k types.** ATLAS-120k defines no types: its benchmark scores
+`Tools/camera` like any other class. Every one of the 47 classes was looked at
+in the masks, and the verdicts are below, per class of the 30-class protocol.
+The raw ids merged into each are listed, with the verdict and note for each.
+Hepatic vein (15), Thoracic duct (38) and Nerves (39) occur in no mask of the
+602 clips, so they have no bearing.
+
+| # | class | merged from: verdict, note | type |
+|---:|---|---|---|
+| 1 | Tools/camera | tool | tool |
+| 2 | Vein | Vein (major): unsure, "hard even from colour"; Vena cava: appearance, "colour works, but it takes expertise"; V azygos: appearance, "colour might do" | **expert?** |
+| 3 | Artery | Artery (major): unsure, "uses shape, but needs a lot of expertise"; Aorta: tissue, "only faintly shape" | **expert?** |
+| 4 | Nerve | Nerve (major): appearance, "very faint" | appearance |
+| 5 | Small intestine | tissue, "plainly shape" | tissue |
+| 6 | Colon/rectum | tissue, "fairly plainly shape" | tissue |
+| 7 | Abdominal wall | unsure, "almost background" | backdrop |
+| 8 | Diaphragm | unsure, "almost background" | backdrop |
+| 9 | Fat | Omentum: tissue, "a coherent shape"; Mesenterium: tissue, "barely shape" | tissue |
+| 10 | Liver | tissue | tissue |
+| 11 | Bile/lymph duct | Cystic duct and Ductus choledochus: unsure, "mostly shape, but where the stretch ends takes expertise"; Ductus hepaticus: appearance | tissue: the merge removes the stretch boundaries |
+| 12 | Gallbladder | tissue | tissue |
+| 13 | Hepatic ligament | tissue | tissue |
+| 14 | Cystic plate | appearance | appearance |
+| 15 | Stomach | tissue | tissue |
+| 16–21 | Spleen, Uterus, Ovary, Oviduct, Prostate, Urethra | tissue | tissue |
+| 22 | Ligated plexus | appearance | appearance |
+| 23 | Seminal vesicles | tissue, "shape, probably" | tissue |
+| 24 | Non anatomical | Catheter: unsure, "shape as a rule, but invisible when buried in tissue"; Non anatomical structures: tool, "shape, as a rule" | tool |
+| 25 | Bladder | tissue, "sometimes by shape, sometimes not" | tissue |
+| 26 | Lung | tissue | tissue |
+| 27 | Airway (bronchus/trachea) | unsure, "shape cannot make this division; specialist" | expert |
+| 28 | Esophagus | tissue | tissue |
+| 29 | Pericardium | unsure, "specialist" | expert |
+| 0 | Background | also Kidney: tissue; Ureter: unsure; Excluded frames: excluded; Mesocolon and Adrenal gland: tissue; Pancreas: unsure, "neither shape nor colour settles it"; Duodenum: appearance, the same note | background |
+
+**DECISION — the open types:**
+
+- Vein and Artery: `expert`, as proposed? The members' verdicts split between
+  appearance, tissue and unsure.
+- `backdrop`: in `geometric` as well, or only in `all` and `tissue`, as
+  proposed?
+- CholecSeg8k's Abdominal Wall: `backdrop`, to match ATLAS-120k?
 
 ### Objects (decided)
 
@@ -266,8 +309,12 @@ Decided:
 - The metric set is kept minimal.
 - CholecSeg8k region lines are ignored.
 
+- ATLAS-120k class types: every class looked at, table above.
+
 Open:
 
-1. ATLAS-120k: 47 raw ids or the 30-class protocol.
-2. ATLAS-120k class types, from looking at the masks.
+1. ATLAS-120k: the 30-class protocol, as the class review suggests, or the 47
+   raw ids.
+2. The open types: Vein, Artery, where `backdrop` is scored, and CholecSeg8k's
+   Abdominal Wall.
 3. The three primary metrics, and which secondary ones a claim needs.
