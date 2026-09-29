@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  install:
+  check:
     # A named release, not ubuntu-latest: the apt package names below belong to
     # a release, and moving to the next one is a change to make on purpose, not
     # one to find in a red run.
@@ -22,7 +22,12 @@ jobs:
         # project is developed on: a user runs whichever one they have.
         python-version: ["3.12", "3.13", "3.14"]
     steps:
+      # The whole history, not the default single commit: the personal-email
+      # check reads every commit's author, committer and message, and refuses a
+      # shallow clone rather than pass on the part it cannot see.
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v7
         with:
@@ -40,3 +45,8 @@ jobs:
       # The dependencies have to import, not only install: cv2 is the one that
       # fails at import time when a system library is missing.
       - run: python -c "import cv2, numpy, PIL"
+
+      # pytest adds nothing the package imports, so this is still the no-extras
+      # install.
+      - run: pip install pytest
+      - run: pytest

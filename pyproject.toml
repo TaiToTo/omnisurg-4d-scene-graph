@@ -34,3 +34,6 @@ Homepage = "https://github.com/TaiToTo/omnisurg-4d-scene-graph"
 # directories hold scripts and model wrappers, which are run, not installed.
 [tool.setuptools.packages.find]
 include = ["surgical_core*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
