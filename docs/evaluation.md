@@ -26,10 +26,11 @@ many procedures, 47 classes) and CholecSeg8k (laparoscopic cholecystectomy,
 - **ATLAS-120k is scored with its own 30 classes**, the ones its benchmark
   uses. Its 47 original classes are scored too, as reference values only.
 - **Nine metrics.** The two *primary* metrics, on which the paper's claims are
-  judged, are `F1_50` (the share of objects found) and `SQ` (how well the found
-  ones fit), in the geometric view.
+  judged, are `F1_50` (objects found, with every extra region counted against
+  it) and `SQ` (how well the found ones fit), in the geometric view.
 - **Regions are named from the GT.** Each region takes the class most of its
-  pixels have in the GT, so the class-map metric `mIoU` is an upper bound.
+  pixels have in the GT, so the class-map metric `mIoU` is an oracle value,
+  kinder than any real classifier would get.
 - **Nothing is dropped silently.** A colour or class id the tables do not know
   stops the run, and every skipped frame or pixel is counted. There is no
   minimum object size.
@@ -43,8 +44,8 @@ many procedures, 47 classes) and CholecSeg8k (laparoscopic cholecystectomy,
 - **Not decided yet: consistency over time.** The pilot evaluator's `time_IoU`
   is kept as a reference value only, because coarse regions score well on it.
   Measures of whether a tracked thing keeps its identity — hold, IDF1, ID
-  switches, fragmentation — are candidates, and all are reference values for
-  now.
+  switches, fragmentation — are candidates; the evaluator does not compute
+  them yet.
 
 The rest of the document gives the rules in full, then why the pilot evaluator
 was replaced, then the class tables.
@@ -59,15 +60,28 @@ was replaced, then the class tables.
   means no region. The evaluator never reads a class from the pipeline. Each
   configuration of the pipeline that the paper compares — a *condition* —
   gives one prediction per clip.
-- **Valid pixels.** Only pixels whose depth is finite and positive are scored.
-  The depth is the Depth Anything 3 (DA3) depth map the pilot evaluator reads
-  for the clip, the same for every condition scored on that clip.
+- **Valid pixels.** Only pixels whose depth is finite and greater than 10⁻⁶
+  are scored; that is the pilot evaluator's test, kept so that both modes share
+  it. The depth is the Depth Anything 3 (DA3) depth map the pilot evaluator
+  reads for the clip, the same for every condition scored on that clip. This
+  makes the comparison between conditions fair, and it also makes the scored
+  pixels depend on one model's output; the paper states that as a limitation.
+- **Crop.** The pipeline cuts each clip to the rectangle around the
+  endoscope's circle. The GT mask is cut with the same rectangle before it is
+  resized, so that GT and prediction cover the same pixels. The rectangle is an
+  input like the mask, and is recorded and hashed with it.
 - **Resolution.** GT masks are resized with nearest neighbour to the depth
   map's shape, and so is a prediction of another shape. That shape is DA3's
   input size: the longest side scaled to 504 px, then each side rounded to the
   nearest multiple of 14.
 - **Time.** Frames are ordered by their timestamps, not by their file names: in
   11 of the 27 CholecSeg8k clips the frame numbers do not follow time.
+- **Clips and videos.** A *video* is one recording in the dataset. A *clip* is
+  a stretch of one video that the pipeline processes as a unit, and a video
+  can supply several clips. Which clips enter a measurement is data, kept in
+  the population files, never a count in a name. Scores are made per clip;
+  the bootstrap that decides a star resamples videos, so the clips of one
+  video are never treated as independent.
 
 ### Objects
 
@@ -93,19 +107,27 @@ The definition has two costs:
   pieces of 300 px or more. Tools are outside the geometric view.
 
 Objects are paired greedily, highest IoU first, each object at most once,
-whatever its class. A pair with IoU ≥ `MATCH_IOU` is a *hit*. `F1_50`, `SQ` and
-`inst_BF` are taken over these objects.
+whatever its class. Among pairs of equal IoU, the one with the higher GT
+object index is taken first, then the higher predicted index; GT objects are
+indexed by class id and predicted objects by region id, both ascending. That
+is the pilot evaluator's order, kept so that both modes share one rule. A pair
+with IoU ≥ `MATCH_IOU` is a *hit*. `F1_50`, `SQ` and `inst_BF` are taken over
+these objects.
 
 ### Naming the regions: the class map
 
 The pipeline gives regions without classes, so `mIoU` and `boundary_F` need a
 class for each region. Each region takes the class most of its scored pixels
-have in the GT: a tie goes to the smaller id, background takes part in the
-vote, and pixels with no region are background. The result is the *class map*.
+have in the GT: a tie goes to the smaller id, and a scored pixel with no region
+has no class. A region with no scored pixel gets no name and is no object. The
+result is the *class map*.
 
-The GT decides the names, so they are the best the regions allow. `mIoU` is
-therefore an upper bound on the class map, and is reported as one. Splitting a
-class into several regions costs nothing there; `VI_split` measures splitting.
+The GT decides the names, so no classifier's mistakes enter `mIoU`: it is an
+oracle value, kinder than any real classifier would get, and is reported as
+one. It is not a bound in the strict sense: the majority vote maximises the
+share of correctly named pixels, and a different naming could score a higher
+`mIoU` by favouring small classes. Splitting a class into several regions costs
+nothing there; `VI_split` measures splitting.
 
 ### Class types
 
@@ -115,7 +137,7 @@ the end:
 | type | meaning | scored |
 |---|---|---|
 | `ignored` | outside the field of view, or not a class at all | never: removed from the GT and the prediction alike, like a pixel without valid depth |
-| `background` | inside the view, labelled as nothing | never |
+| `background` | inside the view, labelled as nothing: unlabelled anatomy, and in ATLAS-120k the classes the 30-class mapping drops | never: removed like `ignored`, so a region lying on it is neither an object nor a false positive (see the views below) |
 | `excluded` | a marker that takes the whole frame out of evaluation | the frame is skipped, and counted |
 | `tool` | an instrument | in the `all` view only |
 | `tissue` | anatomy that the scene's depth and shape can separate | in every view |
@@ -139,6 +161,17 @@ prediction alike, as it does `ignored` pixels: a prediction is neither rewarded
 nor penalised there. In the geometric view, a region that runs from the liver
 over the blood lying on it is not penalised for the blood, and neither is one
 that stops at its edge.
+
+Background is removed in every view, the same way. What the datasets call
+background is not empty space: it is anatomy nobody labelled, and in
+ATLAS-120k also the kidney, pancreas and the other classes the 30-class
+mapping drops. A region the pipeline places there is not an error, so it is
+neither an object nor a false positive, and no metric sees it. The one
+surface that is close to nothing, the abdominal wall, is a class of its own
+(`backdrop`) and is scored in the `all` and `tissue` views. This is the pilot
+evaluator's `labeled` domain, made for the same reason; its `full` domain,
+which counted a region over unlabelled anatomy as a false positive, is not
+carried over.
 
 ## Metrics
 
@@ -164,22 +197,31 @@ that stops at its edge.
   `boundary_R_raw` is the share of the GT's class boundaries that the regions'
   own boundaries recover, before any class is assigned, so an extra cut costs
   it nothing.
-- A boundary pixel is one whose left, right, upper or lower neighbour has
-  another label. Both sides of an edge are marked, so a boundary is 2 px wide,
-  and the tolerance is a square dilation by `BOUNDARY_TOL_PX`: one-sided, a
-  boundary may be off by `BOUNDARY_TOL_PX` + 1 px. An empty boundary scores 0.
+- A boundary pixel is one whose left, right, upper or lower neighbour is a
+  scored pixel with another label. An edge against a removed pixel (ignored,
+  background, or a class the view leaves out) is not a boundary, so a region
+  is neither rewarded nor penalised for where it ends against them. Both sides
+  of an edge are marked, so a boundary is 2 px wide, and the tolerance is a
+  square dilation by `BOUNDARY_TOL_PX`: one-sided, a boundary may be off by
+  `BOUNDARY_TOL_PX` + 1 px. A frame whose scored pixels are all one class has
+  no GT boundary, which is common once a view has removed the rest (a frame
+  showing only liver, in the geometric view); the boundary metrics are not
+  defined on it, and it is counted. When only the prediction's boundary is
+  empty, they score 0.
 - `VI_split` = H(regions | GT) and `VI_merge` = H(GT | regions), the two halves
-  of the variation of information, in bits, over the scored pixels that are
-  not background. Pixels with no region count as a region of their own.
-- `time_IoU` is each region id's IoU with itself in the next frame, averaged
-  over the ids present in both frames.
+  of the variation of information, in bits, over the scored pixels. The
+  pixels with no region count together as one region.
+- `time_IoU` is a region id's IoU with itself in the next frame. Unlike the
+  other metrics it is one number per clip: the IoUs of every (id, frame pair)
+  are pooled over all tracked frames, with or without GT, and averaged.
 
 ### From frames to clips
 
-Every metric is computed per frame and averaged over a clip's GT frames. The
-clip means are what `paired_stats` resamples, by video, to decide whether a
-claim gets a star: the rule in `AGENTS.md`, a video-level bootstrap 95 % CI
-that does not straddle zero. The JSON keeps the per-frame values.
+Every metric but `time_IoU` is computed per frame and averaged over a clip's
+GT frames; `time_IoU` is pooled over the clip as described above. The clip
+values are what `paired_stats` resamples, by video, to decide whether a claim
+gets a star: the rule in `AGENTS.md`, a video-level bootstrap 95 % CI that
+does not straddle zero. The JSON keeps the per-frame values.
 
 A metric is not defined on some frames: `F1_50` on a frame with no GT object,
 `SQ` and `inst_BF` on a frame with no hit, `mIoU` on a frame with no class.
@@ -188,8 +230,11 @@ is recorded. Two conditions can cover different frames, and comparing them
 without the counts once flipped the sign of a pilot result.
 
 PQ is not stored. When a table wants it, it is SQ × F1_50 per frame, taken from
-the per-frame values. Counts (frames, objects, regions) are kept as diagnostics
-and never get a star.
+the per-frame values, with one rule that the product alone would miss: a frame
+that has GT objects but no hit has PQ = 0, although its `SQ` is not defined.
+Leaving such frames out would lift PQ above its usual definition, which the
+pilot evaluator follows. Counts (frames, objects, regions) are kept as
+diagnostics and never get a star.
 
 ### Primary metrics
 
@@ -218,13 +263,16 @@ GT, and the workbench measured three faults in it:
 The candidates measure identity against the GT, and come from the workbench's
 `track_metrics`: hold (whether the region picked on the frame tracking starts
 from still covers the same GT thing seconds later), IDF1, ID switches,
-fragmentation and re-entry. Choosing among them also means deciding what a GT track is: the
-datasets carry no ids for individual things, and the workbench links each
-class's connected components over time.
+fragmentation and re-entry. Choosing among them also means deciding what a GT
+track is: the datasets carry no ids for individual things, and the workbench
+links each class's connected components over time. That is a second object
+definition, finer than the whole-class object used above, and adopting a
+candidate means saying how the two live side by side.
 
-Until that is settled, every temporal measure is a reference value: none is
-primary, and none but `time_IoU` is part of the evaluator. A measure that is to
-carry a star has to join the evaluator before it is frozen.
+Until that is settled, the evaluator computes no temporal measure but
+`time_IoU`, and that one is a reference value. The candidates exist in the
+workbench and are not reported. A measure that is to carry a star has to join
+the evaluator before it is frozen.
 
 ## Rules that keep the numbers honest
 
@@ -233,7 +281,7 @@ carry a star has to join the evaluator before it is frozen.
 | name | value | why |
 |---|---|---|
 | `BOUNDARY_TOL_PX` | 2 | the pilot evaluator's value for its main boundary keys; what it allows is given with the boundary definition above |
-| `MATCH_IOU` | 0.5, as IoU ≥ 0.5 after greedy pairing | the pilot evaluator's rule. PQ's convention, IoU > 0.5, makes a pairing unique; at exactly 0.5 the greedy order decides |
+| `MATCH_IOU` | 0.5, as IoU ≥ 0.5 after greedy pairing | the pilot evaluator's rule. PQ's convention, IoU > 0.5, makes a pairing unique; at exactly 0.5 the greedy order given with the objects decides |
 
 There is no minimum object size. The pilot evaluator dropped connected
 components and predicted regions under 300 px. With whole-class objects, a
@@ -253,8 +301,9 @@ uses it.
   CholecSeg8k's Black Background are `ignored`.
 - `Excluded frames` is checked on ATLAS-120k's original ids, before they are
   mapped to the 30 classes, which would turn it into background.
-- Nothing is dropped without a count: skipped frames, ignored and invalid
-  pixels, and the frames a metric is not defined on are counted in the JSON.
+- Nothing is dropped without a count: skipped frames, ignored, background and
+  invalid pixels, the pixels each view removes, and the frames a metric is not
+  defined on are counted in the JSON.
 
 ### Recorded with every score
 
@@ -273,6 +322,11 @@ and depth maps. `compare_eval` refuses any other pair, and reports a difference
 in versions. The same `eval_code_sha` is not enough on its own: pilot mode and
 the normal mode share it, and so do the views.
 
+The check against the pilot evaluator, below, is not a comparison under this
+rule: the two shas differ by construction. It is a verification, run by its
+own script outside `compare_eval`, that this evaluator in pilot mode writes the
+pilot evaluator's numbers.
+
 ### Checked against the pilot evaluator
 
 - Pilot mode runs this evaluator with the pilot evaluator's rules:
@@ -281,10 +335,19 @@ the normal mode share it, and so do the views.
     to background — the one place anything becomes background silently,
     allowed because pilot mode exists only for this check;
   - the pilot evaluator's four domains (`full`, `labeled`, `tissue`,
-    `labeled_tissue`, with its instrument ids) in place of the views;
+    `labeled_tissue`, with its instrument ids) in place of the views, for the
+    instance metrics; the class map, the boundary metrics and VI on the `full`
+    domain as the pilot evaluator computed them, with background pixels
+    voting on a region's name and an edge against background counted as a
+    boundary;
   - per-class 8-connected components of at least `PILOT_MIN_CC_PX` as GT
     objects, and regions of at least that size as predicted objects;
-  - frames in file order for `time_IoU`.
+  - frames in file order for `time_IoU`;
+  - the pilot evaluator's zeros in place of undefined values: a frame with no
+    class enters the `mIoU` mean as 0; a clip with no GT object in the `full`
+    domain writes 0 for its instance keys instead of leaving them out; and a
+    frame whose GT boundary is empty scores 0 on the boundary metrics rather
+    than being left out.
 - On the 38 conditions already scored, pilot mode must reproduce every key it
   shares with the pilot evaluator — the metrics table names them, and their
   per-domain variants — at zero tolerance: the values written must be equal.
@@ -302,9 +365,11 @@ sha. Three kinds of problem make correcting it worth a new evaluator.
 
 ### 1. The metrics overlap
 
-The pilot evaluator writes 48 summary keys, which carry about nine independent
-quantities. Four relations hold exactly, frame by frame; each was confirmed by
-running the pilot evaluator's own functions on 366 synthetic frames:
+The pilot evaluator writes about 85 summary keys per clip, counting each
+metric once per domain and per tolerance, and they carry about nine
+independent quantities. Four relations hold exactly, frame by frame; each was
+confirmed by running the pilot evaluator's own functions on 366 synthetic
+frames:
 
 | relation | why |
 |---|---|
@@ -485,11 +550,17 @@ evaluator's own, so the numbers are not the benchmark's.
 
 The 47 original ids are scored as well, as reference values only. They are
 written to a separate block of the JSON, and they never get a star. There, each
-original id takes the type of the class it merges into. The seven ids the
-30-class mapping turns into background take their own verdicts from the review
-below, with "unsure" counted as `expert`: Kidney, Mesocolon and Adrenal gland
-are tissue; Ureter and Pancreas are expert; Duodenum is appearance; and
-Excluded frames is excluded.
+original id takes the type of the class it merges into, although the review
+judged some of them differently on their own (Cystic duct, for one, was
+"unsure", which is `expert` for CholecSeg8k's Cystic Duct). The inheritance
+is deliberate: it keeps every view's pixels the same in the two blocks, so
+that the only difference between the 30-class and the 47-id scores is how
+finely the objects are cut, and not also which pixels are scored. The seven
+ids the 30-class mapping turns into background would inherit `background` and
+vanish, so they take their own verdicts from the review below, with "unsure"
+counted as `expert`: Kidney, Mesocolon and Adrenal gland are tissue; Ureter
+and Pancreas are expert; Duodenum is appearance; and Excluded frames is
+excluded.
 
 The review supports the 30 classes. Its main difficulties were stretches of
 one tube (cystic duct against ductus choledochus) and one kind of vessel (vena
@@ -532,6 +603,6 @@ Nerves (39) were found in no mask the review searched, so they have no bearing.
 | 29 | Pericardium | unsure, "specialist" | expert |
 | 0 | Background | also Kidney: tissue; Ureter: unsure; Excluded frames: excluded; Mesocolon and Adrenal gland: tissue; Pancreas: unsure, "neither shape nor colour settles it"; Duodenum: appearance, the same note | background |
 
-Vein and Artery are `expert`: their members' verdicts split between
-appearance, tissue and unsure, and what they share is that telling them apart
-takes anatomy.
+Vein and Artery are `expert`: Vein's members were judged unsure or
+appearance, Artery's unsure or tissue, and what every note shares is that
+telling one vessel from another takes anatomy.
