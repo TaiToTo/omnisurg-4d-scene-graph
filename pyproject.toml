@@ -1,0 +1,46 @@
+[build-system]
+# 77 is the first release that accepts `license` below as an SPDX string; older
+# ones reject this file outright, which an isolated build (always the latest
+# setuptools) never shows.
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "omnisurg-4dsg"
+version = "0.1.0"
+description = "Training-free 4D scene graphs for minimally invasive surgery, and the toolkit they are measured with"
+readme = "README.md"
+# The lowest version CI runs. Declaring an older one would promise installs
+# nothing checks.
+requires-python = ">=3.12"
+license = "Apache-2.0"
+authors = [{ name = "Yasuto Tamura" }]
+
+# Kept to what the evaluation code imports at module level — the v2 reference
+# included, whose `atlas/labels.py` imports Pillow, so without it v2's sha
+# cannot even be computed.
+# Deliberately unpinned: a reader should be able to install this next to
+# whatever else they have. The versions v2's numbers were measured on are
+# recorded in reference/eval_v2/README.md instead: pinning them here would make
+# this package uninstallable long before the numbers stop being citable.
+# opencv-python rather than opencv-python-headless, though nothing here opens a
+# window: both install the same `cv2` package, so depending on the headless one
+# would leave two builds writing over each other in an environment that already
+# has opencv-python.
+dependencies = ["numpy", "opencv-python", "Pillow"]
+
+[project.urls]
+Homepage = "https://github.com/TaiToTo/omnisurg-4d-scene-graph"
+
+# Only `surgical_core` is packaged. `evalkit/` is a directory of scripts, and
+# the v2 reference under `reference/` carries its own `surgical_core`, which
+# must never be installed over the live one.
+[tool.setuptools.packages.find]
+include = ["surgical_core*"]
+
+[tool.pytest.ini_options]
+# `dash` ships a pytest plugin, so pytest auto-loads it from the user site
+# packages and dies on its own missing dependency before collecting a single
+# test — which reads as "this suite is broken". Nothing here uses dash.
+addopts = "-p no:dash"
+testpaths = ["evalkit/tests"]

@@ -1,0 +1,54 @@
+name: ci
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+# Nothing here writes to the repository.
+permissions:
+  contents: read
+
+jobs:
+  evalkit:
+    # A named release, not ubuntu-latest: the apt package names below belong to
+    # a release, and moving to the next one is a change to make on purpose, not
+    # one to find in a red run.
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        # Every version requires-python allows, from the floor to the one the
+        # project is developed on: a user runs whichever one they have.
+        python-version: ["3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # opencv-python links against libGL even when nothing is drawn, and the
+      # runner image does not ship it.
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libgl1 libglib2.0-0
+
+      # No extras: the point of this job is that the evaluation toolkit installs
+      # and runs without the pipeline's dependencies.
+      - run: pip install -e .
+
+      # The v2 reference runs from its own tree, with its own surgical_core.
+      # eval_gt_clips.py imports only the standard library at module level, so
+      # its --help proves little on its own. eval_track.py is the one it runs
+      # per clip, and it imports numpy, cv2 and surgical_core.
+      - name: the v2 reference starts
+        env:
+          PYTHONPATH: ${{ github.workspace }}/reference/eval_v2
+        run: |
+          python3 reference/eval_v2/evalkit/eval_gt_clips.py --help
+          python3 reference/eval_v2/evalkit/eval_track.py --help
+
+      # pytest adds nothing the evaluation code imports, so this is still the
+      # no-extras install. test_v2_reference.py is where v2's sha is checked,
+      # naming the file that moved when it is not the recorded value.
+      - run: pip install pytest
+      - run: pytest

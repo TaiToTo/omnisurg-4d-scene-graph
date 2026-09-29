@@ -24,28 +24,24 @@ extraction lands, most of the layout below does not exist yet.
 
 ## The one rule that cannot be relaxed
 
-Four files are **frozen — not one byte changes**, ever, including "while we are
-tidying up anyway":
+The code a published number was measured with does **not change — not one
+byte**, ever, including "while we are tidying up anyway". Two rulers exist:
 
-```
-evalkit/eval_track.py              815 lines
-evalkit/eval_gt_clips.py           410
-surgical_core/cholec/__init__.py    96
-surgical_core/atlas/labels.py      147
-                                 ─────
-                                 1,468 lines  →  eval_code_sha = 1f8a813a…
-```
+- **v2**, in `reference/eval_v2/`: the evaluator every score so far carries
+  (`eval_code_sha = 1f8a813a…`). It stays whole and unchanged, as the reference
+  v3 is checked against. Its README has the sha, the files and the recipe
+  (sha256 over file *contents*, labelled by import name — never over paths or
+  git revisions), and `evalkit/tests/test_v2_reference.py` pins every file in
+  the tree.
+- **v3**, specified in `docs/eval_v3.md`: the ruler the paper is measured with.
+  It is still being written. It is frozen, with a sha of its own, before the
+  paper's numbers are measured, and from then on this rule applies to it too.
 
-`eval_code_sha` is what makes two measurements comparable. Change any of those
-files and every number measured so far becomes incomparable with every number
+`eval_code_sha` is what makes two measurements comparable. Change a frozen file
+and every number measured so far becomes incomparable with every number
 measured afterwards — silently, because nothing crashes. `compare_eval.py`
 refuses to mix scores across shas, and that refusal is the only thing standing
 between us and a plausible-looking wrong table.
-
-`surgical_core/viewer/labels.py` (`LabelTable` / `LabelEntry`, 107 lines) is
-**quasi-frozen**: `atlas/labels.py` imports it, but it is outside the sha, so
-changing its meaning moves the numbers without moving the sha. Treat it as
-frozen; do not add it to the sha (that would change the sha).
 
 The verdict rule is frozen in the same spirit: **a claim gets a star only when
 the video-level bootstrap 95 % CI does not straddle zero.** p-values are
@@ -75,8 +71,9 @@ shape of another repo.
 omnisurg-4dsg/
 ├── LICENSE  README.md  CITATION.cff  pyproject.toml
 ├── surgical_core/     cholec atlas geometry pointcloud preprocess viewer clip_time
-├── evalkit/           frozen 2 + track_metrics paired_stats kmerge compare_eval
+├── evalkit/           v3 + track_metrics paired_stats kmerge compare_eval
 │                      condition_inventory check_env  (scripts, not a package)
+├── reference/eval_v2/ the v2 evaluator, self-contained — never edited
 ├── pipeline/          depth → segmentation → tracking → viewer export
 ├── recon3d_wrapper/   3D reconstruction — DA3 and Pi3 behind one interface
 ├── sam3_wrapper/      promptable segmentation and tracking (SAM 3)
@@ -87,18 +84,19 @@ omnisurg-4dsg/
 └── .github/workflows/ci.yml
 ```
 
-`evalkit/` is a directory of scripts, deliberately not a package: the frozen
-files import their siblings by bare name (`from eval_track import …`) and that
-cannot be rewritten. Only `surgical_core` is packaged.
+`evalkit/` is a directory of scripts, deliberately not a package: v2's scripts
+import their siblings by bare name (`from eval_track import …`), and v3 keeps
+that layout so the two run the same way. Only `surgical_core` is packaged; v2
+carries its own copy of the parts it uses, which is never installed.
 
 Names say what a thing is, not how much of it one experiment used. The dataset
 is ATLAS-120k, spelled `atlas120k` as upstream spells it; which of its videos
 and clips enter a measurement is data, kept in the population file under
-`atlas120k_meta/`, never a count in a directory name. Two names stay as they are
-because frozen code spells them: `surgical_core/atlas/` together with the
-evaluation-domain key `--dataset atlas`, which is recorded with every score and
-must match for two scores to be compared; and `sam3_wrapper/`, which
-`eval_gt_clips.py` puts on `PYTHONPATH` by name.
+`atlas120k_meta/`, never a count in a directory name. Inside
+`reference/eval_v2/` the names are v2's and stay: `surgical_core/atlas/`, the
+evaluation-domain key `--dataset atlas` recorded with every v2 score, and
+`sam3_wrapper/`, which v2's `eval_gt_clips.py` puts on `PYTHONPATH` by name.
+Outside it, names follow the rule above.
 
 ---
 

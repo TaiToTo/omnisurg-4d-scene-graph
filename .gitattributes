@@ -1,0 +1,6 @@
+# The frozen evaluation code is compared byte for byte: its contents are what
+# eval_code_sha hashes. If git rewrites line endings on checkout — it does by
+# default where core.autocrlf is on — the bytes differ from what was measured
+# and the sha moves, without anything failing visibly. So no conversion, on
+# any file, anywhere.
+* -text
