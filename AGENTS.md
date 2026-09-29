@@ -92,8 +92,8 @@ and clips enter a measurement is data, kept in the population file under
 The port follows `docs/porting.md`: what moves, which version of it was
 already reviewed and where, the order of the steps, and what must hold before
 the next one. Read it before porting anything. The order is load-bearing: the
-evaluator is checked against the pilot scores and frozen before anything is
-re-scored, and nothing touches a GPU before that.
+evaluator is checked against the pilot scores before anything is re-scored,
+and nothing touches a GPU before that. Nothing is frozen during the port.
 
 What is permanent is on this page: the freeze rule, the verdict rule, the
 layout, and the conventions below.
