@@ -28,9 +28,10 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      # opencv-python links against libGL even when nothing is drawn, and the
-      # runner image does not ship it.
-      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libgl1 libglib2.0-0
+      # opencv-python links against libGL and glib even when nothing is drawn.
+      # The runner image happens to ship both today; installing them here keeps
+      # the run from depending on that, and records what a bare machine needs.
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libgl1 libglib2.0-0t64
 
       # No extras: the evaluation toolkit has to install and run without the
       # pipeline's dependencies.
