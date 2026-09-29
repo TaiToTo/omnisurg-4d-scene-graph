@@ -1,0 +1,5 @@
+# The evaluator's eval_code_sha is taken over file contents. If git rewrites
+# line endings on checkout — it does by default where core.autocrlf is on — the
+# bytes differ from what was measured and the sha moves, without anything
+# failing visibly. So no conversion, on any file, anywhere.
+* -text

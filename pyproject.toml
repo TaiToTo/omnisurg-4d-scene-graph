@@ -1,0 +1,36 @@
+[build-system]
+# 77 is the first release that accepts `license` below as an SPDX string; older
+# ones reject this file outright, which an isolated build (always the latest
+# setuptools) never shows.
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "omnisurg-4d-scene-graph"
+version = "0.1.0"
+description = "Training-free 4D scene graphs for minimally invasive surgery, and the toolkit they are measured with"
+readme = "README.md"
+# The lowest version CI runs. Declaring an older one would promise installs
+# nothing checks.
+requires-python = ">=3.12"
+license = "Apache-2.0"
+authors = [{ name = "Yasuto Tamura" }]
+
+# What the evaluator needs: it reads masks with Pillow, and takes regions and
+# boundaries with numpy and OpenCV. Their versions are recorded with every
+# score, so they are deliberately unpinned here: a reader should be able to
+# install this next to whatever else they have, and pinning would make the
+# package uninstallable long before the numbers stop being citable.
+# opencv-python rather than opencv-python-headless, though nothing here opens a
+# window: both install the same `cv2` package, so depending on the headless one
+# would leave two builds writing over each other in an environment that already
+# has opencv-python.
+dependencies = ["numpy", "opencv-python", "Pillow"]
+
+[project.urls]
+Homepage = "https://github.com/TaiToTo/omnisurg-4d-scene-graph"
+
+# Only `surgical_core` is an importable library. The other top-level
+# directories hold scripts and model wrappers, which are run, not installed.
+[tool.setuptools.packages.find]
+include = ["surgical_core*"]
