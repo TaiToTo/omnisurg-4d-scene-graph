@@ -1,4 +1,4 @@
-# omnisurg-4dsg
+# omnisurg-4d-scene-graph
 
 Open, training-free **4D** (3D + time) scene graphs for minimally invasive
 surgery — built by composing foundation models, with no task-specific training.
