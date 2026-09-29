@@ -10,11 +10,11 @@ detail lives in the documents named below — read those before doing real work.
 
 ## What this repo is
 
-`omnisurg-4dsg` builds **4D (3D + time) scene graphs for minimally invasive
-surgery** by composing foundation models — monocular depth, promptable
-segmentation, tracking — with **no task-specific training**. It ships the
-evaluation toolkit those graphs are measured with, the pipeline that produces
-them, and a viewer.
+`omnisurg-4d-scene-graph` builds **4D (3D + time) scene graphs for minimally
+invasive surgery** by composing foundation models — monocular depth,
+promptable segmentation, tracking — with **no task-specific training**. It
+ships the evaluation toolkit those graphs are measured with, the pipeline that
+produces them, and a viewer.
 
 **Status: under construction.** The code is being extracted, file by file, from
 a private research workbench where the measurements were made. Until the
@@ -65,7 +65,7 @@ shape of another repo.
 ## Target layout
 
 ```
-omnisurg-4dsg/
+omnisurg-4d-scene-graph/
 ├── LICENSE  README.md  CITATION.cff  pyproject.toml
 ├── surgical_core/     cholec atlas120k geometry pointcloud preprocess viewer clip_time
 ├── evalkit/           the evaluator, track_metrics paired_stats kmerge compare_eval
