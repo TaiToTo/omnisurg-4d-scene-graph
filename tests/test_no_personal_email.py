@@ -49,6 +49,9 @@ ALLOWED_ADDRESSES = (
     "noreply@github.com",
     # The co-author trailer of commits made with Claude Code.
     "noreply@anthropic.com",
+    # The user part of an SSH clone URL, `git@github.com:owner/repo.git`, which
+    # a README is bound to show.
+    "git@github.com",
 )
 
 # Files whose bytes are not text. Compressed image data produces strings that
@@ -288,17 +291,23 @@ def test_the_history_scan_sees_every_commit():
     assert commits == set(expected)
 
 
-# Share of tracked files scanned as text. A ratio, not a count, so that it
-# holds while the repository grows.
-MIN_TEXT_RATIO = 0.9
+# Suffixes of files that carry text and must always be scanned.
+TEXT_SUFFIXES = {".md", ".py", ".toml", ".yml", ".yaml", ".json", ".txt", ".cff", ".csv"}
+
+
+def test_binary_suffixes_exclude_no_text_format():
+    # Widening BINARY_SUFFIXES too far would shrink the scan until it passes
+    # on nothing. Checked on the list itself, not on a share of the tracked
+    # files: a share moves when figures are added, which says nothing about
+    # the list.
+    assert not BINARY_SUFFIXES & TEXT_SUFFIXES
 
 
 def test_the_file_scan_actually_looks_at_files():
-    # Widening BINARY_SUFFIXES too far would shrink the scan until it passes
-    # on nothing.
-    files = tracked_files()
-    assert files, "no tracked file was listed"
-    assert len(tracked_text_files()) / len(files) >= MIN_TEXT_RATIO
+    # The files this repository always has, including this one, must be in
+    # the scan.
+    scanned = set(tracked_text_files())
+    assert {"pyproject.toml", "AGENTS.md", "tests/test_no_personal_email.py"} <= scanned
 
 
 # ------------------------------------------------------ when it should fail
@@ -435,6 +444,7 @@ def test_a_reachable_address_is_caught(local, domain):
     ("52999158+SomeUser", "users.noreply.github.com"),
     ("noreply", "github.com"),
     ("noreply", "anthropic.com"),
+    ("git", "github.com"),
     ("anonymous", "example.org"),
     ("anon", "cs.example.org"),
     ("Anon", "Example.ORG"),
@@ -455,6 +465,10 @@ def test_an_unreachable_address_is_allowed(local, domain):
 def test_an_allowed_name_inside_a_reachable_address_is_still_caught(local, domain):
     addr = _addr(local, domain)
     assert personal_emails(f"contact: {addr}") == [addr]
+
+
+def test_an_ssh_clone_url_is_not_an_address():
+    assert personal_emails("git clone " + _addr("git", "github.com") + ":owner/repo.git") == []
 
 
 def test_a_metric_name_is_not_an_address():

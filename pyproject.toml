@@ -36,8 +36,4 @@ Homepage = "https://github.com/TaiToTo/omnisurg-4d-scene-graph"
 include = ["surgical_core*"]
 
 [tool.pytest.ini_options]
-# `dash` ships a pytest plugin, so pytest auto-loads it from the user site
-# packages and dies on its own missing dependency before collecting a single
-# test — which reads as "this suite is broken". Nothing here uses dash.
-addopts = "-p no:dash"
 testpaths = ["tests"]
