@@ -1,12 +1,11 @@
-# Evaluation v3 — specification (draft)
+# Evaluation v3 — specification
 
-**Status: draft for review.** Nothing here is frozen yet. v3 is the ruler the
-paper's numbers will be measured with. It replaces v2 — the evaluator every
-score so far was measured with, `eval_code_sha = 1f8a813a…` — which stays in
-the repository only as a reference that v3 is checked against.
+**Status: agreed, not yet implemented.** Nothing here is frozen yet. v3 is the
+ruler the paper's numbers will be measured with. It replaces v2 — the evaluator
+every score so far was measured with, `eval_code_sha = 1f8a813a…` — which stays
+in the repository only as a reference that v3 is checked against.
 
-Items marked **DECISION** need an answer before the code that depends on them
-is written.
+Every decision the design needed is settled; they are listed at the end.
 
 ## Why a new ruler
 
@@ -132,7 +131,7 @@ Every class gets exactly one type:
 | `tissue` | anatomy that the scene's geometry can separate | in every view |
 | `appearance` | tissue told apart only by colour or texture (blood, for one), which depth and shape cannot recover | in `all` and `tissue` views |
 | `expert` | tissue whose boundary is set by anatomical convention — which vessel it is, where one stretch of a tube ends — so that neither shape nor colour shows it without anatomical knowledge | in `all` and `tissue` views |
-| `backdrop` | a surface the scene sits against, close to background (abdominal wall, diaphragm) | in `all` and `tissue` views (proposed) |
+| `backdrop` | a surface the scene sits against, close to background (abdominal wall, diaphragm) | in `all` and `tissue` views |
 
 `expert` and `backdrop` came out of looking at every ATLAS-120k class: many
 classes were neither shape nor colour, but one of these two.
@@ -152,7 +151,7 @@ score.
 | id | class | type |
 |---:|---|---|
 | 0 | Black Background | background |
-| 1 | Abdominal Wall | **backdrop?** (as in ATLAS-120k) |
+| 1 | Abdominal Wall | backdrop, as in ATLAS-120k |
 | 2 | Liver | tissue |
 | 3 | Gastrointestinal Tract | tissue |
 | 4 | Fat | tissue |
@@ -165,10 +164,10 @@ score.
 | 11 | Hepatic Vein | tissue |
 | 12 | Liver Ligament | tissue |
 
-**DECISION — ATLAS-120k protocol.** Either score the 47 raw ids, or the 30
-classes that ATLAS-120k's own model and benchmark code score. The benchmark
-maps every mask before scoring, through `datasets/class_mapping.py` in the
-ATLAS-bench repository:
+**ATLAS-120k protocol** (decided). Scores and claims use the 30 classes that
+ATLAS-120k's own model and benchmark code score. The benchmark maps every mask
+before scoring, through `datasets/class_mapping.py` in the ATLAS-bench
+repository:
 
 - Seven ids become background: Kidney, Ureter, Excluded frames, Mesocolon,
   Adrenal gland, Pancreas and Duodenum.
@@ -181,8 +180,14 @@ ATLAS-bench repository:
   - Nerves into Nerve.
   - Catheter and Non anatomical structures into Non anatomical.
 
-Proposed: the 30 classes, so that numbers read the same way as the dataset's
-own benchmark.
+Numbers then read the same way as the dataset's own benchmark.
+
+The 47 raw ids are scored as well, as reference values only. They are written
+to a separate block of the JSON, and they never get a star. There, each raw id
+takes the type of the class it merges into. The seven ids the protocol turns
+into background take their own verdicts from the review below, with "unsure"
+counted as `expert`: Kidney, Mesocolon and Adrenal gland are tissue; Ureter and
+Pancreas are expert; Duodenum is appearance; and Excluded frames is excluded.
 
 The review supports the 30 classes. Its main difficulties were stretches of
 one tube (cystic duct against ductus choledochus) and one kind of vessel (vena
@@ -199,8 +204,8 @@ Hepatic vein (15), Thoracic duct (38) and Nerves (39) occur in no mask of the
 | # | class | merged from: verdict, note | type |
 |---:|---|---|---|
 | 1 | Tools/camera | tool | tool |
-| 2 | Vein | Vein (major): unsure, "hard even from colour"; Vena cava: appearance, "colour works, but it takes expertise"; V azygos: appearance, "colour might do" | **expert?** |
-| 3 | Artery | Artery (major): unsure, "uses shape, but needs a lot of expertise"; Aorta: tissue, "only faintly shape" | **expert?** |
+| 2 | Vein | Vein (major): unsure, "hard even from colour"; Vena cava: appearance, "colour works, but it takes expertise"; V azygos: appearance, "colour might do" | expert |
+| 3 | Artery | Artery (major): unsure, "uses shape, but needs a lot of expertise"; Aorta: tissue, "only faintly shape" | expert |
 | 4 | Nerve | Nerve (major): appearance, "very faint" | appearance |
 | 5 | Small intestine | tissue, "plainly shape" | tissue |
 | 6 | Colon/rectum | tissue, "fairly plainly shape" | tissue |
@@ -224,13 +229,9 @@ Hepatic vein (15), Thoracic duct (38) and Nerves (39) occur in no mask of the
 | 29 | Pericardium | unsure, "specialist" | expert |
 | 0 | Background | also Kidney: tissue; Ureter: unsure; Excluded frames: excluded; Mesocolon and Adrenal gland: tissue; Pancreas: unsure, "neither shape nor colour settles it"; Duodenum: appearance, the same note | background |
 
-**DECISION — the open types:**
-
-- Vein and Artery: `expert`, as proposed? The members' verdicts split between
-  appearance, tissue and unsure.
-- `backdrop`: in `geometric` as well, or only in `all` and `tissue`, as
-  proposed?
-- CholecSeg8k's Abdominal Wall: `backdrop`, to match ATLAS-120k?
+Vein and Artery are `expert`: their members' verdicts split between
+appearance, tissue and unsure, and what they share is that telling them apart
+takes anatomy.
 
 ### Objects (decided)
 
@@ -262,9 +263,9 @@ diagnostics and never get a star.
 The set is kept as small as the claims allow: a metric stays only if a claim
 in the paper uses it. PQ, F1_avg, the Dice and the extra tolerances go.
 
-**DECISION — primary metrics**, fixed before any v3 score is looked at.
-Proposed: `F1_50`, `SQ` and `time_IoU` in the `geometric` view. The rest of the
-table above is cut to the ones a claim needs.
+**Primary metrics** (decided, before any v3 score is looked at): `F1_50`, `SQ`
+and `time_IoU` in the `geometric` view. The rest of the table above is cut to
+the ones a claim needs.
 
 ### Thresholds, named
 
@@ -302,19 +303,15 @@ v2's JSONs recorded none of the last group.
 
 ## Decisions
 
-Decided:
+All decided:
 
-- CholecSeg8k class types: Fat is tissue.
+- CholecSeg8k class types: Fat is tissue, Abdominal Wall is backdrop.
+- ATLAS-120k: the 30-class protocol for scores and claims; the 47 raw ids as
+  reference values, in a separate block, never starred.
+- ATLAS-120k class types: every class looked at (table above). Vein and Artery
+  are expert.
+- `backdrop` is scored in the `all` and `tissue` views, not in `geometric`.
 - An object is a class's whole region in a frame.
-- The metric set is kept minimal.
+- The metric set is kept minimal. The primary metrics are `F1_50`, `SQ` and
+  `time_IoU` in the `geometric` view.
 - CholecSeg8k region lines are ignored.
-
-- ATLAS-120k class types: every class looked at, table above.
-
-Open:
-
-1. ATLAS-120k: the 30-class protocol, as the class review suggests, or the 47
-   raw ids.
-2. The open types: Vein, Artery, where `backdrop` is scored, and CholecSeg8k's
-   Abdominal Wall.
-3. The three primary metrics, and which secondary ones a claim needs.
