@@ -35,15 +35,15 @@ measured after — silently, because nothing crashes. `compare_eval.py` refuses
 to mix scores across shas, and that refusal is the only thing standing between
 us and a plausible-looking wrong table.
 
-The pilot measurements were scored by an earlier evaluator (`eval_code_sha =
+The pilot measurements were scored by the *pilot evaluator* (`eval_code_sha =
 1f8a813a…`). It stays frozen in the private workbench and is not part of this
-repository. The new evaluator is checked against it where it lives, taking its
-path as an argument.
+repository. The evaluator is checked against it where it lives, taking the
+paths of the pilot evaluator and its scores as arguments.
 
-The verdict rule is frozen in the same spirit: **a claim gets a star only when
-the video-level bootstrap 95 % CI does not straddle zero.** p-values are
-reported alongside, never decisive. One definition, in `paired_stats`; scripts
-borrow it rather than reimplementing a star.
+The verdict rule is already settled and is held to the same standard: **a
+claim gets a star only when the video-level bootstrap 95 % CI does not straddle
+zero.** p-values are reported alongside, never decisive. One definition, in
+`paired_stats`; scripts borrow it rather than reimplementing a star.
 
 ---
 
@@ -75,7 +75,7 @@ omnisurg-4dsg/
 ├── sam3_wrapper/      promptable segmentation and tracking (SAM 3)
 ├── atlas120k_meta/    crop rectangles, cuts, clip population (no video)
 ├── viewer/
-├── docs/              data_contract.md, pipeline.md, ja/ (Japanese, until translated)
+├── docs/              evaluation.md, data_contract.md, pipeline.md, ja/ (Japanese, until translated)
 ├── tests/
 └── .github/workflows/ci.yml
 ```
