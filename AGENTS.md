@@ -1,7 +1,7 @@
 # AGENTS.md
 
 Router for AI coding assistants working in this repository. This file holds what
-does not change: the frozen files, the target layout and the conventions. Task
+does not change: the freeze rule, the target layout and the conventions. Task
 detail lives in the documents named below — read those before doing real work.
 
 `CLAUDE.md` is a symlink to this file.
@@ -24,28 +24,21 @@ extraction lands, most of the layout below does not exist yet.
 
 ## The one rule that cannot be relaxed
 
-Four files are **frozen — not one byte changes**, ever, including "while we are
-tidying up anyway":
+Nothing in this repository is frozen yet. The evaluator specified in
+`docs/evaluation.md` is frozen before the paper's numbers are measured, and
+from then on the files it hashes into `eval_code_sha` do **not change — not one
+byte**, ever, including "while we are tidying up anyway".
 
-```
-evalkit/eval_track.py              815 lines
-evalkit/eval_gt_clips.py           410
-surgical_core/cholec/__init__.py    96
-surgical_core/atlas/labels.py      147
-                                 ─────
-                                 1,468 lines  →  eval_code_sha = 1f8a813a…
-```
+`eval_code_sha` is what makes two measurements comparable. Change a frozen file
+and every number measured before becomes incomparable with every number
+measured after — silently, because nothing crashes. `compare_eval.py` refuses
+to mix scores across shas, and that refusal is the only thing standing between
+us and a plausible-looking wrong table.
 
-`eval_code_sha` is what makes two measurements comparable. Change any of those
-files and every number measured so far becomes incomparable with every number
-measured afterwards — silently, because nothing crashes. `compare_eval.py`
-refuses to mix scores across shas, and that refusal is the only thing standing
-between us and a plausible-looking wrong table.
-
-`surgical_core/viewer/labels.py` (`LabelTable` / `LabelEntry`, 107 lines) is
-**quasi-frozen**: `atlas/labels.py` imports it, but it is outside the sha, so
-changing its meaning moves the numbers without moving the sha. Treat it as
-frozen; do not add it to the sha (that would change the sha).
+The pilot measurements were scored by an earlier evaluator (`eval_code_sha =
+1f8a813a…`). It stays frozen in the private workbench and is not part of this
+repository. The new evaluator is checked against it where it lives, taking its
+path as an argument.
 
 The verdict rule is frozen in the same spirit: **a claim gets a star only when
 the video-level bootstrap 95 % CI does not straddle zero.** p-values are
@@ -74,9 +67,9 @@ shape of another repo.
 ```
 omnisurg-4dsg/
 ├── LICENSE  README.md  CITATION.cff  pyproject.toml
-├── surgical_core/     cholec atlas geometry pointcloud preprocess viewer clip_time
-├── evalkit/           frozen 2 + track_metrics paired_stats kmerge compare_eval
-│                      condition_inventory check_env  (scripts, not a package)
+├── surgical_core/     cholec atlas120k geometry pointcloud preprocess viewer clip_time
+├── evalkit/           the evaluator, track_metrics paired_stats kmerge compare_eval
+│                      condition_inventory check_env
 ├── pipeline/          depth → segmentation → tracking → viewer export
 ├── recon3d_wrapper/   3D reconstruction — DA3 and Pi3 behind one interface
 ├── sam3_wrapper/      promptable segmentation and tracking (SAM 3)
@@ -87,18 +80,10 @@ omnisurg-4dsg/
 └── .github/workflows/ci.yml
 ```
 
-`evalkit/` is a directory of scripts, deliberately not a package: the frozen
-files import their siblings by bare name (`from eval_track import …`) and that
-cannot be rewritten. Only `surgical_core` is packaged.
-
 Names say what a thing is, not how much of it one experiment used. The dataset
 is ATLAS-120k, spelled `atlas120k` as upstream spells it; which of its videos
 and clips enter a measurement is data, kept in the population file under
-`atlas120k_meta/`, never a count in a directory name. Two names stay as they are
-because frozen code spells them: `surgical_core/atlas/` together with the
-evaluation-domain key `--dataset atlas`, which is recorded with every score and
-must match for two scores to be compared; and `sam3_wrapper/`, which
-`eval_gt_clips.py` puts on `PYTHONPATH` by name.
+`atlas120k_meta/`, never a count in a directory name.
 
 ---
 
@@ -111,8 +96,8 @@ and stops being true the moment the extraction is done. If
 order of the phases is load-bearing (the cheap CPU-only check has to pass
 before anything touches a GPU).
 
-What is permanent is on this page: the frozen files, the sha, the verdict rule,
-the layout, and the conventions below.
+What is permanent is on this page: the freeze rule, the verdict rule, the
+layout, and the conventions below.
 
 ---
 
