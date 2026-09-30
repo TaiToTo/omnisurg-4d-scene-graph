@@ -95,7 +95,7 @@ addition to the work listed.
 | metrics, entry point, `eval_code_sha` | `depth_sam_tracking_experiment/eval_track.py`, `eval_gt_clips.py` | — | New, from `docs/evaluation.md`. |
 | hand-derived test scenes | — | `archive/metric-guide` (`evalkit/tests/scenes.py`, `cartoon.py`) | Reuse the scenes. Expected values for the normal mode are derived again under the new rules. |
 | pilot-mode tests | — | `archive/metric-guide` (`evalkit/tests/test_v2_metric_guide.py`) | Its expected values are the pilot evaluator's, worked out by hand from the scenes. Pilot mode must reproduce them, so they are kept as pilot-mode tests rather than derived again. |
-| metric guide | — | `archive/metric-guide` (`docs/metrics/make_guide.py`, `index.html`) | TODO: decide whether the guide is rebuilt on the evaluator and shipped under `docs/`. |
+| metric guide | — | `archive/metric-guide` (`docs/metrics/make_guide.py`, `index.html`) | The page as the pilot evaluator built it is `docs/pilot_metric_guide.html`, with notes where the evaluator differs. TODO: decide whether a guide is built on the evaluator; the script calls the pilot evaluator's functions, and would call the evaluator's instead. |
 
 ### The toolkit around it
 
