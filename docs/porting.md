@@ -97,6 +97,12 @@ addition to the work listed.
 | pilot-mode tests | — | `archive/metric-guide` (`evalkit/tests/test_v2_metric_guide.py`) | Its expected values are the pilot evaluator's, worked out by hand from the scenes. Pilot mode must reproduce them, so they are kept as pilot-mode tests rather than derived again. |
 | metric guide | — | `archive/metric-guide` (`docs/metrics/make_guide.py`, `index.html`) | TODO: decide whether the guide is rebuilt on the evaluator and shipped under `docs/`. |
 
+The workbench's other copies of the CholecSeg8k colour table still carry
+the pilot's Hepatic Vein colour (`sam3_wrapper/scripts/cholec_utils.py`,
+`track_cholec_gt_comparison.py`), and `scripts/extract_cholec_frames.py` has
+a table of its own that is wrong and unused. When they are ported they read
+`evalkit.classes` instead, or the table is deleted.
+
 ### The toolkit around it
 
 | file | from the workbench | reviewed | work |
