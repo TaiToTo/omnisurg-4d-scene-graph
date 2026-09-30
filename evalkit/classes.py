@@ -30,22 +30,69 @@ Colour = tuple[int, int, int]
 
 
 class ClassType(enum.StrEnum):
-    """Exactly one per class; decides which views score it, if any."""
+    """What kind of thing a class is, which decides whether and where it is scored.
 
-    IGNORED = "ignored"        # outside the field of view, or not a class at all
-    BACKGROUND = "background"  # inside the view, labelled as nothing
-    EXCLUDED = "excluded"      # a marker that takes the whole frame out
+    The pipeline splits a frame into regions from depth and shape alone; it
+    never learns a class. So whether a region "should" have found a class
+    depends on what kind of class it is, and the types make that explicit
+    instead of leaving it to a per-experiment ignore list. Every class of every
+    dataset has exactly one type, given in its table, and the reasons for each
+    class's type are in `docs/evaluation.md`.
+
+    Three types are never scored; they say how a pixel or a frame leaves the
+    evaluation, and the evaluator counts every pixel and frame it removes:
+
+    - `ignored`: not part of the scene at all. CholecSeg8k's black surround
+      outside the endoscope's circle, and the white line its annotation tool
+      draws between regions. Removing them is not a judgement about the
+      pipeline, so no metric sees them.
+    - `background`: inside the scene, but the dataset labelled it as nothing.
+      This is unlabelled anatomy, not empty space, so a region the pipeline
+      places there is neither an object found nor a false positive. It is
+      removed like `ignored`, and kept as a separate type so that the counts
+      say how much of a frame the dataset left unlabelled.
+    - `excluded`: a marker the annotators put on a whole frame to take it out
+      of evaluation (ATLAS-120k's `Excluded frames`). The frame is skipped
+      before anything is scored, and counted.
+
+    Five types are scored. They differ in which of the views (`VIEWS`, below)
+    include them, and that is the point: the primary metrics are taken on the
+    tissue that geometry alone could separate, so that a condition is not
+    rewarded or punished for classes it could never tell apart:
+
+    - `tool`: an instrument. Scored, but left out of the tissue views because
+      instruments are not what the scene-graph is about.
+    - `tissue`: anatomy whose extent depth and shape can separate. The
+      geometric view is exactly this type.
+    - `appearance`: tissue told apart only by colour or texture, such as
+      blood lying on the liver. Geometry cannot find its edge.
+    - `expert`: tissue whose boundary is anatomical convention, such as which
+      vessel is which or where one stretch of a duct ends. Neither shape nor
+      colour shows it without anatomical knowledge.
+    - `backdrop`: a surface the scene sits against, nearly background but
+      labelled (abdominal wall, diaphragm).
+    """
+
+    IGNORED = "ignored"
+    BACKGROUND = "background"
+    EXCLUDED = "excluded"
     TOOL = "tool"
-    TISSUE = "tissue"          # anatomy that depth and shape can separate
-    APPEARANCE = "appearance"  # tissue told apart only by colour or texture
-    EXPERT = "expert"          # boundary set by anatomical convention
-    BACKDROP = "backdrop"      # a surface the scene sits against
+    TISSUE = "tissue"
+    APPEARANCE = "appearance"
+    EXPERT = "expert"
+    BACKDROP = "backdrop"
 
 
-# The types each view scores. Pixels of every other type are removed from the
-# GT and the prediction alike, so a region there is neither an object nor a
-# false positive. Background and ignored are in no view; excluded skips the
-# frame before any view is taken.
+# The three views: which types a metric is computed over. Every metric is
+# computed once per view, the same way; a view removes the pixels of the types
+# it leaves out from the GT *and* the prediction, so a region on a removed
+# pixel is neither an object nor a false positive there. The paper's claims
+# are judged in the geometric view, chosen before any score was seen.
+#   all       every scored type: the whole labelled scene
+#   tissue    the same without tools: the anatomy
+#   geometric only `tissue`: what depth and shape alone could separate
+# `ignored` and `background` are in no view; `excluded` skips the frame
+# before any view is taken.
 _ALL = frozenset({
     ClassType.TOOL, ClassType.TISSUE, ClassType.APPEARANCE,
     ClassType.EXPERT, ClassType.BACKDROP,
@@ -56,9 +103,11 @@ VIEWS: Mapping[str, frozenset[ClassType]] = MappingProxyType({
     "geometric": frozenset({ClassType.TISSUE}),
 })
 
-# How each dataset's masks encode a class: a colour per pixel, read through the
-# table, or the id itself. A dataset not listed here has no table format, and
-# the files listed here are the only ones `table_paths()` hashes.
+# How each dataset's GT masks encode a class: CholecSeg8k's masks are colour
+# images, and a colour means a class only through the table; ATLAS-120k's
+# masks hold the class id itself. This is the list of datasets the evaluator
+# knows: a dataset not here has no table format, and the tables of exactly
+# these datasets are what `table_paths()` hashes into `eval_code_sha`.
 _MASK_ENCODING: Mapping[str, str] = MappingProxyType({"cholecseg8k": "colour"})
 
 
@@ -97,6 +146,12 @@ class ClassTable:
     entries: Mapping[int, ClassEntry]
     colour_to_id: Mapping[Colour, int]
     path: Path
+
+    # The four readers below are the only way the evaluator asks the table
+    # anything, and each raises on what the table does not know. That is
+    # deliberate: the pilot evaluator answered "background" to an unknown
+    # colour and silently lost a class, and a silent default anywhere here
+    # would change scores without changing `eval_code_sha`.
 
     def type_of(self, class_id: int) -> ClassType:
         """The type of `class_id`; raises when the table does not have it."""
@@ -143,10 +198,16 @@ class ClassTable:
             ) from None
 
 
+# Reading and checking the JSON. The checks are strict on purpose: the file is
+# hashed into `eval_code_sha`, so anything the loader would tolerate (a typo
+# in a type, a field it ignores, a key given twice) is a way for two files
+# with different shas to mean the same thing, or one file to mean two things.
+
 _ENTRY_FIELDS = {"id", "name", "type"}
 
 
 def _is_int(v) -> bool:
+    # bool is a subclass of int, so `true` would pass as 1 without this.
     return isinstance(v, int) and not isinstance(v, bool)
 
 
@@ -219,12 +280,19 @@ def load_table(dataset: str, path: Path | None = None) -> ClassTable:
             raw = json.load(f, object_pairs_hook=_refuse_duplicate_keys)
         except ValueError as e:
             raise ValueError(f"{path}: {e}") from None
+
+    # The file's shape: exactly the two top-level keys, naming the dataset it
+    # was asked for, of a dataset this module has a format for.
     if set(raw) != {"dataset", "classes"}:
         raise ValueError(f"{path}: top-level keys are {sorted(raw)}, expected ['classes', 'dataset']")
     if raw["dataset"] != dataset:
         raise ValueError(f"{path}: file says dataset {raw['dataset']!r}, asked for {dataset!r}")
     if dataset not in _MASK_ENCODING:
         raise ValueError(f"{path}: no table format is defined for dataset {dataset!r}")
+    # Each class on its own, then the classes against each other: two classes
+    # with one id, one name or one colour would make a mask ambiguous. Names
+    # are compared ignoring case because "Liver" and "liver" are one typo, not
+    # two classes.
     with_colour = _MASK_ENCODING[dataset] == "colour"
     entries = [_entry(dataset, r, with_colour=with_colour) for r in raw["classes"]]
     if not entries:
@@ -249,6 +317,9 @@ def table_paths() -> list[Path]:
         FileNotFoundError: A dataset's table is missing.
         ValueError: The directory holds a file this module would not read.
     """
+    # The hashed set is defined by the code, not by what the directory
+    # happens to hold: a file left behind on one machine would give that
+    # machine a different sha for the same evaluator.
     expected = {TABLE_DIR / f"{dataset}.json" for dataset in _MASK_ENCODING}
     present = {p for p in TABLE_DIR.iterdir() if p.name != "__pycache__"}
     missing = expected - present
