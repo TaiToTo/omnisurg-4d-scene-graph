@@ -1,0 +1,215 @@
+"""Class tables: what each dataset's classes are, and which of them a view scores.
+
+Each dataset has one table, a JSON file under `class_tables/`, giving every
+class its id, name and type, and for CholecSeg8k the colour its masks use.
+`docs/evaluation.md` gives the types and the views, and the reasons behind
+each class's type; this module only reads the files and refuses the ones it
+cannot trust.
+
+The tables are hashed into `eval_code_sha` with the code, so a changed type
+is a new evaluator. `table_paths()` lists the files to hash.
+
+Everything here fails closed: a colour or id the table does not know raises,
+and so does a table with a field missing, a type it does not define, or two
+classes sharing an id, a name or a colour.
+"""
+from __future__ import annotations
+
+import enum
+import json
+from dataclasses import dataclass
+from pathlib import Path
+from types import MappingProxyType
+from typing import Mapping
+
+TABLE_DIR = Path(__file__).resolve().parent / "class_tables"
+
+Colour = tuple[int, int, int]
+
+
+class ClassType(enum.StrEnum):
+    """Exactly one per class; decides which views score it, if any."""
+
+    IGNORED = "ignored"        # outside the field of view, or not a class at all
+    BACKGROUND = "background"  # inside the view, labelled as nothing
+    EXCLUDED = "excluded"      # a marker that takes the whole frame out
+    TOOL = "tool"
+    TISSUE = "tissue"          # anatomy that depth and shape can separate
+    APPEARANCE = "appearance"  # tissue told apart only by colour or texture
+    EXPERT = "expert"          # boundary set by anatomical convention
+    BACKDROP = "backdrop"      # a surface the scene sits against
+
+
+# The types each view scores. Pixels of every other type are removed from the
+# GT and the prediction alike, so a region there is neither an object nor a
+# false positive. Background and ignored are in no view; excluded skips the
+# frame before any view is taken.
+_ALL = frozenset({
+    ClassType.TOOL, ClassType.TISSUE, ClassType.APPEARANCE,
+    ClassType.EXPERT, ClassType.BACKDROP,
+})
+VIEWS: Mapping[str, frozenset[ClassType]] = MappingProxyType({
+    "all": _ALL,
+    "tissue": _ALL - {ClassType.TOOL},
+    "geometric": frozenset({ClassType.TISSUE}),
+})
+
+
+@dataclass(frozen=True)
+class ClassEntry:
+    """One class of a dataset.
+
+    Attributes:
+        id: The value a GT id map holds for this class.
+        name: The dataset's name for it.
+        type: Its type, which decides the views that score it.
+        colour: The RGB triplet its masks use, for a dataset whose masks are
+            colour images; None when the masks carry the id itself.
+    """
+
+    id: int
+    name: str
+    type: ClassType
+    colour: Colour | None = None
+
+
+@dataclass(frozen=True)
+class ClassTable:
+    """A dataset's classes, as one file under `class_tables/` defines them.
+
+    Attributes:
+        dataset: The dataset's name, as the file spells it.
+        entries: Every class, keyed by id.
+        path: The file the table was read from, for `eval_code_sha`.
+    """
+
+    dataset: str
+    entries: Mapping[int, ClassEntry]
+    path: Path
+
+    def type_of(self, class_id: int) -> ClassType:
+        """The type of `class_id`; raises when the table does not have it."""
+        try:
+            return self.entries[class_id].type
+        except KeyError:
+            raise KeyError(
+                f"{self.dataset}: class id {class_id} is not in the class table"
+            ) from None
+
+    def ids_of_type(self, *types: ClassType) -> frozenset[int]:
+        """The ids whose type is one of `types`."""
+        return frozenset(e.id for e in self.entries.values() if e.type in types)
+
+    def ids_in_view(self, view: str) -> frozenset[int]:
+        """The ids a view scores; raises on a view name `VIEWS` does not have."""
+        try:
+            types = VIEWS[view]
+        except KeyError:
+            raise KeyError(f"unknown view {view!r}; views are {sorted(VIEWS)}") from None
+        return self.ids_of_type(*types)
+
+    def id_of_colour(self, colour: Colour) -> int:
+        """The id a mask colour stands for; raises on a colour not in the table.
+
+        This is the one place a CholecSeg8k mask meets the table, and it never
+        maps an unknown colour to background: the pilot evaluator did, and lost
+        a class that way.
+        """
+        try:
+            return self._colour_to_id[colour]
+        except KeyError:
+            raise KeyError(
+                f"{self.dataset}: colour {colour} is not in the class table"
+            ) from None
+
+    @property
+    def _colour_to_id(self) -> dict[Colour, int]:
+        if not all(e.colour is not None for e in self.entries.values()):
+            raise TypeError(f"{self.dataset}: this table's masks carry ids, not colours")
+        return {e.colour: e.id for e in self.entries.values()}
+
+
+_ENTRY_FIELDS = {"id", "name", "type"}
+
+# How each dataset's masks encode a class: a colour per pixel, read through the
+# table, or the id itself. A dataset not listed here has no table format.
+_MASK_ENCODING = {"cholecseg8k": "colour"}
+
+
+def _entry(dataset: str, raw: dict, with_colour: bool) -> ClassEntry:
+    """Build one entry, refusing a field missing, a stray one or a bad type."""
+    fields = _ENTRY_FIELDS | ({"colour"} if with_colour else set())
+    if set(raw) != fields:
+        raise ValueError(
+            f"{dataset}: class {raw.get('id')!r} has fields {sorted(raw)}, "
+            f"expected {sorted(fields)}"
+        )
+    if not isinstance(raw["id"], int) or isinstance(raw["id"], bool) or raw["id"] < 0:
+        raise ValueError(f"{dataset}: class id {raw['id']!r} is not a non-negative integer")
+    try:
+        class_type = ClassType(raw["type"])
+    except ValueError:
+        raise ValueError(
+            f"{dataset}: class {raw['id']} has type {raw['type']!r}; "
+            f"types are {[t.value for t in ClassType]}"
+        ) from None
+    colour = None
+    if with_colour:
+        c = raw["colour"]
+        if (not isinstance(c, list) or len(c) != 3
+                or not all(isinstance(v, int) and not isinstance(v, bool) and 0 <= v <= 255 for v in c)):
+            raise ValueError(f"{dataset}: class {raw['id']} has colour {c!r}, expected three ints in 0..255")
+        colour = (c[0], c[1], c[2])
+    return ClassEntry(id=raw["id"], name=raw["name"], type=class_type, colour=colour)
+
+
+def _unique(dataset: str, what: str, values: list) -> None:
+    seen = set()
+    for v in values:
+        if v in seen:
+            raise ValueError(f"{dataset}: {what} {v!r} is given to two classes")
+        seen.add(v)
+
+
+def load_table(dataset: str, path: Path | None = None) -> ClassTable:
+    """Read a dataset's class table.
+
+    Args:
+        dataset: `cholecseg8k`; the file is `class_tables/<dataset>.json`.
+        path: Read this file instead. For tests that plant a fault; the
+            evaluator never passes it.
+
+    Returns:
+        The table, validated: every field present, every type known, and ids,
+        names and colours unique. The file's `dataset` field must match.
+
+    Raises:
+        ValueError: The file does not describe a table this module accepts.
+    """
+    path = TABLE_DIR / f"{dataset}.json" if path is None else Path(path)
+    with open(path, encoding="utf-8") as f:
+        raw = json.load(f)
+    if set(raw) != {"dataset", "classes"}:
+        raise ValueError(f"{path}: top-level keys are {sorted(raw)}, expected ['classes', 'dataset']")
+    if raw["dataset"] != dataset:
+        raise ValueError(f"{path}: file says dataset {raw['dataset']!r}, asked for {dataset!r}")
+    if dataset not in _MASK_ENCODING:
+        raise ValueError(f"{path}: no table format is defined for dataset {dataset!r}")
+    with_colour = _MASK_ENCODING[dataset] == "colour"
+    entries = [_entry(dataset, r, with_colour=with_colour) for r in raw["classes"]]
+    if not entries:
+        raise ValueError(f"{path}: the table has no classes")
+    _unique(dataset, "id", [e.id for e in entries])
+    _unique(dataset, "name", [e.name for e in entries])
+    if with_colour:
+        _unique(dataset, "colour", [e.colour for e in entries])
+    return ClassTable(
+        dataset=dataset,
+        entries=MappingProxyType({e.id: e for e in entries}),
+        path=path,
+    )
+
+
+def table_paths() -> list[Path]:
+    """The table files, sorted, for hashing into `eval_code_sha`."""
+    return sorted(TABLE_DIR.glob("*.json"))

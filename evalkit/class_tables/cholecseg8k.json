@@ -1,0 +1,19 @@
+{
+  "dataset": "cholecseg8k",
+  "classes": [
+    {"id": 0,  "name": "Black Background",       "colour": [127, 127, 127], "type": "ignored"},
+    {"id": 1,  "name": "Abdominal Wall",         "colour": [210, 140, 140], "type": "backdrop"},
+    {"id": 2,  "name": "Liver",                  "colour": [255, 114, 114], "type": "tissue"},
+    {"id": 3,  "name": "Gastrointestinal Tract", "colour": [231, 70, 156],  "type": "tissue"},
+    {"id": 4,  "name": "Fat",                    "colour": [186, 183, 75],  "type": "tissue"},
+    {"id": 5,  "name": "Grasper",                "colour": [170, 255, 0],   "type": "tool"},
+    {"id": 6,  "name": "Connective Tissue",      "colour": [255, 85, 0],    "type": "appearance"},
+    {"id": 7,  "name": "Blood",                  "colour": [255, 0, 0],     "type": "appearance"},
+    {"id": 8,  "name": "Cystic Duct",            "colour": [255, 255, 0],   "type": "expert"},
+    {"id": 9,  "name": "L-hook Electrocautery",  "colour": [169, 255, 184], "type": "tool"},
+    {"id": 10, "name": "Gallbladder",            "colour": [255, 160, 165], "type": "tissue"},
+    {"id": 11, "name": "Hepatic Vein",           "colour": [0, 50, 128],    "type": "expert"},
+    {"id": 12, "name": "Liver Ligament",         "colour": [111, 74, 0],    "type": "tissue"},
+    {"id": 13, "name": "Region line",            "colour": [255, 255, 255], "type": "ignored"}
+  ]
+}
