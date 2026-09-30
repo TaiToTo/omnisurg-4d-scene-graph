@@ -1,12 +1,17 @@
 """Class tables: what each dataset's classes are, and which of them a view scores.
 
 Each dataset has one table, a JSON file under `class_tables/`, giving every
-class its id, name and type, and for CholecSeg8k the colour its masks use.
-ATLAS-120k's file also lists its 47 original ids, the ones its masks hold,
-and the class of the 30 each maps to; the same file yields two tables, one
-per class set. `docs/evaluation.md` gives the types, the views and the
-mapping, and the reasons behind each class's type; this module only reads
+class its id, name and type, and every id a mask can hold the colour that
+stands for it. For CholecSeg8k the classes are the ids its masks hold.
+ATLAS-120k's masks hold its 47 original ids, which the file lists apart, each
+with its colour and the class of the 30 it maps to; the same file yields two
+tables, one per class set. `docs/evaluation.md` gives the types, the views and
+the mapping, and the reasons behind each class's type; this module only reads
 the files and refuses the ones it cannot trust.
+
+A GT mask meets its table in one place, `ClassTable.mask_ids`, and both
+datasets pass through it the same way: a mask that stores ids is read by its
+values, one that stores colours through the table.
 
 The tables are hashed into `eval_code_sha` with the evaluator's code, so a
 changed type is a new evaluator. `table_paths()` lists exactly the files that
@@ -25,6 +30,9 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
+
+import numpy as np
+from PIL import Image
 
 TABLE_DIR = Path(__file__).resolve().parent / "class_tables"
 
@@ -47,7 +55,7 @@ class ClassType(enum.StrEnum):
     EXCLUDED = "excluded"      # an annotators' marker that skips the whole frame
 
     # Scored. The views below differ only in which of these they include.
-    TOOL = "tool"              # an instrument; in the `all` view only
+    TOOL = "tool"              # an instrument, or another object that is not anatomy; in the `all` view only
     TISSUE = "tissue"          # anatomy that depth and shape can separate; the geometric view
     APPEARANCE = "appearance"  # told apart only by colour or texture (blood on the liver)
     EXPERT = "expert"          # boundary set by anatomical convention (which vessel, where a duct ends)
@@ -68,16 +76,28 @@ VIEWS: Mapping[str, frozenset[ClassType]] = MappingProxyType({
     "geometric": frozenset({ClassType.TISSUE}),
 })
 
-# How each dataset's masks encode a class: a colour, read through the table
-# (CholecSeg8k), or the id itself (ATLAS-120k). Also the list of datasets the
-# evaluator knows: exactly their tables are hashed into `eval_code_sha`.
-_MASK_ENCODING: Mapping[str, str] = MappingProxyType({
-    "cholecseg8k": "colour",
-    "atlas120k": "id",
+# How each dataset's masks may store a pixel's label: as the id itself, in a
+# palette or greyscale image, or as the id's colour in an RGB image. Most
+# ATLAS-120k masks are palette images, but 34 of its clips store colours.
+# CholecSeg8k's single-channel masks hold the watershed's own codes, not the
+# table's ids, so only its colour masks are read. Also the list of datasets
+# the evaluator knows: exactly their tables are hashed into `eval_code_sha`.
+_MASK_ENCODINGS: Mapping[str, frozenset[str]] = MappingProxyType({
+    "cholecseg8k": frozenset({"colour"}),
+    "atlas120k": frozenset({"id", "colour"}),
 })
 
+# The datasets whose masks hold ids of their own, which the file lists apart
+# from the classes they map to.
+_WITH_ORIGINAL_IDS = frozenset({"atlas120k"})
+
 # The class sets each dataset is scored with, the first being the one scores
-# and claims use. ATLAS-120k's 47 original ids are reference values only.
+# and claims use. ATLAS-120k's second set is its original ids, scored as they
+# are, for reference only.
+# TODO(pilot mode): pilot mode scores the original ids by the pilot evaluator's
+# rules, where only Tools/camera is an instrument, whereas `atlas47` types
+# Catheter and Non anatomical structures as tools. Pilot mode needs a typing of
+# its own and must not read the types of `atlas47`.
 CLASS_SETS: Mapping[str, tuple[str, ...]] = MappingProxyType({
     "cholecseg8k": ("cholecseg8k",),
     "atlas120k": ("atlas30", "atlas47"),
@@ -86,14 +106,17 @@ CLASS_SETS: Mapping[str, tuple[str, ...]] = MappingProxyType({
 
 @dataclass(frozen=True)
 class ClassEntry:
-    """One class of a dataset.
+    """One class of a dataset, or one id its masks hold.
 
     Attributes:
         id: The value a GT id map holds for this class.
         name: The dataset's name for it.
         type: Its type, which decides the views that score it.
-        colour: The RGB triplet its masks use, for a dataset whose masks are
-            colour images; None when the masks carry the id itself.
+        colour: The RGB triplet that stands for it in a mask stored as
+            colours. None for a class no mask holds directly (ATLAS-120k's
+            30, which a mask reaches only through the mapping) and for a
+            marker without a colour of its own (ATLAS-120k's `Excluded
+            frames`, whose colour is Background's).
     """
 
     id: int
@@ -110,9 +133,10 @@ class ClassTable:
         dataset: The dataset's name, as the file spells it.
         class_set: Which of the dataset's class sets this is (`CLASS_SETS`).
         entries: Every class of the set, keyed by id.
-        colour_to_id: The mask colour of every class, for a dataset whose
-            masks are colour images; empty when they carry the id itself. Read
-            it through `id_of_colour`, which raises on an unknown colour.
+        encodings: How the dataset's masks may store a label: `id`,
+            `colour`, or both.
+        colour_to_mask_id: The mask id each colour stands for. Read it
+            through `mask_id_of_colour`, which raises on an unknown colour.
         mask_id_to_class: The id a mask holds, to the class it belongs to in
             this set. The identity for every set but `atlas30`, where the 47
             original ids map onto the 30 classes. Read it through `class_of`.
@@ -125,15 +149,13 @@ class ClassTable:
     dataset: str
     class_set: str
     entries: Mapping[int, ClassEntry]
-    colour_to_id: Mapping[Colour, int]
+    encodings: frozenset[str]
+    colour_to_mask_id: Mapping[Colour, int]
     mask_id_to_class: Mapping[int, int]
     excluded_mask_ids: frozenset[int]
     path: Path
 
-    # Every reader raises on what the table does not know. The pilot evaluator
-    # answered "background" to an unknown colour and silently lost a class.
-
-    # The five readers below are the only way the evaluator asks the table
+    # The readers below are the only way the evaluator asks the table
     # anything, and each raises on what the table does not know. That is
     # deliberate: the pilot evaluator answered "background" to an unknown
     # colour and silently lost a class, and a silent default anywhere here
@@ -171,26 +193,88 @@ class ClassTable:
             raise KeyError(f"unknown view {view!r}; views are {sorted(VIEWS)}") from None
         return self.ids_of_type(*types)
 
-    def id_of_colour(self, colour: Colour) -> int:
-        """The id a mask colour stands for; raises on a colour not in the table.
-
-        This is the one place a CholecSeg8k mask meets the table, and it never
-        maps an unknown colour to background: the pilot evaluator did, and lost
-        a class that way.
-
-        TODO(mask loading): four CholecSeg8k colour masks are RGBA (video18
-        frame 1216, video35 frame 858, video37 frames 865 and 926), alpha 255
-        throughout. The loader has to check that alpha is 255 and drop it;
-        a 4-tuple here raises, which is safe but unhelpful.
-        """
-        if not self.colour_to_id:
-            raise TypeError(f"{self.dataset}: this table's masks carry ids, not colours")
+    def mask_id_of_colour(self, colour: Colour) -> int:
+        """The mask id a colour stands for; raises on a colour not in the table."""
         try:
-            return self.colour_to_id[colour]
+            return self.colour_to_mask_id[colour]
         except KeyError:
             raise KeyError(
                 f"{self.dataset}: colour {colour} is not in the class table"
             ) from None
+
+    def mask_ids(self, image: Image.Image) -> np.ndarray:
+        """The mask id of every pixel of a GT mask, read through the table.
+
+        A palette or greyscale image holds the ids themselves and is read by
+        its values, never through its palette: the palettes embedded in
+        ATLAS-120k's masks disagree with one another, and some give several
+        ids one colour. An RGB image holds colours, read through the table.
+        The mask comes as a PIL image rather than an array because an array
+        does not say whether its channels are RGB or BGR, and ATLAS-120k's
+        colours include pairs that swap under that mistake, Artery and Vein
+        among them.
+
+        Args:
+            image: The mask as PIL opened it.
+
+        Returns:
+            An (H, W) int32 array of mask ids, which `classes_of` takes to
+            the classes of this set.
+
+        Raises:
+            ValueError: The image stores its labels in a way this dataset's
+                masks do not; an RGBA mask is not opaque; or a colour mask is
+                the background colour alone, which a colour cannot tell from
+                a frame the excluded marker takes out.
+            KeyError: A pixel holds an id or a colour the table does not have.
+        """
+        mode = image.mode
+        if mode in ("P", "L"):
+            self._require("id", mode)
+            ids = np.asarray(image).astype(np.int32)
+            for v in np.unique(ids).tolist():
+                self.class_of(v)
+            return ids
+        if mode in ("RGB", "RGBA"):
+            self._require("colour", mode)
+            rgb = np.asarray(image)
+            if mode == "RGBA":
+                if (rgb[..., 3] != 255).any():
+                    raise ValueError(f"{self.dataset}: an RGBA mask has pixels that are not opaque")
+                rgb = rgb[..., :3]
+            packed = (rgb[..., 0].astype(np.int32) << 16) | (rgb[..., 1].astype(np.int32) << 8) | rgb[..., 2]
+            colours, inverse = np.unique(packed.ravel(), return_inverse=True)
+            lut = np.array(
+                [self.mask_id_of_colour((c >> 16, (c >> 8) & 255, c & 255)) for c in colours.tolist()],
+                dtype=np.int32,
+            )
+            # A marker without a colour of its own would fill its frame with
+            # the background colour, so a colour mask of that colour alone is
+            # the one frame it could hide in, and that frame is not scored.
+            marker_hidden = self.excluded_mask_ids - set(self.colour_to_mask_id.values())
+            if marker_hidden and len(lut) == 1 and self.type_of(self.class_of(int(lut[0]))) is ClassType.BACKGROUND:
+                raise ValueError(
+                    f"{self.dataset}: a colour mask of background alone cannot be told from "
+                    f"a frame that mask id {sorted(marker_hidden)} excludes"
+                )
+            return lut[inverse].reshape(packed.shape)
+        raise ValueError(f"{self.dataset}: a mask of mode {mode!r} is neither ids nor RGB colours")
+
+    def classes_of(self, mask_ids: np.ndarray) -> np.ndarray:
+        """The class of every pixel of this set, from the ids `mask_ids` read."""
+        lut = np.full(max(self.mask_id_to_class) + 1, -1, dtype=np.int32)
+        for mask_id, class_id in self.mask_id_to_class.items():
+            lut[mask_id] = class_id
+        for v in np.unique(mask_ids).tolist():
+            self.class_of(v)
+        return lut[mask_ids]
+
+    def _require(self, encoding: str, mode: str) -> None:
+        if encoding not in self.encodings:
+            raise ValueError(
+                f"{self.dataset}: a mask of mode {mode!r} stores {encoding}s, and this "
+                f"dataset's masks store only {sorted(self.encodings)}"
+            )
 
 
 # Reading and checking the JSON. Strict on purpose: the file is hashed into
@@ -198,7 +282,7 @@ class ClassTable:
 # read as something else silently.
 
 _ENTRY_FIELDS = {"id", "name", "type"}
-_ORIGINAL_FIELDS = {"id", "name", "class"}
+_ORIGINAL_FIELDS = {"id", "name", "class", "colour"}
 
 
 def _is_int(v) -> bool:
@@ -223,6 +307,15 @@ def _type(dataset: str, raw: dict) -> ClassType:
         ) from None
 
 
+def _colour(dataset: str, raw: dict) -> Colour | None:
+    c = raw["colour"]
+    if c is None:
+        return None
+    if not isinstance(c, list) or len(c) != 3 or not all(_is_int(v) and 0 <= v <= 255 for v in c):
+        raise ValueError(f"{dataset}: class {raw['id']} has colour {c!r}, expected three ints in 0..255")
+    return (c[0], c[1], c[2])
+
+
 def _entry(dataset: str, raw: dict, with_colour: bool) -> ClassEntry:
     """Build one entry, refusing a field missing, a stray one or a bad value."""
     fields = _ENTRY_FIELDS | ({"colour"} if with_colour else set())
@@ -233,12 +326,9 @@ def _entry(dataset: str, raw: dict, with_colour: bool) -> ClassEntry:
         )
     _check_id_and_name(dataset, raw)
     class_type = _type(dataset, raw)
-    colour = None
-    if with_colour:
-        c = raw["colour"]
-        if not isinstance(c, list) or len(c) != 3 or not all(_is_int(v) and 0 <= v <= 255 for v in c):
-            raise ValueError(f"{dataset}: class {raw['id']} has colour {c!r}, expected three ints in 0..255")
-        colour = (c[0], c[1], c[2])
+    colour = _colour(dataset, raw) if with_colour else None
+    if with_colour and colour is None:
+        raise ValueError(f"{dataset}: class {raw['id']} has no colour, and its masks store colours")
     return ClassEntry(id=raw["id"], name=raw["name"], type=class_type, colour=colour)
 
 
@@ -261,13 +351,14 @@ def _refuse_duplicate_keys(pairs: list[tuple[str, object]]) -> dict:
     return out
 
 
-def _original_ids(dataset: str, raws: list, classes: Mapping[int, ClassEntry]) -> list[ClassEntry]:
+def _original_ids(dataset: str, raws: list[dict], classes: Mapping[int, ClassEntry]) -> list[ClassEntry]:
     """ATLAS-120k's 47 original ids, each typed after the class it maps to.
 
     An id the mapping sends to background would inherit `background` and
-    vanish, so those carry a type of their own; every other id must not, so
-    that the two class sets score the same pixels and differ only in how
-    finely the objects are cut.
+    vanish, so those carry a type of their own. Every other id must not: an
+    id merged into a class is scored on the same pixels in both class sets.
+    Only an `excluded` marker may lack a colour, because the one ATLAS-120k
+    has shares Background's.
     """
     background = {c.id for c in classes.values() if c.type is ClassType.BACKGROUND}
     entries = []
@@ -279,7 +370,7 @@ def _original_ids(dataset: str, raws: list, classes: Mapping[int, ClassEntry]) -
                 f"expected {sorted(_ORIGINAL_FIELDS)} and maybe 'type'"
             )
         _check_id_and_name(dataset, raw)
-        if raw["class"] not in classes:
+        if not _is_int(raw["class"]) or raw["class"] not in classes:
             raise ValueError(f"{dataset}: original id {raw['id']} maps to class {raw['class']!r}, which is not in the table")
         to_background = raw["class"] in background
         if to_background and "type" not in fields:
@@ -290,8 +381,24 @@ def _original_ids(dataset: str, raws: list, classes: Mapping[int, ClassEntry]) -
                 f"it takes the type of class {raw['class']}"
             )
         class_type = _type(dataset, raw) if to_background else classes[raw["class"]].type
-        entries.append(ClassEntry(id=raw["id"], name=raw["name"], type=class_type))
+        colour = _colour(dataset, raw)
+        if colour is None and class_type is not ClassType.EXCLUDED:
+            raise ValueError(f"{dataset}: original id {raw['id']} has no colour; only an excluded marker may lack one")
+        entries.append(ClassEntry(id=raw["id"], name=raw["name"], type=class_type, colour=colour))
+    unreached = sorted(
+        {c.id for c in classes.values() if c.type is not ClassType.BACKGROUND}
+        - {r["class"] for r in raws}
+    )
+    if unreached:
+        raise ValueError(f"{dataset}: no original id maps to class {unreached}, so no mask can hold it")
     return entries
+
+
+def _objects(path: Path, raw: dict, key: str) -> list[dict]:
+    items = raw[key]
+    if not isinstance(items, list) or not items or not all(isinstance(i, dict) for i in items):
+        raise ValueError(f"{path}: {key!r} is not a non-empty list of objects")
+    return items
 
 
 def _read(path: Path) -> dict:
@@ -324,7 +431,7 @@ def load_table(dataset: str, class_set: str | None = None, path: Path | None = N
     """
     # Checked before the file is opened, so an unknown dataset fails the same
     # way whether or not a file exists for it.
-    if dataset not in _MASK_ENCODING:
+    if dataset not in _MASK_ENCODINGS:
         raise ValueError(f"no table format is defined for dataset {dataset!r}")
     if class_set is None:
         class_set = CLASS_SETS[dataset][0]
@@ -333,58 +440,56 @@ def load_table(dataset: str, class_set: str | None = None, path: Path | None = N
     path = TABLE_DIR / f"{dataset}.json" if path is None else Path(path)
     raw = _read(path)
 
-    raw = _read(path)
-
     # The file's shape. Only ATLAS-120k has the second list.
-    with_colour = _MASK_ENCODING[dataset] == "colour"
-    keys = {"dataset", "classes"} | ({"original_ids"} if dataset == "atlas120k" else set())
+    with_originals = dataset in _WITH_ORIGINAL_IDS
+    keys = {"dataset", "classes"} | ({"original_ids"} if with_originals else set())
     if set(raw) != keys:
         raise ValueError(f"{path}: top-level keys are {sorted(raw)}, expected {sorted(keys)}")
     if raw["dataset"] != dataset:
         raise ValueError(f"{path}: file says dataset {raw['dataset']!r}, asked for {dataset!r}")
 
-    # Each class on its own, then against each other: a shared id, name or
-    # colour would make a mask ambiguous. Names are compared ignoring case.
-    entries = [_entry(dataset, r, with_colour=with_colour) for r in raw["classes"]]
-    if not entries:
-        raise ValueError(f"{path}: the table has no classes")
+    # Each class on its own, then against each other: a shared id or name
+    # would make a mask ambiguous. Names are compared ignoring case. Where
+    # masks hold original ids, those carry the colours; the classes do not.
+    entries = [_entry(dataset, r, with_colour=not with_originals) for r in _objects(path, raw, "classes")]
     _unique(dataset, "id", [e.id for e in entries])
     _unique(dataset, "name", [e.name.casefold() for e in entries])
-    if with_colour:
-        _unique(dataset, "colour", [e.colour for e in entries])
     classes = MappingProxyType({e.id: e for e in entries})
 
     # ATLAS-120k: masks hold the 47 original ids. `atlas30` maps them through
     # the benchmark's merge; `atlas47` keeps them as classes. Excluded frames
     # are found on the original ids, since the merge hides the marker.
-    if dataset == "atlas120k":
-        originals = _original_ids(dataset, raw["original_ids"], classes)
-        _unique(dataset, "original id", [e.id for e in originals])
-        _unique(dataset, "original name", [e.name.casefold() for e in originals])
-        excluded = frozenset(e.id for e in originals if e.type is ClassType.EXCLUDED)
-        to_class = {r["id"]: r["class"] for r in raw["original_ids"]}
-        if class_set == "atlas47":
-            classes = MappingProxyType({e.id: e for e in originals})
-            to_class = {e.id: e.id for e in originals}
+    if with_originals:
+        raw_originals = _objects(path, raw, "original_ids")
+        mask_entries = _original_ids(dataset, raw_originals, classes)
+        _unique(dataset, "original id", [e.id for e in mask_entries])
+        _unique(dataset, "original name", [e.name.casefold() for e in mask_entries])
+        to_class = {r["id"]: r["class"] for r in raw_originals}
+        if class_set != CLASS_SETS[dataset][0]:
+            classes = MappingProxyType({e.id: e for e in mask_entries})
+            to_class = {e.id: e.id for e in mask_entries}
     # CholecSeg8k: a mask id is the class id, once the colour has been read.
     else:
-        excluded = frozenset(e.id for e in entries if e.type is ClassType.EXCLUDED)
+        mask_entries = entries
         to_class = {e.id: e.id for e in entries}
+    # Two ids sharing a colour would make a colour mask ambiguous.
+    _unique(dataset, "colour", [e.colour for e in mask_entries if e.colour is not None])
 
     return ClassTable(
         dataset=dataset,
         class_set=class_set,
         entries=classes,
-        colour_to_id=MappingProxyType({e.colour: e.id for e in entries} if with_colour else {}),
+        encodings=_MASK_ENCODINGS[dataset],
+        colour_to_mask_id=MappingProxyType({e.colour: e.id for e in mask_entries if e.colour is not None}),
         mask_id_to_class=MappingProxyType(to_class),
-        excluded_mask_ids=excluded,
+        excluded_mask_ids=frozenset(e.id for e in mask_entries if e.type is ClassType.EXCLUDED),
         path=path,
     )
 
 
 def table_paths() -> list[Path]:
     """The table files to hash into `eval_code_sha`: one per dataset in
-    `_MASK_ENCODING`, and the directory may hold nothing else.
+    `_MASK_ENCODINGS`, and the directory may hold nothing else.
 
     Raises:
         FileNotFoundError: A dataset's table is missing.
@@ -392,7 +497,7 @@ def table_paths() -> list[Path]:
     """
     # The hashed set is fixed by the code, not by what the directory holds:
     # a file left behind on one machine would give it a different sha.
-    expected = {TABLE_DIR / f"{dataset}.json" for dataset in _MASK_ENCODING}
+    expected = {TABLE_DIR / f"{dataset}.json" for dataset in _MASK_ENCODINGS}
     present = {p for p in TABLE_DIR.iterdir() if p.name != "__pycache__"}
     missing = expected - present
     if missing:

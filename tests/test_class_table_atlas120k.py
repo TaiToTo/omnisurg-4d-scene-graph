@@ -3,7 +3,9 @@ import json
 import re
 from pathlib import Path
 
+import numpy as np
 import pytest
+from PIL import Image
 
 from evalkit.classes import CLASS_SETS, ClassType, load_table
 
@@ -11,6 +13,10 @@ EVALUATION_MD = Path(__file__).resolve().parent.parent / "docs" / "evaluation.md
 
 # The merges docs/evaluation.md lists under "ATLAS-120k: the 30 classes", by
 # name. Every other original id maps to the class of its own name.
+# TODO(port): this checks the table against the document, both typed here.
+# Check it against the source, ATLAS-bench's `datasets/class_mapping.py`, with
+# a script that takes that file's path; the check was made by hand at commit
+# e286a584, and all 47 ids agreed.
 MERGED_INTO = {
     "Aorta": "Artery",
     "Vena cava": "Vein", "Hepatic vein": "Vein", "V azygos": "Vein",
@@ -95,13 +101,19 @@ def test_a_47_id_takes_the_type_of_the_class_it_merges_into(atlas30, atlas47):
     assert atlas47.entries[0].type is ClassType.BACKGROUND
 
 
-def test_the_two_class_sets_score_the_same_pixels(atlas30, atlas47):
-    # The only difference between the blocks is how finely objects are cut.
-    for view in ("all", "tissue", "geometric"):
+def test_the_two_class_sets_differ_in_pixels_only_by_the_dropped_ids(atlas30, atlas47):
+    # A merged id is scored on the same pixels in both sets. The six anatomical
+    # ids the mapping drops are background in atlas30 and scored in atlas47 by
+    # their own types, so there atlas47 scores more pixels.
+    scored_only_in_atlas47 = {
+        "all": {32, 40, 43, 44, 45, 46},
+        "tissue": {32, 40, 43, 44, 45, 46},
+        "geometric": {32, 43, 44},
+    }
+    for view, extra in scored_only_in_atlas47.items():
         via30 = {i for i in range(47) if atlas30.class_of(i) in atlas30.ids_in_view(view)}
         via47 = set(atlas47.ids_in_view(view))
-        # The seven dropped ids are background in atlas30 and scored in atlas47.
-        assert via47 - via30 <= {32, 40, 43, 44, 45, 46}, view
+        assert via47 - via30 == extra, view
         assert via30 <= via47, view
 
 
@@ -116,10 +128,81 @@ def test_a_mask_id_outside_the_47_raises(atlas30):
         atlas30.class_of(47)
 
 
-def test_the_masks_carry_ids_not_colours(atlas30):
-    assert not atlas30.colour_to_id
-    with pytest.raises(TypeError, match="carry ids"):
-        atlas30.id_of_colour((0, 0, 0))
+# Every colour found in the release's 4,381 colour masks, with the id it stands
+# for. 441 of those masks are also stored as palette masks in the adjacent clip
+# of the same video, and both read as the same ids.
+COLOURS_IN_THE_COLOUR_MASKS = {
+    (0, 0, 0): 0, (255, 255, 255): 1, (255, 0, 0): 3, (0, 200, 100): 6,
+    (200, 150, 100): 7, (250, 150, 100): 8, (255, 200, 100): 9, (150, 100, 50): 12,
+    (0, 255, 255): 13, (0, 200, 255): 14, (255, 150, 50): 16, (255, 220, 200): 17,
+    (200, 100, 200): 18, (255, 0, 150): 23, (255, 100, 200): 24, (200, 100, 255): 25,
+    (150, 0, 100): 26, (200, 0, 150): 29, (255, 150, 255): 31, (50, 50, 50): 41,
+}
+
+
+def _palette_mask(ids: np.ndarray, palette: list[int]) -> Image.Image:
+    image = Image.frombytes("P", (ids.shape[1], ids.shape[0]), ids.astype(np.uint8).tobytes())
+    image.putpalette(palette)
+    return image
+
+
+def _colour_mask(table, ids: np.ndarray) -> Image.Image:
+    rgb = np.zeros(ids.shape + (3,), dtype=np.uint8)
+    by_id = {i: c for c, i in table.colour_to_mask_id.items()}
+    for i in np.unique(ids).tolist():
+        rgb[ids == i] = by_id[i]
+    return Image.fromarray(rgb)
+
+
+def test_the_colours_are_the_ones_the_colour_masks_use(atlas30):
+    for colour, mask_id in COLOURS_IN_THE_COLOUR_MASKS.items():
+        assert atlas30.mask_id_of_colour(colour) == mask_id, colour
+    assert len(atlas30.colour_to_mask_id) == 46
+
+
+def test_excluded_frames_has_no_colour_of_its_own(atlas30, atlas47):
+    # Its colour in the dataset's palette is (0, 0, 0), Background's.
+    assert atlas47.entries[42].colour is None
+    assert 42 not in atlas30.colour_to_mask_id.values()
+
+
+def test_a_mask_reads_the_same_stored_as_ids_or_as_colours(atlas30, atlas47):
+    ids = np.array([[0, 1, 2, 3], [12, 41, 46, 10], [33, 37, 20, 0]])
+    for table in (atlas30, atlas47):
+        as_ids = table.mask_ids(Image.fromarray(ids.astype(np.uint8)))
+        as_colours = table.mask_ids(_colour_mask(table, ids))
+        assert (as_ids == ids).all() and (as_colours == ids).all()
+    assert (atlas30.classes_of(ids) == np.vectorize(atlas30.class_of)(ids)).all()
+    assert (atlas47.classes_of(ids) == ids).all()
+
+
+def test_a_palette_mask_is_read_by_its_index_not_its_palette(atlas30):
+    # Some palettes in the release give Ligated plexus Liver's colour and ids
+    # 43 to 46 black, so reading through the palette would merge them.
+    palette = [0] * (3 * 256)
+    for c, i in COLOURS_IN_THE_COLOUR_MASKS.items():
+        palette[3 * i:3 * i + 3] = c
+    palette[3 * 28:3 * 28 + 3] = (150, 100, 50)
+    ids = np.array([[0, 12, 28], [43, 44, 46]])
+    assert (atlas30.mask_ids(_palette_mask(ids, palette)) == ids).all()
+
+
+def test_a_colour_mask_of_background_alone_is_refused(atlas30, atlas47):
+    # An excluded frame could hide there; stored as ids the same frame is read.
+    black = Image.fromarray(np.zeros((2, 3, 3), dtype=np.uint8))
+    for table in (atlas30, atlas47):
+        with pytest.raises(ValueError, match="background alone"):
+            table.mask_ids(black)
+    assert (atlas30.mask_ids(Image.fromarray(np.zeros((2, 3), dtype=np.uint8))) == 0).all()
+
+
+def test_an_unknown_id_or_colour_in_a_mask_raises(atlas30):
+    with pytest.raises(KeyError, match="mask id 47"):
+        atlas30.mask_ids(Image.fromarray(np.array([[0, 47]], dtype=np.uint8)))
+    rgb = np.zeros((1, 2, 3), dtype=np.uint8)
+    rgb[0, 1] = (252, 186, 3)  # Pancreas in some embedded palettes, in no colour mask
+    with pytest.raises(KeyError, match=r"\(252, 186, 3\)"):
+        atlas30.mask_ids(Image.fromarray(rgb))
 
 
 # Faults planted in a copy of the real table, which the loader has to refuse.
@@ -141,12 +224,22 @@ def _original(raw, oid):
     (lambda r: _original(r, 12).update(type="tissue"), "has a type of its own"),
     (lambda r: _original(r, 12).update({"class": 30}), "maps to class 30, which is not"),
     (lambda r: _original(r, 12).pop("class"), "fields"),
-    (lambda r: _original(r, 12).update(colour=[1, 2, 3]), "fields"),
+    (lambda r: _original(r, 12).update(note="x"), "fields"),
     (lambda r: _original(r, 12).update(id=13), "original id 13 is given to two"),
     (lambda r: _original(r, 14).update(name="liver"), "original name 'liver' is given to two"),
     (lambda r: _original(r, 32).update(type="tisue"), "type 'tisue'"),
     (lambda r: r.pop("original_ids"), "top-level keys"),
     (lambda r: r["classes"][12].update(colour=[1, 2, 3]), "fields"),
+    (lambda r: _original(r, 12).update({"class": True}), "maps to class True"),
+    (lambda r: _original(r, 12).update({"class": 10.0}), "maps to class 10.0"),
+    (lambda r: _original(r, 12).update({"class": [10]}), "maps to class \\[10\\]"),
+    (lambda r: _original(r, 12).pop("colour"), "fields"),
+    (lambda r: _original(r, 12).update(colour=None), "only an excluded marker"),
+    (lambda r: _original(r, 12).update(colour=[0, 0, 255]), "colour .* is given to two"),
+    (lambda r: _original(r, 42).update(colour=[0, 0, 0]), "colour .* is given to two"),
+    (lambda r: _original(r, 33).update({"class": 28}), "no original id maps to class \\[26\\]"),
+    (lambda r: r.update(original_ids=[]), "'original_ids' is not a non-empty list"),
+    (lambda r: r.update(original_ids={"a": 1}), "'original_ids' is not a non-empty list"),
 ])
 def test_a_planted_fault_is_refused(tmp_path, fault, message):
     path = _plant(tmp_path, fault)

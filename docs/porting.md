@@ -103,6 +103,12 @@ the pilot's Hepatic Vein colour (`sam3_wrapper/scripts/cholec_utils.py`,
 a table of its own that is wrong and unused. When they are ported they read
 `evalkit.classes` instead, or the table is deleted.
 
+The same holds for ATLAS-120k: `surgical_core/atlas/labels.py` copies the
+label table, and `scripts/extract_atlas_frames.py` turns the RGB masks into
+ids with a colour table of its own (`rgb_mask_to_index`). The evaluator reads
+both kinds of mask through `ClassTable.mask_ids`, so it needs no extracted
+copy to read the RGB clips, and the ported copies read `evalkit.classes`.
+
 ### The toolkit around it
 
 | file | from the workbench | reviewed | work |
@@ -163,6 +169,10 @@ From the take list in `repo_migration_plan.md`:
   - Crop rectangles: `experiment/crop_necessity/verdicts/verdicts_latest.json`.
   - Cut marks: `experiment/crop_necessity/marks/*.jsonl`.
   - The 315-clip population: `ipcai2027_experiment/frozen/atlas97_clips.txt`.
+    TODO: in one video, cholecystectomy `_-aytJndMV4`, adjacent clips of the
+    release share 441 frames. The population holds two of its clips, which
+    share none, but nothing checks it: the population's reader should refuse
+    two clips that share a frame.
   - The depth manifest: `ipcai2027_experiment/frozen/atlas97_depth_manifest.json`.
   - The 100-video manifest and audit:
     `ipcai2027_experiment/task22_atlas100/out/{manifest,audit}/`.

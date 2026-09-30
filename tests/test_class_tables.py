@@ -3,7 +3,9 @@ import json
 import re
 from pathlib import Path
 
+import numpy as np
 import pytest
+from PIL import Image
 
 from evalkit import classes
 from evalkit.classes import VIEWS, ClassType, load_table, table_paths
@@ -54,14 +56,14 @@ def test_the_specification_parser_reads_the_table_it_claims_to():
 
 def test_cholecseg8k_reads_hepatic_vein_by_the_colour_the_masks_use(cholec):
     # The pilot evaluator's table had (0, 255, 0), a colour no mask contains.
-    assert cholec.id_of_colour((0, 50, 128)) == 11
+    assert cholec.mask_id_of_colour((0, 50, 128)) == 11
     with pytest.raises(KeyError):
-        cholec.id_of_colour((0, 255, 0))
+        cholec.mask_id_of_colour((0, 255, 0))
 
 
 def test_an_unknown_colour_raises_rather_than_becoming_background(cholec):
     with pytest.raises(KeyError, match=r"\(0, 0, 0\)"):
-        cholec.id_of_colour((0, 0, 0))
+        cholec.mask_id_of_colour((0, 0, 0))
 
 
 def test_no_colour_is_another_class_read_in_bgr(cholec):
@@ -69,8 +71,8 @@ def test_no_colour_is_another_class_read_in_bgr(cholec):
     # silently; it may only hit the same grey or raise.
     for e in cholec.entries.values():
         r, g, b = e.colour
-        if (b, g, r) in cholec.colour_to_id:
-            assert cholec.colour_to_id[(b, g, r)] == e.id
+        if (b, g, r) in cholec.colour_to_mask_id:
+            assert cholec.colour_to_mask_id[(b, g, r)] == e.id
 
 
 def test_an_unknown_id_raises(cholec):
@@ -151,7 +153,9 @@ def _class(raw, cid):
     (lambda r: _class(r, 7).update(id=True), "not a non-negative integer"),
     (lambda r: r.update(dataset="cholec"), "file says dataset"),
     (lambda r: r.update(extra=1), "top-level keys"),
-    (lambda r: r.update(classes=[]), "no classes"),
+    (lambda r: r.update(classes=[]), "'classes' is not a non-empty list"),
+    (lambda r: r.update(classes={"a": 1}), "'classes' is not a non-empty list"),
+    (lambda r: _class(r, 7).update(colour=None), "has no colour"),
 ])
 def test_a_planted_fault_is_refused(tmp_path, fault, message):
     path = _plant(tmp_path, fault)
@@ -195,3 +199,49 @@ def test_cholecseg8k_mask_ids_are_its_class_ids(cholec):
     assert cholec.excluded_mask_ids == frozenset()
     with pytest.raises(KeyError, match="mask id 14"):
         cholec.class_of(14)
+
+
+# A mask meets the table through `mask_ids`, the same way for both datasets.
+
+def _colour_mask(table, ids: np.ndarray, mode: str = "RGB") -> Image.Image:
+    rgb = np.zeros(ids.shape + (3,), dtype=np.uint8)
+    by_id = {i: c for c, i in table.colour_to_mask_id.items()}
+    for i in np.unique(ids).tolist():
+        rgb[ids == i] = by_id[i]
+    image = Image.fromarray(rgb)
+    return image.convert("RGBA") if mode == "RGBA" else image
+
+
+def test_a_cholecseg8k_colour_mask_is_read_through_the_table(cholec):
+    ids = np.array([[0, 2, 2], [11, 13, 5]])
+    assert (cholec.mask_ids(_colour_mask(cholec, ids)) == ids).all()
+    assert (cholec.classes_of(ids) == ids).all()
+
+
+def test_an_opaque_rgba_mask_is_read_and_a_translucent_one_refused(cholec):
+    # Four CholecSeg8k colour masks are RGBA, with alpha 255 throughout.
+    ids = np.array([[2, 7], [10, 12]])
+    image = _colour_mask(cholec, ids, mode="RGBA")
+    assert (cholec.mask_ids(image) == ids).all()
+    image.putpixel((0, 0), (255, 114, 114, 254))
+    with pytest.raises(ValueError, match="not opaque"):
+        cholec.mask_ids(image)
+
+
+def test_a_single_channel_cholecseg8k_mask_is_refused(cholec):
+    # Its single-channel masks hold the watershed's codes, 33 for Hepatic Vein
+    # among them, which read as table ids would name the wrong classes.
+    with pytest.raises(ValueError, match="store only \\['colour'\\]"):
+        cholec.mask_ids(Image.fromarray(np.array([[2, 2], [11, 11]], dtype=np.uint8)))
+
+
+def test_an_unknown_colour_in_a_mask_raises(cholec):
+    rgb = np.full((2, 2, 3), 255, dtype=np.uint8)
+    rgb[0, 0] = (0, 255, 0)
+    with pytest.raises(KeyError, match=r"\(0, 255, 0\)"):
+        cholec.mask_ids(Image.fromarray(rgb))
+
+
+def test_a_mask_of_another_mode_is_refused(cholec):
+    with pytest.raises(ValueError, match="mode 'F'"):
+        cholec.mask_ids(Image.new("F", (2, 2)))

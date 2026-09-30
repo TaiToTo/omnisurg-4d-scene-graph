@@ -9,9 +9,10 @@ summary).
 This document specifies how the paper's segmentation results are scored. The
 pipeline splits every video frame into regions and tracks them over time,
 without naming what they are. The evaluator compares those regions with the
-ground-truth (GT) masks of two datasets: ATLAS-120k (laparoscopic videos of
-many procedures, 47 classes) and CholecSeg8k (laparoscopic cholecystectomy,
-13 classes).
+ground-truth (GT) masks of two datasets: ATLAS-120k (laparoscopic and
+robot-assisted videos of 14 procedures, 42 classes) and CholecSeg8k
+(laparoscopic cholecystectomy, 13 classes). Each count is its paper's: the
+42 leave out ATLAS-120k's background, and the 13 include CholecSeg8k's.
 
 - **One object per class in the GT, one per region in the prediction.** The
   datasets label classes, not individual things, so all pixels of one class in
@@ -24,7 +25,8 @@ many procedures, 47 classes) and CholecSeg8k (laparoscopic cholecystectomy,
   called *views*: all classes; tissue only, without tools; and *geometric*,
   only the tissue that depth and shape can separate.
 - **ATLAS-120k is scored with its own 30 classes**, the ones its benchmark
-  uses. Its 47 original classes are scored too, as reference values only.
+  uses. The ids its masks hold are scored too, as reference values only:
+  47 ids, of which the paper's 42 classes and background occur.
 - **Nine metrics.** The two *primary* metrics, on which the paper's claims are
   judged, are `F1_50` (objects found, with every extra region counted against
   it) and `SQ` (how well the found ones fit), in the geometric view.
@@ -54,8 +56,11 @@ was replaced, then the class tables.
 
 ### Inputs
 
-- **Ground truth.** A class per pixel: ATLAS-120k's 47 original ids, or
-  CholecSeg8k's colours read through its class table.
+- **Ground truth.** A label per pixel, read through the dataset's class
+  table the same way for both datasets: the table gives every id a mask can
+  hold its colour. CholecSeg8k's masks store colours. ATLAS-120k's store its
+  47 original ids, as palette images read by their index, and in 34 clips as
+  colours.
 - **Prediction.** One region id per pixel, from tracking, with no class; −1
   means no region. The evaluator never reads a class from the pipeline. Each
   configuration of the pipeline that the paper compares — a *condition* —
@@ -139,7 +144,7 @@ the end:
 | `ignored` | outside the field of view, or not a class at all | never: removed from the GT and the prediction alike, like a pixel without valid depth |
 | `background` | inside the view, labelled as nothing: unlabelled anatomy, and in ATLAS-120k the classes the 30-class mapping drops | never: removed like `ignored`, so a region lying on it is neither an object nor a false positive (see the views below) |
 | `excluded` | a marker that takes the whole frame out of evaluation | the frame is skipped, and counted |
-| `tool` | an instrument | in the `all` view only |
+| `tool` | an instrument, or another object that is not anatomy (ATLAS-120k's catheters and non-anatomical structures) | in the `all` view only |
 | `tissue` | anatomy that the scene's depth and shape can separate | in every view |
 | `appearance` | tissue told apart only by colour or texture (blood, for one) | in the `all` and `tissue` views |
 | `expert` | tissue whose boundary is set by anatomical convention — which vessel it is, where one stretch of a tube ends — so that neither shape nor colour shows it without anatomical knowledge | in the `all` and `tissue` views |
@@ -294,13 +299,29 @@ uses it.
 
 - A colour or id missing from the dataset's class table raises; it is never
   mapped to background. ATLAS-120k's benchmark code sends unknown ids to
-  background, so it is not reused as code.
+  background, and reads a mask through `.convert("L")`, which turns a palette
+  mask into the brightness of its palette colours rather than its ids; it is
+  not reused as code.
+- A palette mask is read by its index, never through the palette it embeds.
+  ATLAS-120k's masks embed seven different palettes, and some of them give
+  some of ids 43–46 black, or Ligated plexus the colour of Liver.
+- A mask reaches the table as the image its file holds, not as an array: an
+  array does not say whether its channels are RGB or BGR, and six pairs of
+  ATLAS-120k colours swap under that mistake, Artery and Vein among them.
+- A single-channel CholecSeg8k mask is refused: those are the watershed
+  masks, whose codes are not the table's ids. An RGBA mask is read only when
+  every pixel is opaque; four CholecSeg8k colour masks are RGBA, alpha 255.
 - The CholecSeg8k table maps (0, 50, 128) to Hepatic Vein. The dataset's
   watershed codes settle it (see the measurements below).
 - (255, 255, 255), the line CholecSeg8k draws between regions, and
   CholecSeg8k's Black Background are `ignored`.
 - `Excluded frames` is checked on ATLAS-120k's original ids, before they are
-  mapped to the 30 classes, which would turn it into background.
+  mapped to the 30 classes, which would turn it into background. In a mask
+  stored as colours it cannot be seen: its colour in the dataset's palette is
+  Background's, (0, 0, 0). There (0, 0, 0) reads as Background, and a colour
+  mask of background alone, the one frame the marker could hide in, is
+  refused. The marker occurs in no palette mask of the release, and no colour
+  mask is background alone.
 - Nothing is dropped without a count: skipped frames, ignored, background and
   invalid pixels, the pixels each view removes, and the frames a metric is not
   defined on are counted in the JSON.
@@ -496,9 +517,9 @@ What this says:
 
 ## Class tables
 
-Each table is a data file, one per dataset: every class's type, and the
-colours (CholecSeg8k) or the mapping to the 30 classes (ATLAS-120k). The files
-are hashed into `eval_code_sha` with the code.
+Each table is a data file, one per dataset: every class's type, the colour of
+every id a mask can hold, and for ATLAS-120k the mapping of its 47 ids to the
+30 classes. The files are hashed into `eval_code_sha` with the code.
 
 ### CholecSeg8k
 
@@ -530,14 +551,39 @@ the loader fills the line from its neighbours, at full resolution, by a
 deterministic rule with the filled count recorded, or whether it stays
 ignored with the loss documented. Either way the pilot evaluator read it
 as background and counted an edge against it as a boundary, which is a
-normal-mode difference to list. Four colour masks are RGBA (alpha 255):
-the loader checks alpha and drops it. -->
+normal-mode difference to list. -->
 
 Cystic Duct is `expert` although ATLAS-120k's Bile/lymph duct is `tissue`:
 CholecSeg8k does not merge the ducts, so the class still ends where the
 anatomical stretch ends. Hepatic Vein is `expert` because telling it from other
 vessels takes anatomical knowledge. Neither moves much: Cystic Duct occurs in 3
 of the 17 videos, Hepatic Vein in 1.
+
+### ATLAS-120k: ids, classes and colours
+
+ATLAS-120k's label table, `atlas120k_tools/classes.py` in the ATLAS
+repository, lists 47 ids, 0 to 46: Background and 46 labels. Every mask of the
+release was read: 119,405 masks in 492 of its 502 clips (the other 1,613
+frames its clip index lists ship without a mask).
+
+| | |
+|---|---|
+| ids that occur | every id from 0 to 46 but Hepatic vein (15), Thoracic duct (38), Nerves (39) and Excluded frames (42); none above 46 |
+| classes | the 42 labels that occur are the paper's 42 classes, and its Fig. 2 legend lists exactly them |
+| storage | 115,024 palette masks, whose index is the id, and 4,381 RGB masks in 34 clips of 7 videos; 7 of those clips hold both kinds |
+| colours of the RGB masks | 20 colours, each the one the label table gives its id. In one video, 441 frames belong to two adjacent clips, stored once as a palette mask and once in colour, and both read as the same ids |
+| palettes the palette masks embed | seven versions. Against the label table, five give some of ids 43–46 black, one gives Ligated plexus (28) the colour of Liver, and two give Pancreas (252, 186, 3) |
+
+So 47 is the number of ids the masks are written in, and 42 classes and
+background are what they contain. The class table keeps all 47, as the
+benchmark's mapping does. Excluded frames has no colour there, because its
+colour in the label table is Background's.
+
+The paper describes how the labels were made: the first frame of every clip
+was drawn by hand and reviewed by a surgeon, and the rest were propagated by a
+video object segmentation model (Cutie) and corrected by hand. A GT frame after
+the first is therefore a tracker's output as the annotators corrected it,
+which is worth knowing when a tracking pipeline is scored against it.
 
 ### ATLAS-120k: the 30 classes
 
@@ -557,8 +603,18 @@ code score. The benchmark maps every mask before scoring, through
   - Nerves into Nerve.
   - Catheter and Non anatomical structures into Non anatomical.
 
-The class set is then the benchmark's. Resolution, crop and metrics are this
-evaluator's own, so the numbers are not the benchmark's.
+The class set is then the benchmark's: Background and 29 classes. Resolution,
+crop and metrics are this evaluator's own, so the numbers are not the
+benchmark's.
+
+The paper gives the reason for the 30: categories not represented in all
+subsets were excluded, and semantically similar classes consolidated. In the
+released splits that rule does not single out exactly the six anatomical
+classes dropped: Uterus, Ovary and Oviduct are in neither the validation nor
+the test split and are kept, and Diaphragm is not in the training split. The
+evaluator takes the mapping as the benchmark's code defines it. The reason is
+a training one; for a pipeline trained on nothing, the dropped classes are
+unlabelled anatomy like the rest of the background.
 
 The 47 original ids are scored as well, as reference values only. They are
 written to a separate block of the JSON, and they never get a star. There, each
@@ -574,6 +630,14 @@ counted as `expert`: Kidney, Mesocolon and Adrenal gland are tissue; Ureter
 and Pancreas are expert; Duodenum is appearance; and Excluded frames is
 excluded.
 
+<!-- TODO(spec): the inheritance keeps a merged id's pixels the same in both
+blocks, but the six anatomical ids the mapping drops are scored only in the
+47-id block (in the 315 clips: 835 frames, 2.25 % of pixels). So the blocks
+differ in which pixels are scored as well as in how finely objects are cut.
+Decide whether the dropped ids stay scored in the 47-id block, and this
+paragraph says so, or become background there too, so that it holds as
+written. -->
+
 The review supports the 30 classes. Its main difficulties were stretches of
 one tube (cystic duct against ductus choledochus) and one kind of vessel (vena
 cava against V azygos) told apart by anatomical convention. The merge removes
@@ -582,10 +646,10 @@ exactly those boundaries.
 ### ATLAS-120k: types
 
 ATLAS-120k defines no types: its benchmark scores `Tools/camera` like any other
-class. Every one of the 47 classes was looked at in the masks, and the verdicts
+class. Every one of the 47 ids was looked at in the masks, and the verdicts
 are below, per class of the 30. The original ids merged into each are listed,
 with the verdict and note for each. Hepatic vein (15), Thoracic duct (38) and
-Nerves (39) were found in no mask the review searched, so they have no bearing.
+Nerves (39) occur in no mask of the release, so they have no bearing.
 
 | # | class | merged from: verdict, note | type |
 |---:|---|---|---|
