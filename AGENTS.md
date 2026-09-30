@@ -75,7 +75,7 @@ omnisurg-4d-scene-graph/
 ├── sam3_wrapper/      promptable segmentation and tracking (SAM 3)
 ├── atlas120k_meta/    crop rectangles, cuts, clip population (no video)
 ├── viewer/
-├── docs/              evaluation.md, data_contract.md, pipeline.md, ja/ (Japanese, until translated)
+├── docs/              evaluation.md, porting.md, data_contract.md, pipeline.md
 ├── tests/
 └── .github/workflows/ci.yml
 ```
@@ -87,14 +87,13 @@ and clips enter a measurement is data, kept in the population file under
 
 ---
 
-## The extraction
+## The port
 
-The extraction follows a working plan that is **not committed** — it sits in
-`docs/local/` next to the source path, because it describes a private workbench
-and stops being true the moment the extraction is done. If
-`docs/local/build_plan.md` is not on your disk, ask before improvising: the
-order of the phases is load-bearing (the cheap CPU-only check has to pass
-before anything touches a GPU).
+The port follows `docs/porting.md`: what moves, which version of it was
+already reviewed and where, the order of the steps, and what must hold before
+the next one. Read it before porting anything. The order is load-bearing: the
+evaluator is checked against the pilot scores before anything is re-scored,
+and nothing touches a GPU before that. Nothing is frozen during the port.
 
 What is permanent is on this page: the freeze rule, the verdict rule, the
 layout, and the conventions below.
