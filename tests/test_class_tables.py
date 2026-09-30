@@ -100,7 +100,7 @@ def test_cholecseg8k_views(cholec):
 
 
 def test_the_hashed_files_are_exactly_the_tables_the_loader_reads(cholec):
-    assert table_paths() == [cholec.path]
+    assert table_paths() == [load_table("atlas120k").path, cholec.path]
 
 
 def test_a_stray_file_in_the_table_directory_is_refused(tmp_path, monkeypatch):
@@ -108,7 +108,7 @@ def test_a_stray_file_in_the_table_directory_is_refused(tmp_path, monkeypatch):
     for p in table_paths():
         (tmp_path / p.name).write_bytes(p.read_bytes())
     monkeypatch.setattr(classes, "TABLE_DIR", tmp_path)
-    assert table_paths() == [tmp_path / "cholecseg8k.json"]
+    assert table_paths() == [tmp_path / "atlas120k.json", tmp_path / "cholecseg8k.json"]
     (tmp_path / "notes.json").write_text("{}", encoding="utf-8")
     with pytest.raises(ValueError, match="notes.json"):
         table_paths()
@@ -182,3 +182,16 @@ def test_a_dataset_without_a_table_format_is_refused(tmp_path):
     path.write_text(json.dumps({"dataset": "lapex", "classes": []}), encoding="utf-8")
     with pytest.raises(ValueError, match="no table format"):
         load_table("lapex", path=path)
+
+
+def test_a_class_set_of_another_dataset_is_refused():
+    with pytest.raises(ValueError, match="class set 'atlas30'"):
+        load_table("cholecseg8k", "atlas30")
+
+
+def test_cholecseg8k_mask_ids_are_its_class_ids(cholec):
+    assert cholec.class_set == "cholecseg8k"
+    assert dict(cholec.mask_id_to_class) == {i: i for i in cholec.entries}
+    assert cholec.excluded_mask_ids == frozenset()
+    with pytest.raises(KeyError, match="mask id 14"):
+        cholec.class_of(14)
