@@ -206,6 +206,15 @@ def test_reversed_times_are_kept(tmp_path):
     assert frame_times(root, clip).tolist() == [2.0, 1.0]
 
 
+def test_timestamps_on_only_some_frames_are_refused(tmp_path):
+    """A clip is timed by one rule for every frame. Falling through to
+    `native_frame` would drop the timestamps the extractor did write."""
+    root, clip = _clip(tmp_path, [{"timestamp_sec": 1.0, "native_frame": 30},
+                                  {"native_frame": 60}], fps_native=30.0)
+    with pytest.raises(RuntimeError, match="1 of 2 frames carry"):
+        frame_times(root, clip)
+
+
 def test_no_way_to_make_seconds_is_refused(tmp_path):
     """No default: a clip whose seconds cannot be made is not made evenly spaced."""
     root, clip = _clip(tmp_path, [{"seq_idx": 0}, {"seq_idx": 1}])

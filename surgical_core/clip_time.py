@@ -73,7 +73,8 @@ def frame_times(root: str, clip: str) -> np.ndarray:
 
     Raises:
         RuntimeError: The manifest gives no way to make seconds (there is no
-            default), the ratio cannot be established, or the step after
+            default), only some frames carry `timestamp_sec`, the ratio
+            cannot be established, or the step after
             multiplying does not match the manifest's `gt_step_sec_actual`
             (a forgotten or wrong ratio).
     """
@@ -83,14 +84,19 @@ def frame_times(root: str, clip: str) -> np.ndarray:
     frames = man.get("frames", [])
 
     ts = [fr.get("timestamp_sec") for fr in frames]
-    if len(ts) >= 2 and all(t is not None for t in ts):
+    have = [t is not None for t in ts]
+    if len(ts) >= 2 and all(have):
         return np.asarray(ts, dtype=float)
-    # TODO: a manifest where only some frames carry `timestamp_sec` falls
-    # through to `native_frame` here, as it does in the workbench, and the
-    # partial timestamps are discarded without a word. No tree the paper
-    # reads has such a manifest, so the behaviour is kept; an extractor that
-    # writes timestamps for some frames and not others is more likely broken
-    # than deliberate, and refusing the clip would be the fail-closed answer.
+    if any(have) and not all(have):
+        # An extractor that writes timestamps for some frames and not others
+        # is broken, not deliberate. Falling through to `native_frame` would
+        # drop the timestamps it did write without a word, and time the clip
+        # by a rule its own extractor did not use. (The workbench fell
+        # through; no manifest it holds has this shape, so nothing changes.)
+        raise RuntimeError(
+            f"{clip}: {sum(have)} of {len(ts)} frames carry `timestamp_sec`; a clip "
+            "is timed by one rule for every frame. A clip whose seconds cannot be "
+            "made is not mixed in.")
 
     nf = [fr.get("native_frame") for fr in frames]
     fps = man.get("fps_native")
