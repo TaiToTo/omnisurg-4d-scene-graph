@@ -15,10 +15,19 @@ In pilot mode the vote is the same, but it is taken over the `full` domain,
 where background pixels vote too and a region lying on background is named
 background. That mode passes its own `scored` mask and reads the result
 through its own rules; the vote itself is shared.
+
+TODO(pilot mode): `ClassScores.miou` sums the IoUs in class id order and
+divides; the pilot evaluator took `np.mean` over its dict in set order. The
+two differ in the last bit on about a quarter of frames, which the clip
+mean and the four-decimal rounding all but never show, but zero tolerance
+is the promise: the pilot-mode driver should average `ious` itself, the
+pilot's way, rather than read `miou`. The same holds for the clip mean.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
+from types import MappingProxyType
+from collections.abc import Mapping
 
 import numpy as np
 
@@ -32,12 +41,16 @@ class ClassMap:
     Attributes:
         classes: An (H, W) int32 map: the name of the region on each scored
             pixel, `NO_CLASS` where there is no region, where the region has
-            no name, or where the pixel is not scored.
-        names: Each named region's id to its class.
+            no name, or where the pixel is not scored. `boundary_F` takes
+            this map as it is: under the scored mask, `NO_CLASS` on a pixel
+            with no region is a label like any other, so the edge between a
+            named region and the pixels it left out is a predicted boundary,
+            as it was in the pilot evaluator, which put background there.
+        names: Each named region's id to its class. Read-only.
     """
 
     classes: np.ndarray
-    names: dict[int, int]
+    names: Mapping[int, int]
 
 
 def _check(gt: np.ndarray, regions: np.ndarray, scored: np.ndarray) -> None:
@@ -70,18 +83,19 @@ def class_map(gt: np.ndarray, regions: np.ndarray, scored: np.ndarray) -> ClassM
     _check(gt, regions, scored)
     voting = scored & (regions >= 0)
     classes = np.full(gt.shape, NO_CLASS, dtype=np.int32)
-    names: dict[int, int] = {}
     if not voting.any():
-        return ClassMap(classes=classes, names=names)
+        return ClassMap(classes=classes, names=MappingProxyType({}))
     region_ids, region_index = np.unique(regions[voting], return_inverse=True)
     class_ids, class_index = np.unique(gt[voting], return_inverse=True)
-    votes = np.zeros((region_ids.size, class_ids.size), dtype=np.int64)
-    np.add.at(votes, (region_index, class_index), 1)
+    # One vote per pixel, as integer counts; bincount gives exactly what
+    # adding one at a time would.
+    votes = np.bincount(
+        region_index * class_ids.size + class_index, minlength=region_ids.size * class_ids.size,
+    ).reshape(region_ids.size, class_ids.size)
     # `argmax` takes the first of equal counts, and `class_ids` is sorted
     # ascending, so a tie goes to the smaller id.
     winner = class_ids[votes.argmax(axis=1)]
-    for r, c in zip(region_ids.tolist(), winner.tolist()):
-        names[int(r)] = int(c)
+    names = MappingProxyType({int(r): int(c) for r, c in zip(region_ids.tolist(), winner.tolist())})
     classes[voting] = winner[region_index]
     return ClassMap(classes=classes, names=names)
 
@@ -109,10 +123,13 @@ def class_scores(gt: np.ndarray, cmap: ClassMap, scored: np.ndarray) -> ClassSco
     like any other mislabelled pixel.
     """
     gt, scored = np.asarray(gt), np.asarray(scored)
-    if cmap.classes.shape != gt.shape or scored.shape != gt.shape or scored.dtype != np.bool_:
-        raise ValueError("`gt`, the class map and the bool `scored` mask must share one shape")
+    _check(gt, cmap.classes, scored)
     g = gt[scored]
     p = cmap.classes[scored]
+    # A name is a GT class seen on a scored pixel, so with the mask the map
+    # was voted under, the class map adds no class to the GT's and the union
+    # is the GT's set. It is kept as the specification words it, and it
+    # matters when a caller scores under another mask than it voted under.
     present = np.union1d(np.unique(g), np.unique(p))
     present = present[present != NO_CLASS]
     ious: dict[int, float] = {}

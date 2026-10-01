@@ -99,6 +99,12 @@ def test_only_scored_pixels_vote_and_a_region_without_one_gets_no_name():
     assert class_scores(gt, cmap, scored).miou == 1.0
 
 
+def test_the_names_are_read_only():
+    cmap = class_map(two_classes(), split_at(HALF), ALL)
+    with pytest.raises(TypeError):
+        cmap.names[0] = 2
+
+
 def test_miou_is_undefined_when_no_class_is_present():
     none = np.zeros((H, W), dtype=bool)
     cmap = class_map(two_classes(), split_at(HALF), none)
@@ -117,3 +123,8 @@ def test_the_maps_are_checked_before_anything_is_counted():
         class_map(two_classes(), split_at(HALF, (-2, 1)), ALL)
     with pytest.raises(ValueError, match="integer"):
         class_map(two_classes(), split_at(HALF).astype(np.float64), ALL)
+    cmap = class_map(two_classes(), split_at(HALF), ALL)
+    with pytest.raises(ValueError, match="one shape"):
+        class_scores(two_classes(), cmap, ALL[:, :-1])
+    with pytest.raises(ValueError, match="integer"):
+        class_scores(two_classes().astype(np.float64), cmap, ALL)
