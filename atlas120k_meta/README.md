@@ -34,9 +34,20 @@ ATLAS-120k was extracted twice, under two protocols, and both are recorded:
   audit describe the videos, not the extraction, and because the two
   populations differ: five clips of the paper's 315 are not among the 438.
 
-The two agree on what is excluded before anything is measured: a video with
-no obtainable mp4, and a clip whose masks are not in the distribution. Nothing
-is excluded on a score.
+Both populations are decided by where ground truth exists, and nothing is
+excluded on a score. Every clip of ATLAS-120k is an annotated segment, so the
+only exclusions are a video with no obtainable mp4 and a clip with no mask at
+all. The two differ on a clip whose masks have a gap: the earlier extraction
+dropped it whole, the paper's keeps the longest run of annotated frames. That
+is where the five clips of the 315 that are not among the 438 come from: three
+have a mask gap (`cholecystectomy/_-aytJndMV4/clip_0005`,
+`hemicolectomy/5YDMlxTl0k8/clip_0024` and `clip_0039`), and the other two are
+clips of `5YDMlxTl0k8` that the earlier extraction wrote under another number
+(see `videos/clips.json` below).
+
+The crop rectangles and the cut marks are not selection rules. The rectangle
+decides which pixels of a frame reach the pipeline and the ground truth alike,
+and a clip with a cut in it is used whole; neither removes a clip.
 
 ## Files
 
@@ -44,8 +55,8 @@ is excluded on a score.
 |---|---|---|
 | `clips.txt` | The paper's clip population: one clip name per line, `<procedure>__<video>__gt_<n>`. 315 clips, 91 videos. | `ipcai2027_experiment/frozen/atlas97_clips.txt` |
 | `depth_manifest.json` | For each of the 315 clips, the sha256 of its reconstructed depth and intrinsics, its frame count and array shape. The pipeline derives normals and edges from depth on the fly, so an unchanged depth means unchanged geometry; this is how a re-run that silently changed the depth is caught. | `ipcai2027_experiment/frozen/atlas97_depth_manifest.json` |
-| `crop_rects.json` | The crop rectangle of every clip of the 97 videos, 494 entries, as judged by a person in the review tool. `rect` is the rectangle to use; `verdict` says whether the automatic recipe's rectangle (`rect_recipe`) was accepted (`ok`, 189) or redrawn (`ng`, 305); no clip was marked unusable. Rectangles are in the coordinates of the source video (`src_size`). A video does not have one rectangle: in nine videos the recording changes within one mp4, and the recipe's rectangle was wrong for most clips. | `experiment/crop_necessity/verdicts/verdicts_latest.json` |
-| `cut_marks.jsonl` | Where a person judged whether a candidate scene change is a cut. One line per candidate boundary: the video, the frames before and after, the mean absolute pixel difference `d_pix`, and `is_cut` (`yes`, `no`, `dk` for undecided, `null` for not yet judged). Candidates were the boundaries with `d_pix` above 40, the smallest difference any observed cut had; boundaries below that were not looked at. Ten cuts were found, in the GT clips of two videos; a clip with a cut in it is used whole. | `experiment/crop_necessity/marks/marks_20260913_174731.jsonl` |
+| `crop_rects.json` | The crop rectangle of every clip of the 97 videos, 494 entries, as judged by a person in the review tool. `rect` is the rectangle to use; `verdict` says whether the automatic recipe's rectangle (`rect_recipe`) was accepted (`ok`, 189) or redrawn (`ng`, 305); no clip was marked unusable. Rectangles are in the coordinates of the source video (`src_size`). A video does not have one rectangle: seven videos have clips with different rectangles, because the recording changes within one mp4. `rect_used` is the rectangle an earlier extraction had used, kept as history, and `via` records how a redrawn rectangle was entered; nothing reads either. `first`, `last` and `n_gt` are the clip's frame range and annotated frame count in the clip index. | `experiment/crop_necessity/verdicts/verdicts_latest.json` |
+| `cut_marks.jsonl` | Where a person judged whether a candidate scene change is a cut. An append-only log, one line per judgement: the video, the frames before and after, the mean absolute pixel difference `d_pix`, and `is_cut` (`yes`, `no`, `dk` for undecided, `null` for not yet judged). Three boundaries were judged twice, so the last line for a key is its verdict. Candidates were the boundaries with `d_pix` above 40, the smallest difference any observed cut had; boundaries below that were not looked at, except one inside a clip (`d_pix` 27.8) that was checked by hand and is not a cut. Ten cuts were found, in the GT clips of two videos; a clip with a cut in it is used whole. | `experiment/crop_necessity/marks/marks_20260913_174731.jsonl` |
 | `videos/videos.json` | The inventory of the 100-video tree: per video, its split, procedure, whether it is robotic, whether the mp4 is present, its clips with their frame counts and the reason any was dropped, the pixel source (bundled JPEG or decoded mp4) and the mask format (index or RGB). Also the extraction's parameters (`stride`, `min_frames`). | `ipcai2027_experiment/task22_atlas100/out/manifest/videos.json` |
 | `videos/clips.json` | The 438 clips that extraction wrote, with their video and frame totals. `videos.json` is the inventory before extraction and this is what came out; for one video (`hemicolectomy/5YDMlxTl0k8`) the two number the clips differently, because that extraction named its outputs by position in the clip index rather than by the clip's own number. | `.../manifest/clips_v100.json` |
 | `videos/population.txt` | The 96 videos of that extraction, `<procedure> <video>` per line. The four left out: three with no mp4, one with no clip long enough. | `.../manifest/population.txt` |

@@ -52,7 +52,7 @@ session starting cold needs.
   `user.email` to the GitHub no-reply address before the first commit;
   `tests/test_no_personal_email.py` checks the history. Data files from the
   workbench are grepped for `/home/`, `/var/autofs/` and `@` before they are
-  committed; one of the ATLAS-120k manifests carries an absolute path today.
+  committed.
 - **Dependencies stay what `pyproject.toml` declares** (`numpy`,
   `opencv-python`, `Pillow`). A module that needs more is either split so that
   the part the toolkit uses does not, or the dependency is added as an

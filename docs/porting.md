@@ -166,7 +166,8 @@ From the take list in `repo_migration_plan.md`:
   - The depth manifest: `ipcai2027_experiment/frozen/atlas97_depth_manifest.json`.
   - The 100-video manifest and audit:
     `ipcai2027_experiment/task22_atlas100/out/{manifest,audit}/`.
-  - The readers: `surgical_core/atlas/clip_rects.py` and `frame_ratio.py`.
+  - The readers: `surgical_core/atlas/clip_rects.py` and `frame_ratio.py`,
+    into `surgical_core/atlas120k/`.
 - **Viewer.**
   - The `demo`, `workbench` and `depthcmp` pages.
   - Their `src/` directories.
