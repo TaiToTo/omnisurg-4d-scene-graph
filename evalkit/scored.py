@@ -21,7 +21,7 @@ The caller asks `frame_is_excluded` first and skips and counts the frame;
 `scored_pixels` runs the same check on the same ids and refuses the frame,
 in every class set, so a caller that forgot cannot score it.
 
-TODO: the per-frame driver that skips and counts an excluded frame is not
+The per-frame driver that skips and counts an excluded frame is not
 written yet, so `frame_is_excluded` has no caller but the tests. It stays
 public for that driver.
 """
@@ -48,9 +48,9 @@ class PixelCounts:
         scored: What the metrics see.
     """
 
-    # TODO: `valid` is computed by the caller. The function that takes a
-    # depth map to it does not exist yet; when it does, it is the one place
-    # the threshold lives, and this docstring should name it.
+    # `valid` is computed by the caller. The function that takes a depth map
+    # to it does not exist yet; when it does, it is the one place the
+    # threshold lives, and this docstring names it.
     invalid_depth: int
     ignored: int
     background: int
