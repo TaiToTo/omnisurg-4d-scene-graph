@@ -76,12 +76,44 @@ made. Starting them early means porting them twice.
 | `paired_stats`, `compare_eval`, `condition_inventory`, `reeval_diff` | the evaluator's comparability check and the fields its scores carry |
 | `track_metrics`, `kmerge` | open question 1 in `docs/porting.md` |
 | the whole pipeline, the wrappers, the viewer | step 5 of the order; needs step 2 done and the GPU |
+| `evalkit/metric-guide`, a page that shows each metric on the test scenes | the metrics; see below |
 
 Open question 1 is not a branch. It is a decision, and `docs/evaluation.md`
 ("Consistency over time") lists what deciding it means. A session can prepare
 it by writing down, for each candidate, the GT-track definition it needs and
 how that coexists with the whole-class object; the decision itself is made by
 the author, in `docs/evaluation.md`.
+
+### `evalkit/metric-guide`
+
+**Source.** E `archive/metric-guide`: `docs/metrics/make_guide.py`, which
+drew the scenes and the cartoon and printed what the pilot evaluator computed
+on them. Its output is `docs/pilot_metric_guide.html` here. The script itself
+calls the pilot evaluator's functions through `v2_import.py`, so it cannot run
+here as it is.
+
+**What it is.** A page, built from `tests/scenes.py` and `tests/cartoon.py`,
+that shows every metric next to the picture it is computed on: for each
+scene, the GT, the prediction, and the value each metric gives it, so that
+"what does a 3 px shift cost `SQ`" or "what does a region on background do to
+`F1_50`" is answered by looking rather than by reading the formula. It is a
+debugging aid as much as documentation: when a score on real data looks off,
+the page says which controlled fault produces that behaviour.
+
+**Work.** Rewrite `make_guide.py` against `evalkit`'s evaluator, in English,
+under `docs/` or `evalkit/`. Each scene's numbers come from the evaluator at
+build time, never typed in; a test asserts that the numbers on the page equal
+the values the hand-derived tests pin, so the page cannot drift from the
+tests. Where normal mode and pilot mode differ on a scene, show both values
+and name the rule in `docs/evaluation.md` that separates them: that makes the
+"Why the pilot evaluator was replaced" list visible on pictures. Keep the
+cartoon for the overview and the small scenes for the per-metric appendix, as
+the pilot page does. Decide, in the pull request, whether the page is
+committed or built in CI; `docs/porting.md` leaves this open.
+
+**Done when.** The page regenerates from the two helpers with one command,
+its numbers equal the tests' pinned values, both modes appear where they
+differ, and nothing in the guide is a third copy of a scene.
 
 ## Now: workstreams that can start today
 
