@@ -5,6 +5,8 @@ these tests pin is the rule itself: which key wins, that the ratio is applied,
 and that every case where seconds cannot be made is refused rather than
 filled in with a default.
 """
+import importlib.abc
+import importlib.machinery
 import json
 import sys
 import types
@@ -39,6 +41,39 @@ def _plant_table(monkeypatch, ratio: int | None) -> None:
     mod = types.ModuleType(clip_time.MEASURED_RATIOS)
     mod.frame_ratio = lambda procedure, youtube_id: ratio
     monkeypatch.setitem(sys.modules, clip_time.MEASURED_RATIOS, mod)
+
+
+def _plant_broken_table(monkeypatch, missing: str | None) -> None:
+    """Stand in for a table that is found but fails to import something.
+
+    The stand-in goes through the real import machinery (a finder on
+    `sys.meta_path`), so what `frame_times` sees is exactly what a table with
+    a bad import would raise: a `ModuleNotFoundError` naming `missing`, or
+    one raised without a name when `missing` is `None`.
+    """
+    class Loader(importlib.abc.Loader):
+        def create_module(self, spec):
+            return None
+
+        def exec_module(self, module):
+            if missing is None:
+                raise ModuleNotFoundError("raised without a name")
+            raise ModuleNotFoundError(f"No module named '{missing}'", name=missing)
+
+    class Finder(importlib.abc.MetaPathFinder):
+        def find_spec(self, name, path, target=None):
+            if name == clip_time.MEASURED_RATIOS:
+                return importlib.machinery.ModuleSpec(name, Loader())
+            return None
+
+    # The finder answers for the table only; its parent packages need to
+    # exist for the dotted import to reach it.
+    parent = clip_time.MEASURED_RATIOS.rpartition(".")[0]
+    pkg = types.ModuleType(parent)
+    pkg.__path__ = []
+    monkeypatch.setitem(sys.modules, parent, pkg)
+    monkeypatch.delitem(sys.modules, clip_time.MEASURED_RATIOS, raising=False)
+    monkeypatch.setattr(sys, "meta_path", [Finder()] + sys.meta_path)
 
 
 def test_cholec_uses_timestamp_sec(tmp_path):
@@ -105,18 +140,46 @@ def test_atlas_manifest_without_ratio_is_refused_without_a_table(tmp_path, monke
         frame_times(root, clip)
 
 
-def test_a_dependency_missing_inside_the_table_is_not_called_no_table(tmp_path, monkeypatch):
+@pytest.mark.parametrize("missing", ["cv2", "surgical_core.atlas", None])
+def test_a_dependency_missing_inside_the_table_is_not_called_no_table(
+        tmp_path, monkeypatch, missing):
     """A table that is there but cannot import something of its own is a
-    broken install, not a missing table, and the error must say which."""
-    def broken_import(name, package=None):
-        if name == clip_time.MEASURED_RATIOS:
-            raise ModuleNotFoundError("No module named 'cv2'", name="cv2")
-        raise AssertionError(name)
-    monkeypatch.setattr(clip_time.importlib, "import_module", broken_import)
+    broken install, not a missing table, and the error must say which.
+
+    `surgical_core.atlas` is the workbench's old name for the package, the
+    import most likely to be left inside the table by mistake, and a string
+    prefix of the table's own name: a prefix comparison would call it "no
+    table". An error raised without a name names nothing, so it is passed on
+    rather than guessed about.
+    """
+    _plant_broken_table(monkeypatch, missing)
     root, clip = _clip(tmp_path, [{"native_frame": 30}, {"native_frame": 60}],
                        fps_native=30.0, procedure="adrenalectomy",
                        youtube_id="16GPCUPkXYQ")
-    with pytest.raises(ModuleNotFoundError, match="cv2"):
+    with pytest.raises(ModuleNotFoundError, match=missing or "without a name"):
+        frame_times(root, clip)
+
+
+def test_a_package_above_the_table_missing_is_no_table(tmp_path, monkeypatch):
+    """Until `atlas120k-meta/readers` lands, the package the table lives in
+    does not exist either; that is the ordinary "no table" case."""
+    parent = clip_time.MEASURED_RATIOS.rpartition(".")[0]
+    monkeypatch.setitem(sys.modules, parent, None)
+    monkeypatch.delitem(sys.modules, clip_time.MEASURED_RATIOS, raising=False)
+    root, clip = _clip(tmp_path, [{"native_frame": 30}, {"native_frame": 60}],
+                       fps_native=30.0, procedure="adrenalectomy",
+                       youtube_id="16GPCUPkXYQ")
+    with pytest.raises(RuntimeError, match="is not available"):
+        frame_times(root, clip)
+
+
+@pytest.mark.parametrize("ratio", [0, -2])
+def test_a_ratio_that_is_not_positive_is_refused(tmp_path, ratio):
+    """A ratio of 0 makes every time 0 and, without `gt_step_sec_actual`,
+    nothing would notice."""
+    root, clip = _clip(tmp_path, [{"native_frame": 30}, {"native_frame": 60}],
+                       fps_native=30.0, frame_ratio=ratio)
+    with pytest.raises(RuntimeError, match="cannot be a ratio"):
         frame_times(root, clip)
 
 

@@ -78,6 +78,12 @@ def frame_times(root: str, clip: str) -> np.ndarray:
     ts = [fr.get("timestamp_sec") for fr in frames]
     if len(ts) >= 2 and all(t is not None for t in ts):
         return np.asarray(ts, dtype=float)
+    # TODO: a manifest where only some frames carry `timestamp_sec` falls
+    # through to `native_frame` here, as it does in the workbench, and the
+    # partial timestamps are discarded without a word. No tree the paper
+    # reads has such a manifest, so the behaviour is kept; an extractor that
+    # writes timestamps for some frames and not others is more likely broken
+    # than deliberate, and refusing the clip would be the fail-closed answer.
 
     nf = [fr.get("native_frame") for fr in frames]
     fps = man.get("fps_native")
@@ -121,12 +127,21 @@ def _ratio_of(clip: str, man: dict) -> float:
         The ratio.
 
     Raises:
-        RuntimeError: The manifest names a video and records no ratio, and
-            either the table says the ratio is not 1 or there is no table to
-            ask.
+        RuntimeError: The manifest records a ratio that is not positive, or
+            it names a video and records no ratio, and either the table says
+            the ratio is not 1 or there is no table to ask.
     """
     if man.get("frame_ratio") is not None:
-        return float(man["frame_ratio"])
+        ratio = float(man["frame_ratio"])
+        # A ratio of 0 would make every time 0, and a negative one would
+        # reverse the clip; without `gt_step_sec_actual` nothing downstream
+        # would notice either.
+        if not ratio > 0:
+            raise RuntimeError(
+                f"{clip}: the manifest records frame_ratio={man['frame_ratio']!r}, "
+                "which cannot be a ratio of frame numbers. A clip whose seconds "
+                "cannot be made is not mixed in.")
+        return ratio
 
     procedure, youtube_id = man.get("procedure"), man.get("youtube_id")
     if not (procedure and youtube_id):
@@ -138,8 +153,15 @@ def _ratio_of(clip: str, man: dict) -> float:
         # Only the table itself, or a package above it, being absent means
         # "no table". A dependency missing inside the table (`e.name` is then
         # that dependency) is a broken install, and saying "no table" about it
-        # would send the reader to the wrong place.
-        if not MEASURED_RATIOS.startswith(e.name):
+        # would send the reader to the wrong place. The comparison is on
+        # package boundaries, not string prefixes: `surgical_core.atlas`, the
+        # workbench's old name for the package, is a prefix of the table's
+        # name, and an import of it left inside the table must be reported as
+        # itself. An error raised without a name says nothing about what is
+        # missing, so it is passed on too.
+        is_table = e.name is not None and (
+            e.name == MEASURED_RATIOS or MEASURED_RATIOS.startswith(e.name + "."))
+        if not is_table:
             raise
         raise RuntimeError(
             f"{clip}: the manifest has no `frame_ratio`, and the table of measured "
