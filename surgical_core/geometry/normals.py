@@ -1,0 +1,213 @@
+"""Camera-space normals from depth, and the geometric edge maps built on them.
+
+numpy and OpenCV only: the evaluation toolkit imports this, and it has to run
+on a machine with no data and no model weights.
+"""
+
+import cv2
+import numpy as np
+
+
+def camera_normals(depth, K):
+    """Unit normals in camera space, and the mask of pixels that have one.
+
+    Each pixel is back-projected into camera space and the normal is the
+    cross product of the horizontal and vertical tangent vectors, taken by
+    central differences. `normal_map`, `geom_edge_map` and the relighting all
+    start from this.
+
+    Args:
+        depth: (H, W) depth. 0 and NaN are invalid.
+        K: (3, 3) intrinsics at the depth's resolution.
+
+    Returns:
+        `(n, m)`: `n` is (H, W, 3) unit normals (NaN where invalid), `m` is the
+        (H, W) bool mask of valid pixels.
+    """
+    H, W = depth.shape
+    fx, fy, cx, cy = K[0, 0], K[1, 1], K[0, 2], K[1, 2]
+    ys, xs = np.mgrid[0:H, 0:W]
+    m = np.isfinite(depth) & (depth > 1e-6)
+    z = np.where(m, depth, np.nan)
+    P = np.stack([(xs - cx) * z / fx, (ys - cy) * z / fy, z], -1)
+    dx = np.zeros_like(P)
+    dy = np.zeros_like(P)
+    dx[:, 1:-1] = P[:, 2:] - P[:, :-2]
+    dy[1:-1, :] = P[2:, :] - P[:-2, :]
+    n = np.cross(dx, dy)
+    n /= (np.linalg.norm(n, axis=-1, keepdims=True) + 1e-8)
+    return n, m
+
+
+def normal_map(depth, K):
+    """The normals as an RGB image, (H, W, 3) uint8, black where invalid.
+
+    Bulges and creases show as colour changes, so a segmenter prompted with
+    this picks up geometric boundaries that colormapped depth hides.
+
+    Args:
+        depth: (H, W) depth. 0 and NaN are invalid.
+        K: (3, 3) intrinsics at the depth's resolution.
+    """
+    n, m = camera_normals(depth, K)
+    img = (n * 0.5 + 0.5) * 255
+    img[~m] = 0
+    return np.nan_to_num(img).astype(np.uint8)
+
+
+# The contour along the image border and around invalid depth is not geometry.
+# The normals are central differences, so they are 0 or NaN on the outer 2
+# pixels of the image and the 2 pixels next to an invalid pixel; there the
+# 1 - cos to the neighbour is 1, the strongest possible crease, and the depth
+# gradient looks like a step at the rim of a hole. Measured on one CholecSeg8k
+# frame, 57.6 % of the pixels with edge > 0.5 were the outer 2 pixels of the
+# image. By default that ring is zeroed. Labels made before the ring was
+# masked were made from inputs with the ring in; to reproduce them, set
+# `surgical_core.geometry.normals.EDGE_MASK_RING = False`, in this module
+# (not per call: the provenance record reads this flag, and a per-call
+# override would make it lie). The package does not re-export the flag: an
+# import copies a value, so a package copy could be set to False while
+# `geom_edge_map` kept reading True from here.
+#
+# The underlying `normal_map` keeps the same ring, and that was measured and
+# left alone on purpose. On the border the tangent is 0, so the normal is 0,
+# which `normal_map` draws as grey (127, 127, 127), a false "flat"; next to a
+# hole it is NaN, drawn black. Two measurements say it does not matter:
+# 1. The ring around holes does not occur. The depth the pipeline uses is
+#    dense: all four clips measured had 100 % valid pixels, so the only ring is
+#    the 1-pixel image border, 0.8 to 1.1 % of the pixels.
+# 2. The segmenter does not pick the border up as a region. Counting regions
+#    with more than half their pixels within 2 pixels of the border in the
+#    existing labels: 0 of 49 (normal), 0 of 48 (edge) and 0 of 187 (rgb) on
+#    ATLAS-120k; 1 of 101, 0 of 109 and 0 of 118 on CholecSeg8k.
+# Fixing it would mean regenerating every normal-based and edge-based
+# condition. GPU time is not spent on an effect that could not be measured;
+# measure these two again first.
+EDGE_MASK_RING = True
+EDGE_RING_PX = 2
+
+
+def edge_reliable_mask(m):
+    """Pixels whose crease and step are trustworthy: valid, and `EDGE_RING_PX`
+    away from any invalid pixel and from the image border."""
+    # TODO: `EDGE_RING_PX = 0` would mask every pixel, because `r[-0:]` is
+    # the whole array, not an empty slice. The width is 2 and is not meant to
+    # move; if it ever does, guard the four border slices.
+    k = np.ones((2 * EDGE_RING_PX + 1, 2 * EDGE_RING_PX + 1), np.uint8)
+    r = cv2.erode(m.astype(np.uint8), k).astype(bool)
+    r[:EDGE_RING_PX, :] = False
+    r[-EDGE_RING_PX:, :] = False
+    r[:, :EDGE_RING_PX] = False
+    r[:, -EDGE_RING_PX:] = False
+    return r
+
+
+def geom_edge_map(depth, K, normal_thresh=0.3, depth_thresh=0.04, parts="both",
+                  mask_ring=None):
+    """Geometric edge strength in [0, 1] from normal discontinuity and depth steps.
+
+    Large at real geometric boundaries (organ creases, occlusion steps), small
+    on smooth surfaces. Burnt into a segmenter input as a dark line, it pulls
+    the segmentation onto those boundaries.
+
+    Args:
+        depth: (H, W) depth.
+        K: (3, 3) intrinsics.
+        normal_thresh: the 1 - cos between neighbouring normals at which the
+            edge saturates (0.3 is about 45 degrees).
+        depth_thresh: the relative depth step at which the edge saturates
+            (4 %, for occlusion boundaries).
+        parts: `"both"` (the default), `"normal"` (creases only) or
+            `"depth"` (steps only), to tell which cue is doing the work.
+        mask_ring: whether to zero the ring along the image border and
+            around invalid pixels. `None` follows `EDGE_MASK_RING`. Reproduce
+            old labels by setting `normals.EDGE_MASK_RING`, not this
+            argument: the provenance record reads the flag.
+
+    Returns:
+        (H, W) float edge strength, 0 where invalid.
+
+    Note:
+        The ring is 2 pixels wide to match the crease term: the normals are
+        central differences, so they are 0 or NaN on the outer pixel and the
+        pixel next to a hole, and the 1 - cos rings one pixel further. The
+        step term uses `np.gradient`, which is one-sided at the border, so it
+        has no border artifact and would need only 1 pixel around holes;
+        with `parts="depth"` the outer 2 pixels of real steps are lost too.
+        That is the conservative side, so the two are kept equal.
+    """
+    n, m = camera_normals(depth, K)
+    H, W = depth.shape
+    nf = np.nan_to_num(n)
+    # Normal discontinuity: 1 - cos to the right and lower neighbour, large at
+    # creases and folds.
+    en = np.zeros((H, W))
+    dot_r = np.sum(nf[:, :-1] * nf[:, 1:], -1)
+    en[:, :-1] = np.maximum(en[:, :-1], 1 - dot_r)
+    en[:, 1:] = np.maximum(en[:, 1:], 1 - dot_r)
+    dot_d = np.sum(nf[:-1, :] * nf[1:, :], -1)
+    en[:-1, :] = np.maximum(en[:-1, :], 1 - dot_d)
+    en[1:, :] = np.maximum(en[1:, :], 1 - dot_d)
+    en = np.clip(en / normal_thresh, 0, 1)
+    # Depth step: relative gradient, for occlusion boundaries and the places
+    # where the normal breaks down.
+    d = np.where(m, depth, np.nan)
+    g = np.hypot(np.gradient(np.nan_to_num(d), axis=1), np.gradient(np.nan_to_num(d), axis=0))
+    ed = np.clip(np.nan_to_num(g) / (np.nan_to_num(d) * depth_thresh + 1e-6), 0, 1)
+    edge = {"normal": en, "depth": ed}.get(parts, np.maximum(en, ed))
+    edge = np.array(edge, dtype=float)
+    edge[~m] = 0
+    ring = EDGE_MASK_RING if mask_ring is None else mask_ring
+    if ring:
+        edge[~edge_reliable_mask(m)] = 0
+    return edge
+
+
+def normal_edge_map(depth, K, edge_gain=0.85, smooth=True):
+    """The normal image with the geometric edges burnt in as dark lines.
+
+    Smoothing removes the speckle that depth noise puts into the normals,
+    which otherwise splits regions into slivers, and the dark lines pull the
+    segmentation onto the real boundaries.
+
+    Args:
+        depth: (H, W) depth.
+        K: (3, 3) intrinsics.
+        edge_gain: how dark the edge line is, 0 to 1; 1 makes it nearly black.
+        smooth: bilateral-filter the normal image first.
+
+    Returns:
+        (H, W, 3) uint8, black where invalid.
+    """
+    n, m = camera_normals(depth, K)
+    base = ((np.nan_to_num(n) * 0.5 + 0.5) * 255).astype(np.uint8)
+    base[~m] = 0
+    if smooth:
+        base = cv2.bilateralFilter(base, d=5, sigmaColor=40, sigmaSpace=5)
+    edge = geom_edge_map(depth, K)
+    img = base.astype(np.float32) * (1.0 - edge_gain * edge)[..., None]
+    img[~m] = 0
+    return np.clip(img, 0, 255).astype(np.uint8)
+
+
+def burn_geom_edge(base, depth, K, edge_gain=0.85):
+    """Burn the same geometric edges into any 3-channel image.
+
+    The edge comes from `geom_edge_map`, from depth and intrinsics alone, so
+    it is identical whatever `base` is, and the difference between an input
+    and its `_edge` variant is exactly the dark line. Invalid pixels are left
+    to `base` (black in a normal image, untouched in RGB); zeroing them here
+    would mix "edges added" with "invalid pixels removed".
+
+    Args:
+        base: (H, W, 3) uint8.
+        depth: (H, W) depth.
+        K: (3, 3) intrinsics.
+        edge_gain: how dark the edge line is, 0 to 1.
+
+    Returns:
+        (H, W, 3) uint8.
+    """
+    edge = geom_edge_map(depth, K)
+    img = base.astype(np.float32) * (1.0 - edge_gain * edge)[..., None]
+    return np.clip(img, 0, 255).astype(np.uint8)

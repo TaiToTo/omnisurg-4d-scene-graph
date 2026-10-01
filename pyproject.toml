@@ -27,6 +27,13 @@ authors = [{ name = "Yasuto Tamura" }]
 # has opencv-python.
 dependencies = ["numpy", "opencv-python", "Pillow"]
 
+[project.optional-dependencies]
+# What the pipeline's segmenter inputs need and the evaluator does not: the
+# depth colormap (matplotlib) and the Poisson integration in Retinex (scipy).
+# `surgical_core.geometry.render` is the only importer. Kept out of the base
+# install so that the toolkit still installs on a machine with neither.
+render = ["scipy", "matplotlib"]
+
 [project.urls]
 Homepage = "https://github.com/TaiToTo/omnisurg-4d-scene-graph"
 
