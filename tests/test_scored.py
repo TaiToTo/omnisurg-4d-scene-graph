@@ -1,7 +1,7 @@
 """The scored pixels of a view, and the count of what it removes, on the real tables.
 
 The frame is 60 x 100 px, laid out in columns so that every count is a
-multiple of 60: ten columns each of the classes named in the fixtures.
+multiple of 60: ten columns each of the mask ids named in the fixtures.
 """
 import numpy as np
 import pytest
@@ -43,6 +43,8 @@ def test_the_all_view_scores_every_class_that_is_not_ignored(cholec):
     assert s.counts == PixelCounts(invalid_depth=0, ignored=1200, background=0, left_out=0, scored=4800)
     assert s.mask[:, 10:80].all() and s.mask[:, 90:].all()
     assert not s.mask[:, :10].any() and not s.mask[:, 80:90].any()
+    # The original set is the identity, on every pixel, scored or not.
+    assert s.classes.dtype == np.int32 and (s.classes == columns(CHOLEC)).all()
 
 
 def test_the_tissue_view_leaves_out_the_tool(cholec):
@@ -81,15 +83,20 @@ def test_background_is_removed_in_every_view_and_counted(atlas):
     assert scored_pixels(frame, atlas, "geometric", ALL).counts == PixelCounts(0, 0, 1800, 1800, 2400)
 
 
-def test_the_benchmark_set_types_its_own_classes():
-    # Benchmark class 11, Bile/lymph duct, is tissue although Cystic duct
-    # (original id 13) is expert; the view reads the set it was given.
+def test_the_benchmark_set_maps_the_mask_ids_and_types_its_own_classes():
+    # The same mask, mask id 13 Cystic duct throughout, read in both sets:
+    # expert in the original set, so the geometric view scores nothing;
+    # merged into benchmark class 11 Bile/lymph duct, tissue, so it scores
+    # the whole frame.
     original, benchmark = load_table("atlas120k"), load_table("atlas120k", "benchmark")
-    assert scored_pixels(columns([13] * 10), original, "geometric", ALL).counts.scored == 0
-    assert scored_pixels(columns([11] * 10), benchmark, "geometric", ALL).counts.scored == H * W
+    frame = columns([13] * 10)
+    s = scored_pixels(frame, original, "geometric", ALL)
+    assert s.counts.scored == 0 and (s.classes == 13).all()
+    s = scored_pixels(frame, benchmark, "geometric", ALL)
+    assert s.counts.scored == H * W and (s.classes == 11).all()
 
 
-def test_a_class_the_table_does_not_have_raises(cholec):
+def test_a_mask_id_the_table_does_not_have_raises(cholec):
     with pytest.raises(KeyError, match="14"):
         scored_pixels(columns([2] * 9 + [14]), cholec, "all", ALL)
 
@@ -110,14 +117,23 @@ def test_the_marker_is_seen_on_the_mask_ids_in_both_class_sets():
     frame = columns([12] * 9 + [42])
     assert frame_is_excluded(frame, original) and frame_is_excluded(frame, benchmark)
     assert not frame_is_excluded(columns([12] * 10), benchmark)
-    # In the benchmark set the marker has become background by the time the
-    # classes are typed, so the check has to run on the mask ids.
-    assert scored_pixels(benchmark.classes_of(frame), benchmark, "all", ALL).counts.background == 600
+    # In the benchmark set the marker would have become background by the
+    # time the classes are typed, so the refusal has to run on the mask ids
+    # too, or the frame would be scored with 600 px of background.
+    with pytest.raises(ValueError, match="excluded"):
+        scored_pixels(frame, benchmark, "all", ALL)
 
 
 def test_the_marker_check_refuses_an_id_no_mask_may_hold(atlas):
     with pytest.raises(KeyError, match="47"):
         frame_is_excluded(columns([12] * 9 + [47]), atlas)
+
+
+def test_the_marker_check_refuses_what_is_not_a_mask_id_map(atlas):
+    with pytest.raises(ValueError, match="integer"):
+        frame_is_excluded(columns([12] * 10).astype(np.float32), atlas)
+    with pytest.raises(ValueError, match=r"\(H, W\)"):
+        frame_is_excluded(np.zeros((2, H, W), dtype=np.int32), atlas)
 
 
 def test_the_inputs_are_checked_first(cholec):

@@ -327,7 +327,12 @@ uses it.
   mask is background alone.
 - Nothing is dropped without a count: skipped frames, ignored, background and
   invalid pixels, the pixels each view removes, and the frames a metric is not
-  defined on are counted in the JSON.
+  defined on are counted in the JSON. A removed pixel is counted once, by the
+  first reason that removes it, in this order: invalid depth, then `ignored`,
+  then `background`, then a class the view leaves out. So a frame's counts
+  are disjoint and sum to its pixels, and a black corner without depth counts
+  as invalid depth, not as ignored. The order is a convention: another one
+  would change the counts and no score, but the JSON is read against this one.
 
 ### Recorded with every score
 

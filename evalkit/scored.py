@@ -5,17 +5,25 @@ pixel is scored when its depth is valid and its GT class is one the view
 includes. The rest is removed from the GT and the prediction alike, so a
 region lying there is neither an object nor a false positive, and no
 boundary is marked against it. This module computes that mask once per
-frame and view; the metric modules take it as `scored`.
+frame and view, from the mask ids as `ClassTable.mask_ids` read them, and
+the class map that goes with it; the metric modules take them as `scored`
+and the GT.
 
 Removed pixels are counted, by the first reason that removes them: invalid
 depth, then an `ignored` class, then `background`, then a class the view
 leaves out. The counts are disjoint and sum to the frame, so a JSON reader
-can see where every pixel went.
+can see where every pixel went. `docs/evaluation.md` fixes the order.
 
 An `excluded` class is a marker that takes the whole frame out. It is
-checked on the mask's own ids, before any mapping, because ATLAS-120k's
-benchmark set maps the marker to background; a frame that carries it is
-skipped and counted by the caller, and never reaches `scored_pixels`.
+checked on the mask's own ids, before the mapping to a class set, because
+ATLAS-120k's benchmark set maps the marker to background and would hide it.
+The caller asks `frame_is_excluded` first and skips and counts the frame;
+`scored_pixels` runs the same check on the same ids and refuses the frame,
+in every class set, so a caller that forgot cannot score it.
+
+TODO: the per-frame driver that skips and counts an excluded frame is not
+written yet, so `frame_is_excluded` has no caller but the tests. It stays
+public for that driver.
 """
 from __future__ import annotations
 
@@ -23,7 +31,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from evalkit.classes import VIEWS, ClassTable, ClassType
+from evalkit.classes import ClassTable, ClassType
 
 
 @dataclass(frozen=True)
@@ -31,7 +39,8 @@ class PixelCounts:
     """Where each pixel of a frame went, by the first reason that removed it.
 
     Attributes:
-        invalid_depth: Depth not finite or not above the threshold.
+        invalid_depth: Depth not finite or not above the threshold of
+            `docs/evaluation.md`, "Valid pixels".
         ignored: An `ignored` class: outside the view, or not a class.
         background: Labelled as nothing.
         left_out: A scored type the view leaves out (a tool in the `tissue`
@@ -39,6 +48,9 @@ class PixelCounts:
         scored: What the metrics see.
     """
 
+    # TODO: `valid` is computed by the caller. The function that takes a
+    # depth map to it does not exist yet; when it does, it is the one place
+    # the threshold lives, and this docstring should name it.
     invalid_depth: int
     ignored: int
     background: int
@@ -47,22 +59,41 @@ class PixelCounts:
 
     @property
     def total(self) -> int:
+        """Every pixel of the frame: the counts are disjoint, so their sum."""
         return self.invalid_depth + self.ignored + self.background + self.left_out + self.scored
 
 
 @dataclass(frozen=True)
 class Scored:
-    """The scored pixels of one frame in one view.
+    """The scored pixels of one frame in one view, with the GT they are scored against.
 
     Attributes:
         mask: An (H, W) bool array, True on the pixels the metrics score.
+        classes: The (H, W) int32 GT class map, in the table's class set, on
+            every pixel scored or not; the metrics read it under `mask`.
         counts: Where every pixel of the frame went.
         view: The view's name.
     """
 
     mask: np.ndarray
+    classes: np.ndarray
     counts: PixelCounts
     view: str
+
+
+def _mask_id_map(mask_ids: np.ndarray) -> np.ndarray:
+    mask_ids = np.asarray(mask_ids)
+    if mask_ids.ndim != 2 or not np.issubdtype(mask_ids.dtype, np.integer):
+        raise ValueError(f"a mask id map is an (H, W) integer array, got {mask_ids.dtype} of shape {mask_ids.shape}")
+    return mask_ids
+
+
+def _excluded_ids_present(mask_ids: np.ndarray, table: ClassTable) -> list[int]:
+    """The excluded markers the frame holds; every id present is checked against the table first."""
+    present = np.unique(mask_ids).tolist()
+    for v in present:
+        table.class_of(v)
+    return sorted(v for v in present if v in table.excluded_mask_ids)
 
 
 def frame_is_excluded(mask_ids: np.ndarray, table: ClassTable) -> bool:
@@ -70,57 +101,54 @@ def frame_is_excluded(mask_ids: np.ndarray, table: ClassTable) -> bool:
 
     Checked on the mask ids as read, not on the class set's ids, so that the
     benchmark set, which maps the marker to background, still sees it.
+
+    Raises:
+        ValueError: `mask_ids` is not an (H, W) integer array.
+        KeyError: An id the table does not have.
     """
-    mask_ids = np.asarray(mask_ids)
-    if mask_ids.ndim != 2 or not np.issubdtype(mask_ids.dtype, np.integer):
-        raise ValueError(f"a mask id map is an (H, W) integer array, got {mask_ids.dtype} of shape {mask_ids.shape}")
-    present = np.unique(mask_ids).tolist()
-    for v in present:
-        table.class_of(v)
-    return any(v in table.excluded_mask_ids for v in present)
+    return bool(_excluded_ids_present(_mask_id_map(mask_ids), table))
 
 
-def scored_pixels(classes: np.ndarray, table: ClassTable, view: str, valid: np.ndarray) -> Scored:
-    """The pixels a view scores, and a count of the ones it does not.
+def scored_pixels(mask_ids: np.ndarray, table: ClassTable, view: str, valid: np.ndarray) -> Scored:
+    """The pixels a view scores, the GT classes, and a count of the pixels it does not score.
 
     Args:
-        classes: An (H, W) integer map of class ids of `table`'s class set,
-            as `ClassTable.classes_of` returns them.
-        table: The dataset's class table.
+        mask_ids: An (H, W) integer map of the ids the GT mask holds, as
+            `ClassTable.mask_ids` returns them, before any mapping.
+        table: The dataset's class table, in the class set to score.
         view: One of `VIEWS`.
         valid: An (H, W) bool mask of the pixels with valid depth.
 
     Raises:
-        KeyError: A class id the table does not have, or a view name
+        KeyError: A mask id the table does not have, or a view name
             `VIEWS` does not.
-        ValueError: A class of type `excluded` is present: the frame should
-            have been skipped before any pixel of it was scored.
+        ValueError: An input is not a map of the frame's shape, or a class
+            of type `excluded` is present: the frame should have been skipped
+            before any pixel of it was scored.
     """
-    classes, valid = np.asarray(classes), np.asarray(valid)
-    if classes.ndim != 2 or not np.issubdtype(classes.dtype, np.integer):
-        raise ValueError(f"a class map is an (H, W) integer array, got {classes.dtype} of shape {classes.shape}")
-    if valid.dtype != np.bool_ or valid.shape != classes.shape:
-        raise ValueError(f"`valid` must be a bool array of shape {classes.shape}, got {valid.dtype} {valid.shape}")
-    if view not in VIEWS:
-        raise KeyError(f"unknown view {view!r}; views are {sorted(VIEWS)}")
+    mask_ids, valid = _mask_id_map(mask_ids), np.asarray(valid)
+    if valid.dtype != np.bool_ or valid.shape != mask_ids.shape:
+        raise ValueError(f"`valid` must be a bool array of shape {mask_ids.shape}, got {valid.dtype} {valid.shape}")
+    in_view_ids = table.ids_in_view(view)  # raises on a view `VIEWS` does not have
 
-    # Every class present is typed through the table, so an id it does not
-    # know raises here rather than being scored as something.
-    types = {int(c): table.type_of(int(c)) for c in np.unique(classes).tolist()}
-    excluded = sorted(c for c, t in types.items() if t is ClassType.EXCLUDED)
+    # On the mask ids, before the mapping: in the benchmark set the marker
+    # has become background by the time the classes are typed.
+    excluded = _excluded_ids_present(mask_ids, table)
     if excluded:
         raise ValueError(
-            f"{table.dataset}: class {excluded} marks the frame as excluded; it is skipped "
+            f"{table.dataset}: mask id {excluded} marks the frame as excluded; it is skipped "
             f"as a whole, not scored pixel by pixel"
         )
+    # Every id present is mapped through the table, so one it does not know
+    # raises here rather than being scored as something.
+    classes = table.classes_of(mask_ids)
 
-    def of_type(*wanted: ClassType) -> np.ndarray:
-        ids = [c for c, t in types.items() if t in wanted]
-        return np.isin(classes, ids) if ids else np.zeros(classes.shape, dtype=bool)
+    def valid_and_of(ids: frozenset[int]) -> np.ndarray:
+        return valid & np.isin(classes, sorted(ids))
 
-    ignored = valid & of_type(ClassType.IGNORED)
-    background = valid & of_type(ClassType.BACKGROUND)
-    in_view = valid & of_type(*VIEWS[view])
+    ignored = valid_and_of(table.ids_of_type(ClassType.IGNORED))
+    background = valid_and_of(table.ids_of_type(ClassType.BACKGROUND))
+    in_view = valid_and_of(in_view_ids)
     left_out = valid & ~ignored & ~background & ~in_view
     counts = PixelCounts(
         invalid_depth=int((~valid).sum()),
@@ -129,4 +157,4 @@ def scored_pixels(classes: np.ndarray, table: ClassTable, view: str, valid: np.n
         left_out=int(left_out.sum()),
         scored=int(in_view.sum()),
     )
-    return Scored(mask=in_view, counts=counts, view=view)
+    return Scored(mask=in_view, classes=classes, counts=counts, view=view)
