@@ -102,13 +102,17 @@ workbench. The last two read the workbench and stay on its machine. The two
 
 **Source.** E `extract/03-metrics`: `surgical_core/clip_time.py`. W:
 `surgical_core/clip_time.py` (111 lines) and `tests/test_clip_time.py` (129
-lines). Depends on `numpy` and the standard library only.
+lines). Depends on `numpy` and the standard library, and, when an ATLAS-120k
+manifest records no `frame_ratio`, on the table of measured ratios that
+`atlas120k-meta/readers` brings; until then such a clip is refused.
 
 **What it is.** One function, `frame_times(root, clip)`, that turns a clip's
 `frame_manifest.json` into the real time of every frame in seconds. It exists
-in one place because CholecSeg8k has clips whose time does not advance with
-the frame number, and ATLAS-120k's frame numbers need the frame-ratio
-correction; two copies of that rule would drift.
+in one place because the extracted CholecSeg8k clips are not all in
+chronological order (the workbench's extractor leaves the frames it decodes
+to fill gaps between annotation chunks at an unconverted frame number, so
+they sit 1 to 3 s later than their neighbours), and ATLAS-120k's frame
+numbers need the frame-ratio correction; two copies of that rule would drift.
 
 **Work.** English only. The docstring's reason (the two sides that need it,
 the clips that break a naive rule) stays; its references to the workbench's
@@ -241,6 +245,18 @@ about which videos enter a measurement, which `AGENTS.md` keeps under
 `atlas120k_meta/frame_ratio.json`, read it fail-closed, and have the test
 plant an unmeasured video and watch it refused. Flag this in the pull request
 as the one decision.
+
+One thing to settle with it. `surgical_core.clip_time.frame_times` asks the
+table when an ATLAS-120k manifest records no `frame_ratio`, and it calls the
+workbench's `frame_ratio()`, which answers 1 both for a video measured at 1
+and for a key it does not hold. The two are not the same, and the second
+happens: in one workbench tree, manifests carry a display string such as
+`"pi3x (ATLAS-120k)"` as `procedure`, so the lookup misses and 1 comes back.
+Those clips carry `timestamp_sec` and never reach the table today, but
+nothing guarantees the next tree will. Once the table is read fail-closed,
+`frame_times` should call the form that refuses an unmeasured key, and its
+test for that case (which plants a stand-in table) should be pointed at the
+real one.
 
 **Done when.** Both tests pass against the new modules; `clip_rects` is
 tested against the file committed by `atlas120k-meta/data`; no Japanese left.
