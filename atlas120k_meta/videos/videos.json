@@ -1,0 +1,10544 @@
+{
+ "stride": 3,
+ "min_frames": 15,
+ "n_videos_in_tree": 100,
+ "n_videos": 96,
+ "n_clips": 438,
+ "n_frames": 37830,
+ "videos": [
+  {
+   "split": "train",
+   "procedure": "adrenalectomy",
+   "video": "16GPCUPkXYQ",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 149085767,
+   "n_clips": 5,
+   "n_clips_kept": 5,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 2353,
+   "n_frames_after_stride": 786,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 332,
+     "n_picked": 111,
+     "native_range": [
+      2948,
+      3279
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 412,
+     "n_picked": 138,
+     "native_range": [
+      3304,
+      3715
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 825,
+     "n_picked": 275,
+     "native_range": [
+      4994,
+      5818
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 44,
+     "n_picked": 15,
+     "native_range": [
+      6527,
+      6570
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0005",
+     "n_native": 740,
+     "n_picked": 247,
+     "native_range": [
+      8387,
+      9126
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "appendectomy",
+   "video": "41RKDh3INiU",
+   "is_robot": false,
+   "has_mp4": true,
+   "mp4_bytes": 62152548,
+   "n_clips": 3,
+   "n_clips_kept": 3,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 1085,
+   "n_frames_after_stride": 362,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 534,
+     "n_picked": 178,
+     "native_range": [
+      224,
+      757
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 246,
+     "n_picked": 82,
+     "native_range": [
+      1024,
+      1269
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 305,
+     "n_picked": 102,
+     "native_range": [
+      1878,
+      2182
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "appendectomy",
+   "video": "XEcjPI5Alb0",
+   "is_robot": false,
+   "has_mp4": true,
+   "mp4_bytes": 150095668,
+   "n_clips": 4,
+   "n_clips_kept": 4,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 1518,
+   "n_frames_after_stride": 507,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 324,
+     "n_picked": 108,
+     "native_range": [
+      1283,
+      1606
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 216,
+     "n_picked": 72,
+     "native_range": [
+      1824,
+      2039
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 574,
+     "n_picked": 192,
+     "native_range": [
+      4826,
+      5399
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 404,
+     "n_picked": 135,
+     "native_range": [
+      6600,
+      7003
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "appendectomy",
+   "video": "ZdBpRNRFf1A",
+   "is_robot": false,
+   "has_mp4": true,
+   "mp4_bytes": 99418311,
+   "n_clips": 1,
+   "n_clips_kept": 1,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 1283,
+   "n_frames_after_stride": 428,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 1283,
+     "n_picked": 428,
+     "native_range": [
+      825,
+      2107
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "appendectomy",
+   "video": "ibPeqahGcSo",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 132886240,
+   "n_clips": 3,
+   "n_clips_kept": 3,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 5020,
+   "n_frames_after_stride": 1674,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 2432,
+     "n_picked": 811,
+     "native_range": [
+      294,
+      2725
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 1601,
+     "n_picked": 534,
+     "native_range": [
+      3365,
+      4965
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 987,
+     "n_picked": 329,
+     "native_range": [
+      5997,
+      6983
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "cholecystectomy",
+   "video": "4T6Le0qwfJ8",
+   "is_robot": false,
+   "has_mp4": true,
+   "mp4_bytes": 912597604,
+   "n_clips": 3,
+   "n_clips_kept": 2,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 1,
+   "n_native_frames": 365,
+   "n_frames_after_stride": 118,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 207,
+     "n_picked": 69,
+     "native_range": [
+      328,
+      534
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 145,
+     "n_picked": 49,
+     "native_range": [
+      33019,
+      33163
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 13,
+     "n_picked": 5,
+     "native_range": [
+      33252,
+      33264
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "cholecystectomy",
+   "video": "4taQcQXVl_k",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 234506534,
+   "n_clips": 2,
+   "n_clips_kept": 2,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 133,
+   "n_frames_after_stride": 45,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 76,
+     "n_picked": 26,
+     "native_range": [
+      1705,
+      1780
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 57,
+     "n_picked": 19,
+     "native_range": [
+      3634,
+      3690
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "cholecystectomy",
+   "video": "5fAHdwofg4o",
+   "is_robot": false,
+   "has_mp4": true,
+   "mp4_bytes": 302915728,
+   "n_clips": 6,
+   "n_clips_kept": 6,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 762,
+   "n_frames_after_stride": 257,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 157,
+     "n_picked": 53,
+     "native_range": [
+      49,
+      205
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 78,
+     "n_picked": 26,
+     "native_range": [
+      222,
+      299
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 260,
+     "n_picked": 87,
+     "native_range": [
+      376,
+      635
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 49,
+     "n_picked": 17,
+     "native_range": [
+      3775,
+      3823
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0005",
+     "n_native": 172,
+     "n_picked": 58,
+     "native_range": [
+      5710,
+      5881
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0006",
+     "n_native": 46,
+     "n_picked": 16,
+     "native_range": [
+      7966,
+      8011
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "cholecystectomy",
+   "video": "7RqTNr2Bmvk",
+   "is_robot": false,
+   "has_mp4": true,
+   "mp4_bytes": 235153020,
+   "n_clips": 2,
+   "n_clips_kept": 2,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 158,
+   "n_frames_after_stride": 53,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 68,
+     "n_picked": 23,
+     "native_range": [
+      8479,
+      8546
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 90,
+     "n_picked": 30,
+     "native_range": [
+      9654,
+      9743
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "cholecystectomy",
+   "video": "BdZKjLz-twU",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 172690142,
+   "n_clips": 3,
+   "n_clips_kept": 3,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 179,
+   "n_frames_after_stride": 60,
+   "pixel_source": "jpeg",
+   "mask_format": "rgb",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 65,
+     "n_picked": 22,
+     "native_range": [
+      0,
+      64
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 60,
+     "n_picked": 20,
+     "native_range": [
+      1328,
+      1387
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 54,
+     "n_picked": 18,
+     "native_range": [
+      1795,
+      1848
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "cholecystectomy",
+   "video": "Bj13QcLRCVc",
+   "is_robot": false,
+   "has_mp4": true,
+   "mp4_bytes": 24886065,
+   "n_clips": 2,
+   "n_clips_kept": 2,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 764,
+   "n_frames_after_stride": 255,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 683,
+     "n_picked": 228,
+     "native_range": [
+      0,
+      682
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 81,
+     "n_picked": 27,
+     "native_range": [
+      697,
+      777
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "cholecystectomy",
+   "video": "FQ-KABSrark",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 29062265,
+   "n_clips": 8,
+   "n_clips_kept": 7,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 1,
+   "n_native_frames": 717,
+   "n_frames_after_stride": 230,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 255,
+     "n_picked": 85,
+     "native_range": [
+      134,
+      388
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 33,
+     "n_picked": 11,
+     "native_range": [
+      416,
+      448
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 98,
+     "n_picked": 33,
+     "native_range": [
+      476,
+      573
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 53,
+     "n_picked": 18,
+     "native_range": [
+      600,
+      652
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0005",
+     "n_native": 49,
+     "n_picked": 17,
+     "native_range": [
+      675,
+      723
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0006",
+     "n_native": 53,
+     "n_picked": 18,
+     "native_range": [
+      1181,
+      1233
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0007",
+     "n_native": 69,
+     "n_picked": 23,
+     "native_range": [
+      1264,
+      1332
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0008",
+     "n_native": 107,
+     "n_picked": 36,
+     "native_range": [
+      1361,
+      1467
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "cholecystectomy",
+   "video": "N9VnLoUpEgw",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 61181472,
+   "n_clips": 3,
+   "n_clips_kept": 3,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 872,
+   "n_frames_after_stride": 292,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 266,
+     "n_picked": 89,
+     "native_range": [
+      475,
+      740
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 95,
+     "n_picked": 32,
+     "native_range": [
+      767,
+      861
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 511,
+     "n_picked": 171,
+     "native_range": [
+      2572,
+      3082
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "cholecystectomy",
+   "video": "Va3QomCEaTE",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 17724749,
+   "n_clips": 2,
+   "n_clips_kept": 2,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 586,
+   "n_frames_after_stride": 196,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 532,
+     "n_picked": 178,
+     "native_range": [
+      0,
+      531
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 54,
+     "n_picked": 18,
+     "native_range": [
+      586,
+      639
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "cholecystectomy",
+   "video": "_-aytJndMV4",
+   "is_robot": false,
+   "has_mp4": true,
+   "mp4_bytes": 301194714,
+   "n_clips": 11,
+   "n_clips_kept": 9,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 1,
+   "n_clips_short": 1,
+   "n_native_frames": 1136,
+   "n_frames_after_stride": 319,
+   "pixel_source": "jpeg",
+   "mask_format": "rgb",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 72,
+     "n_picked": 24,
+     "native_range": [
+      1238,
+      1309
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 48,
+     "n_picked": 16,
+     "native_range": [
+      1549,
+      1596
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 52,
+     "n_picked": 18,
+     "native_range": [
+      1807,
+      1858
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 81,
+     "n_picked": 27,
+     "native_range": [
+      3415,
+      3495
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0005",
+     "n_native": 151,
+     "n_picked": 51,
+     "native_range": [
+      3607,
+      4086
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 1,
+     "dropped": "mask_gap",
+     "keep": false
+    },
+    {
+     "clip": "clip_0006",
+     "n_native": 177,
+     "n_picked": 59,
+     "native_range": [
+      3937,
+      5468
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0007",
+     "n_native": 32,
+     "n_picked": 11,
+     "native_range": [
+      5442,
+      5477
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    },
+    {
+     "clip": "clip_0008",
+     "n_native": 54,
+     "n_picked": 18,
+     "native_range": [
+      5473,
+      10205
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0009",
+     "n_native": 118,
+     "n_picked": 40,
+     "native_range": [
+      10157,
+      11114
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0010",
+     "n_native": 210,
+     "n_picked": 70,
+     "native_range": [
+      11046,
+      13520
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0011",
+     "n_native": 141,
+     "n_picked": 47,
+     "native_range": [
+      13380,
+      13520
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "cholecystectomy",
+   "video": "_qtEBCP-yq8",
+   "is_robot": false,
+   "has_mp4": true,
+   "mp4_bytes": 463913739,
+   "n_clips": 2,
+   "n_clips_kept": 2,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 595,
+   "n_frames_after_stride": 199,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 63,
+     "n_picked": 21,
+     "native_range": [
+      619,
+      681
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 532,
+     "n_picked": 178,
+     "native_range": [
+      683,
+      1214
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "cholecystectomy",
+   "video": "fWucwHRt4UA",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 53199448,
+   "n_clips": 5,
+   "n_clips_kept": 4,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 1,
+   "n_native_frames": 1108,
+   "n_frames_after_stride": 357,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 568,
+     "n_picked": 190,
+     "native_range": [
+      111,
+      678
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 42,
+     "n_picked": 14,
+     "native_range": [
+      922,
+      963
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 170,
+     "n_picked": 57,
+     "native_range": [
+      2064,
+      2233
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 99,
+     "n_picked": 33,
+     "native_range": [
+      2343,
+      2441
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0005",
+     "n_native": 229,
+     "n_picked": 77,
+     "native_range": [
+      2889,
+      3117
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "cholecystectomy",
+   "video": "m0j9Us_4zR8",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 71354800,
+   "n_clips": 3,
+   "n_clips_kept": 3,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 768,
+   "n_frames_after_stride": 257,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 448,
+     "n_picked": 150,
+     "native_range": [
+      266,
+      713
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 83,
+     "n_picked": 28,
+     "native_range": [
+      5405,
+      5487
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 237,
+     "n_picked": 79,
+     "native_range": [
+      5647,
+      5883
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "cholecystectomy",
+   "video": "nqgYPh_x5T8",
+   "is_robot": false,
+   "has_mp4": true,
+   "mp4_bytes": 127326627,
+   "n_clips": 2,
+   "n_clips_kept": 2,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 937,
+   "n_frames_after_stride": 313,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 571,
+     "n_picked": 191,
+     "native_range": [
+      165,
+      735
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 366,
+     "n_picked": 122,
+     "native_range": [
+      4081,
+      4446
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "cholecystectomy",
+   "video": "oAz3BaHSsJc",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 69008235,
+   "n_clips": 2,
+   "n_clips_kept": 2,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 1164,
+   "n_frames_after_stride": 389,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 838,
+     "n_picked": 280,
+     "native_range": [
+      165,
+      1002
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 326,
+     "n_picked": 109,
+     "native_range": [
+      1967,
+      2292
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "cholecystectomy",
+   "video": "pNW9U_mOUEQ",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 43380488,
+   "n_clips": 4,
+   "n_clips_kept": 3,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 1,
+   "n_native_frames": 544,
+   "n_frames_after_stride": 172,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 370,
+     "n_picked": 124,
+     "native_range": [
+      131,
+      500
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 63,
+     "n_picked": 21,
+     "native_range": [
+      864,
+      926
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 79,
+     "n_picked": 27,
+     "native_range": [
+      1049,
+      1127
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 32,
+     "n_picked": 11,
+     "native_range": [
+      1395,
+      1426
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "cholecystectomy",
+   "video": "rgdlZajfGgU",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 88540789,
+   "n_clips": 1,
+   "n_clips_kept": 1,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 852,
+   "n_frames_after_stride": 284,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 852,
+     "n_picked": 284,
+     "native_range": [
+      0,
+      851
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "colectomy",
+   "video": "2JkHKbNsKs8",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 394574329,
+   "n_clips": 4,
+   "n_clips_kept": 4,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 685,
+   "n_frames_after_stride": 231,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 124,
+     "n_picked": 42,
+     "native_range": [
+      2589,
+      2712
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 112,
+     "n_picked": 38,
+     "native_range": [
+      3667,
+      3778
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 136,
+     "n_picked": 46,
+     "native_range": [
+      12243,
+      12378
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 313,
+     "n_picked": 105,
+     "native_range": [
+      18702,
+      19014
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "colectomy",
+   "video": "5Z-C4hsIeDk",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 347652939,
+   "n_clips": 1,
+   "n_clips_kept": 1,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 253,
+   "n_frames_after_stride": 85,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 253,
+     "n_picked": 85,
+     "native_range": [
+      3418,
+      3670
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "colectomy",
+   "video": "PiwjyeRRqXk",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 138362790,
+   "n_clips": 1,
+   "n_clips_kept": 1,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 353,
+   "n_frames_after_stride": 118,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 353,
+     "n_picked": 118,
+     "native_range": [
+      58,
+      410
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "colectomy",
+   "video": "_9ylo-3B49g",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 241236777,
+   "n_clips": 4,
+   "n_clips_kept": 3,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 1,
+   "n_native_frames": 440,
+   "n_frames_after_stride": 139,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 27,
+     "n_picked": 9,
+     "native_range": [
+      0,
+      26
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 70,
+     "n_picked": 24,
+     "native_range": [
+      6649,
+      6718
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 47,
+     "n_picked": 16,
+     "native_range": [
+      8248,
+      8294
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 296,
+     "n_picked": 99,
+     "native_range": [
+      11445,
+      11740
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "esophagectomy",
+   "video": "1AZemLscDK4",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 26525672,
+   "n_clips": 1,
+   "n_clips_kept": 1,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 195,
+   "n_frames_after_stride": 65,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 195,
+     "n_picked": 65,
+     "native_range": [
+      1918,
+      2112
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "esophagectomy",
+   "video": "CDTl9wnODBw",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 900863394,
+   "n_clips": 4,
+   "n_clips_kept": 4,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 439,
+   "n_frames_after_stride": 147,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 74,
+     "n_picked": 25,
+     "native_range": [
+      5451,
+      5524
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 114,
+     "n_picked": 38,
+     "native_range": [
+      19397,
+      19510
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 122,
+     "n_picked": 41,
+     "native_range": [
+      29689,
+      29810
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 129,
+     "n_picked": 43,
+     "native_range": [
+      37683,
+      37811
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "esophagectomy",
+   "video": "J4baNI2MKfY",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 241872248,
+   "n_clips": 8,
+   "n_clips_kept": 6,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 2,
+   "n_native_frames": 745,
+   "n_frames_after_stride": 225,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 36,
+     "n_picked": 12,
+     "native_range": [
+      14047,
+      14082
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 123,
+     "n_picked": 41,
+     "native_range": [
+      15730,
+      15852
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 186,
+     "n_picked": 62,
+     "native_range": [
+      15889,
+      16074
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 37,
+     "n_picked": 13,
+     "native_range": [
+      16330,
+      16366
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    },
+    {
+     "clip": "clip_0005",
+     "n_native": 57,
+     "n_picked": 19,
+     "native_range": [
+      16368,
+      16424
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0006",
+     "n_native": 74,
+     "n_picked": 25,
+     "native_range": [
+      17278,
+      17351
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0007",
+     "n_native": 178,
+     "n_picked": 60,
+     "native_range": [
+      17385,
+      17562
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0008",
+     "n_native": 54,
+     "n_picked": 18,
+     "native_range": [
+      17681,
+      17734
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "esophagectomy",
+   "video": "TJNzaGq4l1I",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 18562144,
+   "n_clips": 2,
+   "n_clips_kept": 2,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 480,
+   "n_frames_after_stride": 161,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 329,
+     "n_picked": 110,
+     "native_range": [
+      478,
+      806
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 151,
+     "n_picked": 51,
+     "native_range": [
+      845,
+      995
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "esophagectomy",
+   "video": "X2n2mJxEwKs",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 209300958,
+   "n_clips": 2,
+   "n_clips_kept": 2,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 905,
+   "n_frames_after_stride": 303,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 208,
+     "n_picked": 70,
+     "native_range": [
+      74,
+      281
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 697,
+     "n_picked": 233,
+     "native_range": [
+      1381,
+      2077
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "esophagectomy",
+   "video": "Y-kKc439v8o",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 150293496,
+   "n_clips": 1,
+   "n_clips_kept": 1,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 169,
+   "n_frames_after_stride": 57,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 169,
+     "n_picked": 57,
+     "native_range": [
+      186,
+      354
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "esophagectomy",
+   "video": "aTSG2tm6baY",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 236955544,
+   "n_clips": 5,
+   "n_clips_kept": 5,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 1257,
+   "n_frames_after_stride": 420,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 212,
+     "n_picked": 71,
+     "native_range": [
+      867,
+      1078
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 179,
+     "n_picked": 60,
+     "native_range": [
+      1087,
+      1265
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 546,
+     "n_picked": 182,
+     "native_range": [
+      3191,
+      3736
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 221,
+     "n_picked": 74,
+     "native_range": [
+      9087,
+      9307
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0005",
+     "n_native": 99,
+     "n_picked": 33,
+     "native_range": [
+      13720,
+      13818
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "esophagectomy",
+   "video": "rriqrf2Obv8",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 194094452,
+   "n_clips": 11,
+   "n_clips_kept": 10,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 1,
+   "n_native_frames": 1633,
+   "n_frames_after_stride": 539,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 165,
+     "n_picked": 55,
+     "native_range": [
+      2511,
+      2675
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 149,
+     "n_picked": 50,
+     "native_range": [
+      2821,
+      2969
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 227,
+     "n_picked": 76,
+     "native_range": [
+      2973,
+      3199
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 324,
+     "n_picked": 108,
+     "native_range": [
+      3205,
+      3528
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0005",
+     "n_native": 167,
+     "n_picked": 56,
+     "native_range": [
+      3881,
+      4047
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0006",
+     "n_native": 66,
+     "n_picked": 22,
+     "native_range": [
+      4679,
+      4744
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0007",
+     "n_native": 101,
+     "n_picked": 34,
+     "native_range": [
+      4937,
+      5037
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0008",
+     "n_native": 82,
+     "n_picked": 28,
+     "native_range": [
+      5049,
+      5130
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0009",
+     "n_native": 25,
+     "n_picked": 9,
+     "native_range": [
+      5358,
+      5382
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    },
+    {
+     "clip": "clip_0010",
+     "n_native": 218,
+     "n_picked": 73,
+     "native_range": [
+      5625,
+      5842
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0011",
+     "n_native": 109,
+     "n_picked": 37,
+     "native_range": [
+      5846,
+      5954
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "esophagectomy",
+   "video": "vvqkGphQc1U",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 441913945,
+   "n_clips": 6,
+   "n_clips_kept": 6,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 875,
+   "n_frames_after_stride": 293,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 164,
+     "n_picked": 55,
+     "native_range": [
+      390,
+      553
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 81,
+     "n_picked": 27,
+     "native_range": [
+      1032,
+      1112
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 227,
+     "n_picked": 76,
+     "native_range": [
+      1573,
+      1799
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 120,
+     "n_picked": 40,
+     "native_range": [
+      1927,
+      2046
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0005",
+     "n_native": 119,
+     "n_picked": 40,
+     "native_range": [
+      2052,
+      2170
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0006",
+     "n_native": 164,
+     "n_picked": 55,
+     "native_range": [
+      2554,
+      2717
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "esophagectomy",
+   "video": "zQBHloIfhd8",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 199477485,
+   "n_clips": 3,
+   "n_clips_kept": 3,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 453,
+   "n_frames_after_stride": 152,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 106,
+     "n_picked": 36,
+     "native_range": [
+      1342,
+      1447
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 257,
+     "n_picked": 86,
+     "native_range": [
+      7706,
+      7962
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 90,
+     "n_picked": 30,
+     "native_range": [
+      9968,
+      10057
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "gastric_surgery",
+   "video": "3qfVO2Ovsgk",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 153660159,
+   "n_clips": 4,
+   "n_clips_kept": 4,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 1305,
+   "n_frames_after_stride": 436,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 485,
+     "n_picked": 162,
+     "native_range": [
+      879,
+      1363
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 278,
+     "n_picked": 93,
+     "native_range": [
+      2135,
+      2412
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 269,
+     "n_picked": 90,
+     "native_range": [
+      2994,
+      3262
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 273,
+     "n_picked": 91,
+     "native_range": [
+      6357,
+      6629
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "gastric_surgery",
+   "video": "4FHGGFZsPzw",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 71880452,
+   "n_clips": 7,
+   "n_clips_kept": 7,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 872,
+   "n_frames_after_stride": 293,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 105,
+     "n_picked": 35,
+     "native_range": [
+      2973,
+      3077
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 93,
+     "n_picked": 31,
+     "native_range": [
+      3083,
+      3175
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 88,
+     "n_picked": 30,
+     "native_range": [
+      3190,
+      3277
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 304,
+     "n_picked": 102,
+     "native_range": [
+      3787,
+      4090
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0005",
+     "n_native": 79,
+     "n_picked": 27,
+     "native_range": [
+      4813,
+      4891
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0006",
+     "n_native": 110,
+     "n_picked": 37,
+     "native_range": [
+      5021,
+      5130
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0007",
+     "n_native": 93,
+     "n_picked": 31,
+     "native_range": [
+      5137,
+      5229
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "gastric_surgery",
+   "video": "7AzfciNaS90",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 50633941,
+   "n_clips": 9,
+   "n_clips_kept": 9,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 2701,
+   "n_frames_after_stride": 903,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 137,
+     "n_picked": 46,
+     "native_range": [
+      1710,
+      1846
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 166,
+     "n_picked": 56,
+     "native_range": [
+      1894,
+      2059
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 152,
+     "n_picked": 51,
+     "native_range": [
+      2101,
+      2252
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 154,
+     "n_picked": 52,
+     "native_range": [
+      2294,
+      2447
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0005",
+     "n_native": 240,
+     "n_picked": 80,
+     "native_range": [
+      2545,
+      2784
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0006",
+     "n_native": 333,
+     "n_picked": 111,
+     "native_range": [
+      3214,
+      3546
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0007",
+     "n_native": 381,
+     "n_picked": 127,
+     "native_range": [
+      4559,
+      4939
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0008",
+     "n_native": 365,
+     "n_picked": 122,
+     "native_range": [
+      7145,
+      7509
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0009",
+     "n_native": 773,
+     "n_picked": 258,
+     "native_range": [
+      7744,
+      8516
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "gastrojejunostomy",
+   "video": "9-41mie67Cw",
+   "is_robot": false,
+   "has_mp4": true,
+   "mp4_bytes": 33202547,
+   "n_clips": 3,
+   "n_clips_kept": 3,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 2234,
+   "n_frames_after_stride": 745,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 1077,
+     "n_picked": 359,
+     "native_range": [
+      977,
+      2053
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 500,
+     "n_picked": 167,
+     "native_range": [
+      2612,
+      3111
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 657,
+     "n_picked": 219,
+     "native_range": [
+      4519,
+      5175
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "gastrojejunostomy",
+   "video": "agJexAzuAX8",
+   "is_robot": false,
+   "has_mp4": true,
+   "mp4_bytes": 598875380,
+   "n_clips": 3,
+   "n_clips_kept": 3,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 1712,
+   "n_frames_after_stride": 572,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 383,
+     "n_picked": 128,
+     "native_range": [
+      22767,
+      23149
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 665,
+     "n_picked": 222,
+     "native_range": [
+      29924,
+      30588
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 664,
+     "n_picked": 222,
+     "native_range": [
+      63464,
+      64127
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "gastrojejunostomy",
+   "video": "hRdeqmI_VIs",
+   "is_robot": false,
+   "has_mp4": true,
+   "mp4_bytes": 205579989,
+   "n_clips": 1,
+   "n_clips_kept": 1,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 276,
+   "n_frames_after_stride": 92,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 276,
+     "n_picked": 92,
+     "native_range": [
+      367,
+      642
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "gastrojejunostomy",
+   "video": "hl952KH9MHg",
+   "is_robot": false,
+   "has_mp4": true,
+   "mp4_bytes": 264819946,
+   "n_clips": 1,
+   "n_clips_kept": 1,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 3753,
+   "n_frames_after_stride": 1251,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 3753,
+     "n_picked": 1251,
+     "native_range": [
+      2435,
+      6187
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "hemicolectomy",
+   "video": "5Wn22szMCFU",
+   "is_robot": false,
+   "has_mp4": true,
+   "mp4_bytes": 79747353,
+   "n_clips": 22,
+   "n_clips_kept": 14,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 8,
+   "n_native_frames": 2295,
+   "n_frames_after_stride": 689,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 227,
+     "n_picked": 76,
+     "native_range": [
+      950,
+      1176
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 284,
+     "n_picked": 95,
+     "native_range": [
+      1719,
+      2002
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 86,
+     "n_picked": 29,
+     "native_range": [
+      2004,
+      2089
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 450,
+     "n_picked": 150,
+     "native_range": [
+      2103,
+      2552
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0005",
+     "n_native": 206,
+     "n_picked": 69,
+     "native_range": [
+      2662,
+      2867
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0006",
+     "n_native": 101,
+     "n_picked": 34,
+     "native_range": [
+      3202,
+      3302
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0007",
+     "n_native": 66,
+     "n_picked": 22,
+     "native_range": [
+      3330,
+      3395
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0008",
+     "n_native": 47,
+     "n_picked": 16,
+     "native_range": [
+      3427,
+      3473
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0009",
+     "n_native": 167,
+     "n_picked": 56,
+     "native_range": [
+      3476,
+      3642
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0010",
+     "n_native": 23,
+     "n_picked": 8,
+     "native_range": [
+      3733,
+      3755
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    },
+    {
+     "clip": "clip_0011",
+     "n_native": 60,
+     "n_picked": 20,
+     "native_range": [
+      3820,
+      3879
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0012",
+     "n_native": 60,
+     "n_picked": 20,
+     "native_range": [
+      3881,
+      3940
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0013",
+     "n_native": 36,
+     "n_picked": 12,
+     "native_range": [
+      4307,
+      4342
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    },
+    {
+     "clip": "clip_0014",
+     "n_native": 21,
+     "n_picked": 7,
+     "native_range": [
+      4414,
+      4434
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    },
+    {
+     "clip": "clip_0015",
+     "n_native": 42,
+     "n_picked": 14,
+     "native_range": [
+      4703,
+      4744
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    },
+    {
+     "clip": "clip_0016",
+     "n_native": 23,
+     "n_picked": 8,
+     "native_range": [
+      5013,
+      5035
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    },
+    {
+     "clip": "clip_0017",
+     "n_native": 132,
+     "n_picked": 44,
+     "native_range": [
+      5299,
+      5430
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0018",
+     "n_native": 58,
+     "n_picked": 20,
+     "native_range": [
+      5581,
+      5638
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0019",
+     "n_native": 42,
+     "n_picked": 14,
+     "native_range": [
+      6415,
+      6456
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    },
+    {
+     "clip": "clip_0020",
+     "n_native": 112,
+     "n_picked": 38,
+     "native_range": [
+      7164,
+      7275
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0021",
+     "n_native": 20,
+     "n_picked": 7,
+     "native_range": [
+      7575,
+      7594
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    },
+    {
+     "clip": "clip_0022",
+     "n_native": 32,
+     "n_picked": 11,
+     "native_range": [
+      7659,
+      7690
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "hemicolectomy",
+   "video": "5YDMlxTl0k8",
+   "is_robot": false,
+   "has_mp4": true,
+   "mp4_bytes": 154983168,
+   "n_clips": 62,
+   "n_clips_kept": 43,
+   "n_clips_no_mask": 10,
+   "n_clips_mask_gap": 4,
+   "n_clips_short": 5,
+   "n_native_frames": 9569,
+   "n_frames_after_stride": 2366,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 56,
+     "n_picked": 19,
+     "native_range": [
+      503,
+      558
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 45,
+     "n_picked": 15,
+     "native_range": [
+      560,
+      604
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 225,
+     "n_picked": 75,
+     "native_range": [
+      606,
+      830
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 56,
+     "n_picked": 19,
+     "native_range": [
+      935,
+      990
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0005",
+     "n_native": 62,
+     "n_picked": 21,
+     "native_range": [
+      1017,
+      1078
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0006",
+     "n_native": 108,
+     "n_picked": 36,
+     "native_range": [
+      1091,
+      1198
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0007",
+     "n_native": 56,
+     "n_picked": 19,
+     "native_range": [
+      1216,
+      1271
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0008",
+     "n_native": 62,
+     "n_picked": 21,
+     "native_range": [
+      1273,
+      1334
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0009",
+     "n_native": 78,
+     "n_picked": 26,
+     "native_range": [
+      1375,
+      1452
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0010",
+     "n_native": 55,
+     "n_picked": 19,
+     "native_range": [
+      1489,
+      1543
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0011",
+     "n_native": 70,
+     "n_picked": 24,
+     "native_range": [
+      1554,
+      1623
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0012",
+     "n_native": 184,
+     "n_picked": 62,
+     "native_range": [
+      1639,
+      1822
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0013",
+     "n_native": 83,
+     "n_picked": 28,
+     "native_range": [
+      2001,
+      2083
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0014",
+     "n_native": 32,
+     "n_picked": 11,
+     "native_range": [
+      2303,
+      2334
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    },
+    {
+     "clip": "clip_0015",
+     "n_native": 241,
+     "n_picked": 81,
+     "native_range": [
+      2426,
+      2666
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 57,
+     "dropped": "mask_gap",
+     "keep": false
+    },
+    {
+     "clip": "clip_0016",
+     "n_native": 142,
+     "n_picked": 48,
+     "native_range": [
+      2668,
+      2931
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": false,
+     "n_mask_gap": 0,
+     "dropped": "no_mask",
+     "keep": false
+    },
+    {
+     "clip": "clip_0017",
+     "n_native": 122,
+     "n_picked": 41,
+     "native_range": [
+      2751,
+      2872
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": false,
+     "n_mask_gap": 0,
+     "dropped": "no_mask",
+     "keep": false
+    },
+    {
+     "clip": "clip_0018",
+     "n_native": 59,
+     "n_picked": 20,
+     "native_range": [
+      2873,
+      2931
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": false,
+     "n_mask_gap": 0,
+     "dropped": "no_mask",
+     "keep": false
+    },
+    {
+     "clip": "clip_0019",
+     "n_native": 11,
+     "n_picked": 4,
+     "native_range": [
+      2934,
+      2944
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": false,
+     "n_mask_gap": 0,
+     "dropped": "no_mask",
+     "keep": false
+    },
+    {
+     "clip": "clip_0020",
+     "n_native": 31,
+     "n_picked": 11,
+     "native_range": [
+      2946,
+      2976
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": false,
+     "n_mask_gap": 0,
+     "dropped": "no_mask",
+     "keep": false
+    },
+    {
+     "clip": "clip_0021",
+     "n_native": 46,
+     "n_picked": 16,
+     "native_range": [
+      3004,
+      3049
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": false,
+     "n_mask_gap": 0,
+     "dropped": "no_mask",
+     "keep": false
+    },
+    {
+     "clip": "clip_0022",
+     "n_native": 150,
+     "n_picked": 50,
+     "native_range": [
+      3225,
+      3374
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": false,
+     "n_mask_gap": 0,
+     "dropped": "no_mask",
+     "keep": false
+    },
+    {
+     "clip": "clip_0023",
+     "n_native": 66,
+     "n_picked": 22,
+     "native_range": [
+      3474,
+      3539
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": false,
+     "n_mask_gap": 0,
+     "dropped": "no_mask",
+     "keep": false
+    },
+    {
+     "clip": "clip_0024",
+     "n_native": 782,
+     "n_picked": 261,
+     "native_range": [
+      3548,
+      4329
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 68,
+     "dropped": "mask_gap",
+     "keep": false
+    },
+    {
+     "clip": "clip_0025",
+     "n_native": 131,
+     "n_picked": 44,
+     "native_range": [
+      4331,
+      4461
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0026",
+     "n_native": 123,
+     "n_picked": 41,
+     "native_range": [
+      4466,
+      4588
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0027",
+     "n_native": 155,
+     "n_picked": 52,
+     "native_range": [
+      4685,
+      4839
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0028",
+     "n_native": 187,
+     "n_picked": 63,
+     "native_range": [
+      5085,
+      5271
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0029",
+     "n_native": 723,
+     "n_picked": 241,
+     "native_range": [
+      5273,
+      5995
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0030",
+     "n_native": 136,
+     "n_picked": 46,
+     "native_range": [
+      6105,
+      6240
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0031",
+     "n_native": 90,
+     "n_picked": 30,
+     "native_range": [
+      6251,
+      6340
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0032",
+     "n_native": 84,
+     "n_picked": 28,
+     "native_range": [
+      6611,
+      6694
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0033",
+     "n_native": 89,
+     "n_picked": 30,
+     "native_range": [
+      7044,
+      7132
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0034",
+     "n_native": 49,
+     "n_picked": 17,
+     "native_range": [
+      7293,
+      7341
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0035",
+     "n_native": 851,
+     "n_picked": 284,
+     "native_range": [
+      7578,
+      8428
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0036",
+     "n_native": 337,
+     "n_picked": 113,
+     "native_range": [
+      8550,
+      8886
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 112,
+     "dropped": "mask_gap",
+     "keep": false
+    },
+    {
+     "clip": "clip_0037",
+     "n_native": 157,
+     "n_picked": 53,
+     "native_range": [
+      8915,
+      9071
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": false,
+     "n_mask_gap": 0,
+     "dropped": "no_mask",
+     "keep": false
+    },
+    {
+     "clip": "clip_0038",
+     "n_native": 72,
+     "n_picked": 24,
+     "native_range": [
+      9141,
+      9212
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": false,
+     "n_mask_gap": 0,
+     "dropped": "no_mask",
+     "keep": false
+    },
+    {
+     "clip": "clip_0039",
+     "n_native": 145,
+     "n_picked": 49,
+     "native_range": [
+      9280,
+      9424
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 13,
+     "dropped": "mask_gap",
+     "keep": false
+    },
+    {
+     "clip": "clip_0040",
+     "n_native": 401,
+     "n_picked": 134,
+     "native_range": [
+      9507,
+      9907
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0041",
+     "n_native": 93,
+     "n_picked": 31,
+     "native_range": [
+      9973,
+      10065
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0042",
+     "n_native": 96,
+     "n_picked": 32,
+     "native_range": [
+      10164,
+      10259
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0043",
+     "n_native": 123,
+     "n_picked": 41,
+     "native_range": [
+      10303,
+      10425
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0044",
+     "n_native": 153,
+     "n_picked": 51,
+     "native_range": [
+      10588,
+      10740
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0045",
+     "n_native": 127,
+     "n_picked": 43,
+     "native_range": [
+      11122,
+      11248
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0046",
+     "n_native": 281,
+     "n_picked": 94,
+     "native_range": [
+      11277,
+      11557
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0047",
+     "n_native": 218,
+     "n_picked": 73,
+     "native_range": [
+      11564,
+      11781
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0049",
+     "n_native": 229,
+     "n_picked": 77,
+     "native_range": [
+      11806,
+      12034
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0050",
+     "n_native": 18,
+     "n_picked": 6,
+     "native_range": [
+      12109,
+      12126
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    },
+    {
+     "clip": "clip_0051",
+     "n_native": 463,
+     "n_picked": 155,
+     "native_range": [
+      12139,
+      12601
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0052",
+     "n_native": 75,
+     "n_picked": 25,
+     "native_range": [
+      12622,
+      12696
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0053",
+     "n_native": 30,
+     "n_picked": 10,
+     "native_range": [
+      12791,
+      12820
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    },
+    {
+     "clip": "clip_0054",
+     "n_native": 51,
+     "n_picked": 17,
+     "native_range": [
+      12875,
+      12925
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0055",
+     "n_native": 284,
+     "n_picked": 95,
+     "native_range": [
+      13096,
+      13379
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0056",
+     "n_native": 42,
+     "n_picked": 14,
+     "native_range": [
+      13658,
+      13699
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    },
+    {
+     "clip": "clip_0057",
+     "n_native": 27,
+     "n_picked": 9,
+     "native_range": [
+      13742,
+      13768
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    },
+    {
+     "clip": "clip_0058",
+     "n_native": 137,
+     "n_picked": 46,
+     "native_range": [
+      13770,
+      13906
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0059",
+     "n_native": 137,
+     "n_picked": 46,
+     "native_range": [
+      13969,
+      14105
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0060",
+     "n_native": 52,
+     "n_picked": 18,
+     "native_range": [
+      14173,
+      14224
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0061",
+     "n_native": 74,
+     "n_picked": 25,
+     "native_range": [
+      14472,
+      14545
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0062",
+     "n_native": 259,
+     "n_picked": 87,
+     "native_range": [
+      14579,
+      14837
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0063",
+     "n_native": 48,
+     "n_picked": 16,
+     "native_range": [
+      14843,
+      14890
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "hemicolectomy",
+   "video": "6qb-oFqRjbE",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 158293535,
+   "n_clips": 39,
+   "n_clips_kept": 30,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 9,
+   "n_native_frames": 4618,
+   "n_frames_after_stride": 1465,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 230,
+     "n_picked": 77,
+     "native_range": [
+      903,
+      1132
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 660,
+     "n_picked": 220,
+     "native_range": [
+      1134,
+      1793
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 34,
+     "n_picked": 12,
+     "native_range": [
+      1795,
+      1828
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 425,
+     "n_picked": 142,
+     "native_range": [
+      2156,
+      2580
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0005",
+     "n_native": 141,
+     "n_picked": 47,
+     "native_range": [
+      3106,
+      3246
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0006",
+     "n_native": 97,
+     "n_picked": 33,
+     "native_range": [
+      3299,
+      3395
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0007",
+     "n_native": 300,
+     "n_picked": 100,
+     "native_range": [
+      3423,
+      3722
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0008",
+     "n_native": 194,
+     "n_picked": 65,
+     "native_range": [
+      3834,
+      4027
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0009",
+     "n_native": 47,
+     "n_picked": 16,
+     "native_range": [
+      4076,
+      4122
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0010",
+     "n_native": 58,
+     "n_picked": 20,
+     "native_range": [
+      4644,
+      4701
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0011",
+     "n_native": 86,
+     "n_picked": 29,
+     "native_range": [
+      4906,
+      4991
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0012",
+     "n_native": 126,
+     "n_picked": 42,
+     "native_range": [
+      4995,
+      5120
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0013",
+     "n_native": 204,
+     "n_picked": 68,
+     "native_range": [
+      5238,
+      5441
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0014",
+     "n_native": 12,
+     "n_picked": 4,
+     "native_range": [
+      6023,
+      6034
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    },
+    {
+     "clip": "clip_0015",
+     "n_native": 29,
+     "n_picked": 10,
+     "native_range": [
+      6039,
+      6067
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    },
+    {
+     "clip": "clip_0016",
+     "n_native": 50,
+     "n_picked": 17,
+     "native_range": [
+      6464,
+      6513
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0017",
+     "n_native": 78,
+     "n_picked": 26,
+     "native_range": [
+      7603,
+      7680
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0018",
+     "n_native": 224,
+     "n_picked": 75,
+     "native_range": [
+      7714,
+      7937
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0019",
+     "n_native": 96,
+     "n_picked": 32,
+     "native_range": [
+      7941,
+      8036
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0020",
+     "n_native": 43,
+     "n_picked": 15,
+     "native_range": [
+      8106,
+      8148
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0021",
+     "n_native": 143,
+     "n_picked": 48,
+     "native_range": [
+      8426,
+      8568
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0022",
+     "n_native": 208,
+     "n_picked": 70,
+     "native_range": [
+      8890,
+      9097
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0023",
+     "n_native": 27,
+     "n_picked": 9,
+     "native_range": [
+      9190,
+      9216
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    },
+    {
+     "clip": "clip_0024",
+     "n_native": 219,
+     "n_picked": 73,
+     "native_range": [
+      9517,
+      9735
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0025",
+     "n_native": 160,
+     "n_picked": 54,
+     "native_range": [
+      9877,
+      10036
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0026",
+     "n_native": 41,
+     "n_picked": 14,
+     "native_range": [
+      10223,
+      10263
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    },
+    {
+     "clip": "clip_0027",
+     "n_native": 49,
+     "n_picked": 17,
+     "native_range": [
+      10889,
+      10937
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0028",
+     "n_native": 112,
+     "n_picked": 38,
+     "native_range": [
+      11150,
+      11261
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0029",
+     "n_native": 69,
+     "n_picked": 23,
+     "native_range": [
+      11692,
+      11760
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0030",
+     "n_native": 29,
+     "n_picked": 10,
+     "native_range": [
+      11777,
+      11805
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    },
+    {
+     "clip": "clip_0031",
+     "n_native": 57,
+     "n_picked": 19,
+     "native_range": [
+      12710,
+      12766
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0032",
+     "n_native": 58,
+     "n_picked": 20,
+     "native_range": [
+      13033,
+      13090
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0033",
+     "n_native": 67,
+     "n_picked": 23,
+     "native_range": [
+      13254,
+      13320
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0034",
+     "n_native": 41,
+     "n_picked": 14,
+     "native_range": [
+      13672,
+      13712
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    },
+    {
+     "clip": "clip_0035",
+     "n_native": 28,
+     "n_picked": 10,
+     "native_range": [
+      14096,
+      14123
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    },
+    {
+     "clip": "clip_0036",
+     "n_native": 64,
+     "n_picked": 22,
+     "native_range": [
+      14124,
+      14187
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0037",
+     "n_native": 12,
+     "n_picked": 4,
+     "native_range": [
+      14569,
+      14580
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    },
+    {
+     "clip": "clip_0038",
+     "n_native": 45,
+     "n_picked": 15,
+     "native_range": [
+      15032,
+      15076
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0039",
+     "n_native": 55,
+     "n_picked": 19,
+     "native_range": [
+      15540,
+      15594
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "hemicolectomy",
+   "video": "Jw5R_jcTtn8",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 222504813,
+   "n_clips": 4,
+   "n_clips_kept": 4,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 883,
+   "n_frames_after_stride": 296,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 117,
+     "n_picked": 39,
+     "native_range": [
+      708,
+      824
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 511,
+     "n_picked": 171,
+     "native_range": [
+      838,
+      1348
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 74,
+     "n_picked": 25,
+     "native_range": [
+      1363,
+      1436
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 181,
+     "n_picked": 61,
+     "native_range": [
+      1458,
+      1638
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "hemicolectomy",
+   "video": "SbqubK1FX50",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 43857630,
+   "n_clips": 8,
+   "n_clips_kept": 7,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 1,
+   "n_native_frames": 1248,
+   "n_frames_after_stride": 404,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 132,
+     "n_picked": 44,
+     "native_range": [
+      988,
+      1119
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 560,
+     "n_picked": 187,
+     "native_range": [
+      1178,
+      1737
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 76,
+     "n_picked": 26,
+     "native_range": [
+      2191,
+      2266
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 87,
+     "n_picked": 29,
+     "native_range": [
+      2736,
+      2822
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0005",
+     "n_native": 82,
+     "n_picked": 28,
+     "native_range": [
+      4924,
+      5005
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0006",
+     "n_native": 146,
+     "n_picked": 49,
+     "native_range": [
+      5549,
+      5694
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0007",
+     "n_native": 42,
+     "n_picked": 14,
+     "native_range": [
+      5700,
+      5741
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    },
+    {
+     "clip": "clip_0008",
+     "n_native": 123,
+     "n_picked": 41,
+     "native_range": [
+      7024,
+      7146
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "hemicolectomy",
+   "video": "lUM_RtRsCKg",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 293746254,
+   "n_clips": 2,
+   "n_clips_kept": 2,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 411,
+   "n_frames_after_stride": 138,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 194,
+     "n_picked": 65,
+     "native_range": [
+      1081,
+      1274
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 217,
+     "n_picked": 73,
+     "native_range": [
+      1725,
+      1941
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "hemicolectomy",
+   "video": "pfMlLui0jhA",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 78473188,
+   "n_clips": 6,
+   "n_clips_kept": 6,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 907,
+   "n_frames_after_stride": 305,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 275,
+     "n_picked": 92,
+     "native_range": [
+      1053,
+      1327
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 99,
+     "n_picked": 33,
+     "native_range": [
+      1603,
+      1701
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 100,
+     "n_picked": 34,
+     "native_range": [
+      1703,
+      1802
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 148,
+     "n_picked": 50,
+     "native_range": [
+      2493,
+      2640
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0005",
+     "n_native": 91,
+     "n_picked": 31,
+     "native_range": [
+      2875,
+      2965
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0006",
+     "n_native": 194,
+     "n_picked": 65,
+     "native_range": [
+      3172,
+      3365
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "lar",
+   "video": "_7H7G-4sevQ",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 251074505,
+   "n_clips": 4,
+   "n_clips_kept": 4,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 2120,
+   "n_frames_after_stride": 708,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 401,
+     "n_picked": 134,
+     "native_range": [
+      0,
+      400
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 547,
+     "n_picked": 183,
+     "native_range": [
+      840,
+      1386
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 770,
+     "n_picked": 257,
+     "native_range": [
+      7278,
+      8047
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 402,
+     "n_picked": 134,
+     "native_range": [
+      13225,
+      13626
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "lar",
+   "video": "dCaGyca-jJw",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 104047395,
+   "n_clips": 3,
+   "n_clips_kept": 3,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 1509,
+   "n_frames_after_stride": 504,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 675,
+     "n_picked": 225,
+     "native_range": [
+      1143,
+      1817
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 208,
+     "n_picked": 70,
+     "native_range": [
+      1854,
+      2061
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 626,
+     "n_picked": 209,
+     "native_range": [
+      3355,
+      3980
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "liver_resection",
+   "video": "wAnvytUuDkA",
+   "is_robot": false,
+   "has_mp4": true,
+   "mp4_bytes": 297872732,
+   "n_clips": 2,
+   "n_clips_kept": 1,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 1,
+   "n_native_frames": 116,
+   "n_frames_after_stride": 26,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 76,
+     "n_picked": 26,
+     "native_range": [
+      1152,
+      1227
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 40,
+     "n_picked": 14,
+     "native_range": [
+      5621,
+      5660
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "rarp",
+   "video": "AZw_lOLChmM",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 169000559,
+   "n_clips": 1,
+   "n_clips_kept": 0,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 1,
+   "n_native_frames": 42,
+   "n_frames_after_stride": 0,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "no_clip_ge_min",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 42,
+     "n_picked": 14,
+     "native_range": [
+      2748,
+      2789
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "rarp",
+   "video": "DS7ddQltHRY",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 136060793,
+   "n_clips": 4,
+   "n_clips_kept": 4,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 1946,
+   "n_frames_after_stride": 650,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 511,
+     "n_picked": 171,
+     "native_range": [
+      2353,
+      2863
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 625,
+     "n_picked": 209,
+     "native_range": [
+      3098,
+      3722
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 522,
+     "n_picked": 174,
+     "native_range": [
+      3858,
+      4379
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 288,
+     "n_picked": 96,
+     "native_range": [
+      12102,
+      12389
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "rarp",
+   "video": "NitKIjCcS7U",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 65104587,
+   "n_clips": 1,
+   "n_clips_kept": 1,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 124,
+   "n_frames_after_stride": 42,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 124,
+     "n_picked": 42,
+     "native_range": [
+      8195,
+      8318
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "rarp",
+   "video": "QxmGKqOtXd8",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 365969207,
+   "n_clips": 8,
+   "n_clips_kept": 8,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 1208,
+   "n_frames_after_stride": 406,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 82,
+     "n_picked": 28,
+     "native_range": [
+      28918,
+      28999
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 51,
+     "n_picked": 17,
+     "native_range": [
+      29009,
+      29059
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 109,
+     "n_picked": 37,
+     "native_range": [
+      30315,
+      30423
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 319,
+     "n_picked": 107,
+     "native_range": [
+      33871,
+      34189
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0005",
+     "n_native": 199,
+     "n_picked": 67,
+     "native_range": [
+      34651,
+      34849
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0006",
+     "n_native": 146,
+     "n_picked": 49,
+     "native_range": [
+      37137,
+      37282
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0007",
+     "n_native": 65,
+     "n_picked": 22,
+     "native_range": [
+      38769,
+      38833
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0008",
+     "n_native": 237,
+     "n_picked": 79,
+     "native_range": [
+      42216,
+      42452
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "rarp",
+   "video": "RG-KrT9Yaac",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 85562445,
+   "n_clips": 3,
+   "n_clips_kept": 3,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 354,
+   "n_frames_after_stride": 118,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 132,
+     "n_picked": 44,
+     "native_range": [
+      5762,
+      5893
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 108,
+     "n_picked": 36,
+     "native_range": [
+      5965,
+      6072
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 114,
+     "n_picked": 38,
+     "native_range": [
+      8421,
+      8534
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "rarp",
+   "video": "hwgXooRFowg",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 2286506700,
+   "n_clips": 8,
+   "n_clips_kept": 7,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 1,
+   "n_native_frames": 739,
+   "n_frames_after_stride": 243,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 187,
+     "n_picked": 63,
+     "native_range": [
+      15768,
+      15954
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 95,
+     "n_picked": 32,
+     "native_range": [
+      16420,
+      16514
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 110,
+     "n_picked": 37,
+     "native_range": [
+      39253,
+      39362
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 48,
+     "n_picked": 16,
+     "native_range": [
+      39372,
+      39419
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0005",
+     "n_native": 180,
+     "n_picked": 60,
+     "native_range": [
+      39421,
+      39600
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0006",
+     "n_native": 45,
+     "n_picked": 15,
+     "native_range": [
+      39615,
+      39659
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0007",
+     "n_native": 14,
+     "n_picked": 5,
+     "native_range": [
+      60313,
+      60326
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    },
+    {
+     "clip": "clip_0008",
+     "n_native": 60,
+     "n_picked": 20,
+     "native_range": [
+      64197,
+      64256
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "rarp",
+   "video": "w9egS1qHdX4",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 189989495,
+   "n_clips": 7,
+   "n_clips_kept": 7,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 887,
+   "n_frames_after_stride": 299,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 104,
+     "n_picked": 35,
+     "native_range": [
+      323,
+      426
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 82,
+     "n_picked": 28,
+     "native_range": [
+      433,
+      514
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 67,
+     "n_picked": 23,
+     "native_range": [
+      906,
+      972
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 263,
+     "n_picked": 88,
+     "native_range": [
+      1366,
+      1628
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0005",
+     "n_native": 56,
+     "n_picked": 19,
+     "native_range": [
+      1701,
+      1756
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0006",
+     "n_native": 164,
+     "n_picked": 55,
+     "native_range": [
+      2608,
+      2771
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0007",
+     "n_native": 151,
+     "n_picked": 51,
+     "native_range": [
+      2782,
+      2932
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "rectopexy",
+   "video": "IJfgUvxoTkM",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 323630308,
+   "n_clips": 2,
+   "n_clips_kept": 2,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 1055,
+   "n_frames_after_stride": 352,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 539,
+     "n_picked": 180,
+     "native_range": [
+      25,
+      563
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 516,
+     "n_picked": 172,
+     "native_range": [
+      4569,
+      5084
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "sigmoidcolectomy",
+   "video": "2CmNyZWDxO4",
+   "is_robot": false,
+   "has_mp4": true,
+   "mp4_bytes": 137933345,
+   "n_clips": 3,
+   "n_clips_kept": 3,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 916,
+   "n_frames_after_stride": 306,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 410,
+     "n_picked": 137,
+     "native_range": [
+      443,
+      852
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 314,
+     "n_picked": 105,
+     "native_range": [
+      1829,
+      2142
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 192,
+     "n_picked": 64,
+     "native_range": [
+      5827,
+      6018
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "sigmoidcolectomy",
+   "video": "EjKZ3ddx8eY",
+   "is_robot": false,
+   "has_mp4": false,
+   "mp4_bytes": 0,
+   "n_clips": 3,
+   "n_clips_kept": 3,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 956,
+   "n_frames_after_stride": 320,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "mp4_missing",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 396,
+     "n_picked": 132,
+     "native_range": [
+      184,
+      579
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 352,
+     "n_picked": 118,
+     "native_range": [
+      2349,
+      2700
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 208,
+     "n_picked": 70,
+     "native_range": [
+      3191,
+      3398
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "sigmoidcolectomy",
+   "video": "KA5RO0CMg6I",
+   "is_robot": false,
+   "has_mp4": true,
+   "mp4_bytes": 44116025,
+   "n_clips": 1,
+   "n_clips_kept": 1,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 450,
+   "n_frames_after_stride": 150,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 450,
+     "n_picked": 150,
+     "native_range": [
+      3956,
+      4405
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "sigmoidcolectomy",
+   "video": "MIFNpGu1cC8",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 120080020,
+   "n_clips": 2,
+   "n_clips_kept": 2,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 1011,
+   "n_frames_after_stride": 337,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 297,
+     "n_picked": 99,
+     "native_range": [
+      3113,
+      3409
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 714,
+     "n_picked": 238,
+     "native_range": [
+      4680,
+      5393
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "sigmoidcolectomy",
+   "video": "S3S_3GDc3dA",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 187669399,
+   "n_clips": 2,
+   "n_clips_kept": 2,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 686,
+   "n_frames_after_stride": 229,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 336,
+     "n_picked": 112,
+     "native_range": [
+      107,
+      442
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 350,
+     "n_picked": 117,
+     "native_range": [
+      6790,
+      7139
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "sigmoidcolectomy",
+   "video": "ZQmRKPkyB3Q",
+   "is_robot": true,
+   "has_mp4": false,
+   "mp4_bytes": 0,
+   "n_clips": 2,
+   "n_clips_kept": 2,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 660,
+   "n_frames_after_stride": 220,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "mp4_missing",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 333,
+     "n_picked": 111,
+     "native_range": [
+      0,
+      332
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 327,
+     "n_picked": 109,
+     "native_range": [
+      2274,
+      2600
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "splenectomy",
+   "video": "HAaMkM113Jw",
+   "is_robot": false,
+   "has_mp4": true,
+   "mp4_bytes": 118494194,
+   "n_clips": 4,
+   "n_clips_kept": 4,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 1782,
+   "n_frames_after_stride": 595,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 450,
+     "n_picked": 150,
+     "native_range": [
+      6697,
+      7146
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 347,
+     "n_picked": 116,
+     "native_range": [
+      7416,
+      7762
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 686,
+     "n_picked": 229,
+     "native_range": [
+      12186,
+      12871
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 299,
+     "n_picked": 100,
+     "native_range": [
+      19627,
+      19925
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "splenectomy",
+   "video": "oHYOgkfKm68",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 2188158387,
+   "n_clips": 3,
+   "n_clips_kept": 3,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 915,
+   "n_frames_after_stride": 306,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 382,
+     "n_picked": 128,
+     "native_range": [
+      13922,
+      14303
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 162,
+     "n_picked": 54,
+     "native_range": [
+      14319,
+      14480
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 371,
+     "n_picked": 124,
+     "native_range": [
+      14609,
+      14979
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "train",
+   "procedure": "splenectomy",
+   "video": "uA6q35o0Yho",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 306740617,
+   "n_clips": 4,
+   "n_clips_kept": 4,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 2061,
+   "n_frames_after_stride": 688,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 683,
+     "n_picked": 228,
+     "native_range": [
+      4419,
+      5101
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 494,
+     "n_picked": 165,
+     "native_range": [
+      7775,
+      8268
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 273,
+     "n_picked": 91,
+     "native_range": [
+      11445,
+      11717
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 611,
+     "n_picked": 204,
+     "native_range": [
+      19089,
+      19699
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "val",
+   "procedure": "cholecystectomy",
+   "video": "1trsPYQ7rmg",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 71187872,
+   "n_clips": 5,
+   "n_clips_kept": 5,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 1729,
+   "n_frames_after_stride": 578,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 238,
+     "n_picked": 80,
+     "native_range": [
+      0,
+      237
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 119,
+     "n_picked": 40,
+     "native_range": [
+      252,
+      370
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 284,
+     "n_picked": 95,
+     "native_range": [
+      381,
+      664
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 720,
+     "n_picked": 240,
+     "native_range": [
+      804,
+      1523
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0005",
+     "n_native": 368,
+     "n_picked": 123,
+     "native_range": [
+      1539,
+      1906
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "val",
+   "procedure": "cholecystectomy",
+   "video": "5TEvJOWx7OM",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 319479675,
+   "n_clips": 2,
+   "n_clips_kept": 2,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 152,
+   "n_frames_after_stride": 51,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 105,
+     "n_picked": 35,
+     "native_range": [
+      380,
+      484
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 47,
+     "n_picked": 16,
+     "native_range": [
+      981,
+      1027
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "val",
+   "procedure": "cholecystectomy",
+   "video": "DKufff9lglk",
+   "is_robot": false,
+   "has_mp4": true,
+   "mp4_bytes": 194863230,
+   "n_clips": 4,
+   "n_clips_kept": 4,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 1207,
+   "n_frames_after_stride": 404,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 432,
+     "n_picked": 144,
+     "native_range": [
+      845,
+      1276
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 211,
+     "n_picked": 71,
+     "native_range": [
+      6061,
+      6271
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 419,
+     "n_picked": 140,
+     "native_range": [
+      6631,
+      7049
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 145,
+     "n_picked": 49,
+     "native_range": [
+      8493,
+      8637
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "val",
+   "procedure": "cholecystectomy",
+   "video": "EPcntn3KRAQ",
+   "is_robot": false,
+   "has_mp4": true,
+   "mp4_bytes": 34095882,
+   "n_clips": 3,
+   "n_clips_kept": 3,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 782,
+   "n_frames_after_stride": 262,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 309,
+     "n_picked": 103,
+     "native_range": [
+      0,
+      308
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 334,
+     "n_picked": 112,
+     "native_range": [
+      785,
+      1118
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 139,
+     "n_picked": 47,
+     "native_range": [
+      3867,
+      4005
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "val",
+   "procedure": "cholecystectomy",
+   "video": "Kg9vCLSWM1E",
+   "is_robot": false,
+   "has_mp4": true,
+   "mp4_bytes": 151949782,
+   "n_clips": 3,
+   "n_clips_kept": 3,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 1261,
+   "n_frames_after_stride": 421,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 390,
+     "n_picked": 130,
+     "native_range": [
+      84,
+      473
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 391,
+     "n_picked": 131,
+     "native_range": [
+      4617,
+      5007
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 480,
+     "n_picked": 160,
+     "native_range": [
+      6479,
+      6958
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "val",
+   "procedure": "colectomy",
+   "video": "2ZwZU_vteAY",
+   "is_robot": false,
+   "has_mp4": true,
+   "mp4_bytes": 516824667,
+   "n_clips": 2,
+   "n_clips_kept": 2,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 608,
+   "n_frames_after_stride": 203,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 432,
+     "n_picked": 144,
+     "native_range": [
+      10189,
+      10620
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 176,
+     "n_picked": 59,
+     "native_range": [
+      13581,
+      13756
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "val",
+   "procedure": "colectomy",
+   "video": "7ENyRFIj8qA",
+   "is_robot": false,
+   "has_mp4": true,
+   "mp4_bytes": 884687400,
+   "n_clips": 2,
+   "n_clips_kept": 2,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 145,
+   "n_frames_after_stride": 49,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 68,
+     "n_picked": 23,
+     "native_range": [
+      16001,
+      16068
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 77,
+     "n_picked": 26,
+     "native_range": [
+      20098,
+      20174
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "val",
+   "procedure": "esophagectomy",
+   "video": "b1oazd6RKHs",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 176361925,
+   "n_clips": 9,
+   "n_clips_kept": 9,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 1153,
+   "n_frames_after_stride": 387,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 70,
+     "n_picked": 24,
+     "native_range": [
+      3609,
+      3678
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 135,
+     "n_picked": 45,
+     "native_range": [
+      3689,
+      3823
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 240,
+     "n_picked": 80,
+     "native_range": [
+      4052,
+      4291
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 125,
+     "n_picked": 42,
+     "native_range": [
+      4324,
+      4448
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0005",
+     "n_native": 51,
+     "n_picked": 17,
+     "native_range": [
+      4666,
+      4716
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0006",
+     "n_native": 199,
+     "n_picked": 67,
+     "native_range": [
+      4754,
+      4952
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0007",
+     "n_native": 183,
+     "n_picked": 61,
+     "native_range": [
+      5294,
+      5476
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0008",
+     "n_native": 53,
+     "n_picked": 18,
+     "native_range": [
+      10224,
+      10276
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0009",
+     "n_native": 97,
+     "n_picked": 33,
+     "native_range": [
+      10444,
+      10540
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "val",
+   "procedure": "rarp",
+   "video": "T_maXoZvMxs",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 986497702,
+   "n_clips": 6,
+   "n_clips_kept": 4,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 2,
+   "n_native_frames": 545,
+   "n_frames_after_stride": 161,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 26,
+     "n_picked": 9,
+     "native_range": [
+      1033,
+      1058
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 62,
+     "n_picked": 21,
+     "native_range": [
+      26029,
+      26090
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 114,
+     "n_picked": 38,
+     "native_range": [
+      27372,
+      27485
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 168,
+     "n_picked": 56,
+     "native_range": [
+      41364,
+      41531
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0005",
+     "n_native": 136,
+     "n_picked": 46,
+     "native_range": [
+      44061,
+      44196
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0006",
+     "n_native": 39,
+     "n_picked": 13,
+     "native_range": [
+      44201,
+      44239
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    }
+   ]
+  },
+  {
+   "split": "val",
+   "procedure": "splenectomy",
+   "video": "mp7wFPjALaw",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 171340363,
+   "n_clips": 3,
+   "n_clips_kept": 3,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 2033,
+   "n_frames_after_stride": 679,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 572,
+     "n_picked": 191,
+     "native_range": [
+      1042,
+      1613
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 850,
+     "n_picked": 284,
+     "native_range": [
+      3892,
+      4741
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 611,
+     "n_picked": 204,
+     "native_range": [
+      12674,
+      13284
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "test",
+   "procedure": "appendectomy",
+   "video": "rclg8c8dQ1Q",
+   "is_robot": true,
+   "has_mp4": false,
+   "mp4_bytes": 0,
+   "n_clips": 3,
+   "n_clips_kept": 2,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 1,
+   "n_clips_short": 0,
+   "n_native_frames": 2552,
+   "n_frames_after_stride": 313,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "mp4_missing",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 1615,
+     "n_picked": 539,
+     "native_range": [
+      314,
+      1928
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 5,
+     "dropped": "mask_gap",
+     "keep": false
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 384,
+     "n_picked": 128,
+     "native_range": [
+      1931,
+      2314
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 553,
+     "n_picked": 185,
+     "native_range": [
+      5137,
+      5689
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "test",
+   "procedure": "cholecystectomy",
+   "video": "1ud3syYKD3A",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 29218365,
+   "n_clips": 3,
+   "n_clips_kept": 3,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 975,
+   "n_frames_after_stride": 326,
+   "pixel_source": "jpeg",
+   "mask_format": "rgb",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 836,
+     "n_picked": 279,
+     "native_range": [
+      0,
+      835
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 87,
+     "n_picked": 29,
+     "native_range": [
+      1304,
+      1390
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 52,
+     "n_picked": 18,
+     "native_range": [
+      1535,
+      1586
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "test",
+   "procedure": "cholecystectomy",
+   "video": "4FpUGXO9mzg",
+   "is_robot": false,
+   "has_mp4": true,
+   "mp4_bytes": 213252131,
+   "n_clips": 5,
+   "n_clips_kept": 5,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 845,
+   "n_frames_after_stride": 283,
+   "pixel_source": "jpeg",
+   "mask_format": "rgb",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 447,
+     "n_picked": 149,
+     "native_range": [
+      0,
+      446
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 86,
+     "n_picked": 29,
+     "native_range": [
+      5423,
+      5508
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 85,
+     "n_picked": 29,
+     "native_range": [
+      5641,
+      5725
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 140,
+     "n_picked": 47,
+     "native_range": [
+      7260,
+      7399
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0005",
+     "n_native": 87,
+     "n_picked": 29,
+     "native_range": [
+      9852,
+      9938
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "test",
+   "procedure": "cholecystectomy",
+   "video": "76_rHrx0OwM",
+   "is_robot": false,
+   "has_mp4": true,
+   "mp4_bytes": 512490978,
+   "n_clips": 2,
+   "n_clips_kept": 2,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 250,
+   "n_frames_after_stride": 84,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 120,
+     "n_picked": 40,
+     "native_range": [
+      3931,
+      4050
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 130,
+     "n_picked": 44,
+     "native_range": [
+      15709,
+      15838
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "test",
+   "procedure": "cholecystectomy",
+   "video": "7ApGq0IlR3k",
+   "is_robot": false,
+   "has_mp4": true,
+   "mp4_bytes": 185350025,
+   "n_clips": 4,
+   "n_clips_kept": 4,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 1025,
+   "n_frames_after_stride": 342,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 390,
+     "n_picked": 130,
+     "native_range": [
+      0,
+      389
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 324,
+     "n_picked": 108,
+     "native_range": [
+      1932,
+      2255
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 134,
+     "n_picked": 45,
+     "native_range": [
+      3061,
+      3194
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 177,
+     "n_picked": 59,
+     "native_range": [
+      4906,
+      5082
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "test",
+   "procedure": "cholecystectomy",
+   "video": "8PaByofhGZ4",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 65264189,
+   "n_clips": 6,
+   "n_clips_kept": 6,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 2485,
+   "n_frames_after_stride": 830,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 200,
+     "n_picked": 67,
+     "native_range": [
+      953,
+      1152
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 854,
+     "n_picked": 285,
+     "native_range": [
+      1203,
+      2056
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 493,
+     "n_picked": 165,
+     "native_range": [
+      3870,
+      4362
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 59,
+     "n_picked": 20,
+     "native_range": [
+      5326,
+      5384
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0005",
+     "n_native": 483,
+     "n_picked": 161,
+     "native_range": [
+      5878,
+      6360
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0006",
+     "n_native": 396,
+     "n_picked": 132,
+     "native_range": [
+      8857,
+      9252
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "test",
+   "procedure": "cholecystectomy",
+   "video": "EKQDBj7u0-c",
+   "is_robot": false,
+   "has_mp4": true,
+   "mp4_bytes": 89306745,
+   "n_clips": 3,
+   "n_clips_kept": 3,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 1023,
+   "n_frames_after_stride": 341,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 366,
+     "n_picked": 122,
+     "native_range": [
+      411,
+      776
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 324,
+     "n_picked": 108,
+     "native_range": [
+      3036,
+      3359
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 333,
+     "n_picked": 111,
+     "native_range": [
+      4238,
+      4570
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "test",
+   "procedure": "cholecystectomy",
+   "video": "J5bg8KTYrw0",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 182807760,
+   "n_clips": 4,
+   "n_clips_kept": 3,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 1,
+   "n_native_frames": 998,
+   "n_frames_after_stride": 321,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 37,
+     "n_picked": 13,
+     "native_range": [
+      964,
+      1000
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 261,
+     "n_picked": 87,
+     "native_range": [
+      1004,
+      1264
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 395,
+     "n_picked": 132,
+     "native_range": [
+      4551,
+      4945
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 305,
+     "n_picked": 102,
+     "native_range": [
+      8804,
+      9108
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "test",
+   "procedure": "cholecystectomy",
+   "video": "JedzslyadF8",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 21236586,
+   "n_clips": 4,
+   "n_clips_kept": 4,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 1166,
+   "n_frames_after_stride": 391,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 361,
+     "n_picked": 121,
+     "native_range": [
+      234,
+      594
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 431,
+     "n_picked": 144,
+     "native_range": [
+      1165,
+      1595
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 214,
+     "n_picked": 72,
+     "native_range": [
+      3895,
+      4108
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 160,
+     "n_picked": 54,
+     "native_range": [
+      4590,
+      4749
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "test",
+   "procedure": "cholecystectomy",
+   "video": "s8k98gGeFf0",
+   "is_robot": false,
+   "has_mp4": true,
+   "mp4_bytes": 169402801,
+   "n_clips": 5,
+   "n_clips_kept": 4,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 1,
+   "n_native_frames": 1151,
+   "n_frames_after_stride": 377,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 22,
+     "n_picked": 8,
+     "native_range": [
+      663,
+      684
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 213,
+     "n_picked": 71,
+     "native_range": [
+      703,
+      915
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 215,
+     "n_picked": 72,
+     "native_range": [
+      1001,
+      1215
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 342,
+     "n_picked": 114,
+     "native_range": [
+      4626,
+      4967
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0005",
+     "n_native": 359,
+     "n_picked": 120,
+     "native_range": [
+      6541,
+      6899
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "test",
+   "procedure": "cholecystectomy",
+   "video": "xEps8nqblY0",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 163595281,
+   "n_clips": 3,
+   "n_clips_kept": 3,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 2431,
+   "n_frames_after_stride": 811,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 1548,
+     "n_picked": 516,
+     "native_range": [
+      0,
+      1547
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 479,
+     "n_picked": 160,
+     "native_range": [
+      6467,
+      6945
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 404,
+     "n_picked": 135,
+     "native_range": [
+      8204,
+      8607
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "test",
+   "procedure": "colectomy",
+   "video": "0ZOUS_v-fsM",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 354428474,
+   "n_clips": 4,
+   "n_clips_kept": 4,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 670,
+   "n_frames_after_stride": 226,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 79,
+     "n_picked": 27,
+     "native_range": [
+      368,
+      446
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 322,
+     "n_picked": 108,
+     "native_range": [
+      450,
+      771
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 106,
+     "n_picked": 36,
+     "native_range": [
+      1623,
+      1728
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 163,
+     "n_picked": 55,
+     "native_range": [
+      2879,
+      3041
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "test",
+   "procedure": "esophagectomy",
+   "video": "6X7BRo4hNt8",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 465928606,
+   "n_clips": 2,
+   "n_clips_kept": 2,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 346,
+   "n_frames_after_stride": 116,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 279,
+     "n_picked": 93,
+     "native_range": [
+      77,
+      355
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 67,
+     "n_picked": 23,
+     "native_range": [
+      8891,
+      8957
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "test",
+   "procedure": "esophagectomy",
+   "video": "C1cBTvzklpw",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 104240956,
+   "n_clips": 9,
+   "n_clips_kept": 9,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 1823,
+   "n_frames_after_stride": 610,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 153,
+     "n_picked": 51,
+     "native_range": [
+      583,
+      735
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 133,
+     "n_picked": 45,
+     "native_range": [
+      742,
+      874
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 75,
+     "n_picked": 25,
+     "native_range": [
+      987,
+      1061
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 256,
+     "n_picked": 86,
+     "native_range": [
+      1068,
+      1323
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0005",
+     "n_native": 123,
+     "n_picked": 41,
+     "native_range": [
+      1337,
+      1459
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0006",
+     "n_native": 98,
+     "n_picked": 33,
+     "native_range": [
+      1462,
+      1559
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0007",
+     "n_native": 408,
+     "n_picked": 136,
+     "native_range": [
+      1954,
+      2361
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0008",
+     "n_native": 464,
+     "n_picked": 155,
+     "native_range": [
+      4596,
+      5059
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0009",
+     "n_native": 113,
+     "n_picked": 38,
+     "native_range": [
+      9653,
+      9765
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "test",
+   "procedure": "gastrojejunostomy",
+   "video": "JZNS119Bu5A",
+   "is_robot": false,
+   "has_mp4": true,
+   "mp4_bytes": 116236992,
+   "n_clips": 3,
+   "n_clips_kept": 3,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 1188,
+   "n_frames_after_stride": 397,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 428,
+     "n_picked": 143,
+     "native_range": [
+      414,
+      841
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 371,
+     "n_picked": 124,
+     "native_range": [
+      1817,
+      2187
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 389,
+     "n_picked": 130,
+     "native_range": [
+      8328,
+      8716
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "test",
+   "procedure": "hemicolectomy",
+   "video": "Vbcmx6eCqko",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 57567089,
+   "n_clips": 6,
+   "n_clips_kept": 6,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 1536,
+   "n_frames_after_stride": 513,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 527,
+     "n_picked": 176,
+     "native_range": [
+      211,
+      737
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 174,
+     "n_picked": 58,
+     "native_range": [
+      1696,
+      1869
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 165,
+     "n_picked": 55,
+     "native_range": [
+      2157,
+      2321
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 261,
+     "n_picked": 87,
+     "native_range": [
+      2570,
+      2830
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0005",
+     "n_native": 244,
+     "n_picked": 82,
+     "native_range": [
+      3053,
+      3296
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0006",
+     "n_native": 165,
+     "n_picked": 55,
+     "native_range": [
+      3647,
+      3811
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "test",
+   "procedure": "rarp",
+   "video": "9WacMabNLVs",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 438231361,
+   "n_clips": 5,
+   "n_clips_kept": 4,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 1,
+   "n_native_frames": 1440,
+   "n_frames_after_stride": 471,
+   "pixel_source": "jpeg",
+   "mask_format": "rgb",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 32,
+     "n_picked": 11,
+     "native_range": [
+      121,
+      152
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 252,
+     "n_picked": 84,
+     "native_range": [
+      7121,
+      7372
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 973,
+     "n_picked": 325,
+     "native_range": [
+      19229,
+      20201
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 65,
+     "n_picked": 22,
+     "native_range": [
+      24359,
+      24423
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0005",
+     "n_native": 118,
+     "n_picked": 40,
+     "native_range": [
+      24425,
+      24542
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "test",
+   "procedure": "rarp",
+   "video": "c3R8aE2rhW4",
+   "is_robot": true,
+   "has_mp4": true,
+   "mp4_bytes": 159330816,
+   "n_clips": 8,
+   "n_clips_kept": 7,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 1,
+   "n_native_frames": 1228,
+   "n_frames_after_stride": 400,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 194,
+     "n_picked": 65,
+     "native_range": [
+      7462,
+      7655
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 73,
+     "n_picked": 25,
+     "native_range": [
+      9639,
+      9711
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 35,
+     "n_picked": 12,
+     "native_range": [
+      25271,
+      25305
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "short",
+     "keep": false
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 227,
+     "n_picked": 76,
+     "native_range": [
+      25362,
+      25588
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0005",
+     "n_native": 62,
+     "n_picked": 21,
+     "native_range": [
+      25590,
+      25651
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0006",
+     "n_native": 177,
+     "n_picked": 59,
+     "native_range": [
+      25727,
+      25903
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0007",
+     "n_native": 192,
+     "n_picked": 64,
+     "native_range": [
+      26048,
+      26239
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0008",
+     "n_native": 268,
+     "n_picked": 90,
+     "native_range": [
+      27480,
+      27747
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "test",
+   "procedure": "sigmoidcolectomy",
+   "video": "4gmGWvP-XwU",
+   "is_robot": false,
+   "has_mp4": true,
+   "mp4_bytes": 402648164,
+   "n_clips": 11,
+   "n_clips_kept": 11,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 1663,
+   "n_frames_after_stride": 557,
+   "pixel_source": "jpeg",
+   "mask_format": "rgb",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 58,
+     "n_picked": 20,
+     "native_range": [
+      0,
+      57
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 210,
+     "n_picked": 70,
+     "native_range": [
+      409,
+      618
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 206,
+     "n_picked": 69,
+     "native_range": [
+      1380,
+      1585
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 186,
+     "n_picked": 62,
+     "native_range": [
+      5753,
+      5938
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0005",
+     "n_native": 119,
+     "n_picked": 40,
+     "native_range": [
+      6307,
+      6425
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0006",
+     "n_native": 49,
+     "n_picked": 17,
+     "native_range": [
+      7659,
+      7707
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0007",
+     "n_native": 105,
+     "n_picked": 35,
+     "native_range": [
+      11384,
+      11488
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0008",
+     "n_native": 92,
+     "n_picked": 31,
+     "native_range": [
+      11505,
+      11596
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0009",
+     "n_native": 62,
+     "n_picked": 21,
+     "native_range": [
+      11897,
+      11958
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0010",
+     "n_native": 363,
+     "n_picked": 121,
+     "native_range": [
+      13028,
+      13390
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0011",
+     "n_native": 213,
+     "n_picked": 71,
+     "native_range": [
+      22351,
+      22563
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "split": "test",
+   "procedure": "splenectomy",
+   "video": "20BJJ1jQOwc",
+   "is_robot": false,
+   "has_mp4": true,
+   "mp4_bytes": 887979906,
+   "n_clips": 5,
+   "n_clips_kept": 5,
+   "n_clips_no_mask": 0,
+   "n_clips_mask_gap": 0,
+   "n_clips_short": 0,
+   "n_native_frames": 2506,
+   "n_frames_after_stride": 837,
+   "pixel_source": "jpeg",
+   "mask_format": "index",
+   "excluded": "",
+   "clips": [
+    {
+     "clip": "clip_0001",
+     "n_native": 694,
+     "n_picked": 232,
+     "native_range": [
+      386,
+      1079
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0002",
+     "n_native": 402,
+     "n_picked": 134,
+     "native_range": [
+      1579,
+      1980
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0003",
+     "n_native": 347,
+     "n_picked": 116,
+     "native_range": [
+      12032,
+      12378
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0004",
+     "n_native": 615,
+     "n_picked": 205,
+     "native_range": [
+      19329,
+      19943
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    },
+    {
+     "clip": "clip_0005",
+     "n_native": 448,
+     "n_picked": 150,
+     "native_range": [
+      34903,
+      35350
+     ],
+     "jpeg_probe": [
+      3,
+      3
+     ],
+     "has_mask": true,
+     "n_mask_gap": 0,
+     "dropped": "",
+     "keep": true
+    }
+   ]
+  }
+ ]
+}

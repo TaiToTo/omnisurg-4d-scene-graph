@@ -1,0 +1,3156 @@
+{
+ "clips": {
+  "adrenalectomy__16GPCUPkXYQ__gt_0001": {
+   "depth_sha256": "b160c43d8a5f0adc9e9ff34aae50b53b7536c46c18fc51519f2c92621e9f328c",
+   "intrinsics_sha256": "f5a980febee7fb8d85321c64d23abdf818724ee68ae274ca208ea5508a2f2a06",
+   "n_frames": 21,
+   "shape": [
+    21,
+    350,
+    504
+   ]
+  },
+  "adrenalectomy__16GPCUPkXYQ__gt_0002": {
+   "depth_sha256": "f84316ac72e20a8e6c24db2baa4690e5aa5fd26029b7296b3f03318c5b855283",
+   "intrinsics_sha256": "e34194b6b70268dbd52a1b84e4c37808ab274f3511844719f8cd15bed75357bc",
+   "n_frames": 26,
+   "shape": [
+    26,
+    350,
+    504
+   ]
+  },
+  "adrenalectomy__16GPCUPkXYQ__gt_0003": {
+   "depth_sha256": "ec64c8d353d51f870b9c4aef80566641a4287b74c6374f2e4c13b73dabca67a3",
+   "intrinsics_sha256": "9b9d21d8ae5d6cf68a2340df5d47262cfad7b52c5eff682668a7439155becf0f",
+   "n_frames": 52,
+   "shape": [
+    52,
+    350,
+    504
+   ]
+  },
+  "adrenalectomy__16GPCUPkXYQ__gt_0005": {
+   "depth_sha256": "ca954284f009ad5b7ba355d2077f7d11c501e7f18cd0746141402eee845ce072",
+   "intrinsics_sha256": "46c5f9f595d096edaf7cbc9387b87cb0570729fb86bc742f291ef6de87320afc",
+   "n_frames": 47,
+   "shape": [
+    47,
+    350,
+    504
+   ]
+  },
+  "appendectomy__41RKDh3INiU__gt_0001": {
+   "depth_sha256": "419775ee28acb43e55563f0cd2531276c4de7db72e42b961a6c5210beb0dc0a7",
+   "intrinsics_sha256": "accb5ecd56592584f4d03933ee4ff67b7b6a09ca09a96911cdcf1bfc5cf40264",
+   "n_frames": 34,
+   "shape": [
+    34,
+    322,
+    504
+   ]
+  },
+  "appendectomy__41RKDh3INiU__gt_0002": {
+   "depth_sha256": "233a022f010cd34d8c57bc8107e6d2c4e1a90fd498a69436322896a1bb983251",
+   "intrinsics_sha256": "3ec238ab326f791f1cdb1c531056c037f381f01b1598d2b7e28ff7a7d4bb36e2",
+   "n_frames": 16,
+   "shape": [
+    16,
+    322,
+    504
+   ]
+  },
+  "appendectomy__41RKDh3INiU__gt_0003": {
+   "depth_sha256": "2c8ae525030acecadc1e434e2dbbb006eadaf8f1a2ec6555683b20025e1b8be6",
+   "intrinsics_sha256": "5ec79d585029dab3ecc28e1d40adedde5bc319e91891a6b0e0f198ec8b35f606",
+   "n_frames": 20,
+   "shape": [
+    20,
+    322,
+    504
+   ]
+  },
+  "appendectomy__XEcjPI5Alb0__gt_0001": {
+   "depth_sha256": "1619bc22f070fa90d31ec6f0f3d046a761044ce183046f484b131af202b21a26",
+   "intrinsics_sha256": "fe525dacfaa131c2b7a1bfcc75366472e3cc701b88b3977786f26266738b62ff",
+   "n_frames": 21,
+   "shape": [
+    21,
+    448,
+    504
+   ]
+  },
+  "appendectomy__XEcjPI5Alb0__gt_0002": {
+   "depth_sha256": "a058752f654e733b92f2ac471468ac8a6443d3581aadb85ef7b3c9cf40045cef",
+   "intrinsics_sha256": "929abfba7e1f6a05e52c6171b8d7556ad2ac10fa4f7d429ed4e2b9e4f89cbbda",
+   "n_frames": 14,
+   "shape": [
+    14,
+    448,
+    504
+   ]
+  },
+  "appendectomy__XEcjPI5Alb0__gt_0003": {
+   "depth_sha256": "a2551462522bd9d09443ab7fca3b50434928abbf03b362dbe5f58ab930d27949",
+   "intrinsics_sha256": "322c26282c387d2318bd93a32da4565e0bd9fcd257ff5360198b93e6fe4801cc",
+   "n_frames": 36,
+   "shape": [
+    36,
+    448,
+    504
+   ]
+  },
+  "appendectomy__XEcjPI5Alb0__gt_0004": {
+   "depth_sha256": "6cdffa854fd94cb7a0dfe431daa71a69c44bc9d1dcd3ed95b42bfe8f1dcb5294",
+   "intrinsics_sha256": "fbc78661e8246bfc19468a12b5a4c91c68a625394c8ac3506765eb11815a8348",
+   "n_frames": 26,
+   "shape": [
+    26,
+    448,
+    504
+   ]
+  },
+  "appendectomy__ZdBpRNRFf1A__gt_0001": {
+   "depth_sha256": "09c9a85c98fde2bf81f64eb3231e9a900cc1abb9b4142fc8e76dc08f4d51088c",
+   "intrinsics_sha256": "7e1655f5bce8654b35622c7c1be07358592d15d0ad44d4bd33242990892b82c5",
+   "n_frames": 81,
+   "shape": [
+    81,
+    420,
+    504
+   ]
+  },
+  "appendectomy__ibPeqahGcSo__gt_0001": {
+   "depth_sha256": "be1af5e098d9f4b52a49f9407e7e39d3b82a12dc11b50f74ccb6b68bbbbcfa38",
+   "intrinsics_sha256": "4527038c8cb79c63acaeca4fc62f702635167cc75b57e1876b850ba96b1498d8",
+   "n_frames": 152,
+   "shape": [
+    152,
+    378,
+    504
+   ]
+  },
+  "appendectomy__ibPeqahGcSo__gt_0002": {
+   "depth_sha256": "efdf9d5020e93eae352918296a1fecaa30db1ae657fb44ca12972f5a58a4dfad",
+   "intrinsics_sha256": "948f6ae85f988cb097046e743b68e48eae81deb33d78afd704cf90a9de81f172",
+   "n_frames": 101,
+   "shape": [
+    101,
+    378,
+    504
+   ]
+  },
+  "appendectomy__ibPeqahGcSo__gt_0003": {
+   "depth_sha256": "d3581201573716828364dff4f11a286af78bf004c3b346da367e7791d04208e3",
+   "intrinsics_sha256": "23a11bc90d8fef432adbf3cf2a51e5578c980ff78215a95a0f67639bac74cc12",
+   "n_frames": 62,
+   "shape": [
+    62,
+    378,
+    504
+   ]
+  },
+  "cholecystectomy__1trsPYQ7rmg__gt_0001": {
+   "depth_sha256": "4fa202a0bdf080fba6dca442995df5305245d186d1cb6dae944ddf82a0af032e",
+   "intrinsics_sha256": "3ae14c7b1b70f2d77dcebb3e6dfa612546830911e60bf14f42c415920637e0d9",
+   "n_frames": 24,
+   "shape": [
+    24,
+    280,
+    504
+   ]
+  },
+  "cholecystectomy__1trsPYQ7rmg__gt_0002": {
+   "depth_sha256": "f4a4454a27115fe4f408914996a07c62003e764cf5374938498b9af37646afe3",
+   "intrinsics_sha256": "cbd925da221f273adeb9fcbc2fb50a29fc8c2e04c8de66ab987e09752e69faf8",
+   "n_frames": 12,
+   "shape": [
+    12,
+    280,
+    504
+   ]
+  },
+  "cholecystectomy__1trsPYQ7rmg__gt_0003": {
+   "depth_sha256": "3c4c333a39672b34a2ec3663017174abd149df675bfe2a97c250ceba5b260ed9",
+   "intrinsics_sha256": "f9226e3980953a14be6226e018c64ab949000167f4644ee370df79deacf4d02c",
+   "n_frames": 29,
+   "shape": [
+    29,
+    280,
+    504
+   ]
+  },
+  "cholecystectomy__1trsPYQ7rmg__gt_0004": {
+   "depth_sha256": "ac153f657103137165d046f9a92f28c299a45931ca30bf7257500936841bdcd7",
+   "intrinsics_sha256": "c66551ecc52faa77844c3cf82cb4a1f41a4a8674d66bdaf8c31651e672a0f9d7",
+   "n_frames": 72,
+   "shape": [
+    72,
+    280,
+    504
+   ]
+  },
+  "cholecystectomy__1trsPYQ7rmg__gt_0005": {
+   "depth_sha256": "71c092170c94e44e5a54521c6c8f88d273f19c5026264f2e937013678dcbad58",
+   "intrinsics_sha256": "2ee3d32099df0425c6a1a5dbb61463ac02fafe9902e8767405f14699ade4e315",
+   "n_frames": 37,
+   "shape": [
+    37,
+    280,
+    504
+   ]
+  },
+  "cholecystectomy__1ud3syYKD3A__gt_0001": {
+   "depth_sha256": "8f9043686d2d9202f33239d89bd7da42d00a4c750158e647d230602b875c87bf",
+   "intrinsics_sha256": "ed84166da90ae75adf6e7ccdf5e95475ff1d9987d7018ab2687c69704d445894",
+   "n_frames": 105,
+   "shape": [
+    105,
+    378,
+    504
+   ]
+  },
+  "cholecystectomy__1ud3syYKD3A__gt_0002": {
+   "depth_sha256": "4de341003c180d5b5b68affcbd1619e191a99dc66a5b868c46e6f8e2e40f360a",
+   "intrinsics_sha256": "52868e375fb67c2424ea195c21642e40523620044d3a1eae6394e9d87ccd058c",
+   "n_frames": 11,
+   "shape": [
+    11,
+    378,
+    504
+   ]
+  },
+  "cholecystectomy__4FpUGXO9mzg__gt_0001": {
+   "depth_sha256": "84abb9bcbcfec7b94259498468faf0e9bdeea5a0bf5ef6b0bb8a95aa02979d90",
+   "intrinsics_sha256": "d6611b08794e3dddf1bbd803c7c8c483c00ccae10ad30f7e295b96d4519f0c46",
+   "n_frames": 28,
+   "shape": [
+    28,
+    420,
+    504
+   ]
+  },
+  "cholecystectomy__4FpUGXO9mzg__gt_0004": {
+   "depth_sha256": "de548d0140e741bbd4cc87cf07b257e8946c37d3a084e173a571d71c19ccbdb7",
+   "intrinsics_sha256": "032bf68ada2ae43c7154e331b8c95581fef7aab46643b4a517fcbca7c7e973d2",
+   "n_frames": 9,
+   "shape": [
+    9,
+    420,
+    504
+   ]
+  },
+  "cholecystectomy__4T6Le0qwfJ8__gt_0001": {
+   "depth_sha256": "004bbbda717a76166b4ca857224a7011c76e62b2ab60b34b0e508d6e3ba27153",
+   "intrinsics_sha256": "fa91e40a7d06e7ba40f49c159cacb28587f8544ea8e21dea5be8115fb792525c",
+   "n_frames": 16,
+   "shape": [
+    16,
+    280,
+    504
+   ]
+  },
+  "cholecystectomy__4T6Le0qwfJ8__gt_0002": {
+   "depth_sha256": "a96f716da111e63e7ca2fd80762b487c1c66465f0545c403dec2de169672041d",
+   "intrinsics_sha256": "e3cf607b77ba02b68bfac4f84a8eb27a242491859f6d23583631a2fbbd3b5cfd",
+   "n_frames": 12,
+   "shape": [
+    12,
+    280,
+    504
+   ]
+  },
+  "cholecystectomy__5fAHdwofg4o__gt_0001": {
+   "depth_sha256": "1b3d2f19d67ee00784bb6091a7cf77b3d74c9a59fd3323e670c89b28581e6418",
+   "intrinsics_sha256": "ec4ff32d35acfc7f38006a4a584867470f9e73011b5b36fe497fd62f7447f1fb",
+   "n_frames": 20,
+   "shape": [
+    20,
+    406,
+    504
+   ]
+  },
+  "cholecystectomy__5fAHdwofg4o__gt_0002": {
+   "depth_sha256": "62c7336ec958f18ed782dc74f33ebb2581af9f492fcf520c99f7f906fa983d03",
+   "intrinsics_sha256": "d0b008a78d455d226f896697dc7bb1231f1f890109e26f555d17db018ba26f71",
+   "n_frames": 10,
+   "shape": [
+    10,
+    406,
+    504
+   ]
+  },
+  "cholecystectomy__5fAHdwofg4o__gt_0003": {
+   "depth_sha256": "c82be9c89cbcd7f5acfbf559382461b85c756100bb6e0955fd59d90dc66517f2",
+   "intrinsics_sha256": "1f71789278aa473436458c5f40a4243bd1a32bf152f7949b708650af89201b99",
+   "n_frames": 33,
+   "shape": [
+    33,
+    406,
+    504
+   ]
+  },
+  "cholecystectomy__5fAHdwofg4o__gt_0005": {
+   "depth_sha256": "e8582e8ba3801da5108f2b765eef517682cc99f5be7f32aa2d0a5463b2232847",
+   "intrinsics_sha256": "326c9adacb075e91363aa0c6eb7e2f0e8e4d0a1a29524d85a98afdb34e91f410",
+   "n_frames": 22,
+   "shape": [
+    22,
+    406,
+    504
+   ]
+  },
+  "cholecystectomy__76_rHrx0OwM__gt_0001": {
+   "depth_sha256": "8429ced1ff7c87b6bb51941d26f173b4e7b486158062c38c624013293bd119ae",
+   "intrinsics_sha256": "89bc0da0a72481df952b70262926a9647e6be532e83a446958ea2e444bd5699f",
+   "n_frames": 8,
+   "shape": [
+    8,
+    420,
+    504
+   ]
+  },
+  "cholecystectomy__76_rHrx0OwM__gt_0002": {
+   "depth_sha256": "484a563f886e10aeff817fdd893e4e5788524a1213c6004ac2315a746322fc59",
+   "intrinsics_sha256": "e22ecf0aac12954cde2f85550538a960165df3ff905cf3591928c973dc5d50d5",
+   "n_frames": 9,
+   "shape": [
+    9,
+    434,
+    504
+   ]
+  },
+  "cholecystectomy__7ApGq0IlR3k__gt_0001": {
+   "depth_sha256": "a7f95073a992f92015d0cf98657af021d60c528dfc97ba4ce7f845cd04f4a345",
+   "intrinsics_sha256": "38abce7ba3d9983bb4175176456ab254732820c11ed1c515867f2469cc0515fc",
+   "n_frames": 25,
+   "shape": [
+    25,
+    434,
+    504
+   ]
+  },
+  "cholecystectomy__7ApGq0IlR3k__gt_0002": {
+   "depth_sha256": "279f190f4e6dc3f3846daa48736d1bf1d10cfb0c2d4b85bf8986b16432774c4d",
+   "intrinsics_sha256": "941619131ae8300fe0f41dd9e09c8dc6376e2f78254c93b02d19b404ac079ce1",
+   "n_frames": 21,
+   "shape": [
+    21,
+    434,
+    504
+   ]
+  },
+  "cholecystectomy__7ApGq0IlR3k__gt_0003": {
+   "depth_sha256": "e299d2bbf6b13ff121634b0ae9b4c7df9d70e2afe4248bf4650a9cfc0ce9862d",
+   "intrinsics_sha256": "7ed479ba8ee8a1321c132effdfaff93bce846d4aef5f0021cb84fd172508a0a1",
+   "n_frames": 9,
+   "shape": [
+    9,
+    434,
+    504
+   ]
+  },
+  "cholecystectomy__7ApGq0IlR3k__gt_0004": {
+   "depth_sha256": "20219545b38bd3b9ad4a44d0371c50c96484556d35fb7a43eab5758ab2f9476f",
+   "intrinsics_sha256": "2ee5606f53d3ecfbc5024cb92e6ed7a16ca4ab63ed0cf3bf1bd618607c134650",
+   "n_frames": 12,
+   "shape": [
+    12,
+    434,
+    504
+   ]
+  },
+  "cholecystectomy__8PaByofhGZ4__gt_0001": {
+   "depth_sha256": "8a21aa3e6738881ca15b28244a6e88f2cd14cc70f8a9f302be4aa371724c7d3f",
+   "intrinsics_sha256": "2603f27ac3be758bf7015aa7a246c3d5475045209748c4e5ef54ea13c77a0a66",
+   "n_frames": 13,
+   "shape": [
+    13,
+    406,
+    504
+   ]
+  },
+  "cholecystectomy__8PaByofhGZ4__gt_0002": {
+   "depth_sha256": "e785887b99aa72c12e70ef5cdb4ad47ba8dcb5cbe7bd743fca9b1ab0d939dba2",
+   "intrinsics_sha256": "0585a27e7ba1c9ff53ede8ba5c3637a4d1126c52abc664977bd726e5913a2aef",
+   "n_frames": 54,
+   "shape": [
+    54,
+    406,
+    504
+   ]
+  },
+  "cholecystectomy__8PaByofhGZ4__gt_0003": {
+   "depth_sha256": "a09b5ddf27a96e187e3173bc7b412fea4b77435f631970474483e299a5eb01be",
+   "intrinsics_sha256": "d274a6966bc43a5b11510206b80e6724d3accb9a7a0f4f36e0f561165ae31c96",
+   "n_frames": 31,
+   "shape": [
+    31,
+    406,
+    504
+   ]
+  },
+  "cholecystectomy__8PaByofhGZ4__gt_0005": {
+   "depth_sha256": "07528081c772ffbd7b5a208892348af648297a082c9fd1a5a4c1ff9770752934",
+   "intrinsics_sha256": "a08a2ac1b29515b17635344820ade0831e7141318beae949d73ef98e13248cf6",
+   "n_frames": 31,
+   "shape": [
+    31,
+    406,
+    504
+   ]
+  },
+  "cholecystectomy__8PaByofhGZ4__gt_0006": {
+   "depth_sha256": "7d496e6a64a74bb807ea3fc8c59cb2442a24b8d2edb28968bce2c00904a470c5",
+   "intrinsics_sha256": "d53cdb6927238ee598d652f6e6314b4704c1ffbd787310e979d83ef6b67ae9cf",
+   "n_frames": 25,
+   "shape": [
+    25,
+    406,
+    504
+   ]
+  },
+  "cholecystectomy__Bj13QcLRCVc__gt_0001": {
+   "depth_sha256": "3eefb0e2f22c984e24599e463d03d88c115a69b45a99e36928e08cdd979f6efd",
+   "intrinsics_sha256": "6b464e6bfefd0c0937bdffee7b8ac7f81138e7ba70b4e33040ec3a606c839e52",
+   "n_frames": 86,
+   "shape": [
+    86,
+    280,
+    504
+   ]
+  },
+  "cholecystectomy__Bj13QcLRCVc__gt_0002": {
+   "depth_sha256": "a90767c4c1b87dd4e14a3c09f49ee4a5d171c2eabefcfbf79de28d0181632970",
+   "intrinsics_sha256": "73a2403230083b40a4b1e2db9c836d06522734b6f592263e0667e9246697436b",
+   "n_frames": 11,
+   "shape": [
+    11,
+    280,
+    504
+   ]
+  },
+  "cholecystectomy__DKufff9lglk__gt_0001": {
+   "depth_sha256": "4045771fb5047b7d5927ec261af0bf1285d52b5bcdc29b8303fe0bd87341c8dc",
+   "intrinsics_sha256": "999981d5823473403362353cbe7437fef66663db5314ac2ff1b3c9caf8697ac2",
+   "n_frames": 27,
+   "shape": [
+    27,
+    476,
+    504
+   ]
+  },
+  "cholecystectomy__DKufff9lglk__gt_0002": {
+   "depth_sha256": "02cccd85b21dea90d88693e360b67b92263eb5faab8124cb7712b14e31da9451",
+   "intrinsics_sha256": "ab0560b566aa95a43087975b525f690ba86e30641f0828db2e530261d9db2ee2",
+   "n_frames": 14,
+   "shape": [
+    14,
+    476,
+    504
+   ]
+  },
+  "cholecystectomy__DKufff9lglk__gt_0003": {
+   "depth_sha256": "a85365cc7337c1191c57f738a61436ced85e4fa872724efd1708e867cf55e476",
+   "intrinsics_sha256": "f0fbc5e8fc21ff2eb3aa6de02f5be553d4f82f4dde509af166a07e726c65336f",
+   "n_frames": 27,
+   "shape": [
+    27,
+    476,
+    504
+   ]
+  },
+  "cholecystectomy__DKufff9lglk__gt_0004": {
+   "depth_sha256": "c02a7b48b7f083f51ff0a0415d0c710a236eac361885777d4a91f08d454936b9",
+   "intrinsics_sha256": "4f2e2b54ceb0bc14a6a7f9d1f5621979d5a6a00832d9c453e7db8a5d350899fa",
+   "n_frames": 10,
+   "shape": [
+    10,
+    476,
+    504
+   ]
+  },
+  "cholecystectomy__EKQDBj7u0-c__gt_0001": {
+   "depth_sha256": "393a64987e8de2df3edc46811486e82be8880ba893bade901ac76bb85416383d",
+   "intrinsics_sha256": "e3444084c71a898aa5e03f8aeb0b04836c1f7e0285b01ea052d042cb9f1bf8d2",
+   "n_frames": 23,
+   "shape": [
+    23,
+    490,
+    504
+   ]
+  },
+  "cholecystectomy__EKQDBj7u0-c__gt_0002": {
+   "depth_sha256": "a00cecf35c85215b41f5e5da023f35257b9a367bbbee1096575159a61a6eb98c",
+   "intrinsics_sha256": "02b24f862085863248d122678c7580a15338cb7647232d61718a2d9e40231b86",
+   "n_frames": 21,
+   "shape": [
+    21,
+    490,
+    504
+   ]
+  },
+  "cholecystectomy__EKQDBj7u0-c__gt_0003": {
+   "depth_sha256": "1a3670eaa1fa5d0e83b5b12243efb189d492b933308e10133000093e92a51357",
+   "intrinsics_sha256": "bcd21f382f2cb6543a6578e8d1f38b7733618b833742b3a4390c6092ea1f65bc",
+   "n_frames": 21,
+   "shape": [
+    21,
+    490,
+    504
+   ]
+  },
+  "cholecystectomy__EPcntn3KRAQ__gt_0001": {
+   "depth_sha256": "82715f33f16a828d5420b93eb9095ddbfc7cdffba5439071c32f530149602ce2",
+   "intrinsics_sha256": "33ee4fcdb7f1e04771dec44d394d00b58635c6cc24904c59803c9d1a945f7086",
+   "n_frames": 20,
+   "shape": [
+    20,
+    434,
+    504
+   ]
+  },
+  "cholecystectomy__EPcntn3KRAQ__gt_0002": {
+   "depth_sha256": "9eb6a0298f68b7387e138b942b7feee85265f5f44a0c160e2c688433a3279e6f",
+   "intrinsics_sha256": "046f73913a57a48ac8189066d3f02c0070f0431bd4231ba0ba3c86c905b70636",
+   "n_frames": 21,
+   "shape": [
+    21,
+    434,
+    504
+   ]
+  },
+  "cholecystectomy__EPcntn3KRAQ__gt_0003": {
+   "depth_sha256": "0d2e007d0e59c40db934d1908d0ae4dea22616207fe1163f9592376ec80210fa",
+   "intrinsics_sha256": "13073aefe15033c5d0847cd545017bff15ac2cc2b6f5fef439a281385f08ef2e",
+   "n_frames": 9,
+   "shape": [
+    9,
+    434,
+    504
+   ]
+  },
+  "cholecystectomy__FQ-KABSrark__gt_0001": {
+   "depth_sha256": "c8880535ed95254f9bacb2cf2cd0c7b1ad51675af9677fb7a2634dfc2d43b77f",
+   "intrinsics_sha256": "81b8014d484bb959f3c7cbacc2f60c99985a4701c2dfdb74d8da071f52aeb313",
+   "n_frames": 16,
+   "shape": [
+    16,
+    378,
+    504
+   ]
+  },
+  "cholecystectomy__J5bg8KTYrw0__gt_0002": {
+   "depth_sha256": "78dc287c06145c3202faa0e82a38439ddeaff6710ce7bce112f6716ead460077",
+   "intrinsics_sha256": "bf83d44229c981f89feb04dfc2f96b3b237cbf97a688d3f384ef706680f2a020",
+   "n_frames": 17,
+   "shape": [
+    17,
+    364,
+    504
+   ]
+  },
+  "cholecystectomy__J5bg8KTYrw0__gt_0003": {
+   "depth_sha256": "717425f12dcfd10bc87ea38064d11fdb9c231730bb6bb088ae86272e75087829",
+   "intrinsics_sha256": "a0fe5aa850d1f372183cecc3fba19c93d7f55ce8b7adba79ad3d5ab856881a5d",
+   "n_frames": 25,
+   "shape": [
+    25,
+    364,
+    504
+   ]
+  },
+  "cholecystectomy__J5bg8KTYrw0__gt_0004": {
+   "depth_sha256": "4224706a1fcf81d0e8c1e28bc0a777d5b98fb9a1995888571458a388f36b3a1c",
+   "intrinsics_sha256": "44f7c634a75dcc7d19a6ae79642e62c67cddb8171c2461f743f193ff3466281b",
+   "n_frames": 20,
+   "shape": [
+    20,
+    364,
+    504
+   ]
+  },
+  "cholecystectomy__JedzslyadF8__gt_0001": {
+   "depth_sha256": "3faac3ee7903625e32d535d1db37c7a281a51e06ca81b45b601922843138c4e6",
+   "intrinsics_sha256": "fa1569f26898cb3aeb281117dede79a81c4803c1a14006d6f064edeacdbcafa2",
+   "n_frames": 23,
+   "shape": [
+    23,
+    266,
+    504
+   ]
+  },
+  "cholecystectomy__JedzslyadF8__gt_0002": {
+   "depth_sha256": "d9b03cdad635b739221db917b45416bb59c5e925962e7e1c75dfcf0fe7c088ae",
+   "intrinsics_sha256": "cbac8c55aac6c940806f2f9ecfc2599a56dd37a6c1fd17fa7a8ae734e6fb53c3",
+   "n_frames": 27,
+   "shape": [
+    27,
+    266,
+    504
+   ]
+  },
+  "cholecystectomy__JedzslyadF8__gt_0003": {
+   "depth_sha256": "381c522c6d1d124aedef1e8f9da62a679307790f2d5f9161f40475578fd8483d",
+   "intrinsics_sha256": "1531491dd63ea700055211f3b326859d1c5cf23080b53d80c12ec9d742ce4f42",
+   "n_frames": 14,
+   "shape": [
+    14,
+    266,
+    504
+   ]
+  },
+  "cholecystectomy__JedzslyadF8__gt_0004": {
+   "depth_sha256": "abb97449b0442c3d20a788069fc8729190cbe070fe13491f48fcdf0bf2a61134",
+   "intrinsics_sha256": "ab2f31b2eac1b5e7e32cdfba5b405d2998244ab63d22666bd7984554f6a594c6",
+   "n_frames": 10,
+   "shape": [
+    10,
+    266,
+    504
+   ]
+  },
+  "cholecystectomy__Kg9vCLSWM1E__gt_0001": {
+   "depth_sha256": "d3d22a78312d98e2e71d7be2aa7878df8d2822d914b8dde28f973678d2d3d553",
+   "intrinsics_sha256": "6011e5ba08c4e4707176338f2b34dc96c1bd449dc4a2fac55fca99a90a09adb4",
+   "n_frames": 25,
+   "shape": [
+    25,
+    420,
+    504
+   ]
+  },
+  "cholecystectomy__Kg9vCLSWM1E__gt_0002": {
+   "depth_sha256": "c4d80053d154f7a3426918f132958a311a9bb3790ce0a1f95246cd5ba8135dff",
+   "intrinsics_sha256": "a39aac4cb24a65f71d07c182405e20f6786c7f8afb2860a85331e96c47a8e4c2",
+   "n_frames": 25,
+   "shape": [
+    25,
+    420,
+    504
+   ]
+  },
+  "cholecystectomy__Kg9vCLSWM1E__gt_0003": {
+   "depth_sha256": "527d11cccbf5b44d2e81cb08a224c6ca55f55171f988ec8c9dc8853523a29532",
+   "intrinsics_sha256": "c063a6a589662f44b13053a37bc04ae82fb4920c9e9501d01038b46f014499b7",
+   "n_frames": 30,
+   "shape": [
+    30,
+    420,
+    504
+   ]
+  },
+  "cholecystectomy__N9VnLoUpEgw__gt_0001": {
+   "depth_sha256": "2d2ec83bb8515e404addf62bd1a0e9fc93aae7677a28cf452679921247cc2176",
+   "intrinsics_sha256": "b7b1fbd7540a59f8c2a682649a80440b258fce7d6cd504b24583491f0391ada0",
+   "n_frames": 17,
+   "shape": [
+    17,
+    280,
+    504
+   ]
+  },
+  "cholecystectomy__N9VnLoUpEgw__gt_0003": {
+   "depth_sha256": "af0a6857c0667a0b6e3967a2e888690874eafb03eaec5acf89572e9a5a11029d",
+   "intrinsics_sha256": "817ee94c477a8a42899a1c1b2b1db5d45f57b2cb909dc1c68c86317eaf8fa626",
+   "n_frames": 32,
+   "shape": [
+    32,
+    280,
+    504
+   ]
+  },
+  "cholecystectomy__Va3QomCEaTE__gt_0001": {
+   "depth_sha256": "e01d37c11be56546d06d2d1ee6ab2a7d6a7ce73d9bc4a69a5d1b4452a4ac75d0",
+   "intrinsics_sha256": "bb4209291e847aafaba43b7761bc281713d7b62d329db29bd0d34177f194e3fe",
+   "n_frames": 67,
+   "shape": [
+    67,
+    378,
+    504
+   ]
+  },
+  "cholecystectomy___-aytJndMV4__gt_0005": {
+   "depth_sha256": "564e2f9a3c9113577b0b610bbfa16dafef28da1c4bd0b8734643603a34a33fcc",
+   "intrinsics_sha256": "d047857ad3cb2f2cf35cdb80de542b901f66310c4805797b56272e43d9123cee",
+   "n_frames": 10,
+   "shape": [
+    10,
+    420,
+    504
+   ]
+  },
+  "cholecystectomy___-aytJndMV4__gt_0010": {
+   "depth_sha256": "40d3ee4c0f765f9d49f5916a9f256d9ff88596ee1da8764b4d32f4e7d491d0ef",
+   "intrinsics_sha256": "9d6d6f93cf8cbbace7c4fd8ed4c6dbfd707f988e2a79fb41d9c3e121c2aaa6fb",
+   "n_frames": 9,
+   "shape": [
+    9,
+    420,
+    504
+   ]
+  },
+  "cholecystectomy___qtEBCP-yq8__gt_0002": {
+   "depth_sha256": "42c127ceb3dd21be4e654cbfa84a5edab8a9c917e447605bcc15d71f0f7dcaf1",
+   "intrinsics_sha256": "bb57fce41a5dc338d3287481d17b820735a904086fe56ad1f91138fae8679cfc",
+   "n_frames": 41,
+   "shape": [
+    41,
+    280,
+    504
+   ]
+  },
+  "cholecystectomy__fWucwHRt4UA__gt_0001": {
+   "depth_sha256": "e47fb564233acb081f6a9830f64d428d380d49b803188b219dfd79bd0288df0a",
+   "intrinsics_sha256": "9254dd3f182a78f2a1ef8ef4df7d0bf8617cb5c9af8456331ddb346021719546",
+   "n_frames": 36,
+   "shape": [
+    36,
+    392,
+    504
+   ]
+  },
+  "cholecystectomy__fWucwHRt4UA__gt_0003": {
+   "depth_sha256": "4992e8b6af65815e7b9f42223393593e4614fd18f3e2fd3985f0390bb8623e24",
+   "intrinsics_sha256": "80ea8cc8b22004105ec809302b8b827a89dff4767d298bc046c0440af016f09e",
+   "n_frames": 11,
+   "shape": [
+    11,
+    392,
+    504
+   ]
+  },
+  "cholecystectomy__fWucwHRt4UA__gt_0005": {
+   "depth_sha256": "a2d7638635419bd5cc660e8a3d3c4b9bf9970bbea6828a3973dd354361f67915",
+   "intrinsics_sha256": "67b4b690dbf74a2477ed6001332bb8e53f95697dc89b652acfd6393e581571fa",
+   "n_frames": 15,
+   "shape": [
+    15,
+    392,
+    504
+   ]
+  },
+  "cholecystectomy__m0j9Us_4zR8__gt_0001": {
+   "depth_sha256": "4064409f92d336cebd26b3af8d2541b645830e99756663ef781c6c15698b6fbd",
+   "intrinsics_sha256": "a4ee871f036dc188a2bf96cfcc1c191ec084af82e0e3f701341bd8903adb8cf1",
+   "n_frames": 28,
+   "shape": [
+    28,
+    266,
+    504
+   ]
+  },
+  "cholecystectomy__m0j9Us_4zR8__gt_0003": {
+   "depth_sha256": "81dd67f127684ea390f9c8207f5e4568d0beaedbdc7dfdc9853b3ce286923347",
+   "intrinsics_sha256": "91a3b37eb5292523f5fffd22c19e4d49fa56410a9719ce7c60d6b3d0f1248c1c",
+   "n_frames": 15,
+   "shape": [
+    15,
+    266,
+    504
+   ]
+  },
+  "cholecystectomy__nqgYPh_x5T8__gt_0001": {
+   "depth_sha256": "32e52c225047c53fb12339640ea9eac71639a885c16bc35ce3dddf2cfb83da1c",
+   "intrinsics_sha256": "e40004885ad9c4892a2591a6a50467c55fb50c64cd13ce373e33f1dd5a91eef0",
+   "n_frames": 36,
+   "shape": [
+    36,
+    490,
+    504
+   ]
+  },
+  "cholecystectomy__nqgYPh_x5T8__gt_0002": {
+   "depth_sha256": "a9e72964c5c3c64021f50caf2763aebc44c62457f9e29294c212576ccb391d01",
+   "intrinsics_sha256": "9f264fb715000a00670430acb3c05073c4c570f77f3357dabb97ad97af073f15",
+   "n_frames": 23,
+   "shape": [
+    23,
+    490,
+    504
+   ]
+  },
+  "cholecystectomy__oAz3BaHSsJc__gt_0001": {
+   "depth_sha256": "81db9aee5c839b86d7abecb67d9d0fe8a2763ee46c2c3ce5ff34037412bc39f9",
+   "intrinsics_sha256": "509ed4d3b77855aaca0007ff516f174488ffa48f32a97937f6946a031005d401",
+   "n_frames": 53,
+   "shape": [
+    53,
+    280,
+    504
+   ]
+  },
+  "cholecystectomy__oAz3BaHSsJc__gt_0002": {
+   "depth_sha256": "44ba0a18c56ae241e56ecfed86a3343243d9540fca224bb7b37ab12df42969e0",
+   "intrinsics_sha256": "bb99deb5e2d023f3b6710bfaecb3c0b2c964ae4d627f9b1ea9cbaf77b552cf5a",
+   "n_frames": 21,
+   "shape": [
+    21,
+    280,
+    504
+   ]
+  },
+  "cholecystectomy__pNW9U_mOUEQ__gt_0001": {
+   "depth_sha256": "93a52d169d9618d5267aa3d4254d47b8e6909e8f211925d0d5db4a30ee64e33c",
+   "intrinsics_sha256": "d4ae85ed7d2fc3e679a5103c10c470e2f7e9bc25d910560ec8d3a91aace1ee8d",
+   "n_frames": 24,
+   "shape": [
+    24,
+    378,
+    504
+   ]
+  },
+  "cholecystectomy__rgdlZajfGgU__gt_0001": {
+   "depth_sha256": "93a169b4dbb5925bc8a639432decbfbeccebf898d1d3839fca1b662693a712d1",
+   "intrinsics_sha256": "96a46e598bfdf28543b9b32f7ca31e57b0d132ea3d71f3462a26243bfe6af9e6",
+   "n_frames": 54,
+   "shape": [
+    54,
+    350,
+    504
+   ]
+  },
+  "cholecystectomy__s8k98gGeFf0__gt_0002": {
+   "depth_sha256": "affb35a694e5caac156bfc371166223dcad77c98cff49b3a93ef287a9145c8bd",
+   "intrinsics_sha256": "1b2d42166201efd236b431c2d2d13e86338f960530a4de91a8ba219c49a7314e",
+   "n_frames": 14,
+   "shape": [
+    14,
+    504,
+    476
+   ]
+  },
+  "cholecystectomy__s8k98gGeFf0__gt_0003": {
+   "depth_sha256": "cedc637834499e52cd9b1dc85c0119b0a8a68d1d7aecda1629c34bcdf6ef7a46",
+   "intrinsics_sha256": "62a60feecab1479bee856eec3b700df11eb5655ee1abe73abf71a68f8caaf98f",
+   "n_frames": 14,
+   "shape": [
+    14,
+    504,
+    476
+   ]
+  },
+  "cholecystectomy__s8k98gGeFf0__gt_0004": {
+   "depth_sha256": "0c6bf6fc8f77ff8dd5c854a84b80f6d5b815820f0ce50446fa9a3b05d7b2ac00",
+   "intrinsics_sha256": "d58944de8e1549dc59bbf3cb15bf34d7613c1193149713bb73efbbb8132b669f",
+   "n_frames": 22,
+   "shape": [
+    22,
+    504,
+    476
+   ]
+  },
+  "cholecystectomy__s8k98gGeFf0__gt_0005": {
+   "depth_sha256": "d843db45ec109992a81fe9e2bc1e843207d3586df7e0028349d664e5e6a68dff",
+   "intrinsics_sha256": "6d926688aa9000aa62a5d61a26780605367fbd7d11f3111b1da37e193a7c7b61",
+   "n_frames": 23,
+   "shape": [
+    23,
+    504,
+    476
+   ]
+  },
+  "cholecystectomy__xEps8nqblY0__gt_0001": {
+   "depth_sha256": "bb61b836e50873bc521c4c1ddd659d957d43d9ee62b98f11bce278eb5cd04542",
+   "intrinsics_sha256": "6d642c402680f104eeaefd902341d4634e547fd8a8aa3479e992501639d5a65a",
+   "n_frames": 97,
+   "shape": [
+    97,
+    266,
+    504
+   ]
+  },
+  "cholecystectomy__xEps8nqblY0__gt_0002": {
+   "depth_sha256": "4b47318eb2e8df351edc943ed1cda2bb8a1a369eabbcb790f219c2fa7389bb80",
+   "intrinsics_sha256": "1e447359499030af116896f0982a2839d6f41e6c1f013df8dc510f08ed5b6730",
+   "n_frames": 30,
+   "shape": [
+    30,
+    266,
+    504
+   ]
+  },
+  "cholecystectomy__xEps8nqblY0__gt_0003": {
+   "depth_sha256": "03f30c3e3254476411a5d09e349338295baa73d46d874e0db37842766ba02a48",
+   "intrinsics_sha256": "cec6a7c184b43eb58c9c081afda4310d9d47749a9979b04323320f6d41d19ab7",
+   "n_frames": 26,
+   "shape": [
+    26,
+    266,
+    504
+   ]
+  },
+  "colectomy__0ZOUS_v-fsM__gt_0002": {
+   "depth_sha256": "45390e54e736b4cb7ec2f2310af93eed88fc10efa6a0e24fcc19db8d00ff1935",
+   "intrinsics_sha256": "5451bf0ca73d4bb354c6c304b64662f6f70adf08d20792929f80c0bb4918ef32",
+   "n_frames": 21,
+   "shape": [
+    21,
+    378,
+    504
+   ]
+  },
+  "colectomy__0ZOUS_v-fsM__gt_0004": {
+   "depth_sha256": "22bf1679ad6060e33aad2a33b4a3c997ba954c7364ca2bd7a1b0cecbc00d16be",
+   "intrinsics_sha256": "b62082c534908ef59a97bff5f5cf8d9ebd420766186cb960f30a0ee42e8af772",
+   "n_frames": 11,
+   "shape": [
+    11,
+    378,
+    504
+   ]
+  },
+  "colectomy__2JkHKbNsKs8__gt_0001": {
+   "depth_sha256": "d4b09198b529f4d7830a23778df7dd7dc64dd459b37e5ea8671c07e3ab7f4abc",
+   "intrinsics_sha256": "6343ce6b2f8b9072336659571e8947b796ef4ce8f8436fb4e12223f5e7287343",
+   "n_frames": 8,
+   "shape": [
+    8,
+    378,
+    504
+   ]
+  },
+  "colectomy__2JkHKbNsKs8__gt_0003": {
+   "depth_sha256": "b4ebf3344a1e4ce4d3f38f41357ee0a06f38fb9488b660c4c796cca231cdef1b",
+   "intrinsics_sha256": "22b60d03f70bde3b89b8bc7494e8f6c105052b921a7f9918252e757dccfaf06a",
+   "n_frames": 9,
+   "shape": [
+    9,
+    378,
+    504
+   ]
+  },
+  "colectomy__2JkHKbNsKs8__gt_0004": {
+   "depth_sha256": "097debb1589e36baa20268f7caf587f778b48551d9d3a177c98dab804efafff0",
+   "intrinsics_sha256": "cb67b6830f54ef92bc8fc2a9bfd1ec2c8b310276157ae582fbeaa4388600b852",
+   "n_frames": 20,
+   "shape": [
+    20,
+    378,
+    504
+   ]
+  },
+  "colectomy__2ZwZU_vteAY__gt_0001": {
+   "depth_sha256": "f3fbfbafea7b1f0ca63cfc8cf7b924133ff6f5b6e0affc1bdc1b33d5d54aa1bb",
+   "intrinsics_sha256": "4564e31ed9a0f76dfbfc402dedaaa3f3d8295830b4e9a05ae0e2590b1432ef3b",
+   "n_frames": 27,
+   "shape": [
+    27,
+    308,
+    504
+   ]
+  },
+  "colectomy__2ZwZU_vteAY__gt_0002": {
+   "depth_sha256": "6666d56e457c4ce2a8ee3a6bc8b85d0dd21288bdb84503f898922554f9043fce",
+   "intrinsics_sha256": "43a1250abee431e70a323276a6a90048c6f41192c6cc47a018fb1a18d3bc9517",
+   "n_frames": 11,
+   "shape": [
+    11,
+    308,
+    504
+   ]
+  },
+  "colectomy__5Z-C4hsIeDk__gt_0001": {
+   "depth_sha256": "f80ccdd14b295f8ffd46dc935a1beda2206c0d8b5e71833b4fc2437391927379",
+   "intrinsics_sha256": "e5806092aed3fbf681f2bdc2948516c5d8dae58d0fe64cc9351c19ca84e124ed",
+   "n_frames": 26,
+   "shape": [
+    26,
+    378,
+    504
+   ]
+  },
+  "colectomy__PiwjyeRRqXk__gt_0001": {
+   "depth_sha256": "73e2faa027be383b329cc31fc00a99ed96fef0a65fe226ee6219cf7d15a32bf3",
+   "intrinsics_sha256": "8a2c8039f8c7dc24a79f394602a4d747fc4b542d95d8bd069f67a99725a88cbb",
+   "n_frames": 23,
+   "shape": [
+    23,
+    364,
+    504
+   ]
+  },
+  "colectomy___9ylo-3B49g__gt_0004": {
+   "depth_sha256": "b9024bdf0d0114ebdead0065f78971272e763a4eb08bca845311266e6957f7ab",
+   "intrinsics_sha256": "ef02e54c72c9b24fd012f9f9882123b6269508c5f35e6cc42966765b684ecf9d",
+   "n_frames": 19,
+   "shape": [
+    19,
+    280,
+    504
+   ]
+  },
+  "esophagectomy__1AZemLscDK4__gt_0001": {
+   "depth_sha256": "0402a9f44962ae861f0359ef69b3f037e9813f9d317b085abd1f3addce732757",
+   "intrinsics_sha256": "ccd84e481d711ed23ad49cb0f3f4ff417d7562b7c42c657d69621f921afe36b2",
+   "n_frames": 15,
+   "shape": [
+    15,
+    280,
+    504
+   ]
+  },
+  "esophagectomy__6X7BRo4hNt8__gt_0001": {
+   "depth_sha256": "a3e6cfec19bf1193802ac605098636c62e512a90dab10b72f34d7c3132b5f32d",
+   "intrinsics_sha256": "bf7720b45f2d779cc90ca832b7ea3412def3944cae4f2fef479f32bba346930b",
+   "n_frames": 35,
+   "shape": [
+    35,
+    378,
+    504
+   ]
+  },
+  "esophagectomy__6X7BRo4hNt8__gt_0002": {
+   "depth_sha256": "e164538cd18efb4ce60bd6b561c7a860c02d63c3a61f7751705938484b3b434e",
+   "intrinsics_sha256": "d403b51722454ae224e2b1228bbabc488a2d3a628f58bba425be1a8ab83b9b32",
+   "n_frames": 9,
+   "shape": [
+    9,
+    378,
+    504
+   ]
+  },
+  "esophagectomy__C1cBTvzklpw__gt_0001": {
+   "depth_sha256": "9d91a353ffcce7386a5d357bd2847d8d005cb692fe2ed66206c514344d8798f8",
+   "intrinsics_sha256": "3ff87ee79d93fd777950e44c2e02d8572f78b6fe3f03c8748ed123d81f72915e",
+   "n_frames": 10,
+   "shape": [
+    10,
+    364,
+    504
+   ]
+  },
+  "esophagectomy__C1cBTvzklpw__gt_0002": {
+   "depth_sha256": "7ada389e0da094750029434e9b600f9d852a862f0e7260be3c2b0c9418670c85",
+   "intrinsics_sha256": "79395d957c1abc8ad258772bd218fdaabdbfec9dc3b0698c175c3bef27b31ca9",
+   "n_frames": 9,
+   "shape": [
+    9,
+    364,
+    504
+   ]
+  },
+  "esophagectomy__C1cBTvzklpw__gt_0004": {
+   "depth_sha256": "fbfb6fbe3db784f1a6b4dce27dbd84e65024284b1e43c5bdfe7b1da2968ff993",
+   "intrinsics_sha256": "9eef2d5506c0d7d415695d9a1a91cbb681afd9f693afa8c9219d057823e2e252",
+   "n_frames": 16,
+   "shape": [
+    16,
+    364,
+    504
+   ]
+  },
+  "esophagectomy__C1cBTvzklpw__gt_0005": {
+   "depth_sha256": "4a18805d958787c18cc0ecac4767583cb3a6e245acf28b9fd88085ba383a395a",
+   "intrinsics_sha256": "0d482a5ff0e4e27deba923465b3f7611a14ef503f6dd394991c0664073fde8af",
+   "n_frames": 8,
+   "shape": [
+    8,
+    364,
+    504
+   ]
+  },
+  "esophagectomy__C1cBTvzklpw__gt_0007": {
+   "depth_sha256": "289488ee752ee174b6f448338e83a42b5f7fdebda4a080e8686758aad3a950cc",
+   "intrinsics_sha256": "559a9ed9a4f207061846a95a0adabce94e402605ba0ce85b81d581b74765a0d7",
+   "n_frames": 26,
+   "shape": [
+    26,
+    364,
+    504
+   ]
+  },
+  "esophagectomy__C1cBTvzklpw__gt_0008": {
+   "depth_sha256": "f823e2dbb4ffa264870ec4fc27572cd8a08489051dcb5fbeebc9f59a8446b9cd",
+   "intrinsics_sha256": "0045b5bf23f1f647df68fb8ff861a308dfe6cd8fce6ce58ed13175236aed407e",
+   "n_frames": 29,
+   "shape": [
+    29,
+    364,
+    504
+   ]
+  },
+  "esophagectomy__C1cBTvzklpw__gt_0009": {
+   "depth_sha256": "3255cf03321f2868654cf381d3508866f74b74bef4c61979d462ee2cf2c28afb",
+   "intrinsics_sha256": "eec9927ebb43226057423231a3b8b55829e63b4ab461ad488eee37cd9d737537",
+   "n_frames": 8,
+   "shape": [
+    8,
+    364,
+    504
+   ]
+  },
+  "esophagectomy__CDTl9wnODBw__gt_0002": {
+   "depth_sha256": "ad35b57dddfb25400241795a033ebdf2c1f12a4caec601c680ec4325ceaa3e0e",
+   "intrinsics_sha256": "681b325bde3b8a74bf1de4bfb36202cf805b98e4636b29c833705d77d56863bb",
+   "n_frames": 8,
+   "shape": [
+    8,
+    252,
+    504
+   ]
+  },
+  "esophagectomy__CDTl9wnODBw__gt_0003": {
+   "depth_sha256": "0c3577a8ecbee501a2f721a8b3459a34c92458a6ba6fc152700f5facc14761ad",
+   "intrinsics_sha256": "2a5280ab1799b577b0ecbe07991a845841452a0b541a4969aed9a1bde9568ee0",
+   "n_frames": 8,
+   "shape": [
+    8,
+    252,
+    504
+   ]
+  },
+  "esophagectomy__CDTl9wnODBw__gt_0004": {
+   "depth_sha256": "4408c433f03a8b8c075bb15cffcbda539b53383603031e82b2b2f0ec1924025d",
+   "intrinsics_sha256": "e24836726f1e831ad371cc99c949e26e93ad925f86a69b72b5f18abf32839c60",
+   "n_frames": 9,
+   "shape": [
+    9,
+    252,
+    504
+   ]
+  },
+  "esophagectomy__J4baNI2MKfY__gt_0002": {
+   "depth_sha256": "a8008e040e59ce308e230e458fdf9e28050f1a5c0a7bfc139c4ffeae71837dd5",
+   "intrinsics_sha256": "bb229cb86b5bd667a6b28bfc9840469d8b54128067d8b5906226f81a8eded5f8",
+   "n_frames": 10,
+   "shape": [
+    10,
+    392,
+    504
+   ]
+  },
+  "esophagectomy__J4baNI2MKfY__gt_0003": {
+   "depth_sha256": "9d15d114e6a06cd13b12bcfa182b957b84f527df6b6be89919ffbb4878446b39",
+   "intrinsics_sha256": "0dee5bf0c71ce041f38b2a8b32f4db5f5861db35022a7fd0cfe680e64987c35f",
+   "n_frames": 15,
+   "shape": [
+    15,
+    392,
+    504
+   ]
+  },
+  "esophagectomy__J4baNI2MKfY__gt_0007": {
+   "depth_sha256": "5fb7e54b2a3b32a0d1af9cc8a9ab952c8100f0cfda66571fae042a8ad324526e",
+   "intrinsics_sha256": "ed96b5c12c27e4990641c8210a428db1954a9ba58f1b69d104e6552fb27772dd",
+   "n_frames": 14,
+   "shape": [
+    14,
+    392,
+    504
+   ]
+  },
+  "esophagectomy__TJNzaGq4l1I__gt_0001": {
+   "depth_sha256": "9ebec7790b666e5190fc4762811c9eb8f993171fe61ec9a34685d30189d960f7",
+   "intrinsics_sha256": "47a98e2dc82a25028e1cf4e86ad6d32344474c12cb467d1ea10dfa3d82aa24ec",
+   "n_frames": 26,
+   "shape": [
+    26,
+    280,
+    504
+   ]
+  },
+  "esophagectomy__TJNzaGq4l1I__gt_0002": {
+   "depth_sha256": "3a2bcff797c25b317a037ffaa93f34d21e670f63b38401ab1a1878464410ac46",
+   "intrinsics_sha256": "14c6ebd21fe72617e6a661c40f5daa2f8f0e0aeafacd4d42f44f21ca6efde928",
+   "n_frames": 12,
+   "shape": [
+    12,
+    280,
+    504
+   ]
+  },
+  "esophagectomy__X2n2mJxEwKs__gt_0001": {
+   "depth_sha256": "d26384cd725d8e66004eee722bd7919ea3f7449e8ba9365cf87c7e232ca51683",
+   "intrinsics_sha256": "2da047f41f6de2ff79630e19c17e3db69fab422a1cbf3e1d3896a2a25ccd54be",
+   "n_frames": 26,
+   "shape": [
+    26,
+    378,
+    504
+   ]
+  },
+  "esophagectomy__X2n2mJxEwKs__gt_0002": {
+   "depth_sha256": "9345e2cac23842e7d7b29b6f6161afc0e219cfa1939e781fd44c6783915c92c7",
+   "intrinsics_sha256": "18a4cf5bcf653d0b68ad215cc9cc78439fcf25b73101b42b10c68f7cc6579734",
+   "n_frames": 88,
+   "shape": [
+    88,
+    378,
+    504
+   ]
+  },
+  "esophagectomy__Y-kKc439v8o__gt_0001": {
+   "depth_sha256": "571c4ed1620073afdf56336ebdcec25da0ad21b5612c056680328e93a6161712",
+   "intrinsics_sha256": "0edb8037d404230deab195b75bf82cb182ceab13c1a3b23b9533849a122d57e2",
+   "n_frames": 11,
+   "shape": [
+    11,
+    364,
+    504
+   ]
+  },
+  "esophagectomy__aTSG2tm6baY__gt_0001": {
+   "depth_sha256": "2650901cbee494f03f03de15f24e56a00d38995f8cddd9e71612bf9d657fb0e4",
+   "intrinsics_sha256": "583641e3f9c2738ee5400f3a2890ac0da64c0cc265902c052d434446b764f95e",
+   "n_frames": 14,
+   "shape": [
+    14,
+    364,
+    504
+   ]
+  },
+  "esophagectomy__aTSG2tm6baY__gt_0002": {
+   "depth_sha256": "7b0b28bd357a03da684a7b754ad3a6a91da3eeaf4047a237d70083bfe6cc3f60",
+   "intrinsics_sha256": "2d205ce0a3a1b72df26d29af2c8d5691fe39eeb04317f00cc63b3073e9ee182b",
+   "n_frames": 12,
+   "shape": [
+    12,
+    364,
+    504
+   ]
+  },
+  "esophagectomy__aTSG2tm6baY__gt_0003": {
+   "depth_sha256": "4313736b8966f802240de610f9860c3607bce9b82ab0726c694e2ce7077ac93b",
+   "intrinsics_sha256": "e08f0bb644ff333859c2c243dd5ffdc03c1a2d6f3eed3cb66302dc5ec364ac0e",
+   "n_frames": 35,
+   "shape": [
+    35,
+    364,
+    504
+   ]
+  },
+  "esophagectomy__aTSG2tm6baY__gt_0004": {
+   "depth_sha256": "ebbbd2f11f4b39e2f1df182494aff821aca5dfa0658d366c4fe19202237d329c",
+   "intrinsics_sha256": "25169c05061ef512e6bc65dfcc22c696da9bd456c7b4b94f0f19cfeb1883938e",
+   "n_frames": 14,
+   "shape": [
+    14,
+    364,
+    504
+   ]
+  },
+  "esophagectomy__b1oazd6RKHs__gt_0002": {
+   "depth_sha256": "a325afd77a0e23bc3192fec160184d0cc69f769da5301002d7d5a92c51d31630",
+   "intrinsics_sha256": "dff961000f3ff9fbb07701977b19a52da097708dcf7358c494bda236086a35bf",
+   "n_frames": 11,
+   "shape": [
+    11,
+    378,
+    504
+   ]
+  },
+  "esophagectomy__b1oazd6RKHs__gt_0003": {
+   "depth_sha256": "ad0a7fac8d94e644573054b4d626ed988fe6ed03a444e28723af9ea757b2e093",
+   "intrinsics_sha256": "9f50c8c05afa2ad16113cc108fbea5fa5fb92b27a4d6017714d2e837cdb01f60",
+   "n_frames": 19,
+   "shape": [
+    19,
+    378,
+    504
+   ]
+  },
+  "esophagectomy__b1oazd6RKHs__gt_0004": {
+   "depth_sha256": "4dc498df74160f6358158e72463fb2ba3cb378c4d5e00861632d85aea6eddca8",
+   "intrinsics_sha256": "b866c54a9dac22dafb9e401726129cc5a861a92d348d0114324e7399cb89c435",
+   "n_frames": 10,
+   "shape": [
+    10,
+    378,
+    504
+   ]
+  },
+  "esophagectomy__b1oazd6RKHs__gt_0006": {
+   "depth_sha256": "9b97de8e35f397021ace69fb65f06676ea4793222aa7a95d307a0b8135420317",
+   "intrinsics_sha256": "4ec3fb81f90735c85716260275825c34c4781033f770a5eda1e4e90b139d7e67",
+   "n_frames": 16,
+   "shape": [
+    16,
+    378,
+    504
+   ]
+  },
+  "esophagectomy__b1oazd6RKHs__gt_0007": {
+   "depth_sha256": "3c7d86cd1446e234b516f1483b36ea87c3363da93cdf85a49dca00c6590af70f",
+   "intrinsics_sha256": "e2f72884ffd455677cbb515f364cb6b14501356bde6e18803aa34b6f0a0524af",
+   "n_frames": 15,
+   "shape": [
+    15,
+    378,
+    504
+   ]
+  },
+  "esophagectomy__b1oazd6RKHs__gt_0009": {
+   "depth_sha256": "eac505f0d3c63302de77074390991fbea017d1419c10abc0fbdec4c7951c397c",
+   "intrinsics_sha256": "7a9c1ae55c3a4d5679e32d2b89e086d38d28e6ed036df9da8e03a2d78e13211b",
+   "n_frames": 8,
+   "shape": [
+    8,
+    378,
+    504
+   ]
+  },
+  "esophagectomy__rriqrf2Obv8__gt_0001": {
+   "depth_sha256": "e1657af9f0c9f1315063471b30766aa378a17e05d600878c53bf344169c5bb75",
+   "intrinsics_sha256": "ca4c061bf548f842e8d37062a238452186a6a617e766fb0bdf474af9c35f7b2e",
+   "n_frames": 13,
+   "shape": [
+    13,
+    252,
+    504
+   ]
+  },
+  "esophagectomy__rriqrf2Obv8__gt_0002": {
+   "depth_sha256": "f51660d214d71a0b0b6caac92efd382083c29cf325cf2c175e585d287500da01",
+   "intrinsics_sha256": "7c81260a768bc16f24a8449524bfb88a61c373eb408ef94264f84ae06e144956",
+   "n_frames": 12,
+   "shape": [
+    12,
+    252,
+    504
+   ]
+  },
+  "esophagectomy__rriqrf2Obv8__gt_0003": {
+   "depth_sha256": "a100b6ec56d2f818ef5aacd10150be4149a15bed48caacbb9a4e1d1148abbad4",
+   "intrinsics_sha256": "d52db3dfc692d0c90cf760307d668a9262630e203c8dc88014db515262a0d910",
+   "n_frames": 18,
+   "shape": [
+    18,
+    252,
+    504
+   ]
+  },
+  "esophagectomy__rriqrf2Obv8__gt_0004": {
+   "depth_sha256": "feb2356dc7526a7db743a19030db1f71d5707808fcd4d2ed0e65f7bc9397c6cf",
+   "intrinsics_sha256": "512942c3595db97f5e7a0a121ae546701f81ec560dc9a2be6d6b50810a569052",
+   "n_frames": 25,
+   "shape": [
+    25,
+    252,
+    504
+   ]
+  },
+  "esophagectomy__rriqrf2Obv8__gt_0005": {
+   "depth_sha256": "73b5d799c6974793d9d025ce234e913aa5ac808afbceafc86097e80ecf4844a4",
+   "intrinsics_sha256": "9afcb479c0f27fd3f84f9612ca79c92849f41c47b73e20e45722005ee5d7053f",
+   "n_frames": 13,
+   "shape": [
+    13,
+    252,
+    504
+   ]
+  },
+  "esophagectomy__rriqrf2Obv8__gt_0007": {
+   "depth_sha256": "7e9cc267f0584c14a3238bf6a91d18a692af2c279a7400684b9c434c722dd9d5",
+   "intrinsics_sha256": "5634a20ab4e9584813ecdf9e4484aa31f7066e70328bdb7854ba63fe2681c2cc",
+   "n_frames": 8,
+   "shape": [
+    8,
+    252,
+    504
+   ]
+  },
+  "esophagectomy__rriqrf2Obv8__gt_0010": {
+   "depth_sha256": "e6d67067dc4077e9d9c9e899cec1ceca68efa08feee379a071ad093e2e9f93b2",
+   "intrinsics_sha256": "361f1161baa285289e14da98cc843535e6d51dc13a33ddd585b00b48ef091af4",
+   "n_frames": 17,
+   "shape": [
+    17,
+    252,
+    504
+   ]
+  },
+  "esophagectomy__rriqrf2Obv8__gt_0011": {
+   "depth_sha256": "74303a78a4b800d439a0af44b2facc599a51054a2ba4a0e0a3787a9e24234d5c",
+   "intrinsics_sha256": "a97262ffe6ed932b37e841b37d931e1191c3190c7e500d5e7c1128008f032d7b",
+   "n_frames": 9,
+   "shape": [
+    9,
+    252,
+    504
+   ]
+  },
+  "esophagectomy__vvqkGphQc1U__gt_0001": {
+   "depth_sha256": "4d8df77324a2b62bb7424940bb1a4708a1174b3494bce3ca0d5f29cbb03ea379",
+   "intrinsics_sha256": "def838a89e6e59d5560d66b12fe2ef142ab5d8d7da3991b81e2f9475916aacfa",
+   "n_frames": 21,
+   "shape": [
+    21,
+    364,
+    504
+   ]
+  },
+  "esophagectomy__vvqkGphQc1U__gt_0002": {
+   "depth_sha256": "3a629ae2e26191af978d9dafc3746ca02bf65367b0e8a7d48e8a8ad0520d89ef",
+   "intrinsics_sha256": "c7ce42d7608cf0ee9848b4911c8b9505760eea0cc0a39de8feaf7cd2800c994c",
+   "n_frames": 11,
+   "shape": [
+    11,
+    364,
+    504
+   ]
+  },
+  "esophagectomy__vvqkGphQc1U__gt_0003": {
+   "depth_sha256": "3007f3a4f893c1dff3f0bf154674141672e31f680969b1bc18068c60bb1811fe",
+   "intrinsics_sha256": "4a690d985306c7dcbb2a6b6c5de46d8cdd8c527581be76fac7b3c25e0bcd1fb2",
+   "n_frames": 29,
+   "shape": [
+    29,
+    364,
+    504
+   ]
+  },
+  "esophagectomy__vvqkGphQc1U__gt_0004": {
+   "depth_sha256": "a623e4ce0fea5e2640ad180ec74d40bad4de0239dcffcc532bda6bd239176ede",
+   "intrinsics_sha256": "27a8aaca78ccf2c62c6e6fc5857d9ac44efb5f98b24745b161fc05961e33c304",
+   "n_frames": 15,
+   "shape": [
+    15,
+    364,
+    504
+   ]
+  },
+  "esophagectomy__vvqkGphQc1U__gt_0005": {
+   "depth_sha256": "02fe9f8084b68928027d365a952c4a0ab599dfed023419554b1ab2690b0c3c06",
+   "intrinsics_sha256": "d0bc452dab661289ecfd36cafc248d7ca5cc667ab76902d4c78c6e743bf31385",
+   "n_frames": 15,
+   "shape": [
+    15,
+    364,
+    504
+   ]
+  },
+  "esophagectomy__vvqkGphQc1U__gt_0006": {
+   "depth_sha256": "208a979e21b7c7682980d0126f48cd0e9ffee0faeed32f78c9138fdba3306bb3",
+   "intrinsics_sha256": "8b71caaebc9ea78946fedd76f880942ad3cdfdf2090b27ecc6bf814ce0cb5bfc",
+   "n_frames": 21,
+   "shape": [
+    21,
+    364,
+    504
+   ]
+  },
+  "esophagectomy__zQBHloIfhd8__gt_0001": {
+   "depth_sha256": "a2715c5dd34bea2abc4f555f20859d255c275596dcf3fa08b3fafcf5c2b6d1af",
+   "intrinsics_sha256": "123fd6a60f141a2460d8ac2039e18c13e750aa4d3e0a6e637d350e4b91279c63",
+   "n_frames": 9,
+   "shape": [
+    9,
+    448,
+    504
+   ]
+  },
+  "esophagectomy__zQBHloIfhd8__gt_0002": {
+   "depth_sha256": "dde6f55161313241a196dcfc4ef7bf19baaabe9d6ede3e55427d863c411e3552",
+   "intrinsics_sha256": "725f098951d9e80f5afdcbf63ea0543c5265b6159629e0c2b2a89081210876d3",
+   "n_frames": 20,
+   "shape": [
+    20,
+    448,
+    504
+   ]
+  },
+  "gastric_surgery__3qfVO2Ovsgk__gt_0001": {
+   "depth_sha256": "c79af2f568cf79a65e7892e5f710b9f1431ba3c37dedd250fb94cd9ffd4c2e89",
+   "intrinsics_sha256": "8bcc3ebb18cec5272fbafa6b13e0b857f8a612a2346bdafca3bb61a9c05aaa18",
+   "n_frames": 31,
+   "shape": [
+    31,
+    378,
+    504
+   ]
+  },
+  "gastric_surgery__3qfVO2Ovsgk__gt_0002": {
+   "depth_sha256": "c1c7da9a5443b871630173636fa3dd048115f07de2381a9f05621f87608acbc1",
+   "intrinsics_sha256": "801ddb3593c7a37ef3e7fd9ccd7bc7bf18fffecb1a8fe48fbc6117504ef5c555",
+   "n_frames": 18,
+   "shape": [
+    18,
+    378,
+    504
+   ]
+  },
+  "gastric_surgery__3qfVO2Ovsgk__gt_0003": {
+   "depth_sha256": "1ba9ca690fd3da7dd6cd37964d5dd251086ff4df31fd74ae3e079d5c0c39ddfe",
+   "intrinsics_sha256": "56ccfac83ca91bcdb191714e9e9bc2d42af79194584a38d250f82a01cd44728e",
+   "n_frames": 17,
+   "shape": [
+    17,
+    378,
+    504
+   ]
+  },
+  "gastric_surgery__3qfVO2Ovsgk__gt_0004": {
+   "depth_sha256": "5d941ea08c090d16f0cfe795f0108885aa4bb04fd892c5eaf615f3c25d34e542",
+   "intrinsics_sha256": "26d7ec9a2ddcc1adbf981d063641dc673e54a976721f02dfe0666986ad6e5de7",
+   "n_frames": 18,
+   "shape": [
+    18,
+    378,
+    504
+   ]
+  },
+  "gastric_surgery__4FHGGFZsPzw__gt_0004": {
+   "depth_sha256": "dc50f9727e82f50698f7a3ea6418eff826d4e8d945e04c9f28b5c1a06776f6ac",
+   "intrinsics_sha256": "e3fe927ea92a55424129c3ab3461431f067d4091af518ab4b33de5fd36d798dc",
+   "n_frames": 19,
+   "shape": [
+    19,
+    322,
+    504
+   ]
+  },
+  "gastric_surgery__7AzfciNaS90__gt_0001": {
+   "depth_sha256": "f9c580fb0f418c6ff803128b3d30b3b1ffb8bf5da0169d7da6c3ddd0575f92b4",
+   "intrinsics_sha256": "2f3a595cd6d9ddaa510997557e109ab766b3662d2780d5d8596a1c4d0e3dc8b0",
+   "n_frames": 9,
+   "shape": [
+    9,
+    378,
+    504
+   ]
+  },
+  "gastric_surgery__7AzfciNaS90__gt_0002": {
+   "depth_sha256": "827e3561dc373c0feeb20fec1238b5b1044660a9449b9f0e362e6904a0a84938",
+   "intrinsics_sha256": "bf7e1e54ec60dfc9c2ecf0c5fd12e9cf8b4525119d14d3724b3925b1f0ae7cb9",
+   "n_frames": 11,
+   "shape": [
+    11,
+    378,
+    504
+   ]
+  },
+  "gastric_surgery__7AzfciNaS90__gt_0003": {
+   "depth_sha256": "f7631b877c210c15836a69ad780a9dd6ef7ca565e9030694194922e3760e801c",
+   "intrinsics_sha256": "081cc3b623a7991c704072b8fcaf91708fa8914eb78212aa4508525acb6ac3ec",
+   "n_frames": 10,
+   "shape": [
+    10,
+    378,
+    504
+   ]
+  },
+  "gastric_surgery__7AzfciNaS90__gt_0004": {
+   "depth_sha256": "db3116dd88d778417cf155c77ead8a5b24575cc4ed58f80d15ff599c9f7a7341",
+   "intrinsics_sha256": "a3623f60ddcfe4833a818f79c317e079a5f4413c5434643abdb10fe1bff2a0b7",
+   "n_frames": 10,
+   "shape": [
+    10,
+    378,
+    504
+   ]
+  },
+  "gastric_surgery__7AzfciNaS90__gt_0005": {
+   "depth_sha256": "7052ec168f3a9abf510d657d8c0641432f4e476533663747ddb459930922b6f1",
+   "intrinsics_sha256": "394be8d5dbabf142bcc86fe789e7539efb34bf281257593742213f61dede5af8",
+   "n_frames": 15,
+   "shape": [
+    15,
+    378,
+    504
+   ]
+  },
+  "gastric_surgery__7AzfciNaS90__gt_0006": {
+   "depth_sha256": "3fdcdcd458eb435f03bfdd2807e938da978b7608fd3b1fa1fde0339a89c9a5ae",
+   "intrinsics_sha256": "b3b6afbe52542c1438958f19f2ac08e33ff6c09c06b0ff121032a7637baade45",
+   "n_frames": 21,
+   "shape": [
+    21,
+    378,
+    504
+   ]
+  },
+  "gastric_surgery__7AzfciNaS90__gt_0007": {
+   "depth_sha256": "a498d4cb793a7d34132047e012ad1e09e9208471bee1e7765cd6bb21cda14a15",
+   "intrinsics_sha256": "645ea03c32b0740db8608135b549c3dbd552f3aa07774f20de1e670e0f8568af",
+   "n_frames": 24,
+   "shape": [
+    24,
+    378,
+    504
+   ]
+  },
+  "gastric_surgery__7AzfciNaS90__gt_0008": {
+   "depth_sha256": "66cf3d6f3e094fe12c1aabf794e733902369a36becdc3b62aa6cb8c524dbdc60",
+   "intrinsics_sha256": "12acf2af22b58a032ff250ea6b4276f2b567ea0b34df05dde5e0a0c169c93a66",
+   "n_frames": 23,
+   "shape": [
+    23,
+    378,
+    504
+   ]
+  },
+  "gastric_surgery__7AzfciNaS90__gt_0009": {
+   "depth_sha256": "d1170b3aaef8f1490c0f398099c50143940f40ce44dde32aed7bd49cb7aba489",
+   "intrinsics_sha256": "3a8c425afd9af89217009c6018cc48b8aca10bb72c82d76461d8c405cb99f966",
+   "n_frames": 49,
+   "shape": [
+    49,
+    378,
+    504
+   ]
+  },
+  "gastrojejunostomy__9-41mie67Cw__gt_0001": {
+   "depth_sha256": "9e945914215089352777b2eff7d88b6342f07a4569f7b64fab4042a4305b5ed9",
+   "intrinsics_sha256": "f940407429ada034ddc9fa0abc1b04522d2f7a348561bd9b32c57a47bc0f2c97",
+   "n_frames": 83,
+   "shape": [
+    83,
+    504,
+    504
+   ]
+  },
+  "gastrojejunostomy__9-41mie67Cw__gt_0002": {
+   "depth_sha256": "a7debaba01fbcdb2665af7994f1abd5f4c5866f6191bed4d9b7229b6280dc82e",
+   "intrinsics_sha256": "7d49e32bf0f8cd1b43ab1303fb74b452156060f8a53ff353877d6a77a000883c",
+   "n_frames": 39,
+   "shape": [
+    39,
+    504,
+    504
+   ]
+  },
+  "gastrojejunostomy__9-41mie67Cw__gt_0003": {
+   "depth_sha256": "493413475d38752c7846f1ab2fd58a50b635549130ff01d522f2fca3abda7cf5",
+   "intrinsics_sha256": "13f70cc024a9b53b2db9d316e36929ca7ac09874d62544f439b25f323b3282be",
+   "n_frames": 51,
+   "shape": [
+    51,
+    504,
+    504
+   ]
+  },
+  "gastrojejunostomy__JZNS119Bu5A__gt_0001": {
+   "depth_sha256": "96a98447216d6c62b5194bb80ae977c89ea5dd6a210a05f07d2830e09907392f",
+   "intrinsics_sha256": "bd356aab2f7898da3867d638f5c32cb4a77b06e1d1b4d18cf38e095f0a431ef5",
+   "n_frames": 33,
+   "shape": [
+    33,
+    448,
+    504
+   ]
+  },
+  "gastrojejunostomy__JZNS119Bu5A__gt_0002": {
+   "depth_sha256": "fa3f88b80c5d40ca9d3c110299dccc89233b9e2604e551c5d4c31f0db6eecd57",
+   "intrinsics_sha256": "455a948290cdec68bc651ff25c6bd04d3b2d62614d609facc3b94b2676efff7e",
+   "n_frames": 29,
+   "shape": [
+    29,
+    448,
+    504
+   ]
+  },
+  "gastrojejunostomy__JZNS119Bu5A__gt_0003": {
+   "depth_sha256": "cc4284c2319d98b619032daefd88c24e15a88cba1150cacfb24c0969a95d40e9",
+   "intrinsics_sha256": "6dd5b9b3a6bb05e71bc771e20fcd53b317fe49923c3326abba2ac9e028e880c2",
+   "n_frames": 30,
+   "shape": [
+    30,
+    448,
+    504
+   ]
+  },
+  "gastrojejunostomy__agJexAzuAX8__gt_0001": {
+   "depth_sha256": "6d98b160d0535389a92b2085dbabfbee5708468ee87381eb941ec77a20256a65",
+   "intrinsics_sha256": "a5fc0a7bc4813c35b2797334ec9a01a91868ab9a716634d5ae047d1e2ac3b2d7",
+   "n_frames": 48,
+   "shape": [
+    48,
+    504,
+    504
+   ]
+  },
+  "gastrojejunostomy__agJexAzuAX8__gt_0002": {
+   "depth_sha256": "dca7d99acada95df8c999341c0dbf104b2a6ae7a6a6d97c173be2376e3c77245",
+   "intrinsics_sha256": "584b84bef2212cd7bc4029a4a251049df15e3d81a6fb39ae2ae88163c8f42ef7",
+   "n_frames": 84,
+   "shape": [
+    84,
+    504,
+    504
+   ]
+  },
+  "gastrojejunostomy__agJexAzuAX8__gt_0003": {
+   "depth_sha256": "90113dc3c2b5e20746121c291bb66012073f231961f46494765debbe288b2b53",
+   "intrinsics_sha256": "bbc529294f723edf5a66d65c0dd0d87964078e01821379852a6a167a0b2f134f",
+   "n_frames": 83,
+   "shape": [
+    83,
+    504,
+    504
+   ]
+  },
+  "gastrojejunostomy__hRdeqmI_VIs__gt_0001": {
+   "depth_sha256": "f76b580719d4ac09cf9bbc30bddc10385b842b4ec6a95a725dc72764ada10934",
+   "intrinsics_sha256": "fdb299b22e04e925b5ca5cd7df816390626d00eefd1fed5e8ae39caf46473c93",
+   "n_frames": 23,
+   "shape": [
+    23,
+    280,
+    504
+   ]
+  },
+  "gastrojejunostomy__hl952KH9MHg__gt_0001": {
+   "depth_sha256": "cb724165d59cfaffbc68a26cc119bb1c2b21212713f3ef9e3cbedbccda1b4aee",
+   "intrinsics_sha256": "317b0fdaeab95d2467a5660b9d56c43ab5c89c220ad636d7239bb52656ec69f6",
+   "n_frames": 235,
+   "shape": [
+    235,
+    280,
+    504
+   ]
+  },
+  "hemicolectomy__5Wn22szMCFU__gt_0001": {
+   "depth_sha256": "d73429eaddedf587d97e3a1697b86fffe47c11e102c19db5907dd13c994d26d2",
+   "intrinsics_sha256": "ba568dd0ea7d41ac39756aea6b5c4ea93aed210965064d9f6367d44c7d6cfc0e",
+   "n_frames": 15,
+   "shape": [
+    15,
+    280,
+    504
+   ]
+  },
+  "hemicolectomy__5Wn22szMCFU__gt_0002": {
+   "depth_sha256": "2125e96f0ccd6665328c931f462c24798008571a74babbb6ca563b935f38492e",
+   "intrinsics_sha256": "d56868446781f253b0e8d645938d5e62a1b35c5e09e72e86f5567e188e93b292",
+   "n_frames": 18,
+   "shape": [
+    18,
+    280,
+    504
+   ]
+  },
+  "hemicolectomy__5Wn22szMCFU__gt_0004": {
+   "depth_sha256": "aeb4f766ab04565b2b5553a233c42a3d5806d10d912e43b9445372142b904b34",
+   "intrinsics_sha256": "48565c62d026d79f3b6bb740404fe36ee0356e3259c8e80fc92c4de7b3acb58f",
+   "n_frames": 29,
+   "shape": [
+    29,
+    280,
+    504
+   ]
+  },
+  "hemicolectomy__5Wn22szMCFU__gt_0005": {
+   "depth_sha256": "2c993751d67f94ed538239d1e0025fdc99c7fdd4509b4f6e7c349d3e15e26fe3",
+   "intrinsics_sha256": "40ea955e016b8f9497d04fd448f6e496d1757be1e7aef7bedb0ae6028d02b108",
+   "n_frames": 13,
+   "shape": [
+    13,
+    280,
+    504
+   ]
+  },
+  "hemicolectomy__5Wn22szMCFU__gt_0009": {
+   "depth_sha256": "5edd75e42b5d473183d6ecc3531bad34bc0c36400e4b1fe1d2a1fc23a4ff870a",
+   "intrinsics_sha256": "fa7c2e6f0207848de9191a0744b2a99b5bbbacd074ec72907fba15726a144777",
+   "n_frames": 11,
+   "shape": [
+    11,
+    280,
+    504
+   ]
+  },
+  "hemicolectomy__5Wn22szMCFU__gt_0017": {
+   "depth_sha256": "93d6d51ae24db401f491288f6dd3a4853108cbffcb3d537cec1de3a67a1577aa",
+   "intrinsics_sha256": "b73c50408e30a00b0643f41574e76ea9c7f9c536e06927ddaf9a7a0f33842ec9",
+   "n_frames": 9,
+   "shape": [
+    9,
+    280,
+    504
+   ]
+  },
+  "hemicolectomy__5YDMlxTl0k8__gt_0003": {
+   "depth_sha256": "2f00114fa3bc2a281b5b5b3296dcfdc1eb1d780bdcf23cf3696a377fc2ca3118",
+   "intrinsics_sha256": "4ce19b31f68889bf9df7ca29689fad4853c7a64dd519f53a22d7711af854df64",
+   "n_frames": 18,
+   "shape": [
+    18,
+    476,
+    504
+   ]
+  },
+  "hemicolectomy__5YDMlxTl0k8__gt_0006": {
+   "depth_sha256": "94b42454f9055e8facf21e2e7ab80a53eb67bdada0983a813955639adc7703b2",
+   "intrinsics_sha256": "85e18e03ddd57f95ef75a4804fb7a612befb3838bca4f339e03247b4c53f2c72",
+   "n_frames": 9,
+   "shape": [
+    9,
+    476,
+    504
+   ]
+  },
+  "hemicolectomy__5YDMlxTl0k8__gt_0012": {
+   "depth_sha256": "a837c6df257a7942598c1b5f1173d8ae02a21a3acab0d4dc11c38d21c3b7535b",
+   "intrinsics_sha256": "8b7fce8a28f674d071f516f743e9bee45bbdb8025f761b45ba71abdd4e1b4336",
+   "n_frames": 15,
+   "shape": [
+    15,
+    476,
+    504
+   ]
+  },
+  "hemicolectomy__5YDMlxTl0k8__gt_0024": {
+   "depth_sha256": "3555567bbe211cf1f9e9370d87be42dbb874ae0831c7db954d791e075308de7f",
+   "intrinsics_sha256": "785688681d9f68f89746dd3326f82f8830b88ac6009078cb04595c40723c93ef",
+   "n_frames": 45,
+   "shape": [
+    45,
+    476,
+    504
+   ]
+  },
+  "hemicolectomy__5YDMlxTl0k8__gt_0025": {
+   "depth_sha256": "419d82ff6675446b7cbffbfd9d3aa2bd5f7f435e4d890507ea1039fc63a0c3b9",
+   "intrinsics_sha256": "7a23434539555472160b142b303ff5e1bb16481ddfe43cf982cce7ad67bc5eff",
+   "n_frames": 11,
+   "shape": [
+    11,
+    476,
+    504
+   ]
+  },
+  "hemicolectomy__5YDMlxTl0k8__gt_0026": {
+   "depth_sha256": "02f8e4d22bda335683af94d39263256644ac947cd6902e7826a5447d93156233",
+   "intrinsics_sha256": "3768f94b0340256e8c3077ca3bb701d338a01bd14d30a1a3672d9375d87627c4",
+   "n_frames": 10,
+   "shape": [
+    10,
+    476,
+    504
+   ]
+  },
+  "hemicolectomy__5YDMlxTl0k8__gt_0027": {
+   "depth_sha256": "8e8dd88b0bb1ee5483f2f34432cb8a72cd79a50bfb2057339c4ff2f80d0a26c9",
+   "intrinsics_sha256": "bc9b7338ba68e7b5e8eab320b98b92cc634579bdc2548b04c115ca9760c6f651",
+   "n_frames": 12,
+   "shape": [
+    12,
+    476,
+    504
+   ]
+  },
+  "hemicolectomy__5YDMlxTl0k8__gt_0028": {
+   "depth_sha256": "5815aefa23057345722063244f07dd969fbc65fb54a1bf91e669dc2ec0f5f7a7",
+   "intrinsics_sha256": "ec8bbdf52792d989419a8f138126e0afcded31ee949198e469e1cd48e4f7b4d6",
+   "n_frames": 15,
+   "shape": [
+    15,
+    476,
+    504
+   ]
+  },
+  "hemicolectomy__5YDMlxTl0k8__gt_0029": {
+   "depth_sha256": "9e96c168441ed441ce0a7fded699e05eaff5c9f12cbfc3a32f07f490608e5acd",
+   "intrinsics_sha256": "798f8d58fb7fdb880fd1440ea247ec1ce80157555236a7691d609388249ea3f9",
+   "n_frames": 56,
+   "shape": [
+    56,
+    476,
+    504
+   ]
+  },
+  "hemicolectomy__5YDMlxTl0k8__gt_0030": {
+   "depth_sha256": "326162c9ed8fa23f2e0c236e16aaf2b482ba437b81cf12d7a622b1bdbffdc12f",
+   "intrinsics_sha256": "6ef34ceeaa9d195a6e535395acd50494f676569c8a3dce431269bc02c79665d8",
+   "n_frames": 11,
+   "shape": [
+    11,
+    476,
+    504
+   ]
+  },
+  "hemicolectomy__5YDMlxTl0k8__gt_0035": {
+   "depth_sha256": "4dedab189a357b422d26a809c9cfec0ea158edfa1f67293a233cff13423f0b47",
+   "intrinsics_sha256": "a81cb644a5fc51b4de57e328cda479e6895442b44e86f19c54cd1f14b746740d",
+   "n_frames": 66,
+   "shape": [
+    66,
+    476,
+    504
+   ]
+  },
+  "hemicolectomy__5YDMlxTl0k8__gt_0039": {
+   "depth_sha256": "e0b2c49b6a03b2d0569a1c381d8ff32989544c396b355ac9e48ffccfaecd0b3e",
+   "intrinsics_sha256": "9fc75f60f616bad710d726f909ca2b8d3505e0000e36fce20718f670d02be4cd",
+   "n_frames": 9,
+   "shape": [
+    9,
+    476,
+    504
+   ]
+  },
+  "hemicolectomy__5YDMlxTl0k8__gt_0040": {
+   "depth_sha256": "86ecc221bd48d0755daf8c62e5903550d6d9169a3a2df4bf1c4b772f993a48bd",
+   "intrinsics_sha256": "c270b91228a4c7dafd12257fbe8bf3a88e38d2cedaf85f71674154216c6f1f72",
+   "n_frames": 31,
+   "shape": [
+    31,
+    476,
+    504
+   ]
+  },
+  "hemicolectomy__5YDMlxTl0k8__gt_0041": {
+   "depth_sha256": "d306414c6e4efdb56e8363c02e0f00d6b585ccece9d74d0674797354c3492661",
+   "intrinsics_sha256": "fa7eb36dbe13d0f549b22130f0e7e8c7aec3ec8f10858ee6a07aa18327ebaeb5",
+   "n_frames": 8,
+   "shape": [
+    8,
+    476,
+    504
+   ]
+  },
+  "hemicolectomy__5YDMlxTl0k8__gt_0042": {
+   "depth_sha256": "50419e3bb125210a78b4af94fab745c0664669b8a81eb6d07bb7316d6fb763ae",
+   "intrinsics_sha256": "3a8a9bce7d97e475f7b4fcb2a1cb8a7d3a927102b7b5a954acec20c2d2d9d638",
+   "n_frames": 8,
+   "shape": [
+    8,
+    476,
+    504
+   ]
+  },
+  "hemicolectomy__5YDMlxTl0k8__gt_0043": {
+   "depth_sha256": "f55f8652197c6ef63191477cee6ad6a1e15b80128a8854372088d2c80bfbbcc5",
+   "intrinsics_sha256": "3c475a8b5877bba8f04acbf0ab063c748af24e0a96dee34f37af34006e24f6b9",
+   "n_frames": 10,
+   "shape": [
+    10,
+    476,
+    504
+   ]
+  },
+  "hemicolectomy__5YDMlxTl0k8__gt_0044": {
+   "depth_sha256": "267d5653eedb45abf7c151ab9217a5e129a0fa70083f784d3495b4de8d08ad8b",
+   "intrinsics_sha256": "8f8857c2c50aefe2a0fc41ec4720833bde63793887638c98c348c7148f6d7ec8",
+   "n_frames": 12,
+   "shape": [
+    12,
+    476,
+    504
+   ]
+  },
+  "hemicolectomy__5YDMlxTl0k8__gt_0045": {
+   "depth_sha256": "7c675cdc6ff9a980a89498af006f5577fe2e40b1bd1800900d5030f9d499df4d",
+   "intrinsics_sha256": "2f179adc22d69d71f89fe9144df6d1366577f28d0ab54b0c3ffc075432ce8a80",
+   "n_frames": 10,
+   "shape": [
+    10,
+    476,
+    504
+   ]
+  },
+  "hemicolectomy__5YDMlxTl0k8__gt_0046": {
+   "depth_sha256": "d69d14b1dcd828f9a6a37b098111f6f40b688ec169566d59de3703dd964f7dd9",
+   "intrinsics_sha256": "1365b39e80299b4023349b1f562f3fa323262996c1f256d86bc5a07d5e0c7237",
+   "n_frames": 22,
+   "shape": [
+    22,
+    476,
+    504
+   ]
+  },
+  "hemicolectomy__5YDMlxTl0k8__gt_0047": {
+   "depth_sha256": "43e5cdd879f4ea61746bb98676e4a0fa6eb6e526145e2b71a486f99caf4a5483",
+   "intrinsics_sha256": "b868280d52fe778144592cf1405ad32b2412ccd80963344e365e56a4feab21c9",
+   "n_frames": 17,
+   "shape": [
+    17,
+    476,
+    504
+   ]
+  },
+  "hemicolectomy__5YDMlxTl0k8__gt_0049": {
+   "depth_sha256": "4eebbf5d71581ea32637fbf5e3c32bbce9cc2b5c08a8c74ef65dd8390e0c87b7",
+   "intrinsics_sha256": "27ae0967f571da4216f68e8acee2b90fc086763c318bc9a9a6f454d73c5b42e6",
+   "n_frames": 18,
+   "shape": [
+    18,
+    476,
+    504
+   ]
+  },
+  "hemicolectomy__5YDMlxTl0k8__gt_0051": {
+   "depth_sha256": "72bdfd59567ddf946307bf2c6ba332e467f7e1a0805841c79563e2f8a7ec94dd",
+   "intrinsics_sha256": "f9049f265df64699864d52cd4213f931d515fa40dd4f07b7b032cfa812124cc2",
+   "n_frames": 36,
+   "shape": [
+    36,
+    476,
+    504
+   ]
+  },
+  "hemicolectomy__5YDMlxTl0k8__gt_0055": {
+   "depth_sha256": "310942a2ab2eb0e941603ad0f56d197b0d9213e9cdbb3620e83fa030fcc63422",
+   "intrinsics_sha256": "7a0175a0ca25aa8239ce26a3d5a140412b2e259d82b4e633b80895ad74e866e4",
+   "n_frames": 22,
+   "shape": [
+    22,
+    476,
+    504
+   ]
+  },
+  "hemicolectomy__5YDMlxTl0k8__gt_0058": {
+   "depth_sha256": "300c979d5afc28a578a5d1ac90ca1a9a216d9064a6a9d5c1bd575887d10d147b",
+   "intrinsics_sha256": "5cb5ca6e09d3dcb651993f7eaaaee3c426cbb79d17f04a2d67535caad82760c1",
+   "n_frames": 11,
+   "shape": [
+    11,
+    476,
+    504
+   ]
+  },
+  "hemicolectomy__5YDMlxTl0k8__gt_0059": {
+   "depth_sha256": "57e095ac5427c1373cf2ad2702f1b3e5b0a623c950ea61c0367069aafc84ea98",
+   "intrinsics_sha256": "9974ed29ed0732278565d548e10cb8ad2a2a5b4bf5cab4ad733228a2b2e46fdf",
+   "n_frames": 11,
+   "shape": [
+    11,
+    476,
+    504
+   ]
+  },
+  "hemicolectomy__5YDMlxTl0k8__gt_0062": {
+   "depth_sha256": "17d20d696f5d0511fb5bad636270f9e80c08cf94b7b8e9a39c34d7bcaed33c40",
+   "intrinsics_sha256": "537d28eab043c393aca160bac901ccbdfd57f115a3d7fa73d00a451c2cb6017e",
+   "n_frames": 20,
+   "shape": [
+    20,
+    476,
+    504
+   ]
+  },
+  "hemicolectomy__6qb-oFqRjbE__gt_0001": {
+   "depth_sha256": "16c094dd49e7b9dffc1670c948ac2a124a72ef819f7d77f2c451d01044c7ab0c",
+   "intrinsics_sha256": "b3386bdcb3de8a4686fd6f38780b85c581b036c590a094d9add89171c874626d",
+   "n_frames": 18,
+   "shape": [
+    18,
+    280,
+    504
+   ]
+  },
+  "hemicolectomy__6qb-oFqRjbE__gt_0002": {
+   "depth_sha256": "4b129b72bdbafba175ad5ce2cbdef56ec8d94de8d16b04ee956f93e5c806b78e",
+   "intrinsics_sha256": "d41a5eae617535552ae1eba412db4ebf82794526771fc6017de547650dfe7baf",
+   "n_frames": 51,
+   "shape": [
+    51,
+    280,
+    504
+   ]
+  },
+  "hemicolectomy__6qb-oFqRjbE__gt_0004": {
+   "depth_sha256": "657d292fa61ebb0724e125201fef426a1cc5519fbcbc4130a0c321ef5d04654c",
+   "intrinsics_sha256": "e53b2208a775109e209cecaa5a66d06bfeec8d06cb89f8b7a158560a093fbee0",
+   "n_frames": 33,
+   "shape": [
+    33,
+    280,
+    504
+   ]
+  },
+  "hemicolectomy__6qb-oFqRjbE__gt_0005": {
+   "depth_sha256": "321e732dc181857a3f61b4e578184822a386c8e7461d8da28cd646e7f34b60ff",
+   "intrinsics_sha256": "68e835e9441bd3ae40e1eed6205809c0964e7c728278cbf41e77ea2af87ee490",
+   "n_frames": 11,
+   "shape": [
+    11,
+    280,
+    504
+   ]
+  },
+  "hemicolectomy__6qb-oFqRjbE__gt_0006": {
+   "depth_sha256": "9dc65af111ae7e2156a85e7c6b2626c1d0b4fbf1f4a0efa01a5691c3272d4710",
+   "intrinsics_sha256": "6d6602d5819fea60eabe5f235a8ed9df55d99f6893f599d08a6caefa5ff61bf8",
+   "n_frames": 8,
+   "shape": [
+    8,
+    280,
+    504
+   ]
+  },
+  "hemicolectomy__6qb-oFqRjbE__gt_0007": {
+   "depth_sha256": "a027e455808253bc11b33eacf22fb330e599027ba48f76d8890f162a74cd0ec5",
+   "intrinsics_sha256": "1477f465a0194ab62ebb4ba831aaddc2898f7d520bb310f6c43ab99d2f38976f",
+   "n_frames": 24,
+   "shape": [
+    24,
+    280,
+    504
+   ]
+  },
+  "hemicolectomy__6qb-oFqRjbE__gt_0008": {
+   "depth_sha256": "2f371f5493585279da30ae30c3adb71e1939274354fd7549721706652ac39aa8",
+   "intrinsics_sha256": "fadc40214c341af6523be2fd73119823c41181c588fdc35827f7345be3c4952e",
+   "n_frames": 15,
+   "shape": [
+    15,
+    280,
+    504
+   ]
+  },
+  "hemicolectomy__6qb-oFqRjbE__gt_0012": {
+   "depth_sha256": "e32164c7da3075441661c2f04b0bf7b996c7545ae466dfd9e366db99a68d5e86",
+   "intrinsics_sha256": "3b4898962dd26832404eef1a0571b1e3ffbcd833e35f7d9ce8c29e5cc85b8afb",
+   "n_frames": 10,
+   "shape": [
+    10,
+    280,
+    504
+   ]
+  },
+  "hemicolectomy__6qb-oFqRjbE__gt_0013": {
+   "depth_sha256": "62f0f6c3ca1f3969ccbbbc006e6628a3478e05c1d448ab551f54e4add0fd0be6",
+   "intrinsics_sha256": "c80b16d06f08a3902b72c68921d53722592a7ee737ead449ba3cd0fa5290eb25",
+   "n_frames": 16,
+   "shape": [
+    16,
+    280,
+    504
+   ]
+  },
+  "hemicolectomy__6qb-oFqRjbE__gt_0018": {
+   "depth_sha256": "2af5d16c415997f20dc1ba695f009a8730e4672d7f69f5486655bdd48ddd36d7",
+   "intrinsics_sha256": "38d52e859f38bb06cddf975cf7936d4e1328b283b65da2140b6d1fb34efa2ad2",
+   "n_frames": 18,
+   "shape": [
+    18,
+    280,
+    504
+   ]
+  },
+  "hemicolectomy__6qb-oFqRjbE__gt_0019": {
+   "depth_sha256": "4e3a7444b44b9efc929429166d1f5f4f99cdae1630f5df2dfdf64d153570dc65",
+   "intrinsics_sha256": "7a6dd122a0cfee651708f6640f0ed563b8e63f439b9f05873847f33406f6ee2b",
+   "n_frames": 8,
+   "shape": [
+    8,
+    280,
+    504
+   ]
+  },
+  "hemicolectomy__6qb-oFqRjbE__gt_0021": {
+   "depth_sha256": "ef0624fff453b82df603d24b07ff6ce2ce6ff0a36833c2ada6de6e44c4cac010",
+   "intrinsics_sha256": "1373c57c9d38c2835750770c1dda7cd201d22e3d9435f75cc5b98d75bcac66e9",
+   "n_frames": 11,
+   "shape": [
+    11,
+    280,
+    504
+   ]
+  },
+  "hemicolectomy__6qb-oFqRjbE__gt_0022": {
+   "depth_sha256": "eb8eda9a0360c4050acabb26ceed9f936074921c99e6e04fb6d67f70778d496f",
+   "intrinsics_sha256": "ac7cfac5f1486c7ddc0565e46986a4d5722fe5a05a1c083228e5ec9bfd1f4964",
+   "n_frames": 16,
+   "shape": [
+    16,
+    280,
+    504
+   ]
+  },
+  "hemicolectomy__6qb-oFqRjbE__gt_0024": {
+   "depth_sha256": "7b8ab85dc27cb176574d8629a3b8744898017688cd029ccbbb1fba92a50aa6c9",
+   "intrinsics_sha256": "a3aae7bf39ea0c0d8e4f191484cc6ece5cd2ab716de8a0612494e33748550a23",
+   "n_frames": 17,
+   "shape": [
+    17,
+    280,
+    504
+   ]
+  },
+  "hemicolectomy__6qb-oFqRjbE__gt_0025": {
+   "depth_sha256": "f7c1aafee694af6f321ca98e4bc5ffccd24066ca99895783ab113ee0878cba91",
+   "intrinsics_sha256": "ad92e26b9d7ee2453f0f115a4085b3f14189bea0deaa7cc45f25e2ff7901a970",
+   "n_frames": 13,
+   "shape": [
+    13,
+    280,
+    504
+   ]
+  },
+  "hemicolectomy__6qb-oFqRjbE__gt_0028": {
+   "depth_sha256": "051578cc2ed7bed065baaa8d22a3a31c6ba5b449f41d3fa04073898b6ac9436f",
+   "intrinsics_sha256": "2982bbb746349acbc46d59decfdd3f144750c7aa1d659e0dbcdcd52e4663e53e",
+   "n_frames": 9,
+   "shape": [
+    9,
+    280,
+    504
+   ]
+  },
+  "hemicolectomy__Jw5R_jcTtn8__gt_0001": {
+   "depth_sha256": "bcf155541a7542eadb9147d11e53295d6b90ea9ff68513010ff99a0818649141",
+   "intrinsics_sha256": "c2665c4c519759fd6dfc53a927478fb79effea39a807d32b8e1199b4e1156327",
+   "n_frames": 15,
+   "shape": [
+    15,
+    308,
+    504
+   ]
+  },
+  "hemicolectomy__Jw5R_jcTtn8__gt_0002": {
+   "depth_sha256": "16a300ac394172d556b3798d40d044d051fe13f4778fb9726b8ee3e6f36fb669",
+   "intrinsics_sha256": "95f2d6e63a4b79365be531cd6eef0f4707b700971d453a08f15137b13a6e86ca",
+   "n_frames": 64,
+   "shape": [
+    64,
+    308,
+    504
+   ]
+  },
+  "hemicolectomy__Jw5R_jcTtn8__gt_0003": {
+   "depth_sha256": "88d157b93dca65be5d1d7e62be1fbc572d32fbba02af4d698e18485099009466",
+   "intrinsics_sha256": "2296531315e0104d10c8c8453db8424102cf5825579d3c45ce7cfd985440c3a7",
+   "n_frames": 10,
+   "shape": [
+    10,
+    308,
+    504
+   ]
+  },
+  "hemicolectomy__Jw5R_jcTtn8__gt_0004": {
+   "depth_sha256": "dc34ca516960bf2fa296f88cb563f351455b577e22aae7241f509a282ffd224e",
+   "intrinsics_sha256": "41ca040f30774850f74490420cacddb58788e0d80862106902a85274131f1188",
+   "n_frames": 23,
+   "shape": [
+    23,
+    308,
+    504
+   ]
+  },
+  "hemicolectomy__SbqubK1FX50__gt_0001": {
+   "depth_sha256": "c01989debf21702b29648d7d9c058351076f98693a65724d5039fe1d6946f459",
+   "intrinsics_sha256": "b0d7c04abe77cfa81055e38f1d7ea7dfa3152227df05ec08517ae7a8cab7c35a",
+   "n_frames": 9,
+   "shape": [
+    9,
+    280,
+    504
+   ]
+  },
+  "hemicolectomy__SbqubK1FX50__gt_0002": {
+   "depth_sha256": "5a2bc6bf7f2fc5c65ae3ba8ad256396b6f54c41921feaf5e6095796af2499020",
+   "intrinsics_sha256": "d2aad55fa296f7ce1a87cebbfe8d67f4cba5a7239d8ba23057396e6c6fe4e24e",
+   "n_frames": 35,
+   "shape": [
+    35,
+    280,
+    504
+   ]
+  },
+  "hemicolectomy__SbqubK1FX50__gt_0006": {
+   "depth_sha256": "aa6efcc107609c42a14eadb89cea43ccf5b0006c549a0d3125a6a642f419da03",
+   "intrinsics_sha256": "587773ed9d21801acce680bca8075dd5d63f91e5f8796900fd84385041c25a52",
+   "n_frames": 10,
+   "shape": [
+    10,
+    406,
+    504
+   ]
+  },
+  "hemicolectomy__SbqubK1FX50__gt_0008": {
+   "depth_sha256": "1e43dbdd9c82f949249646dc2563e87f7d00699571753caafbca62cd72b87aa9",
+   "intrinsics_sha256": "5e87e601a810f532ce9118eb183a8ac1083ac54cc3f2955a58021af9723edcdb",
+   "n_frames": 8,
+   "shape": [
+    8,
+    280,
+    504
+   ]
+  },
+  "hemicolectomy__Vbcmx6eCqko__gt_0001": {
+   "depth_sha256": "7ec34c653eaa69381ce72bf56de3f08f6b436a39a03f81cc94d7fa26c71d2f5b",
+   "intrinsics_sha256": "977c702262461596fdd193016e07aa18454de85288039cc6e0fa905d94973c3a",
+   "n_frames": 33,
+   "shape": [
+    33,
+    350,
+    504
+   ]
+  },
+  "hemicolectomy__Vbcmx6eCqko__gt_0002": {
+   "depth_sha256": "0f208db8d93ab946e1031b92a20d1f4ec279cb96cb12463b65e5285c9c1e737b",
+   "intrinsics_sha256": "e8e2870269452b127d47853a2db5cdb738cf79cd1456a2cfb4125cc164728b06",
+   "n_frames": 11,
+   "shape": [
+    11,
+    350,
+    504
+   ]
+  },
+  "hemicolectomy__Vbcmx6eCqko__gt_0003": {
+   "depth_sha256": "8327d5f873996c2a26ceabf822ffce2bac4abd366c22160322b28a8a4a29867c",
+   "intrinsics_sha256": "24e368c52e2b97473cadb76daa685719c0df0b0cac8b8c5d64f1a096b4ad5b20",
+   "n_frames": 11,
+   "shape": [
+    11,
+    350,
+    504
+   ]
+  },
+  "hemicolectomy__Vbcmx6eCqko__gt_0004": {
+   "depth_sha256": "845ff9cd8530a942799b63dfc8df4c7d8abda1f7517d528a777f871466c53eb7",
+   "intrinsics_sha256": "c2c674457383678100605abf777a8d02c393a03e3951541f11d8c321820462c4",
+   "n_frames": 17,
+   "shape": [
+    17,
+    350,
+    504
+   ]
+  },
+  "hemicolectomy__Vbcmx6eCqko__gt_0005": {
+   "depth_sha256": "b72b68afd07f5ac8691cfd358ea50abbfa3f912a4c7cc5d8086dc5a44a70915c",
+   "intrinsics_sha256": "98c0f406a3be0c707e6cfc9d4f47a02bd0485f44d1e6f7d46f14027b0e0ea757",
+   "n_frames": 16,
+   "shape": [
+    16,
+    350,
+    504
+   ]
+  },
+  "hemicolectomy__Vbcmx6eCqko__gt_0006": {
+   "depth_sha256": "01d7a1c80ab8fc541ed8093140d640a59bb5cd639f4b2c5e32dcd17205b9832b",
+   "intrinsics_sha256": "c0b9d8816ac8e940d1bbcf51197e51166b69921832b7dc3daa873c6209363676",
+   "n_frames": 11,
+   "shape": [
+    11,
+    350,
+    504
+   ]
+  },
+  "hemicolectomy__lUM_RtRsCKg__gt_0001": {
+   "depth_sha256": "5d1c11c990fac37c969a3a6b1b25c5785e44ba6e142fb3d7da77d6a507ede049",
+   "intrinsics_sha256": "1204fd38a70dc8cb64da18ea83db2d143fec1510897533070a8683353994daa5",
+   "n_frames": 15,
+   "shape": [
+    15,
+    280,
+    504
+   ]
+  },
+  "hemicolectomy__lUM_RtRsCKg__gt_0002": {
+   "depth_sha256": "a88679fd83f929ec1c1c732b4cd7576d1270a03ab6b828be10588ae03740fca8",
+   "intrinsics_sha256": "30dce8c01832d74efc4f19c051250d0399f32e28029aecf9794b80aa3f62c665",
+   "n_frames": 17,
+   "shape": [
+    17,
+    280,
+    504
+   ]
+  },
+  "hemicolectomy__pfMlLui0jhA__gt_0001": {
+   "depth_sha256": "ea40840aeb6629707c51004415a1f2e42a0feb77dabc038231aec7798e22cf4b",
+   "intrinsics_sha256": "d80653c0f6e0b23cda37b27a133977fbcee477555387363db25fe17cf30012cb",
+   "n_frames": 22,
+   "shape": [
+    22,
+    364,
+    504
+   ]
+  },
+  "hemicolectomy__pfMlLui0jhA__gt_0002": {
+   "depth_sha256": "12d34625a76251975692bac46f4447ad37111352d6811bce44f5212687fbb0fe",
+   "intrinsics_sha256": "763d0082d962bf282ce9d52178d74faaf0e69c194c492338aa86e9e32fd897b3",
+   "n_frames": 8,
+   "shape": [
+    8,
+    364,
+    504
+   ]
+  },
+  "hemicolectomy__pfMlLui0jhA__gt_0003": {
+   "depth_sha256": "5f2ce80340d20f72614331aa56dc0210c340579b7a6ab8da55cd495257b43b47",
+   "intrinsics_sha256": "da1ed29acac4e7748ac280ff097210d85aec0a6e18c36fe13aed250fca249e7c",
+   "n_frames": 8,
+   "shape": [
+    8,
+    364,
+    504
+   ]
+  },
+  "hemicolectomy__pfMlLui0jhA__gt_0004": {
+   "depth_sha256": "e7d8e85f3d4ff3d8ae695bb7c08b388a7eccb22c0f82da2eacfdb14fc6a960c5",
+   "intrinsics_sha256": "e57525bc85cf6d1be52f91086c8e2baf6eb550ad0bcedde204093316a9cdac8e",
+   "n_frames": 12,
+   "shape": [
+    12,
+    364,
+    504
+   ]
+  },
+  "hemicolectomy__pfMlLui0jhA__gt_0006": {
+   "depth_sha256": "2dc9cbe0ea3ce569cbfe1387978f84e85d89b51bd13c655ceae5434315914726",
+   "intrinsics_sha256": "0be79b5ca53366f7296ac9cf3042d24769258a97e81c9b4e6c43e5b83bf610ae",
+   "n_frames": 15,
+   "shape": [
+    15,
+    364,
+    504
+   ]
+  },
+  "lar___7H7G-4sevQ__gt_0001": {
+   "depth_sha256": "c6dcf833c5fcc5a9d9a2fcb30289dcaaf8dd0181d71f95a06b810af479ee2dad",
+   "intrinsics_sha256": "168e27a4d813b370d1d4839579ab2bebd55cf63c9b9fa4cdbb45c57f20bf1fe6",
+   "n_frames": 26,
+   "shape": [
+    26,
+    378,
+    504
+   ]
+  },
+  "lar___7H7G-4sevQ__gt_0002": {
+   "depth_sha256": "dbc2445d078594aa59f2e36e91cd6fe8d4475691ff432aadc7226bdce2b3f25d",
+   "intrinsics_sha256": "b7941387b80350a008c6748caa50afcc780b2f2c3f61245b902af499abdc9fa5",
+   "n_frames": 35,
+   "shape": [
+    35,
+    378,
+    504
+   ]
+  },
+  "lar___7H7G-4sevQ__gt_0003": {
+   "depth_sha256": "5ae1215c7488b0ef0ff36533db91a2145267606e8382df94cf758e829c9ce722",
+   "intrinsics_sha256": "c3fb548933c344bc73820b14766bdb584d4654908a790f0fd712a497fcb928e9",
+   "n_frames": 49,
+   "shape": [
+    49,
+    378,
+    504
+   ]
+  },
+  "lar___7H7G-4sevQ__gt_0004": {
+   "depth_sha256": "a94e89a42a88984449065e84ac843715489f722e14529361ae9cd97aa54f4b76",
+   "intrinsics_sha256": "3ed736b26ae6e6d513a0221baedbaf60b3d04cc441495176f0f22624354dc7ed",
+   "n_frames": 26,
+   "shape": [
+    26,
+    378,
+    504
+   ]
+  },
+  "lar__dCaGyca-jJw__gt_0001": {
+   "depth_sha256": "3d6dd74ae5c5c1fadbc0c0aa47e126898bd167a12ccd0a0b8eb57ed83c20954c",
+   "intrinsics_sha256": "4fb157aa19a35353fb345feaf690caaf53241445f8d01c2371ec683ea100e911",
+   "n_frames": 43,
+   "shape": [
+    43,
+    378,
+    504
+   ]
+  },
+  "lar__dCaGyca-jJw__gt_0002": {
+   "depth_sha256": "6fcb4b191e62e775272b7e7a30394ab55f1cbb567db65eb32a31cc6102fee2a3",
+   "intrinsics_sha256": "66bb84b32b91c38cb3ad4b61ee88e481c726d8c06e0e752a273e1c28b04bd390",
+   "n_frames": 13,
+   "shape": [
+    13,
+    378,
+    504
+   ]
+  },
+  "lar__dCaGyca-jJw__gt_0003": {
+   "depth_sha256": "5e30f536f35f9e6bf6e5e23aeb4e853897aa0de819463916002817a892402a8f",
+   "intrinsics_sha256": "fbf54d50a15f038fbbcba73aa4a14e0f1e898025078364a73c1dc99b33a048d0",
+   "n_frames": 40,
+   "shape": [
+    40,
+    378,
+    504
+   ]
+  },
+  "liver_resection__wAnvytUuDkA__gt_0001": {
+   "depth_sha256": "2270c52de033737551a9ae07297a54634eb0b1bf42d0163320324d7f92d9df70",
+   "intrinsics_sha256": "e6a6190ebb86f041f271d83c48e3c8a83978e7bf0416a709cfbbcf4737ea47b7",
+   "n_frames": 10,
+   "shape": [
+    10,
+    476,
+    504
+   ]
+  },
+  "rarp__9WacMabNLVs__gt_0002": {
+   "depth_sha256": "2373cab2a9a004d42f8d7afed97628e9e08a8084e590b21037ec080d946eeb74",
+   "intrinsics_sha256": "ce6f0e7790374044e7897a61c5316ee2773fdbca40659589f175e0a37b3f8815",
+   "n_frames": 16,
+   "shape": [
+    16,
+    378,
+    504
+   ]
+  },
+  "rarp__9WacMabNLVs__gt_0003": {
+   "depth_sha256": "b2c5bb8c04a1e8653fc1b17a1645e9ec2e1179903f1dbb6172f18a833a2bb625",
+   "intrinsics_sha256": "6c2ac6fbc7b2b55774d40b401bd61522880122f4cde311201753e10be52f1bba",
+   "n_frames": 61,
+   "shape": [
+    61,
+    378,
+    504
+   ]
+  },
+  "rarp__9WacMabNLVs__gt_0005": {
+   "depth_sha256": "a8424fb82d097caff55174730a8d2af1f72bb3867d7844fc3fcea82e6cd0082c",
+   "intrinsics_sha256": "94ab6fd370554cb4478880831d2b5960348f0a1b1f6512a325c600029bc4cf4c",
+   "n_frames": 8,
+   "shape": [
+    8,
+    378,
+    504
+   ]
+  },
+  "rarp__DS7ddQltHRY__gt_0001": {
+   "depth_sha256": "eec1c74e183f1965a793746190a053ba1f2ecfd3f49d2a510c095e0fc5924554",
+   "intrinsics_sha256": "dccdf0718c045fda2b2c1e360bf41434ca90ee25f0c54b788fd910e02c1e4d71",
+   "n_frames": 40,
+   "shape": [
+    40,
+    294,
+    504
+   ]
+  },
+  "rarp__DS7ddQltHRY__gt_0002": {
+   "depth_sha256": "adb0069e1d3bb50dd7f87d20c7132a770521858a2af2bbf93fa5b5b343695151",
+   "intrinsics_sha256": "584afdffdcba3250d22e666169112f8f14f1d0377e10ca39e607bc2be17b7b13",
+   "n_frames": 49,
+   "shape": [
+    49,
+    294,
+    504
+   ]
+  },
+  "rarp__DS7ddQltHRY__gt_0003": {
+   "depth_sha256": "38d25f0ed7d86a67ee36394c79fbb3e7fd1d6807784c56c1bdfbfa1b01ca5e67",
+   "intrinsics_sha256": "9d3e25767c1e6198df1b03ac6768df3a6a6409da9afccad758c6195e09936b62",
+   "n_frames": 41,
+   "shape": [
+    41,
+    294,
+    504
+   ]
+  },
+  "rarp__DS7ddQltHRY__gt_0004": {
+   "depth_sha256": "bf93148266108aa8cd97ccd7613588447b7aac0e4a5fa51a2339a167d449fea8",
+   "intrinsics_sha256": "a4dd2591045c6a28013d9045873e28b97fe2bb02c67b6c021b67db8ef94673f0",
+   "n_frames": 23,
+   "shape": [
+    23,
+    294,
+    504
+   ]
+  },
+  "rarp__NitKIjCcS7U__gt_0001": {
+   "depth_sha256": "2db82096bcd2f7e0917e527b7f8fa0744ae8b6130e7dfca5154b48786ec582d1",
+   "intrinsics_sha256": "778724b0a2e9ed928bc4927e7b4a1b90fc3441f926f0c7c3ec2dbe1b6d9e0c45",
+   "n_frames": 8,
+   "shape": [
+    8,
+    378,
+    504
+   ]
+  },
+  "rarp__QxmGKqOtXd8__gt_0004": {
+   "depth_sha256": "419ab2f5797042b826a409162954b758509a1371abfb4ddb2e1b37d798b71ea8",
+   "intrinsics_sha256": "9d14346b3e901c22887360c9474f4bc9c57e6ce57e28edbc21657cd31fbff8cb",
+   "n_frames": 20,
+   "shape": [
+    20,
+    336,
+    504
+   ]
+  },
+  "rarp__QxmGKqOtXd8__gt_0005": {
+   "depth_sha256": "7cdf135b935468c24c271bbf826d91f23dbc64f945f8d620fccfa336fa92b028",
+   "intrinsics_sha256": "7b132940a1dc1d9f61af07da1c01db29dc4f3b66d0b8780cc53eb038818823fa",
+   "n_frames": 13,
+   "shape": [
+    13,
+    336,
+    504
+   ]
+  },
+  "rarp__QxmGKqOtXd8__gt_0006": {
+   "depth_sha256": "e904a9bb8d6cd572f46dd3389ffae293c6f8cfc1264016e18fffc3305f6b5933",
+   "intrinsics_sha256": "d9e9bc63d1ed2bc486ccc6c91d52d1f49148aed90b4cf53990d5a9becbe31c51",
+   "n_frames": 10,
+   "shape": [
+    10,
+    336,
+    504
+   ]
+  },
+  "rarp__QxmGKqOtXd8__gt_0008": {
+   "depth_sha256": "dd081f4ab76c5e434d0a04dca958d912a57efa7abedc32715ad8e45baf86c476",
+   "intrinsics_sha256": "3962454d066685156725bac3c4032a541b9a71d405757cd607cdaad12ddb23ab",
+   "n_frames": 15,
+   "shape": [
+    15,
+    336,
+    504
+   ]
+  },
+  "rarp__RG-KrT9Yaac__gt_0001": {
+   "depth_sha256": "e801011d06a94f88235e7e3e706e04a9a6200ebbd897dd828796872bad44328e",
+   "intrinsics_sha256": "49ab09fe6985ca04694e7fd0d994c3331999a89e6361a178fb66ed913c9957cd",
+   "n_frames": 9,
+   "shape": [
+    9,
+    378,
+    504
+   ]
+  },
+  "rarp__RG-KrT9Yaac__gt_0003": {
+   "depth_sha256": "b9ba84328ae98f56463e69d37d06e9ed579e9be42a8793280823c58631a969d7",
+   "intrinsics_sha256": "22a8a08acfa26920082a0df64e62dc407187bb666dbec6759429841d483aceef",
+   "n_frames": 8,
+   "shape": [
+    8,
+    378,
+    504
+   ]
+  },
+  "rarp__T_maXoZvMxs__gt_0003": {
+   "depth_sha256": "746287ea73f917f18d848d213e1cf8d85f11d20dd25fb83b2c5902c7088dd21b",
+   "intrinsics_sha256": "e8a4981316a2f66555af9887ebf77a5ac902c521fe317753e3d61918686a7da9",
+   "n_frames": 8,
+   "shape": [
+    8,
+    378,
+    504
+   ]
+  },
+  "rarp__T_maXoZvMxs__gt_0004": {
+   "depth_sha256": "c241282cb0394a506c0637c0850f6f295944fb873ef6a4cba71fa92c7fe1aecc",
+   "intrinsics_sha256": "03dd7ebb1c17cc659fa26eea2c83450642fa6de93a5d94ed5da72a286d03d125",
+   "n_frames": 11,
+   "shape": [
+    11,
+    378,
+    504
+   ]
+  },
+  "rarp__T_maXoZvMxs__gt_0005": {
+   "depth_sha256": "704f3632f0db7efd138dc0fca44769e8e196075c2587b7ac24ebb318bc61daa0",
+   "intrinsics_sha256": "d58bbc1d41904fb3eed3163a51a90ffab6bf7f9fce0f6e23c56a8ac9ae61c79a",
+   "n_frames": 9,
+   "shape": [
+    9,
+    378,
+    504
+   ]
+  },
+  "rarp__c3R8aE2rhW4__gt_0001": {
+   "depth_sha256": "08a5814f3fe1519b30b4a26bbbd0eddf32c44fdfc67882c91f353871ed5e5816",
+   "intrinsics_sha256": "93b9ebdc6a14e423db3cffae070d3bf99964fc1491567c3f17a62f6c492b1a13",
+   "n_frames": 13,
+   "shape": [
+    13,
+    336,
+    504
+   ]
+  },
+  "rarp__c3R8aE2rhW4__gt_0004": {
+   "depth_sha256": "a89696bf01ffec1162a794d5625cdd7636dd8a9f8cc597dc7b188997c9fed7e7",
+   "intrinsics_sha256": "767929e4ed6b55abdee2e49242007f6980c038442a7014701a649ebc3f44b657",
+   "n_frames": 15,
+   "shape": [
+    15,
+    336,
+    504
+   ]
+  },
+  "rarp__c3R8aE2rhW4__gt_0006": {
+   "depth_sha256": "3bb49e875e272ff2cba8cee567a4995445ed3780c4f7959537af454ad90034c1",
+   "intrinsics_sha256": "6baa63664702c16b911dedaf4bcaabb664b3cdec279ed143d5600ca4ed608ec3",
+   "n_frames": 12,
+   "shape": [
+    12,
+    336,
+    504
+   ]
+  },
+  "rarp__c3R8aE2rhW4__gt_0007": {
+   "depth_sha256": "a7f65118d368966749c1ab1d0a2a9ea445a2666e961819e803d59d4b5a50ef66",
+   "intrinsics_sha256": "fb0f8cd7964f1f5844e000c9788181af1da44a7400b1eb7379e295d6435e2c86",
+   "n_frames": 12,
+   "shape": [
+    12,
+    336,
+    504
+   ]
+  },
+  "rarp__c3R8aE2rhW4__gt_0008": {
+   "depth_sha256": "1a5e066ac25caeec14bc0040237600b6f58f3be5c5b88cf4b09392338824afae",
+   "intrinsics_sha256": "c2519eec0412116282df47136b690d9a6580e0f2caf6ae1566380e4f46ccd06b",
+   "n_frames": 17,
+   "shape": [
+    17,
+    336,
+    504
+   ]
+  },
+  "rarp__hwgXooRFowg__gt_0001": {
+   "depth_sha256": "2ba93deb7a2c269f821adc5c40e2ed899b85bfa434e734564cf33c58411ad531",
+   "intrinsics_sha256": "007ed58bd34b1e7de1d25d0e167294ad28684f9d91ef258ebe50f90a42a81f31",
+   "n_frames": 24,
+   "shape": [
+    24,
+    350,
+    504
+   ]
+  },
+  "rarp__hwgXooRFowg__gt_0002": {
+   "depth_sha256": "97b349ff54b5b5f41a7e09b28fe5c5856fd2a6a3094a84fc0ad7a99de549f82e",
+   "intrinsics_sha256": "42c8cbfa8851d4f7c31bfb4f5551544b80098205b6f66550203a44a0cd616cd5",
+   "n_frames": 12,
+   "shape": [
+    12,
+    350,
+    504
+   ]
+  },
+  "rarp__hwgXooRFowg__gt_0003": {
+   "depth_sha256": "e6f1b5d34887ab0125f28228097e18ca4cfd2e305eafa7d663ae9481512c9f33",
+   "intrinsics_sha256": "dd396693acd71b72751f471368149fe420112b711855d57ab2ea6bdf436703c3",
+   "n_frames": 14,
+   "shape": [
+    14,
+    350,
+    504
+   ]
+  },
+  "rarp__hwgXooRFowg__gt_0005": {
+   "depth_sha256": "988aa3e57e17358c75e91b74f0898a3b585e579810733e4a803b22b461fe3bb7",
+   "intrinsics_sha256": "57282a0c9bea598011671a80e1343dbd453f81be6c5c208fdc4220a6ecda7559",
+   "n_frames": 23,
+   "shape": [
+    23,
+    350,
+    504
+   ]
+  },
+  "rarp__hwgXooRFowg__gt_0008": {
+   "depth_sha256": "05ecc959dff669096f8ceefff5210968fe7e19f768a9ba903ac2ca53c040b548",
+   "intrinsics_sha256": "adcf24a09b48147e05e699fb442331a68901f33823420e2a6761064fbd2b8012",
+   "n_frames": 8,
+   "shape": [
+    8,
+    350,
+    504
+   ]
+  },
+  "rarp__w9egS1qHdX4__gt_0001": {
+   "depth_sha256": "6ed0a8c74fd4c270114e15785d15723797e784f24167241c5ca7f0457f7d6137",
+   "intrinsics_sha256": "4bb191fc9440a3d2880b3843bd852ce0fc52110cfe9d7958117af45a4d07eb89",
+   "n_frames": 12,
+   "shape": [
+    12,
+    378,
+    504
+   ]
+  },
+  "rarp__w9egS1qHdX4__gt_0002": {
+   "depth_sha256": "87554b0b4feb5d37287eb12a16e0c719827d81047166d091087a85e1d55c51a4",
+   "intrinsics_sha256": "e065bf9db72e3cb50f1e741279dc7923646cfd297b32fab65402cffb2b4506d7",
+   "n_frames": 10,
+   "shape": [
+    10,
+    378,
+    504
+   ]
+  },
+  "rarp__w9egS1qHdX4__gt_0003": {
+   "depth_sha256": "38c6c4a5b4eda8ee0a4c7e11b0b612d7fa9fb1ebf1cebf8a78db33e1cd54b7e2",
+   "intrinsics_sha256": "3306310a961568d68b2ea9f36950b11c4e37c21322f91c1cf3a884c98b8e8e8c",
+   "n_frames": 8,
+   "shape": [
+    8,
+    378,
+    504
+   ]
+  },
+  "rarp__w9egS1qHdX4__gt_0004": {
+   "depth_sha256": "f3fef4dc5e5ab28dea606fbfa0930f4161e153364d645d95654260b3ed27ae9d",
+   "intrinsics_sha256": "c3a274018a10d92dbaee4d808f78bd742f8e4e8d665010d62bfec97b7eb8d853",
+   "n_frames": 30,
+   "shape": [
+    30,
+    378,
+    504
+   ]
+  },
+  "rarp__w9egS1qHdX4__gt_0006": {
+   "depth_sha256": "ff18e0c56ed07c84dd5fa53cb83ba652b5365d005f517e8132bec75cd05e0da7",
+   "intrinsics_sha256": "2de93321c1a7c9fd62d54935d12b392892d0a828b202a5fcba27dfbaa6c8a4b5",
+   "n_frames": 19,
+   "shape": [
+    19,
+    378,
+    504
+   ]
+  },
+  "rarp__w9egS1qHdX4__gt_0007": {
+   "depth_sha256": "5d1bc9beecad0e71ed0ad13a96cb7b6b02ceac1d92dd7a273511322297227b28",
+   "intrinsics_sha256": "dd152c0fdbf6c8f4c0f108b0185610611f105f9459ff60a3c89e6db928039403",
+   "n_frames": 17,
+   "shape": [
+    17,
+    378,
+    504
+   ]
+  },
+  "rectopexy__IJfgUvxoTkM__gt_0001": {
+   "depth_sha256": "3558fad057ef53222195959438052045a49c5745d28b1ff7936e26e045303e0a",
+   "intrinsics_sha256": "8bd2801b935dd82a09fdd1579b2a4a7b38b3dd8972c6420f2db800e79d1cc00b",
+   "n_frames": 34,
+   "shape": [
+    34,
+    378,
+    504
+   ]
+  },
+  "rectopexy__IJfgUvxoTkM__gt_0002": {
+   "depth_sha256": "4640042e0334d77e7b66bd84e2e0160fed6508c670805a5414ee01464c3db86b",
+   "intrinsics_sha256": "f37419708f1ce734411c829e3c6955966553eaac657450a25f1a092fd3a5a7ed",
+   "n_frames": 33,
+   "shape": [
+    33,
+    378,
+    504
+   ]
+  },
+  "sigmoidcolectomy__2CmNyZWDxO4__gt_0001": {
+   "depth_sha256": "ee8fb605ac63ffff7dc693cf9b8431a97ef66757213ee26e60216eada64a0e16",
+   "intrinsics_sha256": "e82f0600768fffbc3c27190691997aa16a4d64a671b7a4515245f31266f5cca7",
+   "n_frames": 26,
+   "shape": [
+    26,
+    504,
+    504
+   ]
+  },
+  "sigmoidcolectomy__2CmNyZWDxO4__gt_0002": {
+   "depth_sha256": "beb8b48fced2983ac084f8732a8c1258ec4352d8ea57e5ca4c095f889dc0193f",
+   "intrinsics_sha256": "54a50a4815c791d4a12a0647a00921beefc2be84b7f2dc15134bfd5b687a0407",
+   "n_frames": 20,
+   "shape": [
+    20,
+    504,
+    504
+   ]
+  },
+  "sigmoidcolectomy__2CmNyZWDxO4__gt_0003": {
+   "depth_sha256": "537af8424673025cf0878e194828d5e2a75d20def8385922c1b292030c56dda1",
+   "intrinsics_sha256": "719c956764c13d642732a45fc88b1a81b86d4fc7db7b136aa88c280cbaabda31",
+   "n_frames": 12,
+   "shape": [
+    12,
+    504,
+    504
+   ]
+  },
+  "sigmoidcolectomy__4gmGWvP-XwU__gt_0002": {
+   "depth_sha256": "d4bde3671a32a6070d3dd146a6d6d8cf3163c0261f4f607cdf610b6f28d6dc14",
+   "intrinsics_sha256": "6a33818e9a00971cf182ace32169e6078127b3bb1ace30b5d93c65d90d8fe89a",
+   "n_frames": 14,
+   "shape": [
+    14,
+    308,
+    504
+   ]
+  },
+  "sigmoidcolectomy__4gmGWvP-XwU__gt_0003": {
+   "depth_sha256": "2cbe129d87c5184d82690a2c6fb8977f388f548f99cec3d1ab08698adb35ae52",
+   "intrinsics_sha256": "a66ce1a52aaa3757280f18ccaa6670d03583de5655ddee88f0b52f64059f638d",
+   "n_frames": 13,
+   "shape": [
+    13,
+    308,
+    504
+   ]
+  },
+  "sigmoidcolectomy__4gmGWvP-XwU__gt_0004": {
+   "depth_sha256": "08e178acca98f7ff40cc39d66fc452a2e3e3b67f34283f736630dca1c53e25f8",
+   "intrinsics_sha256": "79d2ccc1761b23b6bc525f64980e8ac73171d088fd95c5fb14190bb1f3d2e920",
+   "n_frames": 12,
+   "shape": [
+    12,
+    308,
+    504
+   ]
+  },
+  "sigmoidcolectomy__4gmGWvP-XwU__gt_0005": {
+   "depth_sha256": "ab64e0d24c309e15331896fc8892e30500c0c9b649fab7e7360a981235c88faa",
+   "intrinsics_sha256": "b6c28d499f3ddc9252eabb2f2028e3cbca056eb5831efe84f7580b0fb264cdfc",
+   "n_frames": 8,
+   "shape": [
+    8,
+    308,
+    504
+   ]
+  },
+  "sigmoidcolectomy__4gmGWvP-XwU__gt_0010": {
+   "depth_sha256": "59f1a02aaf42a16044d1154a614cad87634c13924faa6379df191d00fd797d90",
+   "intrinsics_sha256": "640ea3619a1aefe44c7af10af7ce1e9e642a13b35dce2f8975111a24051b4b10",
+   "n_frames": 23,
+   "shape": [
+    23,
+    308,
+    504
+   ]
+  },
+  "sigmoidcolectomy__4gmGWvP-XwU__gt_0011": {
+   "depth_sha256": "340fc1475aaf0ddf26fd9864db258c0f21a0a801d7b062968e5cbc570365e99e",
+   "intrinsics_sha256": "88c5471ad77b60bf733d321ce1241c50390a86f4dbd0ce2f42b71228a22c0640",
+   "n_frames": 14,
+   "shape": [
+    14,
+    308,
+    504
+   ]
+  },
+  "sigmoidcolectomy__KA5RO0CMg6I__gt_0001": {
+   "depth_sha256": "6ae5b9d8d5bd4c1aa96c5a97fa18c6bd1b0010bdf34fafc037789b165140e60f",
+   "intrinsics_sha256": "75a94e5dc3a0191ad97a5f6e7b136e5410bbdfa5727dd4cc432b0afbcd5287b6",
+   "n_frames": 29,
+   "shape": [
+    29,
+    308,
+    504
+   ]
+  },
+  "sigmoidcolectomy__MIFNpGu1cC8__gt_0001": {
+   "depth_sha256": "cf8adec8ed6cfc26b4b2230789c1aa2c6912ffbfacec1c5002788449995786e5",
+   "intrinsics_sha256": "0fa5b77c729700c16e1018da7b0dee169bb8e7c14ff85485529b9e78ffe78374",
+   "n_frames": 19,
+   "shape": [
+    19,
+    378,
+    504
+   ]
+  },
+  "sigmoidcolectomy__MIFNpGu1cC8__gt_0002": {
+   "depth_sha256": "960a6369bf5b6f023cc1552327dd413ef48b8d5d2c875add401a2f7115d3783f",
+   "intrinsics_sha256": "73e3723cdb85e9569e55695d4efcf80adab288d67ab414df740b80e72168a0c5",
+   "n_frames": 45,
+   "shape": [
+    45,
+    378,
+    504
+   ]
+  },
+  "sigmoidcolectomy__S3S_3GDc3dA__gt_0001": {
+   "depth_sha256": "4bd3f80bc5c62cfa0c0ad4e664ea23cf359a2aedd8fe2b928acea925fa0472f4",
+   "intrinsics_sha256": "172683eacb0fd1962fc0c2069933324055a829ba9ce1c360f8296fc806ce6638",
+   "n_frames": 21,
+   "shape": [
+    21,
+    280,
+    504
+   ]
+  },
+  "sigmoidcolectomy__S3S_3GDc3dA__gt_0002": {
+   "depth_sha256": "0201b2b2291e43b801896f2c1ce197c96b8b520e22847b4bacdf6efe095cee3d",
+   "intrinsics_sha256": "a08b91175a766a89fab8f8f43b799d9e138de5a81c7f8c05cccefa661777bb28",
+   "n_frames": 22,
+   "shape": [
+    22,
+    280,
+    504
+   ]
+  },
+  "splenectomy__20BJJ1jQOwc__gt_0001": {
+   "depth_sha256": "2ba014d07e9d89910a882d45cec58f08b2aef5940430dd2aea564b9b4c36b60c",
+   "intrinsics_sha256": "12fa6feaecf5a0e0899bce51122ceea7a4ec6db2d4b2af94280c1ba694e3b825",
+   "n_frames": 58,
+   "shape": [
+    58,
+    448,
+    504
+   ]
+  },
+  "splenectomy__20BJJ1jQOwc__gt_0002": {
+   "depth_sha256": "198d81260bdc8bfc61093d3c3689475e9d6dc5e531c408623825e858e0e0854c",
+   "intrinsics_sha256": "d5482e9426e387b39ee24e97f53f6f0b6bc1b4c6f641d0fe326f58408314bee7",
+   "n_frames": 34,
+   "shape": [
+    34,
+    448,
+    504
+   ]
+  },
+  "splenectomy__20BJJ1jQOwc__gt_0003": {
+   "depth_sha256": "c19e2d7fa5903471e52838cc24512739875e91a58deabe84c4234ed7a7876428",
+   "intrinsics_sha256": "b5e198a0a01fdbe9fde2da3c0d37981cf604f7d4794eb8a7d05ded7d21b17e5a",
+   "n_frames": 29,
+   "shape": [
+    29,
+    448,
+    504
+   ]
+  },
+  "splenectomy__20BJJ1jQOwc__gt_0004": {
+   "depth_sha256": "54823411193bf7e8b19416501d486173ade8130c86038669b4708a90bd1df08b",
+   "intrinsics_sha256": "37e9a30fcd37aff3023307d5514b725fd01a3f18724a5d888d707f767a9e0323",
+   "n_frames": 52,
+   "shape": [
+    52,
+    448,
+    504
+   ]
+  },
+  "splenectomy__20BJJ1jQOwc__gt_0005": {
+   "depth_sha256": "8368757f175d6be1df344a9b952fc5e0d5a1f34110e3df8d07faf8696f2b4ff3",
+   "intrinsics_sha256": "9162e865067995b412aa96994569a1767777d5d5f011018354d8f152a6f318dd",
+   "n_frames": 38,
+   "shape": [
+    38,
+    448,
+    504
+   ]
+  },
+  "splenectomy__HAaMkM113Jw__gt_0001": {
+   "depth_sha256": "fc0bf81196f1ecd34b4c2cf4712d539067c5bb637b4374c348ab314d7f0c2242",
+   "intrinsics_sha256": "9d2d985695da9fe493daf6b9a3e9f57a42daffa93d446229f3db151e19aa894a",
+   "n_frames": 29,
+   "shape": [
+    29,
+    350,
+    504
+   ]
+  },
+  "splenectomy__HAaMkM113Jw__gt_0002": {
+   "depth_sha256": "0e7a0e8607ff9654a6594dd98a13b47ec3929ef02690c334f0e194c1fc77a747",
+   "intrinsics_sha256": "22a2e52ca2cd9bfbcf4ca9ed192bc72d453d359acf98ba853da5de9ef460fc59",
+   "n_frames": 22,
+   "shape": [
+    22,
+    350,
+    504
+   ]
+  },
+  "splenectomy__HAaMkM113Jw__gt_0003": {
+   "depth_sha256": "5d84c3a01bf313bb1cf8ce78dca31bcdc44ed6356c57a94662c61b16991012dc",
+   "intrinsics_sha256": "a9eaa3d901faab690c2d464956119f485f735adc47462c205a0311f34fd1a8b8",
+   "n_frames": 43,
+   "shape": [
+    43,
+    350,
+    504
+   ]
+  },
+  "splenectomy__HAaMkM113Jw__gt_0004": {
+   "depth_sha256": "040e67e2e8e2e057481f2ff3901f18527d05b63ddce9829ab523dd73113ae3a1",
+   "intrinsics_sha256": "fc2aee2672117ee3795d0316d689d1f300e1863d24300e02c70f69edd5b2b016",
+   "n_frames": 19,
+   "shape": [
+    19,
+    448,
+    504
+   ]
+  },
+  "splenectomy__mp7wFPjALaw__gt_0001": {
+   "depth_sha256": "9b810f1ccc6e41cc845f995ed9559c9f58aa6f27700e7090f6a5f61d35ebc578",
+   "intrinsics_sha256": "29d649b91fe1073fd85ccc47b06566499bfad2140cdc4a1b2c274521a64f38a9",
+   "n_frames": 36,
+   "shape": [
+    36,
+    378,
+    504
+   ]
+  },
+  "splenectomy__mp7wFPjALaw__gt_0002": {
+   "depth_sha256": "dcfff65f117f62ae706831d51d00bce89c2be94e5bea75345e220a11f14e33e6",
+   "intrinsics_sha256": "1659bcd3757b80e177de97c21e26329c4ab5e5c039fc7d6aa009f1d0f9aa6c59",
+   "n_frames": 54,
+   "shape": [
+    54,
+    378,
+    504
+   ]
+  },
+  "splenectomy__mp7wFPjALaw__gt_0003": {
+   "depth_sha256": "c9c056b1df32cbeac2beb666b2b2495b7ff0c9894957fe8eedcc82b6e44c8d2d",
+   "intrinsics_sha256": "6729f9e9342ebfb1109e96c021a2beab9036dc2fae80840ff39bef72e3aa8839",
+   "n_frames": 39,
+   "shape": [
+    39,
+    378,
+    504
+   ]
+  },
+  "splenectomy__oHYOgkfKm68__gt_0001": {
+   "depth_sha256": "2a7a5772afc29d90e7cbd759d70c168a483a2b5800ce6f8b621f057e190d60a1",
+   "intrinsics_sha256": "b925784b1efead195d492922c46c16c84502f37038c01b97a9d98db61c860a93",
+   "n_frames": 24,
+   "shape": [
+    24,
+    308,
+    504
+   ]
+  },
+  "splenectomy__oHYOgkfKm68__gt_0002": {
+   "depth_sha256": "1b4fd2b49b9e34eb6c3593d4aa598ec085dc5b1fcb1f48947c89f19b4affc4e8",
+   "intrinsics_sha256": "f750c568eadbff558dd99d027a77f99dd4917516ba38d5ab22458d8ba2b04c9f",
+   "n_frames": 11,
+   "shape": [
+    11,
+    308,
+    504
+   ]
+  },
+  "splenectomy__oHYOgkfKm68__gt_0003": {
+   "depth_sha256": "cbaedf257203a8266e63d6a7dd8ac247d86900d06ae2264cfdbc267d90ac2d97",
+   "intrinsics_sha256": "bafe23987091e1664cb129b1bc8530fa82af5dea87e0e2f2e10e24642237a86c",
+   "n_frames": 24,
+   "shape": [
+    24,
+    308,
+    504
+   ]
+  },
+  "splenectomy__uA6q35o0Yho__gt_0001": {
+   "depth_sha256": "2ddbd3203084e0ff57139e6de104c0bd46fc76390566d5ee588a1965cb91639c",
+   "intrinsics_sha256": "1371cf57cb8c949d8fb4ab91fcf509bb2ab279f9a86ae95dcf0ec4a57be57794",
+   "n_frames": 43,
+   "shape": [
+    43,
+    392,
+    504
+   ]
+  },
+  "splenectomy__uA6q35o0Yho__gt_0002": {
+   "depth_sha256": "dae3d76307a41fc122698f590c17e9ce57be0f5434c8e1c4fa23cda74273644c",
+   "intrinsics_sha256": "1fa1632be5b83f8ebf788b3a36c3aa0b68704636aff763bff0bb2709d3fff8ae",
+   "n_frames": 31,
+   "shape": [
+    31,
+    392,
+    504
+   ]
+  },
+  "splenectomy__uA6q35o0Yho__gt_0003": {
+   "depth_sha256": "c58c8be20c45d0050e8895fe508649cae280d490ed131e307f5ae8c3e9ffa894",
+   "intrinsics_sha256": "948abe6c1776c320482e2874f96b786fc511f756b126d051dcdb2babadff533c",
+   "n_frames": 18,
+   "shape": [
+    18,
+    392,
+    504
+   ]
+  },
+  "splenectomy__uA6q35o0Yho__gt_0004": {
+   "depth_sha256": "0dfaa9bf39797c8b0c22fe2a3c80ba15c2273ab9d1b5f95f830fc4bde8908b18",
+   "intrinsics_sha256": "6565e293d6751c0a7f160ab9bf56e23d6072d78889e44e4b6c2ea25d7c5bb1fe",
+   "n_frames": 39,
+   "shape": [
+    39,
+    392,
+    504
+   ]
+  }
+ },
+ "n_clips": 315,
+ "n_frames": 7698
+}

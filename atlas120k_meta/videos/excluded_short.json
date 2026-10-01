@@ -1,0 +1,162 @@
+{
+ "min_frames": 15,
+ "n_moved": 39,
+ "clips": [
+  {
+   "clip": "cholecystectomy__4T6Le0qwfJ8__gt_0003",
+   "frames": 5
+  },
+  {
+   "clip": "cholecystectomy__FQ-KABSrark__gt_0002",
+   "frames": 11
+  },
+  {
+   "clip": "cholecystectomy__J5bg8KTYrw0__gt_0001",
+   "frames": 13
+  },
+  {
+   "clip": "cholecystectomy___-aytJndMV4__gt_0007",
+   "frames": 11
+  },
+  {
+   "clip": "cholecystectomy__fWucwHRt4UA__gt_0002",
+   "frames": 14
+  },
+  {
+   "clip": "cholecystectomy__pNW9U_mOUEQ__gt_0004",
+   "frames": 11
+  },
+  {
+   "clip": "cholecystectomy__s8k98gGeFf0__gt_0001",
+   "frames": 8
+  },
+  {
+   "clip": "colectomy___9ylo-3B49g__gt_0001",
+   "frames": 9
+  },
+  {
+   "clip": "esophagectomy__J4baNI2MKfY__gt_0001",
+   "frames": 12
+  },
+  {
+   "clip": "esophagectomy__J4baNI2MKfY__gt_0004",
+   "frames": 13
+  },
+  {
+   "clip": "esophagectomy__rriqrf2Obv8__gt_0009",
+   "frames": 9
+  },
+  {
+   "clip": "hemicolectomy__5Wn22szMCFU__gt_0010",
+   "frames": 8
+  },
+  {
+   "clip": "hemicolectomy__5Wn22szMCFU__gt_0013",
+   "frames": 12
+  },
+  {
+   "clip": "hemicolectomy__5Wn22szMCFU__gt_0014",
+   "frames": 7
+  },
+  {
+   "clip": "hemicolectomy__5Wn22szMCFU__gt_0015",
+   "frames": 14
+  },
+  {
+   "clip": "hemicolectomy__5Wn22szMCFU__gt_0016",
+   "frames": 8
+  },
+  {
+   "clip": "hemicolectomy__5Wn22szMCFU__gt_0019",
+   "frames": 14
+  },
+  {
+   "clip": "hemicolectomy__5Wn22szMCFU__gt_0021",
+   "frames": 7
+  },
+  {
+   "clip": "hemicolectomy__5Wn22szMCFU__gt_0022",
+   "frames": 11
+  },
+  {
+   "clip": "hemicolectomy__5YDMlxTl0k8__gt_0014",
+   "frames": 11
+  },
+  {
+   "clip": "hemicolectomy__5YDMlxTl0k8__gt_0049",
+   "frames": 6
+  },
+  {
+   "clip": "hemicolectomy__5YDMlxTl0k8__gt_0052",
+   "frames": 10
+  },
+  {
+   "clip": "hemicolectomy__5YDMlxTl0k8__gt_0055",
+   "frames": 14
+  },
+  {
+   "clip": "hemicolectomy__5YDMlxTl0k8__gt_0056",
+   "frames": 9
+  },
+  {
+   "clip": "hemicolectomy__6qb-oFqRjbE__gt_0003",
+   "frames": 12
+  },
+  {
+   "clip": "hemicolectomy__6qb-oFqRjbE__gt_0014",
+   "frames": 4
+  },
+  {
+   "clip": "hemicolectomy__6qb-oFqRjbE__gt_0015",
+   "frames": 10
+  },
+  {
+   "clip": "hemicolectomy__6qb-oFqRjbE__gt_0023",
+   "frames": 9
+  },
+  {
+   "clip": "hemicolectomy__6qb-oFqRjbE__gt_0026",
+   "frames": 14
+  },
+  {
+   "clip": "hemicolectomy__6qb-oFqRjbE__gt_0030",
+   "frames": 10
+  },
+  {
+   "clip": "hemicolectomy__6qb-oFqRjbE__gt_0034",
+   "frames": 14
+  },
+  {
+   "clip": "hemicolectomy__6qb-oFqRjbE__gt_0035",
+   "frames": 10
+  },
+  {
+   "clip": "hemicolectomy__6qb-oFqRjbE__gt_0037",
+   "frames": 4
+  },
+  {
+   "clip": "hemicolectomy__SbqubK1FX50__gt_0007",
+   "frames": 14
+  },
+  {
+   "clip": "rarp__9WacMabNLVs__gt_0001",
+   "frames": 11
+  },
+  {
+   "clip": "rarp__T_maXoZvMxs__gt_0001",
+   "frames": 9
+  },
+  {
+   "clip": "rarp__T_maXoZvMxs__gt_0006",
+   "frames": 13
+  },
+  {
+   "clip": "rarp__c3R8aE2rhW4__gt_0003",
+   "frames": 12
+  },
+  {
+   "clip": "rarp__hwgXooRFowg__gt_0007",
+   "frames": 5
+  }
+ ]
+}
