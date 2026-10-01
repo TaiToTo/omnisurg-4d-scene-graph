@@ -179,6 +179,9 @@ what stays.
 
 ## Order, and what must hold before the next step
 
+Which of these can move side by side, in separate branches and sessions,
+while the evaluator is built and reviewed is worked out in `docs/workstreams.md`.
+
 1. **Settle open question 1.** It decides what the evaluator computes and
    what `track_metrics` and `kmerge` become.
 2. **Build the evaluator.** CPU only, as the `evalkit` package. Class tables,
