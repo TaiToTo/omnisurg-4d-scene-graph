@@ -59,7 +59,10 @@ def frame_times(root: str, clip: str) -> np.ndarray:
     Returns:
         Seconds, shape (N,): for CholecSeg8k the manifest's `timestamp_sec`,
         for ATLAS-120k `native_frame * frame_ratio / fps_native` (its frames
-        are an even stride, with no reversals).
+        are an even stride, with no reversals). When every frame has a
+        `timestamp_sec` it is taken as it is, and neither `frame_ratio` nor
+        `gt_step_sec_actual` is looked at: an extractor that writes
+        timestamps is trusted to have applied the ratio itself.
 
     Raises:
         RuntimeError: The manifest gives no way to make seconds (there is no
@@ -132,9 +135,15 @@ def _ratio_of(clip: str, man: dict) -> float:
     try:
         table = importlib.import_module(MEASURED_RATIOS)
     except ModuleNotFoundError as e:
+        # Only the table itself, or a package above it, being absent means
+        # "no table". A dependency missing inside the table (`e.name` is then
+        # that dependency) is a broken install, and saying "no table" about it
+        # would send the reader to the wrong place.
+        if not MEASURED_RATIOS.startswith(e.name):
+            raise
         raise RuntimeError(
             f"{clip}: the manifest has no `frame_ratio`, and the table of measured "
-            f"ratios ({MEASURED_RATIOS}) cannot be imported, so the ratio is "
+            f"ratios ({MEASURED_RATIOS}) is not available, so the ratio is "
             "unknown. Re-extract the clip, or write the ratio into the manifest.") from e
     measured = table.frame_ratio(procedure, youtube_id)
     if measured != 1:

@@ -101,7 +101,22 @@ def test_atlas_manifest_without_ratio_is_refused_without_a_table(tmp_path, monke
     root, clip = _clip(tmp_path, [{"native_frame": 30}, {"native_frame": 60}],
                        fps_native=30.0, procedure="adrenalectomy",
                        youtube_id="16GPCUPkXYQ")
-    with pytest.raises(RuntimeError, match="cannot be imported"):
+    with pytest.raises(RuntimeError, match="is not available"):
+        frame_times(root, clip)
+
+
+def test_a_dependency_missing_inside_the_table_is_not_called_no_table(tmp_path, monkeypatch):
+    """A table that is there but cannot import something of its own is a
+    broken install, not a missing table, and the error must say which."""
+    def broken_import(name, package=None):
+        if name == clip_time.MEASURED_RATIOS:
+            raise ModuleNotFoundError("No module named 'cv2'", name="cv2")
+        raise AssertionError(name)
+    monkeypatch.setattr(clip_time.importlib, "import_module", broken_import)
+    root, clip = _clip(tmp_path, [{"native_frame": 30}, {"native_frame": 60}],
+                       fps_native=30.0, procedure="adrenalectomy",
+                       youtube_id="16GPCUPkXYQ")
+    with pytest.raises(ModuleNotFoundError, match="cv2"):
         frame_times(root, clip)
 
 
