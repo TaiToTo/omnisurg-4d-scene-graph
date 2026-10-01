@@ -11,8 +11,13 @@ whatever its class. Among pairs of equal IoU the one with the higher GT
 object index is taken first, then the higher predicted index, with GT
 objects indexed by class id and predicted objects by region id, both
 ascending. That is the pilot evaluator's order, kept so that both modes
-share one rule: at exactly `MATCH_IOU` the order decides which object is
-found, and a different tie-break would be a different evaluator. A pair with
+share one rule. The first two keys decide which objects are found: at
+exactly `MATCH_IOU` a tie between two regions over one class, or two classes
+under one region, is settled by them, and an ascending order would take
+different pairs. The third key, the predicted index, only fixes the order
+in which the pairs are listed: with the first two held, taking the higher
+predicted index first or the higher GT index first gives the same pairs
+(checked exhaustively up to 4 GT and 5 predicted objects). A pair with
 IoU >= `MATCH_IOU` is a hit.
 
 `F1_50` is 2 · hits / (GT objects + predicted objects), so every extra region
@@ -35,7 +40,10 @@ import numpy as np
 MATCH_IOU = 0.5
 
 
-@dataclass(frozen=True)
+# `eq=False`: the generated `__eq__` would compare the arrays with `==` and
+# raise on the ambiguous result, and the generated `__hash__` would try to
+# hash them. Two `Objects` are compared by their fields where a test needs it.
+@dataclass(frozen=True, eq=False)
 class Objects:
     """The objects of one frame, as an index map.
 
@@ -46,11 +54,16 @@ class Objects:
         ids: The class id (GT) or region id (prediction) of each object,
             ascending; object k has id `ids[k - 1]`.
         areas: The scored pixel count of each object, in the same order.
+        scored: The (H, W) bool mask the objects were taken over. The GT
+            and the prediction must be taken over the same mask, or the
+            unions in `pair` are wrong without anything crashing; `intersections`
+            compares the two masks and refuses a difference.
     """
 
     index: np.ndarray
     ids: tuple[int, ...]
     areas: tuple[int, ...]
+    scored: np.ndarray
 
     def __len__(self) -> int:
         return len(self.ids)
@@ -82,6 +95,9 @@ class Pair:
 
 
 def _check(labels: np.ndarray, scored: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    # TODO: the class map module checks its inputs the same way; once both are
+    # in main the two checks become one, so a label map is refused for one
+    # reason everywhere.
     labels = np.asarray(labels)
     scored = np.asarray(scored)
     if labels.ndim != 2 or not np.issubdtype(labels.dtype, np.integer):
@@ -95,15 +111,21 @@ def _check(labels: np.ndarray, scored: np.ndarray) -> tuple[np.ndarray, np.ndarr
 
 
 def _objects(labels: np.ndarray, scored: np.ndarray, present: np.ndarray) -> Objects:
-    """One object per label in `present`, numbered in ascending label order."""
-    present = np.sort(present)
+    """One object per label in `present` (sorted ascending), numbered in that order."""
+    # TODO: one pass over the frame per object. With the five to seven regions
+    # a frame had in the pilot measurements that is nothing; at a few hundred
+    # regions it is half a second per 1080p frame, where
+    # `np.unique(labels[member], return_inverse=True, return_counts=True)`
+    # builds the same map and areas in one pass (checked equal on 1080p frames).
     index = np.zeros(labels.shape, dtype=np.int32)
     areas = []
     for k, label in enumerate(present.tolist(), start=1):
         member = scored & (labels == label)
         index[member] = k
         areas.append(int(member.sum()))
-    return Objects(index=index, ids=tuple(int(v) for v in present.tolist()), areas=tuple(areas))
+    return Objects(
+        index=index, ids=tuple(int(v) for v in present.tolist()), areas=tuple(areas), scored=scored,
+    )
 
 
 def gt_objects(classes: np.ndarray, scored: np.ndarray) -> Objects:
@@ -145,9 +167,20 @@ def predicted_objects(regions: np.ndarray, scored: np.ndarray) -> Objects:
 
 
 def intersections(gt: Objects, pred: Objects) -> np.ndarray:
-    """The pixel count of every (GT object, predicted object) overlap, as a (G, P) table."""
+    """The pixel count of every (GT object, predicted object) overlap, as a (G, P) table.
+
+    Raises:
+        ValueError: If the two were not taken over the same scored mask. A
+            region's area would then be counted over other pixels than the
+            class's, and every union would be off without a crash.
+    """
     if gt.index.shape != pred.index.shape:
         raise ValueError(f"the two object maps differ in shape: {gt.index.shape} and {pred.index.shape}")
+    if not np.array_equal(gt.scored, pred.scored):
+        raise ValueError(
+            "the GT and predicted objects were taken over different scored masks "
+            f"({int(gt.scored.sum())} and {int(pred.scored.sum())} scored pixels); use one mask for both"
+        )
     n_g, n_p = len(gt), len(pred)
     joint = np.bincount(
         (gt.index.astype(np.int64) * (n_p + 1) + pred.index).ravel(),
@@ -161,7 +194,9 @@ def pair(gt: Objects, pred: Objects) -> list[Pair]:
 
     Only overlapping pairs are candidates. Among pairs of equal IoU the one
     with the higher GT index is taken first, then the higher predicted index:
-    the pilot evaluator sorted (iou, gt, pred) descending.
+    the pilot evaluator sorted (iou, gt, pred) descending. The predicted
+    index decides only the order of the returned list, never which pairs are
+    in it (see the module docstring).
 
     Returns:
         The pairs in the order they were taken.

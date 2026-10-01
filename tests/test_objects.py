@@ -93,11 +93,35 @@ def test_intersections_is_the_overlap_table():
     assert intersections(gt, pred).tolist() == [[3000, 0], [600, 2400]]
 
 
+def test_objects_over_different_scored_masks_are_refused():
+    # Scoring the prediction without the top ten rows would set region 0's
+    # area against the whole class's; nothing would crash and every union
+    # would be off. The fault is planted and must be caught before any pairing.
+    scored = ALL.copy()
+    scored[:10] = False
+    gt = gt_objects(two_classes(), ALL)
+    pred = predicted_objects(split_at(HALF), scored)
+    with pytest.raises(ValueError, match="scored masks"):
+        intersections(gt, pred)
+    with pytest.raises(ValueError, match="scored masks"):
+        instance_scores(gt, pred)
+    # Equal masks held in separate arrays are one mask.
+    assert instance_scores(gt, predicted_objects(split_at(HALF), ALL.copy())).f1_50 == 1.0
+
+
+def test_objects_compare_by_identity():
+    # The dataclass holds arrays, so a generated `==` would raise; identity is
+    # what is left, and a test compares fields.
+    gt = gt_objects(two_classes(), ALL)
+    assert gt == gt and gt != gt_objects(two_classes(), ALL)
+
+
 def test_an_exact_prediction_pairs_each_class_with_its_region():
     s = instance_scores(gt_objects(two_classes(), ALL), predicted_objects(split_at(HALF), ALL))
     # Both pairs have IoU 1, so the higher GT index is taken first.
     assert s.pairs == (Pair(1.0, 2, 2), Pair(1.0, 1, 1))
     assert (s.f1_50, s.sq, s.n_gt, s.n_pred, s.n_hits) == (1.0, 1.0, 2, 2, 2)
+    assert s.hits == s.pairs
 
 
 def test_a_split_class_is_found_once_and_the_other_piece_counts_against_f1():
@@ -123,7 +147,7 @@ def test_a_merged_region_is_paired_with_the_higher_gt_index_on_a_tie():
     assert s.sq == 0.5
 
 
-def test_the_tie_order_prefers_the_higher_gt_index_before_the_higher_predicted_index():
+def test_a_four_way_tie_takes_the_pair_with_the_highest_indices_first():
     # GT 1 and 2 are the left and right halves; regions 0 and 1 are the top
     # and bottom halves, so each region meets each class in 1,500 of 4,500 px
     # and every IoU is 1/3. (2, 2) goes first; then (1, 1) is all that is left.
@@ -131,6 +155,17 @@ def test_the_tie_order_prefers_the_higher_gt_index_before_the_higher_predicted_i
     top_bottom[H // 2:] = 1
     pairs = pair(gt_objects(two_classes(), ALL), predicted_objects(top_bottom, ALL))
     assert pairs == [Pair(1 / 3, 2, 2), Pair(1 / 3, 1, 1)]
+
+
+def test_the_gt_index_is_the_tie_key_before_the_predicted_index():
+    # Region 0 is the right half and region 1 the left, so the two exact
+    # pairs are (GT 2, pred 1) and (GT 1, pred 2). Both are taken whichever
+    # key comes first; the order of the list tells the GT key from the
+    # predicted key, and sorting by the predicted index first would reverse it.
+    swapped = np.zeros((H, W), dtype=np.int32)
+    swapped[:, :HALF] = 1
+    pairs = pair(gt_objects(two_classes(), ALL), predicted_objects(swapped, ALL))
+    assert pairs == [Pair(1.0, 2, 1), Pair(1.0, 1, 2)]
 
 
 def test_a_gap_lowers_sq_but_not_f1():
@@ -154,9 +189,11 @@ def test_a_region_over_removed_pixels_is_neither_an_object_nor_a_false_positive(
 
 
 def test_f1_is_undefined_without_a_gt_object_and_sq_without_a_hit():
+    # Every scored pixel has a GT class, so a frame has no GT object only when
+    # it has no scored pixel, and then no predicted object either.
     none = np.zeros((H, W), dtype=bool)
-    s = instance_scores(gt_objects(two_classes(), none), predicted_objects(split_at(HALF), ALL))
-    assert (s.f1_50, s.sq, s.n_gt, s.n_pred) == (None, None, 0, 2)
+    s = instance_scores(gt_objects(two_classes(), none), predicted_objects(split_at(HALF), none))
+    assert (s.f1_50, s.sq, s.n_gt, s.n_pred, s.pairs) == (None, None, 0, 0, ())
     far = split_at(HALF)
     far[:, :HALF] = -1            # class 1 has no region at all
     far[:, HALF:HALF + 20] = -1   # class 2's region covers 30 of its 50 columns: IoU 0.6, a hit
@@ -165,4 +202,4 @@ def test_f1_is_undefined_without_a_gt_object_and_sq_without_a_hit():
     far[:, HALF:HALF + 30] = -1   # now 20 of 50 columns: IoU 0.4, no hit
     s = instance_scores(gt_objects(two_classes(), ALL), predicted_objects(far, ALL))
     assert (s.f1_50, s.sq, s.n_hits) == (0.0, None, 0)
-    assert s.pairs == (Pair(0.4, 2, 1),)
+    assert s.pairs == (Pair(0.4, 2, 1),) and s.hits == ()
