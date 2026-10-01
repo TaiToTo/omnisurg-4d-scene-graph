@@ -67,12 +67,25 @@ def test_pixels_with_no_region_count_together_as_one_region():
 
 
 def test_only_scored_pixels_enter():
-    # Region 2 on the removed top rows is not seen at all.
+    # Region 0 runs over the removed top rows, where the GT is background.
+    # Counted, those pixels would put region 0 across two GT labels and
+    # cost merge; under the scored mask they are not seen at all.
     gt = two_classes()
     gt[:10] = 0
     lab = split_at(HALF)
-    lab[:10] = 2
+    lab[:10] = 0
     assert variation_of_information(gt, lab, gt != 0) == (0.0, 0.0)
+    _, merge_if_counted = variation_of_information(gt, lab, ALL)
+    assert merge_if_counted > 0
+
+
+def test_a_negative_gt_id_on_a_scored_pixel_is_refused():
+    gt = two_classes()
+    gt[:10] = -1
+    with pytest.raises(ValueError, match="negative"):
+        variation_of_information(gt, split_at(HALF), ALL)
+    # Off the scored pixels it is not looked at.
+    assert variation_of_information(gt, split_at(HALF), gt >= 0) == (0.0, 0.0)
 
 
 def test_undefined_without_a_scored_pixel():

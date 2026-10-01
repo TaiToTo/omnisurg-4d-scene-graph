@@ -217,7 +217,8 @@ not carried over.
   empty, they score 0.
 - `VI_split` = H(regions | GT) and `VI_merge` = H(GT | regions), the two halves
   of the variation of information, in bits, over the scored pixels. The
-  pixels with no region count together as one region.
+  pixels with no region count together as one region. On a frame with no
+  scored pixel they are not defined, and the frame is counted.
 - `time_IoU` is a region id's IoU with itself in the next frame. Unlike the
   other metrics it is one number per clip: the IoUs of every (id, frame pair)
   are pooled over all tracked frames, with or without GT, and averaged.
@@ -360,10 +361,12 @@ pilot evaluator's numbers.
     allowed because pilot mode exists only for this check;
   - the pilot evaluator's four domains (`full`, `labeled`, `tissue`,
     `labeled_tissue`, with its instrument ids) in place of the views, for the
-    instance metrics; the class map, the boundary metrics and VI on the `full`
+    instance metrics; the class map and the boundary metrics on the `full`
     domain as the pilot evaluator computed them, with background pixels
     voting on a region's name and an edge against background counted as a
-    boundary;
+    boundary; VI over the valid pixels whose GT is not background, which is
+    how the pilot evaluator computed it, with its `extra_ignore` set empty
+    as the scores record it;
   - per-class 8-connected components of at least `PILOT_MIN_CC_PX` as GT
     objects, and regions of at least that size as predicted objects;
   - frames in file order for `time_IoU`;
