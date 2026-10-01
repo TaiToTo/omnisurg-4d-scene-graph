@@ -106,7 +106,7 @@ def test_the_hashed_files_are_exactly_the_tables_the_loader_reads(cholec):
 
 
 def test_a_stray_file_in_the_table_directory_is_refused(tmp_path, monkeypatch):
-    # Otherwise eval_code_sha would differ on the one machine that has the file.
+    # A table added without registering its dataset would be neither hashed nor read.
     for p in table_paths():
         (tmp_path / p.name).write_bytes(p.read_bytes())
     monkeypatch.setattr(classes, "TABLE_DIR", tmp_path)

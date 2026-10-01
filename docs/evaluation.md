@@ -173,13 +173,12 @@ Background is removed in every view, the same way. What the datasets call
 background is not empty space: it is anatomy nobody labelled, and in
 ATLAS-120k's benchmark classes also the kidney, pancreas and the other classes
 the 30-class mapping drops. A region the pipeline places there is not an
-error, so it is
-neither an object nor a false positive, and no metric sees it. The one
-surface that is close to nothing, the abdominal wall, is a class of its own
-(`backdrop`) and is scored in the `all` and `tissue` views. This is the pilot
-evaluator's `labeled` domain, made for the same reason; its `full` domain,
-which counted a region over unlabelled anatomy as a false positive, is not
-carried over.
+error, so it is neither an object nor a false positive, and no metric sees
+it. The one surface that is close to nothing, the abdominal wall, is a class
+of its own (`backdrop`) and is scored in the `all` and `tissue` views. This is
+the pilot evaluator's `labeled` domain, made for the same reason; its `full`
+domain, which counted a region over unlabelled anatomy as a false positive, is
+not carried over.
 
 ## Metrics
 

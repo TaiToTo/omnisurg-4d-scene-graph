@@ -15,8 +15,9 @@ values, one that stores colours through the table.
 
 The tables are hashed into `eval_code_sha` with the evaluator's code, so a
 changed type is a new evaluator. `table_paths()` lists exactly the files that
-`load_table` can read, and nothing else: a stray file in the directory raises
-instead of changing the sha on one machine only.
+`load_table` can read, fixed by the code and not by what the directory holds:
+a table file put there without being registered here would be neither read
+nor hashed, so a file the module does not know raises instead.
 
 Everything here fails closed: a colour or id the table does not know raises,
 and so does a table with a field missing, a type it does not define, a key
@@ -144,6 +145,12 @@ class ClassTable:
         excluded_mask_ids: The mask ids that take a whole frame out. They are
             checked on the mask's own ids, before the mapping: in `benchmark`
             the mapping turns `Excluded frames` into background.
+        background_mask_ids: The mask ids the dataset itself labels as
+            background, before any mapping. A marker without a colour shares
+            one of these colours, so these are the ids a colour mask of one
+            colour alone could hide it in. The mapping is not consulted: in
+            `benchmark` it also sends Kidney to background, and a mask must
+            read the same whichever class set reads it.
         path: The file the table was read from, for `eval_code_sha`.
     """
 
@@ -154,6 +161,7 @@ class ClassTable:
     colour_to_mask_id: Mapping[Colour, int]
     mask_id_to_class: Mapping[int, int]
     excluded_mask_ids: frozenset[int]
+    background_mask_ids: frozenset[int]
     path: Path
 
     # The readers below are the only way the evaluator asks the table
@@ -253,7 +261,7 @@ class ClassTable:
             # the background colour, so a colour mask of that colour alone is
             # the one frame it could hide in, and that frame is not scored.
             marker_hidden = self.excluded_mask_ids - set(self.colour_to_mask_id.values())
-            if marker_hidden and len(lut) == 1 and self.type_of(self.class_of(int(lut[0]))) is ClassType.BACKGROUND:
+            if marker_hidden and len(lut) == 1 and int(lut[0]) in self.background_mask_ids:
                 raise ValueError(
                     f"{self.dataset}: a colour mask of background alone cannot be told from "
                     f"a frame that mask id {sorted(marker_hidden)} excludes"
@@ -481,6 +489,7 @@ def load_table(dataset: str, class_set: str | None = None, path: Path | None = N
         colour_to_mask_id=MappingProxyType({e.colour: e.id for e in entries if e.colour is not None}),
         mask_id_to_class=MappingProxyType(to_class),
         excluded_mask_ids=frozenset(e.id for e in entries if e.type is ClassType.EXCLUDED),
+        background_mask_ids=frozenset(e.id for e in entries if e.type is ClassType.BACKGROUND),
         path=path,
     )
 
@@ -493,8 +502,11 @@ def table_paths() -> list[Path]:
         FileNotFoundError: A dataset's table is missing.
         ValueError: The directory holds a file this module would not read.
     """
-    # The hashed set is fixed by the code, not by what the directory holds:
-    # a file left behind on one machine would give it a different sha.
+    # The hashed set is fixed by the code, not by what the directory holds, so
+    # a stray file cannot change the sha. It is refused all the same, because
+    # the one way a file gets here without being on the list is a table added
+    # without registering its dataset above, and that table would be neither
+    # hashed nor readable while looking like it was.
     expected = {TABLE_DIR / f"{dataset}.json" for dataset in _MASK_ENCODINGS}
     present = {p for p in TABLE_DIR.iterdir() if p.name != "__pycache__"}
     missing = expected - present
@@ -503,7 +515,7 @@ def table_paths() -> list[Path]:
     stray = present - expected
     if stray:
         raise ValueError(
-            f"class_tables/ holds files no dataset reads, which would change "
-            f"eval_code_sha here only: {sorted(p.name for p in stray)}"
+            f"class_tables/ holds files no dataset reads, so they are neither "
+            f"hashed nor loadable: {sorted(p.name for p in stray)}"
         )
     return sorted(expected)

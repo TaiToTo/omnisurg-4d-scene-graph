@@ -181,6 +181,15 @@ def test_a_colour_mask_of_background_alone_is_refused(original, benchmark):
     assert (original.mask_ids(Image.fromarray(np.zeros((2, 3), dtype=np.uint8))) == 0).all()
 
 
+def test_a_colour_mask_of_one_class_the_benchmark_drops_is_read_in_both_sets(original, benchmark):
+    # The benchmark maps Kidney to background, but no marker can hide in Kidney's
+    # colour, so the mask reads the same whichever class set reads it.
+    kidney = _colour_mask(original, np.full((2, 3), 32))
+    for table in (original, benchmark):
+        assert (table.mask_ids(kidney) == 32).all()
+    assert original.background_mask_ids == benchmark.background_mask_ids == {0}
+
+
 def test_an_unknown_id_or_colour_in_a_mask_raises(original):
     with pytest.raises(KeyError, match="mask id 47"):
         original.mask_ids(Image.fromarray(np.array([[0, 47]], dtype=np.uint8)))
