@@ -15,8 +15,8 @@ timestamps: in 11 of the 27 CholecSeg8k clips the frame numbers do not
 follow time. Pilot mode orders them by file name instead, and that too is
 the caller's.
 
-TODO: the per-clip driver is not written yet. When it is, pilot mode must
-order the frames exactly as the pilot evaluator did, by `sorted()` of the
+The per-clip driver is not written yet. When it is, pilot mode orders the
+frames exactly as the pilot evaluator did, by `sorted()` of the
 `label_*.npy` file names, which is the names' lexicographic order and not
 the frame numbers' order unless the numbers are zero-padded. Also, this
 metric reads no GT and no view, so the driver computes it once per clip and
