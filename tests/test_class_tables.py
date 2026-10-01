@@ -155,7 +155,7 @@ def _class(raw, cid):
     (lambda r: r.update(extra=1), "top-level keys"),
     (lambda r: r.update(classes=[]), "'classes' is not a non-empty list"),
     (lambda r: r.update(classes={"a": 1}), "'classes' is not a non-empty list"),
-    (lambda r: _class(r, 7).update(colour=None), "has no colour"),
+    (lambda r: _class(r, 7).update(colour=None), "only an excluded marker"),
 ])
 def test_a_planted_fault_is_refused(tmp_path, fault, message):
     path = _plant(tmp_path, fault)
@@ -189,12 +189,12 @@ def test_a_dataset_without_a_table_format_is_refused(tmp_path):
 
 
 def test_a_class_set_of_another_dataset_is_refused():
-    with pytest.raises(ValueError, match="class set 'atlas30'"):
-        load_table("cholecseg8k", "atlas30")
+    with pytest.raises(ValueError, match="class set 'benchmark'"):
+        load_table("cholecseg8k", "benchmark")
 
 
 def test_cholecseg8k_mask_ids_are_its_class_ids(cholec):
-    assert cholec.class_set == "cholecseg8k"
+    assert cholec.class_set == "original"
     assert dict(cholec.mask_id_to_class) == {i: i for i in cholec.entries}
     assert cholec.excluded_mask_ids == frozenset()
     with pytest.raises(KeyError, match="mask id 14"):

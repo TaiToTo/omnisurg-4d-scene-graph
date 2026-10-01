@@ -1,13 +1,13 @@
 """Class tables: what each dataset's classes are, and which of them a view scores.
 
-Each dataset has one table, a JSON file under `class_tables/`, giving every
-class its id, name and type, and every id a mask can hold the colour that
-stands for it. For CholecSeg8k the classes are the ids its masks hold.
-ATLAS-120k's masks hold its 47 original ids, which the file lists apart, each
-with its colour and the class of the 30 it maps to; the same file yields two
-tables, one per class set. `docs/evaluation.md` gives the types, the views and
-the mapping, and the reasons behind each class's type; this module only reads
-the files and refuses the ones it cannot trust.
+Each dataset has one table, a JSON file under `class_tables/`, listing the
+classes its masks hold, the dataset's own labels: each with its id, name,
+type and the colour that stands for it. Claims are judged on these. ATLAS-120k's
+file also lists the 30 classes its benchmark scores, and the one each original
+id merges into, so that the same file yields a second table for comparison
+with the benchmark. `docs/evaluation.md` gives the types, the views and the
+mapping, and the reasons behind each type; this module only reads the files
+and refuses the ones it cannot trust.
 
 A GT mask meets its table in one place, `ClassTable.mask_ids`, and both
 datasets pass through it the same way: a mask that stores ids is read by its
@@ -87,36 +87,37 @@ _MASK_ENCODINGS: Mapping[str, frozenset[str]] = MappingProxyType({
     "atlas120k": frozenset({"id", "colour"}),
 })
 
-# The datasets whose masks hold ids of their own, which the file lists apart
-# from the classes they map to.
-_WITH_ORIGINAL_IDS = frozenset({"atlas120k"})
+# The datasets whose file also lists a benchmark's classes.
+_WITH_BENCHMARK = frozenset({"atlas120k"})
 
-# The class sets each dataset is scored with, the first being the one scores
-# and claims use. ATLAS-120k's second set is its original ids, scored as they
-# are, for reference only.
-# TODO(pilot mode): pilot mode scores the original ids by the pilot evaluator's
-# rules, where only Tools/camera is an instrument, whereas `atlas47` types
-# Catheter and Non anatomical structures as tools. Pilot mode needs a typing of
-# its own and must not read the types of `atlas47`.
+# The class sets each dataset is scored with. `original` is the dataset's own
+# labels, the ids its masks hold, and the one claims are judged on: how
+# another group merged classes for training is not this evaluator's to
+# inherit. `benchmark` is ATLAS-120k's 30 classes, scored for comparison with
+# its benchmark and never given a star.
+# TODO(pilot mode): pilot mode scores ATLAS-120k's original ids by the pilot
+# evaluator's rules, where Tools/camera is the only type there is. The
+# `original` set types every id, and makes Catheter and Non anatomical
+# structures tools too. Pilot mode needs a typing of its own and must not read
+# these types.
 CLASS_SETS: Mapping[str, tuple[str, ...]] = MappingProxyType({
-    "cholecseg8k": ("cholecseg8k",),
-    "atlas120k": ("atlas30", "atlas47"),
+    "cholecseg8k": ("original",),
+    "atlas120k": ("original", "benchmark"),
 })
 
 
 @dataclass(frozen=True)
 class ClassEntry:
-    """One class of a dataset, or one id its masks hold.
+    """One class of a class set.
 
     Attributes:
         id: The value a GT id map holds for this class.
         name: The dataset's name for it.
         type: Its type, which decides the views that score it.
         colour: The RGB triplet that stands for it in a mask stored as
-            colours. None for a class no mask holds directly (ATLAS-120k's
-            30, which a mask reaches only through the mapping) and for a
-            marker without a colour of its own (ATLAS-120k's `Excluded
-            frames`, whose colour is Background's).
+            colours. None for a benchmark class, which a mask reaches only
+            through the mapping, and for a marker without a colour of its own
+            (ATLAS-120k's `Excluded frames`, whose colour is Background's).
     """
 
     id: int
@@ -138,10 +139,10 @@ class ClassTable:
         colour_to_mask_id: The mask id each colour stands for. Read it
             through `mask_id_of_colour`, which raises on an unknown colour.
         mask_id_to_class: The id a mask holds, to the class it belongs to in
-            this set. The identity for every set but `atlas30`, where the 47
-            original ids map onto the 30 classes. Read it through `class_of`.
+            this set. The identity for `original`; for `benchmark`, ATLAS-120k's
+            47 ids onto the 30 classes. Read it through `class_of`.
         excluded_mask_ids: The mask ids that take a whole frame out. They are
-            checked on the mask's own ids, before the mapping: in `atlas30`
+            checked on the mask's own ids, before the mapping: in `benchmark`
             the mapping turns `Excluded frames` into background.
         path: The file the table was read from, for `eval_code_sha`.
     """
@@ -281,13 +282,21 @@ class ClassTable:
 # `eval_code_sha`, so a typo, a stray field or a key given twice must not be
 # read as something else silently.
 
-_ENTRY_FIELDS = {"id", "name", "type"}
-_ORIGINAL_FIELDS = {"id", "name", "class", "colour"}
+_CLASS_FIELDS = {"id", "name", "colour", "type"}
+_BENCHMARK_FIELDS = {"id", "name", "type"}
 
 
 def _is_int(v) -> bool:
     # bool is a subclass of int, so `true` would pass as 1 without this.
     return isinstance(v, int) and not isinstance(v, bool)
+
+
+def _fields(dataset: str, raw: dict, expected: set[str]) -> None:
+    if set(raw) != expected:
+        raise ValueError(
+            f"{dataset}: class {raw.get('id')!r} has fields {sorted(raw)}, "
+            f"expected {sorted(expected)}"
+        )
 
 
 def _check_id_and_name(dataset: str, raw: dict) -> None:
@@ -307,29 +316,32 @@ def _type(dataset: str, raw: dict) -> ClassType:
         ) from None
 
 
-def _colour(dataset: str, raw: dict) -> Colour | None:
+def _colour(dataset: str, raw: dict, class_type: ClassType) -> Colour | None:
+    """The class's colour. Only an `excluded` marker may lack one, because the
+    one ATLAS-120k has shares Background's."""
     c = raw["colour"]
     if c is None:
+        if class_type is not ClassType.EXCLUDED:
+            raise ValueError(f"{dataset}: class {raw['id']} has no colour; only an excluded marker may lack one")
         return None
     if not isinstance(c, list) or len(c) != 3 or not all(_is_int(v) and 0 <= v <= 255 for v in c):
         raise ValueError(f"{dataset}: class {raw['id']} has colour {c!r}, expected three ints in 0..255")
     return (c[0], c[1], c[2])
 
 
-def _entry(dataset: str, raw: dict, with_colour: bool) -> ClassEntry:
-    """Build one entry, refusing a field missing, a stray one or a bad value."""
-    fields = _ENTRY_FIELDS | ({"colour"} if with_colour else set())
-    if set(raw) != fields:
-        raise ValueError(
-            f"{dataset}: class {raw.get('id')!r} has fields {sorted(raw)}, "
-            f"expected {sorted(fields)}"
-        )
+def _entry(dataset: str, raw: dict, extra: set[str]) -> ClassEntry:
+    """One class a mask holds, refusing a field missing, a stray one or a bad value."""
+    _fields(dataset, raw, _CLASS_FIELDS | extra)
     _check_id_and_name(dataset, raw)
     class_type = _type(dataset, raw)
-    colour = _colour(dataset, raw) if with_colour else None
-    if with_colour and colour is None:
-        raise ValueError(f"{dataset}: class {raw['id']} has no colour, and its masks store colours")
-    return ClassEntry(id=raw["id"], name=raw["name"], type=class_type, colour=colour)
+    return ClassEntry(id=raw["id"], name=raw["name"], type=class_type, colour=_colour(dataset, raw, class_type))
+
+
+def _benchmark_entry(dataset: str, raw: dict) -> ClassEntry:
+    """One benchmark class. It has no colour: no mask holds it directly."""
+    _fields(dataset, raw, _BENCHMARK_FIELDS)
+    _check_id_and_name(dataset, raw)
+    return ClassEntry(id=raw["id"], name=raw["name"], type=_type(dataset, raw))
 
 
 def _unique(dataset: str, what: str, values: list) -> None:
@@ -351,47 +363,37 @@ def _refuse_duplicate_keys(pairs: list[tuple[str, object]]) -> dict:
     return out
 
 
-def _original_ids(dataset: str, raws: list[dict], classes: Mapping[int, ClassEntry]) -> list[ClassEntry]:
-    """ATLAS-120k's 47 original ids, each typed after the class it maps to.
+def _benchmark_map(
+    dataset: str, raws: list[dict], entries: list[ClassEntry], benchmark: Mapping[int, ClassEntry],
+) -> dict[int, int]:
+    """Each original id to the benchmark class it merges into.
 
-    An id the mapping sends to background would inherit `background` and
-    vanish, so those carry a type of their own. Every other id must not: an
-    id merged into a class is scored on the same pixels in both class sets.
-    Only an `excluded` marker may lack a colour, because the one ATLAS-120k
-    has shares Background's.
+    Every benchmark class but background must be reached, or no mask could
+    hold it. A benchmark class reached by one id alone is that id under
+    another name, so the two must have the same type; a difference there is a
+    typo, not a judgment.
     """
-    background = {c.id for c in classes.values() if c.type is ClassType.BACKGROUND}
-    entries = []
+    to_class = {}
     for raw in raws:
-        fields = set(raw)
-        if not _ORIGINAL_FIELDS <= fields or not fields <= _ORIGINAL_FIELDS | {"type"}:
-            raise ValueError(
-                f"{dataset}: original id {raw.get('id')!r} has fields {sorted(raw)}, "
-                f"expected {sorted(_ORIGINAL_FIELDS)} and maybe 'type'"
-            )
-        _check_id_and_name(dataset, raw)
-        if not _is_int(raw["class"]) or raw["class"] not in classes:
-            raise ValueError(f"{dataset}: original id {raw['id']} maps to class {raw['class']!r}, which is not in the table")
-        to_background = raw["class"] in background
-        if to_background and "type" not in fields:
-            raise ValueError(f"{dataset}: original id {raw['id']} maps to background and needs a type of its own")
-        if not to_background and "type" in fields:
-            raise ValueError(
-                f"{dataset}: original id {raw['id']} has a type of its own; "
-                f"it takes the type of class {raw['class']}"
-            )
-        class_type = _type(dataset, raw) if to_background else classes[raw["class"]].type
-        colour = _colour(dataset, raw)
-        if colour is None and class_type is not ClassType.EXCLUDED:
-            raise ValueError(f"{dataset}: original id {raw['id']} has no colour; only an excluded marker may lack one")
-        entries.append(ClassEntry(id=raw["id"], name=raw["name"], type=class_type, colour=colour))
+        b = raw["benchmark_class"]
+        if not _is_int(b) or b not in benchmark:
+            raise ValueError(f"{dataset}: class {raw['id']} merges into benchmark class {b!r}, which is not in the table")
+        to_class[raw["id"]] = b
     unreached = sorted(
-        {c.id for c in classes.values() if c.type is not ClassType.BACKGROUND}
-        - {r["class"] for r in raws}
+        {c.id for c in benchmark.values() if c.type is not ClassType.BACKGROUND} - set(to_class.values())
     )
     if unreached:
-        raise ValueError(f"{dataset}: no original id maps to class {unreached}, so no mask can hold it")
-    return entries
+        raise ValueError(f"{dataset}: no class merges into benchmark class {unreached}, so no mask can hold it")
+    members: dict[int, list[ClassEntry]] = {}
+    for e in entries:
+        members.setdefault(to_class[e.id], []).append(e)
+    for b, es in members.items():
+        if len(es) == 1 and es[0].type is not benchmark[b].type:
+            raise ValueError(
+                f"{dataset}: class {es[0].id} is benchmark class {b} alone, but types it "
+                f"{es[0].type.value!r} where the benchmark has {benchmark[b].type.value!r}"
+            )
+    return to_class
 
 
 def _objects(path: Path, raw: dict, key: str) -> list[dict]:
@@ -415,8 +417,8 @@ def load_table(dataset: str, class_set: str | None = None, path: Path | None = N
     Args:
         dataset: `cholecseg8k` or `atlas120k`; the file is
             `class_tables/<dataset>.json`.
-        class_set: One of `CLASS_SETS[dataset]`; None takes the first, the
-            one scores and claims use.
+        class_set: One of `CLASS_SETS[dataset]`; None takes `original`, the
+            one claims are judged on.
         path: Read this file instead. For tests that plant a fault; the
             evaluator never passes it.
 
@@ -440,49 +442,45 @@ def load_table(dataset: str, class_set: str | None = None, path: Path | None = N
     path = TABLE_DIR / f"{dataset}.json" if path is None else Path(path)
     raw = _read(path)
 
-    # The file's shape. Only ATLAS-120k has the second list.
-    with_originals = dataset in _WITH_ORIGINAL_IDS
-    keys = {"dataset", "classes"} | ({"original_ids"} if with_originals else set())
+    # The file's shape. Only ATLAS-120k has the benchmark's list.
+    with_benchmark = dataset in _WITH_BENCHMARK
+    keys = {"dataset", "classes"} | ({"benchmark_classes"} if with_benchmark else set())
     if set(raw) != keys:
         raise ValueError(f"{path}: top-level keys are {sorted(raw)}, expected {sorted(keys)}")
     if raw["dataset"] != dataset:
         raise ValueError(f"{path}: file says dataset {raw['dataset']!r}, asked for {dataset!r}")
 
-    # Each class on its own, then against each other: a shared id or name
-    # would make a mask ambiguous. Names are compared ignoring case. Where
-    # masks hold original ids, those carry the colours; the classes do not.
-    entries = [_entry(dataset, r, with_colour=not with_originals) for r in _objects(path, raw, "classes")]
+    # The classes the masks hold, each on its own, then against each other: a
+    # shared id, name or colour would make a mask ambiguous. Names are
+    # compared ignoring case.
+    raw_classes = _objects(path, raw, "classes")
+    entries = [_entry(dataset, r, {"benchmark_class"} if with_benchmark else set()) for r in raw_classes]
     _unique(dataset, "id", [e.id for e in entries])
     _unique(dataset, "name", [e.name.casefold() for e in entries])
+    _unique(dataset, "colour", [e.colour for e in entries if e.colour is not None])
     classes = MappingProxyType({e.id: e for e in entries})
+    to_class = {e.id: e.id for e in entries}
 
-    # ATLAS-120k: masks hold the 47 original ids. `atlas30` maps them through
-    # the benchmark's merge; `atlas47` keeps them as classes. Excluded frames
-    # are found on the original ids, since the merge hides the marker.
-    if with_originals:
-        raw_originals = _objects(path, raw, "original_ids")
-        mask_entries = _original_ids(dataset, raw_originals, classes)
-        _unique(dataset, "original id", [e.id for e in mask_entries])
-        _unique(dataset, "original name", [e.name.casefold() for e in mask_entries])
-        to_class = {r["id"]: r["class"] for r in raw_originals}
-        if class_set != CLASS_SETS[dataset][0]:
-            classes = MappingProxyType({e.id: e for e in mask_entries})
-            to_class = {e.id: e.id for e in mask_entries}
-    # CholecSeg8k: a mask id is the class id, once the colour has been read.
-    else:
-        mask_entries = entries
-        to_class = {e.id: e.id for e in entries}
-    # Two ids sharing a colour would make a colour mask ambiguous.
-    _unique(dataset, "colour", [e.colour for e in mask_entries if e.colour is not None])
+    # ATLAS-120k's benchmark: its 30 classes, and the one each original id
+    # merges into. Excluded frames are found on the original ids in both
+    # sets, since the merge hides the marker.
+    if with_benchmark:
+        benchmark_entries = [_benchmark_entry(dataset, r) for r in _objects(path, raw, "benchmark_classes")]
+        _unique(dataset, "benchmark id", [e.id for e in benchmark_entries])
+        _unique(dataset, "benchmark name", [e.name.casefold() for e in benchmark_entries])
+        benchmark = MappingProxyType({e.id: e for e in benchmark_entries})
+        benchmark_map = _benchmark_map(dataset, raw_classes, entries, benchmark)
+        if class_set == "benchmark":
+            classes, to_class = benchmark, benchmark_map
 
     return ClassTable(
         dataset=dataset,
         class_set=class_set,
         entries=classes,
         encodings=_MASK_ENCODINGS[dataset],
-        colour_to_mask_id=MappingProxyType({e.colour: e.id for e in mask_entries if e.colour is not None}),
+        colour_to_mask_id=MappingProxyType({e.colour: e.id for e in entries if e.colour is not None}),
         mask_id_to_class=MappingProxyType(to_class),
-        excluded_mask_ids=frozenset(e.id for e in mask_entries if e.type is ClassType.EXCLUDED),
+        excluded_mask_ids=frozenset(e.id for e in entries if e.type is ClassType.EXCLUDED),
         path=path,
     )
 
