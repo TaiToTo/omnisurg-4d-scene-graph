@@ -21,12 +21,16 @@ The package is split by dependency:
   relighting, Retinex, the input-mode table). Needs scipy and matplotlib,
   the `render` extra, so it is not imported here; import it by name.
 
-The names of `normals` and `project` are re-exported so that
-`from surgical_core import geometry` keeps working for them.
+The functions of `normals` and `project` are re-exported so that
+`from surgical_core import geometry` keeps working for them. The flags
+`EDGE_MASK_RING` and `EDGE_RING_PX` are not: an import copies a value, so a
+copy here could be set to False while `geom_edge_map` kept reading True from
+`normals`, and the provenance record would then say the ring was left in
+when it was not. They live in `surgical_core.geometry.normals` only.
 """
 
 from surgical_core.geometry.normals import (  # noqa: F401
-    EDGE_MASK_RING, EDGE_RING_PX, burn_geom_edge, camera_normals, edge_reliable_mask,
-    geom_edge_map, normal_edge_map, normal_map)
+    burn_geom_edge, camera_normals, edge_reliable_mask, geom_edge_map, normal_edge_map,
+    normal_map)
 from surgical_core.geometry.project import (  # noqa: F401
     backproject, project_labels, project_labels_region, project_world_to_frame, warp_labels)

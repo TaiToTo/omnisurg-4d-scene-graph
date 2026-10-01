@@ -50,3 +50,8 @@ jobs:
       # install.
       - run: pip install pytest
       - run: pytest
+
+      # TODO: `surgical_core.geometry.render` is never imported by this job,
+      # because it needs the `render` extra. A second job with
+      # `pip install -e ".[render]"` and a smoke test over `SAM_INPUT_MODES`
+      # would cover it; today that check is run by hand.

@@ -13,6 +13,7 @@ same.
 import numpy as np
 import pytest
 
+import surgical_core.geometry as geometry
 from surgical_core.geometry import normals as geo
 
 
@@ -69,6 +70,15 @@ def test_dense_depth_masks_only_the_border():
     r = geo.edge_reliable_mask(np.isfinite(d) & (d > 1e-6))
     assert r[2:-2, 2:-2].all()
     assert r.sum() == (h - 4) * (w - 4)
+
+
+def test_flag_lives_in_normals_only():
+    """The package does not re-export the flag. An import copies a value, so
+    a package copy could be set to False while `geom_edge_map` kept reading
+    True from `normals`, and the provenance record would lie."""
+    assert not hasattr(geometry, "EDGE_MASK_RING")
+    assert not hasattr(geometry, "EDGE_RING_PX")
+    assert geo.EDGE_MASK_RING is True
 
 
 @pytest.mark.parametrize("parts", ["both", "normal", "depth"])

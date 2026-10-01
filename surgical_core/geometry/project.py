@@ -20,12 +20,15 @@ def backproject(depth, K, ext_w2c):
         `(Pw, m, ys, xs)`: the (N, 3) world points of the valid pixels, the
         (H, W) valid mask, and the row and column of each point.
     """
-    # The shapes are not validated at the entry. A (4, 4) extrinsics matrix
-    # slices without error into the wrong submatrix and the point cloud comes
-    # out silently wrong; the projection and warp below share the slice. A
-    # check here would close that for all of them; it is a change in
-    # behaviour for callers that pass (4, 4) today, so it is made on purpose,
-    # not in a port.
+    # The shapes are not validated at the entry. What a (4, 4) extrinsics
+    # matrix does is an accident of broadcasting, not a decision: the slice
+    # below gives a (4, 3) R and a 4-vector t, the subtraction cannot
+    # broadcast and this function raises; `project_world_to_frame` takes the
+    # same slice, gets a homogeneous row it never reads, and returns the right
+    # answer. Nothing is silent either way. What is silent is c2w extrinsics
+    # (see the package docstring). A shape check would turn the accident into
+    # a rule and refuse callers that pass (4, 4) to the projection today, so
+    # it is a change to make on purpose, not in a port.
     H, W = depth.shape
     fx, fy, cx, cy = K[0, 0], K[1, 1], K[0, 2], K[1, 2]
     ys, xs = np.mgrid[0:H, 0:W]
@@ -119,5 +122,11 @@ def warp_labels(L_src, depth_src, K_src, ext_src, K_dst, ext_dst):
     ui, vi, Z, lab = ui[ok], vi[ok], Z[ok], lab[ok]
     order = np.argsort(-Z)                            # far first, so near overwrites
     out = np.full((H, W), -1, dtype=int)
+    # TODO: "near overwrites" assigns through repeated indices and needs the
+    # last write to win, which NumPy does not promise. It holds in practice
+    # (no pixel differed from an explicit nearest-wins reference over 50
+    # random warps), but choosing the nearest point per pixel explicitly
+    # (`np.unique` on the flat index after sorting by Z) would not depend on
+    # it. A behaviour change in principle, so not in the port.
     out[vi[order], ui[order]] = lab[order]
     return out

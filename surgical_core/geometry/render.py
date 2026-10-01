@@ -320,4 +320,9 @@ def sam_input_image(mode, depth, K, gray01, rgb, edge_gain=0.85, smooth=True):
     if mode == "edge_only":
         base = np.full((*depth.shape, 3), 200, np.uint8)
         return burn_geom_edge(base, depth, K, edge_gain=edge_gain)
+    # TODO: an unknown mode lands here and comes back as colormapped depth,
+    # so a misspelt mode in a config would run the depth condition under
+    # another name. Callers are guarded by `SAM_INPUT_MODES` as argparse
+    # choices; this function should refuse too (`"depth"` matched by name,
+    # anything else a ValueError). A behaviour change, so not in the port.
     return depth_to_colormapped(gray01)             # "depth", the default

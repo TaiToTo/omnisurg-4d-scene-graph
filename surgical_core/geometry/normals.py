@@ -63,8 +63,11 @@ def normal_map(depth, K):
 # frame, 57.6 % of the pixels with edge > 0.5 were the outer 2 pixels of the
 # image. By default that ring is zeroed. Labels made before the ring was
 # masked were made from inputs with the ring in; to reproduce them, set
-# `EDGE_MASK_RING = False` at module level (not per call: the provenance
-# record reads the module flag, and a per-call override would make it lie).
+# `surgical_core.geometry.normals.EDGE_MASK_RING = False`, in this module
+# (not per call: the provenance record reads this flag, and a per-call
+# override would make it lie). The package does not re-export the flag: an
+# import copies a value, so a package copy could be set to False while
+# `geom_edge_map` kept reading True from here.
 #
 # The underlying `normal_map` keeps the same ring, and that was measured and
 # left alone on purpose. On the border the tangent is 0, so the normal is 0,
@@ -87,6 +90,9 @@ EDGE_RING_PX = 2
 def edge_reliable_mask(m):
     """Pixels whose crease and step are trustworthy: valid, and `EDGE_RING_PX`
     away from any invalid pixel and from the image border."""
+    # TODO: `EDGE_RING_PX = 0` would mask every pixel, because `r[-0:]` is
+    # the whole array, not an empty slice. The width is 2 and is not meant to
+    # move; if it ever does, guard the four border slices.
     k = np.ones((2 * EDGE_RING_PX + 1, 2 * EDGE_RING_PX + 1), np.uint8)
     r = cv2.erode(m.astype(np.uint8), k).astype(bool)
     r[:EDGE_RING_PX, :] = False
@@ -115,8 +121,8 @@ def geom_edge_map(depth, K, normal_thresh=0.3, depth_thresh=0.04, parts="both",
             `"depth"` (steps only), to tell which cue is doing the work.
         mask_ring: whether to zero the ring along the image border and
             around invalid pixels. `None` follows `EDGE_MASK_RING`. Reproduce
-            old labels by setting the module flag, not this argument: the
-            provenance record reads the flag.
+            old labels by setting `normals.EDGE_MASK_RING`, not this
+            argument: the provenance record reads the flag.
 
     Returns:
         (H, W) float edge strength, 0 where invalid.
