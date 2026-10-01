@@ -109,9 +109,11 @@ manifest records no `frame_ratio`, on the table of measured ratios that
 
 **What it is.** One function, `frame_times(root, clip)`, that turns a clip's
 `frame_manifest.json` into the real time of every frame in seconds. It exists
-in one place because CholecSeg8k has clips whose time does not advance with
-the frame number, and ATLAS-120k's frame numbers need the frame-ratio
-correction; two copies of that rule would drift.
+in one place because the extracted CholecSeg8k clips are not all in
+chronological order (the workbench's extractor leaves the frames it decodes
+to fill gaps between annotation chunks at an unconverted frame number, so
+they sit 1 to 3 s later than their neighbours), and ATLAS-120k's frame
+numbers need the frame-ratio correction; two copies of that rule would drift.
 
 **Work.** English only. The docstring's reason (the two sides that need it,
 the clips that break a naive rule) stays; its references to the workbench's

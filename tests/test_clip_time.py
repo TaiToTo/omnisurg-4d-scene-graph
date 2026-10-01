@@ -199,8 +199,9 @@ def test_right_ratio_passes_the_step_check(tmp_path):
 
 
 def test_reversed_times_are_kept(tmp_path):
-    """Eleven CholecSeg8k clips do not advance with the frame number. They are
-    not reordered: a caller pairs frames by these times, not by index."""
+    """In 11 CholecSeg8k clips the extracted frames are not in chronological
+    order, while their recorded times are right. They are not reordered: a
+    caller pairs frames by these times, not by index."""
     root, clip = _clip(tmp_path, [{"timestamp_sec": 2.0}, {"timestamp_sec": 1.0}])
     assert frame_times(root, clip).tolist() == [2.0, 1.0]
 

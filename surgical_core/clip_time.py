@@ -3,9 +3,9 @@
 Both sides of the toolkit need it: the tracking metrics, which pair frames by
 how far apart in time they are, and the camera-motion analysis. It belongs to
 neither, because the rule that turns a manifest into seconds has exceptions
-that are easy to get right in one copy and wrong in the other: CholecSeg8k
-has clips whose time does not advance with the frame number, and ATLAS-120k
-has clips whose frame numbers mean nothing until a measured ratio is applied.
+that are easy to get right in one copy and wrong in the other: the extracted
+CholecSeg8k clips are not all in chronological order, and ATLAS-120k has
+clips whose frame numbers mean nothing until a measured ratio is applied.
 Two copies of that rule would drift, and the drift would show as a plausible
 number, not as a crash.
 """
@@ -30,20 +30,27 @@ def frame_times(root: str, clip: str) -> np.ndarray:
 
     The times are relative to the clip; only their differences carry meaning.
 
-    A CholecSeg8k clip is not an evenly spaced series. Of the 27 clips of the
-    pilot population, 11 have times that do not advance with the frame number.
-    The `native_frame` of `VID26_s15_1855_crop`, for example, runs
+    A CholecSeg8k clip is not an evenly spaced series, and not always a
+    chronological one. In some Cholec80 videos CholecSeg8k numbers its frames
+    at about 30 fps while the video runs at 25. The workbench's extractor
+    resolves the true video frame for the frames that carry a mask, but the
+    frames it decodes from the video to fill the gaps between annotation
+    chunks are read at the unconverted number, 1 to 3 s later in the video
+    than their place in the clip. Of the 27 clips of the pilot population, 14
+    come from such videos and have gap frames; in 11 of them the time visibly
+    runs backwards. The `native_frame` of `VID26_s15_1855_crop` runs
 
         1855 1868 1880 ... 1980 | 2020 2035 2050 2065 2080 | 2055 2068 2080 ...
 
-    Steps of 12 and 13 (numbers converted to 25 fps) mix with steps of 15 (not
-    converted); there are jumps of 40, 68 and 80 and reversals of -25 and -53;
-    and some clips list the same `native_frame` twice (2080 above). That is
-    what joining CholecSeg8k's annotation chunks without reordering them
-    gives. So no single frame rate describes a clip, and a caller must take
-    time differences between the values returned here, pair by pair, never
-    from frame indices. Nothing here sorts or repairs the times either: a
-    caller that wants the pairs at a given lag selects them by these values.
+    Steps of 12 and 13 (frames with a mask, converted) mix with steps of 15
+    (gap frames, not converted); there are jumps of 40, 68 and 80, reversals
+    of -25 and -53, and the same frame can appear twice (2080 above: the two
+    images are the same picture). Each image was read at the frame number
+    recorded for it, so its time is right; it is the order of the images that
+    is wrong, and the place to fix that is the extractor, not here. Nothing
+    here sorts, repairs or deduplicates: a caller must take time differences
+    between the values returned here, pair by pair, never from frame indices,
+    and must drop the pairs whose difference is zero.
 
     ATLAS-120k's `native_frame` is the clip index's number, and in some videos
     the annotation numbers frames at a lower rate than the mp4: the measured
