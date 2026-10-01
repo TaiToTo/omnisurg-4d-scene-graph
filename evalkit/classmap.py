@@ -16,12 +16,12 @@ where background pixels vote too and a region lying on background is named
 background. That mode passes its own `scored` mask and reads the result
 through its own rules; the vote itself is shared.
 
-TODO(pilot mode): `ClassScores.miou` sums the IoUs in class id order and
-divides; the pilot evaluator took `np.mean` over its dict in set order. The
-two differ in the last bit on about a quarter of frames, which the clip
-mean and the four-decimal rounding all but never show, but zero tolerance
-is the promise: the pilot-mode driver should average `ious` itself, the
-pilot's way, rather than read `miou`. The same holds for the clip mean.
+`ClassScores.miou` sums the IoUs in class id order and divides; the pilot
+evaluator took `np.mean` over its dict in set order. The two differ in the
+last bit on about a quarter of frames, which the clip mean and the
+four-decimal rounding all but never show, but zero tolerance is the promise:
+the pilot-mode driver averages `ious` itself, the pilot's way, rather than
+read `miou`. The same holds for the clip mean.
 """
 from __future__ import annotations
 
