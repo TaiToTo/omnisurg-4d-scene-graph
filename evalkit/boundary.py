@@ -116,10 +116,11 @@ def within_tolerance(boundary: np.ndarray, tol: int = BOUNDARY_TOL_PX) -> np.nda
     tol = int(tol)
     if tol == 0:
         return boundary.copy()
-    # TODO: decide before the freeze whether this stays on cv2.dilate or moves
-    # to a numpy shift-or over the (2·tol + 1)² offsets. The two agree on every
-    # mask tried, borders included; the question is only whether a hashed file
-    # should depend on a library's behaviour at all, when OpenCV is unpinned.
+    # cv2.dilate with a square kernel of ones. A numpy shift-or over the same
+    # (2*tol + 1)^2 offsets agrees on every mask tried, borders included;
+    # whether a hashed file should depend on a library's behaviour at all,
+    # while OpenCV is unpinned, is decided before the freeze (an open question
+    # of the port), not here.
     kernel = np.ones((2 * tol + 1, 2 * tol + 1), dtype=np.uint8)
     return cv2.dilate(boundary.astype(np.uint8), kernel).astype(bool)
 

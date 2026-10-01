@@ -11,9 +11,10 @@ from evalkit.boundary import BOUNDARY_TOL_PX, BoundaryScore, boundary_pixels, bo
 H, W = 60, 100
 
 
-# TODO: these are the `exact` and `shifted(k)` frames of `tests/scenes.py`,
-# which is on its way to main on another branch. Once it is there, build them
-# from it instead of here, so that every metric is tested on one set of scenes.
+# These are the `exact` and `shifted(k)` frames of `tests/scenes.py`, built
+# here because that file is on its way to main on another branch and this one
+# depends on nothing under review. Once both are on main they are built from
+# it, so that every metric is tested on one set of scenes.
 def halves(col: int = 50, ids=(1, 2)) -> np.ndarray:
     labels = np.empty((H, W), dtype=np.int32)
     labels[:, :col] = ids[0]
