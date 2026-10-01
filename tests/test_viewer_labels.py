@@ -10,7 +10,7 @@ the background id never coloured).
 import numpy as np
 import pytest
 
-from evalkit.classes import load_table
+from evalkit.classes import ClassType, load_table
 from surgical_core.viewer.labels import (
     LabelTable, cholec_gt_table, instance_table, label_table_of, remap_to_instances)
 from surgical_core.viewer.palette import BACKGROUND_COLOR, INSTANCE_PALETTE, instance_color
@@ -34,10 +34,11 @@ def test_cholecseg8k_table_follows_the_class_table():
 def test_atlas120k_original_table_makes_the_markers_background():
     classes = load_table("atlas120k", "original")
     labels = label_table_of(classes)
-    markers = classes.excluded_mask_ids | classes.background_mask_ids
-    assert markers <= labels.background_ids
-    assert not (set(labels.entries) & labels.background_ids)
-    assert all(e.color for e in labels.entries.values())
+    # Exactly the three types the evaluator removes from every view are
+    # background; every other class is a foreground entry.
+    assert labels.background_ids == classes.ids_of_type(
+        ClassType.IGNORED, ClassType.BACKGROUND, ClassType.EXCLUDED)
+    assert set(labels.entries) == set(classes.entries) - labels.background_ids
 
 
 def test_a_set_without_colours_is_refused():
@@ -50,7 +51,10 @@ def test_a_set_without_colours_is_refused():
 def test_present_ids_leaves_background_out():
     t = LabelTable(entries={}, background_ids={0, 7})
     assert t.present_ids(np.array([[0, 3], [7, 3], [5, 0]])) == [3, 5]
+    # An id the table does not know is listed, named by its number, and
+    # drawn in the background colour.
     assert t.name(3) == "id 3"
+    assert t.color(3) == BACKGROUND_COLOR
 
 
 def test_instance_colours_are_stable_and_distinct():

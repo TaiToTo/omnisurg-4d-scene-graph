@@ -36,6 +36,11 @@ class LabelEntry:
 class LabelTable:
     """Label id to `LabelEntry`, plus the ids that are background.
 
+    An id in neither `entries` nor `background_ids` is not refused: it is
+    named `id N`, listed by `present_ids`, and drawn in the background
+    colour. The exporter decides whether such an id is a fault; this table
+    only has to show every id it is given.
+
     Attributes:
         entries: foreground ids only.
         background_ids: ids drawn dark grey and left out of the legend and

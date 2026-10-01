@@ -7,9 +7,9 @@ initialiser would make every import of `surgical_core.viewer` need them. They
 are imported by their full path when they are ported.
 """
 
-from surgical_core.viewer.labels import (  # noqa: F401
+from surgical_core.viewer.labels import (
     LabelEntry, LabelTable, cholec_gt_table, instance_table, label_table_of, remap_to_instances)
-from surgical_core.viewer.palette import BACKGROUND_COLOR, INSTANCE_PALETTE, instance_color  # noqa: F401
+from surgical_core.viewer.palette import BACKGROUND_COLOR, INSTANCE_PALETTE, instance_color
 
 __all__ = [
     "BACKGROUND_COLOR",

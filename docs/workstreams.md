@@ -75,7 +75,6 @@ made. Starting them early means porting them twice.
 | metrics, entry point, `eval_code_sha` | the class tables (under review) |
 | `paired_stats`, `compare_eval`, `condition_inventory`, `reeval_diff` | the evaluator's comparability check and the fields its scores carry |
 | `track_metrics`, `kmerge` | open question 1 in `docs/porting.md` |
-| `surgical_core/viewer/labels.py`, `palette.py` | `labels.py` reads the CholecSeg8k colour table, which is now `evalkit.classes`; wait for the class-table review to settle that module's interface |
 | the whole pipeline, the wrappers, the viewer | step 5 of the order; needs step 2 done and the GPU |
 
 Open question 1 is not a branch. It is a decision, and `docs/evaluation.md`
