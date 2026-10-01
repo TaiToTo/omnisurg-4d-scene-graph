@@ -31,6 +31,7 @@ below the clip's own, because that extraction numbered outputs by position.
 | `clips.txt` | the population, one `<procedure>__<video>__gt_<n>` per line | `ipcai2027_experiment/frozen/atlas97_clips.txt` |
 | `depth_manifest.json` | per clip, sha256 of depth and intrinsics, frame count, shape | `ipcai2027_experiment/frozen/atlas97_depth_manifest.json` |
 | `crop_rects.json` | per clip, the rectangle to use (`rect`, in `src_size` pixels) and whether the automatic one was accepted (`verdict`); `rect_used` and `via` are history | `experiment/crop_necessity/verdicts/verdicts_latest.json` |
+| `frame_ratio.json` | per video, the measured ratio between the clip index's frame numbers and the mp4's (1, 2, 3 or 4), with the frame pair it was matched on and their pixel difference; all 97 videos | `outputs/crop_cuts/_align2.json` |
 | `cut_marks.jsonl` | judged scene changes, append-only (last line per `key` wins); frame numbers are the mp4's. Ten cuts in two videos; `Bj13QcLRCVc#330` is still `dk` | `experiment/crop_necessity/marks/marks_20260913_174731.jsonl` |
 | `videos/videos.json` | the 100-video tree: per video its mp4, clips, frame counts, why any was dropped | `ipcai2027_experiment/task22_atlas100/out/manifest/videos.json` |
 | `videos/clips.json` | the 438 clips that extraction wrote | `.../manifest/clips_v100.json` |
@@ -51,6 +52,6 @@ the notes.
 
 ## Who reads these
 
-Nothing yet. `clip_rects.py` and `frame_ratio.py` are ported next under
-`surgical_core/atlas120k/`; until then `tests/test_atlas120k_meta.py` pins
-what must hold between the files.
+`surgical_core/atlas120k/clip_rects.py` reads the crop rectangles and
+`frame_ratio.py` the frame ratios; both take the file's path as an argument.
+`tests/test_atlas120k_meta.py` pins what must hold between the files.
