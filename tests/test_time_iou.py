@@ -47,12 +47,34 @@ def test_one_region_over_the_whole_frame_scores_one_whatever_happens_which_is_a_
     assert time_iou([np.zeros((H, W), np.int32)] * 2, [ALL, ALL]) == 1.0
 
 
+def test_no_region_is_not_an_id_and_is_never_pooled():
+    # The no-region half moves five columns with region 0; were -1 an id it
+    # would add a second value, 45/50, and the mean would not be 50/55.
+    frames = [split_at(HALF, (0, -1)), split_at(HALF + 5, (0, -1))]
+    assert time_iou(frames, [ALL, ALL]) == pytest.approx(50 / 55)
+
+
 def test_only_pixels_valid_in_both_frames_are_compared():
     # Region 0 moves five columns, but the valid pixels stop at column 50 in
-    # the second frame, so within them it does not move at all.
-    later = ALL.copy()
-    later[:, HALF:] = False
-    assert time_iou([split_at(HALF), split_at(HALF + 5)], [ALL, later]) == 1.0
+    # one of the two frames, so within them it does not move at all. Either
+    # frame may be the restricted one: the rule reads both masks.
+    narrow = ALL.copy()
+    narrow[:, HALF:] = False
+    assert time_iou([split_at(HALF), split_at(HALF + 5)], [ALL, narrow]) == 1.0
+    assert time_iou([split_at(HALF), split_at(HALF + 5)], [narrow, ALL]) == 1.0
+
+
+def test_an_id_left_only_on_invalid_pixels_still_counts_at_zero():
+    # Region 1 shrinks to the last five columns, where the depth of the second
+    # frame is not valid. It is "present in both" all the same, and within the
+    # shared valid pixels its second mask is empty, so it scores 0; had it
+    # vanished from the frame it would add nothing. The pilot evaluator's rule.
+    second = split_at(W - 5)
+    valid_second = ALL.copy()
+    valid_second[:, W - 5:] = False
+    gone = split_at(W - 5, (0, -1))
+    assert time_iou([split_at(HALF), second], [ALL, valid_second]) == pytest.approx((50 / 95 + 0.0) / 2)
+    assert time_iou([split_at(HALF), gone], [ALL, valid_second]) == pytest.approx(50 / 95)
 
 
 def test_undefined_when_nothing_is_pooled():

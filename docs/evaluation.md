@@ -233,7 +233,9 @@ does not straddle zero. The JSON keeps the per-frame values.
 A metric is not defined on some frames: `F1_50` on a frame with no GT object,
 `SQ` and `inst_BF` on a frame with no hit, `mIoU` on a frame with no class.
 Those frames do not enter the mean, and the number of frames each mean covers
-is recorded. Two conditions can cover different frames, and comparing them
+is recorded. `time_IoU` is not defined on a clip where nothing is pooled: a
+clip of one frame, or one in which no id is present in two consecutive frames
+with some valid pixel under it. Two conditions can cover different frames, and comparing them
 without the counts once flipped the sign of a pilot result.
 
 PQ is not stored. When a table wants it, it is SQ × F1_50 per frame, taken from
@@ -369,9 +371,10 @@ pilot evaluator's numbers.
   - frames in file order for `time_IoU`;
   - the pilot evaluator's zeros in place of undefined values: a frame with no
     class enters the `mIoU` mean as 0; a clip with no GT object in the `full`
-    domain writes 0 for its instance keys instead of leaving them out; and a
+    domain writes 0 for its instance keys instead of leaving them out; a
     frame whose GT boundary is empty scores 0 on the boundary metrics rather
-    than being left out.
+    than being left out; and a clip on which `time_IoU` pools nothing writes
+    0 for it.
 - On the 38 conditions already scored, pilot mode must reproduce every key it
   shares with the pilot evaluator — the metrics table names them, and their
   per-domain variants — at zero tolerance: the values written must be equal.
