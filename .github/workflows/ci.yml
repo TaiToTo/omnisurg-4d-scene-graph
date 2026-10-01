@@ -51,7 +51,19 @@ jobs:
       - run: pip install pytest
       - run: pytest
 
-      # TODO: `surgical_core.geometry.render` is never imported by this job,
-      # because it needs the `render` extra. A second job with
-      # `pip install -e ".[render]"` and a smoke test over `SAM_INPUT_MODES`
-      # would cover it; today that check is run by hand.
+  # `surgical_core.geometry.render` needs the `render` extra, so the job above
+  # never imports it and its tests skip there. This job installs the extra and
+  # runs the same suite, so the render tests run somewhere.
+  render:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libgl1 libglib2.0-0t64
+      - run: pip install -e ".[render]" pytest
+      - run: python -c "import surgical_core.geometry.render"
+      - run: pytest
