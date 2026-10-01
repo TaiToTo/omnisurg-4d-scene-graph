@@ -3,9 +3,8 @@
 The evaluator's hand-derived tests are computed on these scenes: each one is
 a ground truth and a prediction with one controlled fault, and the areas are
 round numbers, so the value of every metric on it can be derived on paper and
-pinned. The pilot evaluator's metric guide draws the same scenes, so the
-pictures, the numbers in the guide and the tests are about one set of frames
-and cannot drift apart.
+pinned. A metric guide, if one is built here, draws these same frames rather
+than frames of its own, so that its pictures and the tests cannot drift apart.
 
 This module holds the frames only. What each metric must give on them is
 derived under the evaluator's rules, in the tests that come with the metrics;
@@ -13,9 +12,10 @@ the pilot evaluator's values are pinned by its own tests, in pilot mode.
 
 Every scene is 60 x 100 px. That keeps the arithmetic readable while every
 region stays above the pilot evaluator's 300 px cut, which it needs to
-reproduce the pilot numbers. GT class 1 fills the left half and class 2 the
-right half unless a scene says otherwise. Predicted regions are ids 0, 1, 2,
-..., and -1 is "no region".
+reproduce the pilot numbers; the one exception is `sliver`, whose region is
+made to sit on either side of that cut. GT class 1 fills the left half and
+class 2 the right half unless a scene says otherwise. Predicted regions are
+ids 0, 1, 2, ..., and -1 is "no region".
 """
 from dataclasses import dataclass, field
 
@@ -30,7 +30,7 @@ class Scene:
     """One frame: ground truth, prediction and the pixels that are evaluated.
 
     Attributes:
-        key: Short identifier used by the tests and the guide.
+        key: Short identifier used by the tests.
         title: One-line description.
         gt: (H, W) GT class id map (0 = background).
         lab: (H, W) predicted region ids (-1 = no region).
@@ -82,7 +82,11 @@ def merged() -> Scene:
 
 
 def gap(width: int = 10, painted: bool = False) -> Scene:
-    """A band of `width` px around the boundary is left without a region, or painted as a third one."""
+    """A band of `width` px around the boundary is left without a region, or painted as a third one.
+
+    Half of the band lies on each class. `width` is even: an odd one gives
+    `width - 1` columns, since the band is `width // 2` to each side.
+    """
     lab = _split_at(HALF)
     lab[:, HALF - width // 2:HALF + width // 2] = 2 if painted else -1
     key, title = ("band", "The gap painted as a third region") if painted else \

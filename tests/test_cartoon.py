@@ -7,6 +7,9 @@ pixel counts are not pinned; the relations between the regions are.
 import cv2
 import numpy as np
 
+# A bare import, not `tests.cartoon`: pytest's default import mode puts a test
+# file's directory on sys.path, and `tests/` is kept flat, without a package.
+# Under `--import-mode=importlib` nothing is put there and this import fails.
 import cartoon as C
 
 GT = C.ground_truth()
@@ -69,12 +72,15 @@ def test_tool_offset_moves_the_instrument_left():
     x_now = np.nonzero(LAB == 3)[1].mean()
     x_later = np.nonzero(later == 3)[1].mean()
     assert x_later < x_now
-    assert ((later == 2) == (LAB == 2)).sum() > 0.9 * (C.H * C.W)
+    # Only the instrument moved: every pixel that changed is region 3 in one frame.
+    changed = later != LAB
+    assert changed.any()
+    assert ((later[changed] == 3) | (LAB[changed] == 3)).all()
 
 
 def test_swap_liver_exchanges_regions_0_and_1_only():
     swapped = C.prediction(GT, swap_liver=True)
     assert ((swapped == 0) == (LAB == 1)).all()
     assert ((swapped == 1) == (LAB == 0)).all()
-    others = LAB >= 2
+    others = (LAB < 0) | (LAB >= 2)
     assert (swapped[others] == LAB[others]).all()

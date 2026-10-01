@@ -9,6 +9,9 @@ derivation right for the wrong reason.
 import numpy as np
 import pytest
 
+# A bare import, not `tests.scenes`: pytest's default import mode puts a test
+# file's directory on sys.path, and `tests/` is kept flat, without a package.
+# Under `--import-mode=importlib` nothing is put there and this import fails.
 import scenes as S
 
 ALL = [S.exact(), S.shifted(3), S.split(), S.merged(), S.gap(10), S.gap(10, painted=True),
@@ -30,7 +33,7 @@ def test_shape_dtype_and_ids(scene):
     assert scene.gt.shape == scene.lab.shape == scene.valid.shape == (S.H, S.W)
     assert scene.gt.dtype == np.int32 and scene.lab.dtype == np.int32
     assert scene.valid.dtype == bool and scene.valid.all()
-    assert set(np.unique(scene.gt)) <= {0, 1, 2}
+    assert {1, 2} <= set(np.unique(scene.gt)) <= {0, 1, 2}
     assert scene.lab.min() >= -1
     if scene.next_lab is not None:
         assert scene.next_lab.shape == (S.H, S.W) and scene.next_lab.dtype == np.int32
@@ -97,7 +100,8 @@ def test_on_background_puts_a_region_where_nothing_is_annotated():
     sc = S.on_background(10)
     assert (sc.gt[:10] == 0).all() and (sc.gt[10:] != 0).all()
     assert ((sc.lab == 2) == (sc.gt == 0)).all()
-    assert _objects_under(sc.lab, sc.gt == 1) == {0: S.H * S.HALF - 10 * S.HALF}
+    assert _objects_under(sc.lab, sc.gt == 1) == {0: (S.H - 10) * S.HALF}
+    assert _objects_under(sc.lab, sc.gt == 2) == {1: (S.H - 10) * S.HALF}
 
 
 @pytest.mark.parametrize("px", [100, 299, 300, 400])
