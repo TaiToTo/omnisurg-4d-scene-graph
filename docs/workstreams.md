@@ -105,7 +105,15 @@ workbench. The last two read the workbench and stay on its machine. The two
 lines). Depends on `numpy` and the standard library only.
 
 **What it is.** One function, `frame_times(root, clip)`, that turns a clip's
-`frame_manifest.json` into the real time of every frame in seconds. It exists
+`frame_manifest.json` into the real time of every frame in seconds. That file
+sits in each clip's directory and lists the clip's frames: for each one, the
+frame number in the source video, its time in seconds when the dataset gives
+one, and for ATLAS-120k the clip's `frame_ratio`. A "manifest" anywhere in
+these documents is such a list of what a directory holds and where it came
+from, never the frames or masks themselves. TODO: `docs/data_contract.md`
+defines the term and the three manifests this project has (the per-clip
+`frame_manifest.json`, the depth manifest, and the 100-video manifest), and
+the per-clip one gets a name that says it is per clip. The function exists
 in one place because CholecSeg8k has clips whose time does not advance with
 the frame number, and ATLAS-120k's frame numbers need the frame-ratio
 correction; two copies of that rule would drift.
@@ -192,8 +200,8 @@ for the reviewer.
 | `experiment/crop_necessity/verdicts/verdicts_latest.json` | the crop rectangle per clip, as the judging tool wrote it (`rect`, `verdict`, `src_size`) | 216 kB |
 | `experiment/crop_necessity/marks/*.jsonl` | the cut marks, two files | small |
 | `ipcai2027_experiment/frozen/atlas97_clips.txt` | the clip population, 315 lines | 11 kB |
-| `ipcai2027_experiment/frozen/atlas97_depth_manifest.json` | the depth manifest for that population | 91 kB |
-| `ipcai2027_experiment/task22_atlas100/out/manifest/` | the 100-video manifest (`videos.json`, `clips_v100.*`, `population.txt`, `production_frozen.json`, `excluded_short.json`, ...) | 230 kB |
+| `ipcai2027_experiment/frozen/atlas97_depth_manifest.json` | the depth manifest: for each clip of that population, the sha256 of its depth and intrinsics arrays and their shape, so a re-run can be checked against the frozen one | 91 kB |
+| `ipcai2027_experiment/task22_atlas100/out/manifest/` | the 100-video manifest: which videos and clips were chosen from ATLAS-120k, and the record of that choice (`videos.json`, `clips_v100.*`, `population.txt`, `production_frozen.json`, `excluded_short.json`, ...) | 230 kB |
 | `ipcai2027_experiment/task22_atlas100/out/audit/` | the audit of it (`crop_scope_table`, `gt_coverage`, `ui_residue`, each `.json` and `.md`) | 230 kB |
 
 No video, no frame, no mask.
