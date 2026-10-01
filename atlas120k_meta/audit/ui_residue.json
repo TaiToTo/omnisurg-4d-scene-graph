@@ -1,0 +1,1976 @@
+{
+ "root": "outputs/atlas_v100",
+ "std_thresh": 8.0,
+ "dark_thresh": 70.0,
+ "row_frac": 0.5,
+ "edge_frac": 0.05,
+ "n_videos": 96,
+ "videos": [
+  {
+   "video": "adrenalectomy__16GPCUPkXYQ",
+   "size": [
+    854,
+    638
+   ],
+   "n_frames": 786,
+   "n_sampled": 638,
+   "edge_ui_rows": [
+    25,
+    26,
+    27,
+    28,
+    29,
+    30
+   ],
+   "inner_overlay_rows": [
+    31
+   ],
+   "edge_ui_cols": [],
+   "static_frac": 0.0686,
+   "dark_frac": 0.5188,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0012,
+   "clip_bright_static_worst": "adrenalectomy__16GPCUPkXYQ__gt_0005"
+  },
+  {
+   "video": "appendectomy__41RKDh3INiU",
+   "size": [
+    854,
+    444
+   ],
+   "n_frames": 362,
+   "n_sampled": 444,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0398,
+   "dark_frac": 0.2018,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "appendectomy__41RKDh3INiU__gt_0003"
+  },
+  {
+   "video": "appendectomy__XEcjPI5Alb0",
+   "size": [
+    854,
+    529
+   ],
+   "n_frames": 507,
+   "n_sampled": 529,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0776,
+   "dark_frac": 0.2882,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "appendectomy__XEcjPI5Alb0__gt_0004"
+  },
+  {
+   "video": "appendectomy__ZdBpRNRFf1A",
+   "size": [
+    854,
+    599
+   ],
+   "n_frames": 428,
+   "n_sampled": 599,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0788,
+   "dark_frac": 0.4362,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "appendectomy__ZdBpRNRFf1A__gt_0001"
+  },
+  {
+   "video": "appendectomy__ibPeqahGcSo",
+   "size": [
+    854,
+    625
+   ],
+   "n_frames": 1674,
+   "n_sampled": 625,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0023,
+   "dark_frac": 0.2696,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "appendectomy__ibPeqahGcSo__gt_0003"
+  },
+  {
+   "video": "cholecystectomy__1trsPYQ7rmg",
+   "size": [
+    854,
+    475
+   ],
+   "n_frames": 578,
+   "n_sampled": 475,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0023,
+   "dark_frac": 0.0738,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "cholecystectomy__1trsPYQ7rmg__gt_0005"
+  },
+  {
+   "video": "cholecystectomy__1ud3syYKD3A",
+   "size": [
+    854,
+    480
+   ],
+   "n_frames": 326,
+   "n_sampled": 480,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0046,
+   "dark_frac": 0.1779,
+   "bright_static_frac": 0.0025,
+   "clip_bright_static_max": 0.0065,
+   "clip_bright_static_worst": "cholecystectomy__1ud3syYKD3A__gt_0003"
+  },
+  {
+   "video": "cholecystectomy__4FpUGXO9mzg",
+   "size": [
+    854,
+    419
+   ],
+   "n_frames": 283,
+   "n_sampled": 419,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0433,
+   "dark_frac": 0.269,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "cholecystectomy__4FpUGXO9mzg__gt_0005"
+  },
+  {
+   "video": "cholecystectomy__4T6Le0qwfJ8",
+   "size": [
+    854,
+    473
+   ],
+   "n_frames": 118,
+   "n_sampled": 473,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0,
+   "dark_frac": 0.4217,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "cholecystectomy__4T6Le0qwfJ8__gt_0002"
+  },
+  {
+   "video": "cholecystectomy__4taQcQXVl_k",
+   "size": [
+    854,
+    635
+   ],
+   "n_frames": 45,
+   "n_sampled": 635,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0007,
+   "dark_frac": 0.0286,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0036,
+   "clip_bright_static_worst": "cholecystectomy__4taQcQXVl_k__gt_0002"
+  },
+  {
+   "video": "cholecystectomy__5TEvJOWx7OM",
+   "size": [
+    854,
+    634
+   ],
+   "n_frames": 51,
+   "n_sampled": 634,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0005,
+   "dark_frac": 0.276,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0002,
+   "clip_bright_static_worst": "cholecystectomy__5TEvJOWx7OM__gt_0002"
+  },
+  {
+   "video": "cholecystectomy__5fAHdwofg4o",
+   "size": [
+    854,
+    656
+   ],
+   "n_frames": 257,
+   "n_sampled": 656,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.011,
+   "dark_frac": 0.042,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "cholecystectomy__5fAHdwofg4o__gt_0006"
+  },
+  {
+   "video": "cholecystectomy__76_rHrx0OwM",
+   "size": [
+    854,
+    449
+   ],
+   "n_frames": 84,
+   "n_sampled": 449,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0571,
+   "dark_frac": 0.4123,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "cholecystectomy__76_rHrx0OwM__gt_0002"
+  },
+  {
+   "video": "cholecystectomy__7ApGq0IlR3k",
+   "size": [
+    854,
+    434
+   ],
+   "n_frames": 342,
+   "n_sampled": 434,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0575,
+   "dark_frac": 0.441,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0093,
+   "clip_bright_static_worst": "cholecystectomy__7ApGq0IlR3k__gt_0002"
+  },
+  {
+   "video": "cholecystectomy__7RqTNr2Bmvk",
+   "size": [
+    854,
+    605
+   ],
+   "n_frames": 53,
+   "n_sampled": 605,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.1286,
+   "dark_frac": 0.3933,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "cholecystectomy__7RqTNr2Bmvk__gt_0002"
+  },
+  {
+   "video": "cholecystectomy__8PaByofhGZ4",
+   "size": [
+    854,
+    668
+   ],
+   "n_frames": 830,
+   "n_sampled": 668,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0,
+   "dark_frac": 0.1804,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "cholecystectomy__8PaByofhGZ4__gt_0006"
+  },
+  {
+   "video": "cholecystectomy__BdZKjLz-twU",
+   "size": [
+    854,
+    497
+   ],
+   "n_frames": 60,
+   "n_sampled": 497,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0023,
+   "dark_frac": 0.1291,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "cholecystectomy__BdZKjLz-twU__gt_0003"
+  },
+  {
+   "video": "cholecystectomy__Bj13QcLRCVc",
+   "size": [
+    854,
+    480
+   ],
+   "n_frames": 255,
+   "n_sampled": 480,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0012,
+   "dark_frac": 0.1631,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "cholecystectomy__Bj13QcLRCVc__gt_0002"
+  },
+  {
+   "video": "cholecystectomy__DKufff9lglk",
+   "size": [
+    854,
+    631
+   ],
+   "n_frames": 404,
+   "n_sampled": 631,
+   "edge_ui_rows": [
+    607,
+    608,
+    609,
+    610,
+    611,
+    612,
+    613,
+    614,
+    615,
+    616,
+    617,
+    618,
+    619,
+    620,
+    621,
+    622,
+    623,
+    624,
+    625,
+    626,
+    627,
+    628,
+    629,
+    630
+   ],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27
+   ],
+   "static_frac": 0.1117,
+   "dark_frac": 0.3726,
+   "bright_static_frac": 0.0176,
+   "clip_bright_static_max": 0.0216,
+   "clip_bright_static_worst": "cholecystectomy__DKufff9lglk__gt_0001"
+  },
+  {
+   "video": "cholecystectomy__EKQDBj7u0-c",
+   "size": [
+    854,
+    526
+   ],
+   "n_frames": 341,
+   "n_sampled": 526,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0727,
+   "dark_frac": 0.2243,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "cholecystectomy__EKQDBj7u0-c__gt_0003"
+  },
+  {
+   "video": "cholecystectomy__EPcntn3KRAQ",
+   "size": [
+    781,
+    408
+   ],
+   "n_frames": 262,
+   "n_sampled": 408,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.042,
+   "dark_frac": 0.1791,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "cholecystectomy__EPcntn3KRAQ__gt_0003"
+  },
+  {
+   "video": "cholecystectomy__FQ-KABSrark",
+   "size": [
+    854,
+    627
+   ],
+   "n_frames": 230,
+   "n_sampled": 627,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.004,
+   "dark_frac": 0.2999,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0164,
+   "clip_bright_static_worst": "cholecystectomy__FQ-KABSrark__gt_0007"
+  },
+  {
+   "video": "cholecystectomy__J5bg8KTYrw0",
+   "size": [
+    854,
+    542
+   ],
+   "n_frames": 321,
+   "n_sampled": 542,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0164,
+   "dark_frac": 0.2658,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "cholecystectomy__J5bg8KTYrw0__gt_0004"
+  },
+  {
+   "video": "cholecystectomy__JedzslyadF8",
+   "size": [
+    854,
+    444
+   ],
+   "n_frames": 391,
+   "n_sampled": 444,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0064,
+   "dark_frac": 0.084,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0002,
+   "clip_bright_static_worst": "cholecystectomy__JedzslyadF8__gt_0001"
+  },
+  {
+   "video": "cholecystectomy__Kg9vCLSWM1E",
+   "size": [
+    854,
+    495
+   ],
+   "n_frames": 421,
+   "n_sampled": 495,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0544,
+   "dark_frac": 0.292,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "cholecystectomy__Kg9vCLSWM1E__gt_0003"
+  },
+  {
+   "video": "cholecystectomy__N9VnLoUpEgw",
+   "size": [
+    854,
+    480
+   ],
+   "n_frames": 292,
+   "n_sampled": 480,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0043,
+   "dark_frac": 0.1378,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "cholecystectomy__N9VnLoUpEgw__gt_0003"
+  },
+  {
+   "video": "cholecystectomy__Va3QomCEaTE",
+   "size": [
+    854,
+    480
+   ],
+   "n_frames": 196,
+   "n_sampled": 480,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0768,
+   "dark_frac": 0.4533,
+   "bright_static_frac": 0.0051,
+   "clip_bright_static_max": 0.0053,
+   "clip_bright_static_worst": "cholecystectomy__Va3QomCEaTE__gt_0002"
+  },
+  {
+   "video": "cholecystectomy___-aytJndMV4",
+   "size": [
+    854,
+    379
+   ],
+   "n_frames": 319,
+   "n_sampled": 379,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0306,
+   "dark_frac": 0.2646,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "cholecystectomy___-aytJndMV4__gt_0011"
+  },
+  {
+   "video": "cholecystectomy___qtEBCP-yq8",
+   "size": [
+    854,
+    474
+   ],
+   "n_frames": 199,
+   "n_sampled": 474,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0,
+   "dark_frac": 0.5208,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "cholecystectomy___qtEBCP-yq8__gt_0002"
+  },
+  {
+   "video": "cholecystectomy__fWucwHRt4UA",
+   "size": [
+    854,
+    562
+   ],
+   "n_frames": 357,
+   "n_sampled": 562,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0,
+   "dark_frac": 0.0449,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "cholecystectomy__fWucwHRt4UA__gt_0005"
+  },
+  {
+   "video": "cholecystectomy__m0j9Us_4zR8",
+   "size": [
+    854,
+    443
+   ],
+   "n_frames": 257,
+   "n_sampled": 443,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.003,
+   "dark_frac": 0.0235,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "cholecystectomy__m0j9Us_4zR8__gt_0003"
+  },
+  {
+   "video": "cholecystectomy__nqgYPh_x5T8",
+   "size": [
+    854,
+    445
+   ],
+   "n_frames": 313,
+   "n_sampled": 445,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0553,
+   "dark_frac": 0.2101,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "cholecystectomy__nqgYPh_x5T8__gt_0002"
+  },
+  {
+   "video": "cholecystectomy__oAz3BaHSsJc",
+   "size": [
+    854,
+    480
+   ],
+   "n_frames": 389,
+   "n_sampled": 480,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0041,
+   "dark_frac": 0.0242,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "cholecystectomy__oAz3BaHSsJc__gt_0002"
+  },
+  {
+   "video": "cholecystectomy__pNW9U_mOUEQ",
+   "size": [
+    854,
+    627
+   ],
+   "n_frames": 172,
+   "n_sampled": 627,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0141,
+   "dark_frac": 0.2782,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0251,
+   "clip_bright_static_worst": "cholecystectomy__pNW9U_mOUEQ__gt_0003"
+  },
+  {
+   "video": "cholecystectomy__rgdlZajfGgU",
+   "size": [
+    854,
+    543
+   ],
+   "n_frames": 284,
+   "n_sampled": 543,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0,
+   "dark_frac": 0.2684,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "cholecystectomy__rgdlZajfGgU__gt_0001"
+  },
+  {
+   "video": "cholecystectomy__s8k98gGeFf0",
+   "size": [
+    854,
+    358
+   ],
+   "n_frames": 377,
+   "n_sampled": 358,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0878,
+   "dark_frac": 0.3404,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "cholecystectomy__s8k98gGeFf0__gt_0005"
+  },
+  {
+   "video": "cholecystectomy__xEps8nqblY0",
+   "size": [
+    854,
+    443
+   ],
+   "n_frames": 811,
+   "n_sampled": 443,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0023,
+   "dark_frac": 0.1312,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "cholecystectomy__xEps8nqblY0__gt_0003"
+  },
+  {
+   "video": "colectomy__0ZOUS_v-fsM",
+   "size": [
+    854,
+    628
+   ],
+   "n_frames": 226,
+   "n_sampled": 628,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0,
+   "dark_frac": 0.1143,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0009,
+   "clip_bright_static_worst": "colectomy__0ZOUS_v-fsM__gt_0001"
+  },
+  {
+   "video": "colectomy__2JkHKbNsKs8",
+   "size": [
+    854,
+    630
+   ],
+   "n_frames": 231,
+   "n_sampled": 630,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0066,
+   "dark_frac": 0.3681,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0001,
+   "clip_bright_static_worst": "colectomy__2JkHKbNsKs8__gt_0001"
+  },
+  {
+   "video": "colectomy__2ZwZU_vteAY",
+   "size": [
+    854,
+    480
+   ],
+   "n_frames": 203,
+   "n_sampled": 480,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0108,
+   "dark_frac": 0.1964,
+   "bright_static_frac": 0.0011,
+   "clip_bright_static_max": 0.0011,
+   "clip_bright_static_worst": "colectomy__2ZwZU_vteAY__gt_0002"
+  },
+  {
+   "video": "colectomy__5Z-C4hsIeDk",
+   "size": [
+    854,
+    634
+   ],
+   "n_frames": 85,
+   "n_sampled": 634,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0952,
+   "dark_frac": 0.0264,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "colectomy__5Z-C4hsIeDk__gt_0001"
+  },
+  {
+   "video": "colectomy__7ENyRFIj8qA",
+   "size": [
+    854,
+    489
+   ],
+   "n_frames": 49,
+   "n_sampled": 489,
+   "edge_ui_rows": [
+    483,
+    484,
+    485,
+    486,
+    487,
+    488
+   ],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.1148,
+   "dark_frac": 0.2517,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0026,
+   "clip_bright_static_worst": "colectomy__7ENyRFIj8qA__gt_0001"
+  },
+  {
+   "video": "colectomy__PiwjyeRRqXk",
+   "size": [
+    854,
+    479
+   ],
+   "n_frames": 118,
+   "n_sampled": 479,
+   "edge_ui_rows": [
+    464,
+    465,
+    466,
+    467,
+    468,
+    469,
+    470,
+    471,
+    472,
+    473,
+    474,
+    475,
+    476,
+    477,
+    478
+   ],
+   "inner_overlay_rows": [
+    171,
+    172,
+    173,
+    174,
+    175,
+    176,
+    177,
+    184,
+    185,
+    186,
+    187,
+    189,
+    193,
+    194,
+    195,
+    197,
+    202,
+    203,
+    204,
+    205,
+    206,
+    207,
+    208,
+    209,
+    210,
+    211,
+    212,
+    213,
+    214,
+    215,
+    216,
+    217,
+    218,
+    219,
+    220,
+    221,
+    222,
+    223,
+    224,
+    225,
+    226,
+    227,
+    228,
+    229,
+    230,
+    231,
+    232,
+    233,
+    234,
+    235,
+    236,
+    237,
+    238,
+    239,
+    240,
+    241,
+    242,
+    243,
+    244,
+    245,
+    246,
+    247,
+    248,
+    249,
+    250,
+    251,
+    252,
+    253,
+    254,
+    255,
+    256,
+    257,
+    258,
+    259,
+    260,
+    261,
+    262,
+    263,
+    264,
+    265,
+    266,
+    267,
+    268,
+    269,
+    270,
+    271,
+    272,
+    273,
+    274,
+    275,
+    276,
+    277,
+    278,
+    279,
+    280,
+    281,
+    282,
+    283,
+    284,
+    285,
+    286,
+    287,
+    288,
+    289,
+    290,
+    291,
+    292,
+    293,
+    294,
+    295,
+    296,
+    297,
+    298,
+    299,
+    300,
+    301,
+    302,
+    303,
+    304,
+    305,
+    306,
+    307,
+    308,
+    309,
+    310,
+    311,
+    312,
+    313,
+    314,
+    315,
+    316,
+    317,
+    318,
+    319,
+    320,
+    321,
+    322,
+    323,
+    324,
+    325,
+    326,
+    327,
+    328,
+    329,
+    330,
+    331,
+    332,
+    333,
+    334,
+    335,
+    336,
+    337,
+    338,
+    339,
+    340,
+    341,
+    342,
+    343,
+    344,
+    345,
+    346,
+    347,
+    348,
+    349,
+    350,
+    351,
+    352,
+    353,
+    354,
+    355,
+    356,
+    357,
+    358,
+    359,
+    360,
+    361,
+    362,
+    363,
+    364,
+    365,
+    366,
+    367,
+    368,
+    369,
+    370,
+    371,
+    372,
+    373,
+    374,
+    375,
+    376,
+    377,
+    378,
+    379,
+    380,
+    381,
+    382,
+    383,
+    384,
+    385,
+    386,
+    387,
+    388,
+    389,
+    390,
+    391,
+    392,
+    393,
+    394,
+    395,
+    396,
+    397,
+    398,
+    399,
+    400,
+    401,
+    402,
+    403,
+    404,
+    405,
+    406,
+    407,
+    408,
+    409,
+    410,
+    411,
+    412,
+    413,
+    414,
+    415,
+    416,
+    417,
+    418,
+    419,
+    420,
+    421,
+    422,
+    423,
+    424,
+    425,
+    426,
+    427,
+    428,
+    429,
+    430
+   ],
+   "edge_ui_cols": [],
+   "static_frac": 0.4971,
+   "dark_frac": 0.235,
+   "bright_static_frac": 0.0908,
+   "clip_bright_static_max": 0.0935,
+   "clip_bright_static_worst": "colectomy__PiwjyeRRqXk__gt_0001"
+  },
+  {
+   "video": "colectomy___9ylo-3B49g",
+   "size": [
+    854,
+    480
+   ],
+   "n_frames": 139,
+   "n_sampled": 480,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0003,
+   "dark_frac": 0.2805,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0058,
+   "clip_bright_static_worst": "colectomy___9ylo-3B49g__gt_0003"
+  },
+  {
+   "video": "esophagectomy__1AZemLscDK4",
+   "size": [
+    854,
+    480
+   ],
+   "n_frames": 65,
+   "n_sampled": 480,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.1905,
+   "dark_frac": 0.2255,
+   "bright_static_frac": 0.0013,
+   "clip_bright_static_max": 0.0029,
+   "clip_bright_static_worst": "esophagectomy__1AZemLscDK4__gt_0001"
+  },
+  {
+   "video": "esophagectomy__6X7BRo4hNt8",
+   "size": [
+    854,
+    435
+   ],
+   "n_frames": 116,
+   "n_sampled": 435,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0,
+   "dark_frac": 0.2311,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0002,
+   "clip_bright_static_worst": "esophagectomy__6X7BRo4hNt8__gt_0002"
+  },
+  {
+   "video": "esophagectomy__C1cBTvzklpw",
+   "size": [
+    854,
+    604
+   ],
+   "n_frames": 610,
+   "n_sampled": 604,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0,
+   "dark_frac": 0.2811,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0009,
+   "clip_bright_static_worst": "esophagectomy__C1cBTvzklpw__gt_0007"
+  },
+  {
+   "video": "esophagectomy__CDTl9wnODBw",
+   "size": [
+    854,
+    429
+   ],
+   "n_frames": 147,
+   "n_sampled": 429,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0,
+   "dark_frac": 0.4315,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0578,
+   "clip_bright_static_worst": "esophagectomy__CDTl9wnODBw__gt_0001"
+  },
+  {
+   "video": "esophagectomy__J4baNI2MKfY",
+   "size": [
+    854,
+    667
+   ],
+   "n_frames": 225,
+   "n_sampled": 667,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0,
+   "dark_frac": 0.1582,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.027,
+   "clip_bright_static_worst": "esophagectomy__J4baNI2MKfY__gt_0008"
+  },
+  {
+   "video": "esophagectomy__TJNzaGq4l1I",
+   "size": [
+    854,
+    480
+   ],
+   "n_frames": 161,
+   "n_sampled": 480,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.1137,
+   "dark_frac": 0.2301,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0015,
+   "clip_bright_static_worst": "esophagectomy__TJNzaGq4l1I__gt_0002"
+  },
+  {
+   "video": "esophagectomy__X2n2mJxEwKs",
+   "size": [
+    854,
+    528
+   ],
+   "n_frames": 303,
+   "n_sampled": 528,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0285,
+   "dark_frac": 0.2321,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0169,
+   "clip_bright_static_worst": "esophagectomy__X2n2mJxEwKs__gt_0002"
+  },
+  {
+   "video": "esophagectomy__Y-kKc439v8o",
+   "size": [
+    854,
+    572
+   ],
+   "n_frames": 57,
+   "n_sampled": 572,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.001,
+   "dark_frac": 0.0303,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "esophagectomy__Y-kKc439v8o__gt_0001"
+  },
+  {
+   "video": "esophagectomy__aTSG2tm6baY",
+   "size": [
+    854,
+    581
+   ],
+   "n_frames": 420,
+   "n_sampled": 581,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0201,
+   "dark_frac": 0.2466,
+   "bright_static_frac": 0.0004,
+   "clip_bright_static_max": 0.003,
+   "clip_bright_static_worst": "esophagectomy__aTSG2tm6baY__gt_0002"
+  },
+  {
+   "video": "esophagectomy__b1oazd6RKHs",
+   "size": [
+    854,
+    490
+   ],
+   "n_frames": 387,
+   "n_sampled": 490,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0059,
+   "dark_frac": 0.2915,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0484,
+   "clip_bright_static_worst": "esophagectomy__b1oazd6RKHs__gt_0005"
+  },
+  {
+   "video": "esophagectomy__rriqrf2Obv8",
+   "size": [
+    854,
+    342
+   ],
+   "n_frames": 539,
+   "n_sampled": 342,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.1184,
+   "dark_frac": 0.4928,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0034,
+   "clip_bright_static_worst": "esophagectomy__rriqrf2Obv8__gt_0011"
+  },
+  {
+   "video": "esophagectomy__vvqkGphQc1U",
+   "size": [
+    854,
+    614
+   ],
+   "n_frames": 293,
+   "n_sampled": 614,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0002,
+   "dark_frac": 0.0685,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0105,
+   "clip_bright_static_worst": "esophagectomy__vvqkGphQc1U__gt_0004"
+  },
+  {
+   "video": "esophagectomy__zQBHloIfhd8",
+   "size": [
+    854,
+    622
+   ],
+   "n_frames": 152,
+   "n_sampled": 622,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0424,
+   "dark_frac": 0.0955,
+   "bright_static_frac": 0.0024,
+   "clip_bright_static_max": 0.0527,
+   "clip_bright_static_worst": "esophagectomy__zQBHloIfhd8__gt_0001"
+  },
+  {
+   "video": "gastric_surgery__3qfVO2Ovsgk",
+   "size": [
+    854,
+    638
+   ],
+   "n_frames": 436,
+   "n_sampled": 638,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0,
+   "dark_frac": 0.0172,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "gastric_surgery__3qfVO2Ovsgk__gt_0004"
+  },
+  {
+   "video": "gastric_surgery__4FHGGFZsPzw",
+   "size": [
+    854,
+    482
+   ],
+   "n_frames": 293,
+   "n_sampled": 482,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0036,
+   "dark_frac": 0.4241,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0155,
+   "clip_bright_static_worst": "gastric_surgery__4FHGGFZsPzw__gt_0001"
+  },
+  {
+   "video": "gastric_surgery__7AzfciNaS90",
+   "size": [
+    854,
+    637
+   ],
+   "n_frames": 903,
+   "n_sampled": 637,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0055,
+   "dark_frac": 0.2033,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0127,
+   "clip_bright_static_worst": "gastric_surgery__7AzfciNaS90__gt_0001"
+  },
+  {
+   "video": "gastrojejunostomy__9-41mie67Cw",
+   "size": [
+    453,
+    303
+   ],
+   "n_frames": 745,
+   "n_sampled": 303,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0596,
+   "dark_frac": 0.1483,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0009,
+   "clip_bright_static_worst": "gastrojejunostomy__9-41mie67Cw__gt_0001"
+  },
+  {
+   "video": "gastrojejunostomy__JZNS119Bu5A",
+   "size": [
+    854,
+    430
+   ],
+   "n_frames": 397,
+   "n_sampled": 430,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0566,
+   "dark_frac": 0.7347,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0022,
+   "clip_bright_static_worst": "gastrojejunostomy__JZNS119Bu5A__gt_0003"
+  },
+  {
+   "video": "gastrojejunostomy__agJexAzuAX8",
+   "size": [
+    570,
+    342
+   ],
+   "n_frames": 572,
+   "n_sampled": 342,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.1225,
+   "dark_frac": 0.1558,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "gastrojejunostomy__agJexAzuAX8__gt_0003"
+  },
+  {
+   "video": "gastrojejunostomy__hRdeqmI_VIs",
+   "size": [
+    854,
+    482
+   ],
+   "n_frames": 92,
+   "n_sampled": 482,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0005,
+   "dark_frac": 0.042,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "gastrojejunostomy__hRdeqmI_VIs__gt_0001"
+  },
+  {
+   "video": "gastrojejunostomy__hl952KH9MHg",
+   "size": [
+    854,
+    480
+   ],
+   "n_frames": 1251,
+   "n_sampled": 480,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0,
+   "dark_frac": 0.0508,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "gastrojejunostomy__hl952KH9MHg__gt_0001"
+  },
+  {
+   "video": "hemicolectomy__5Wn22szMCFU",
+   "size": [
+    854,
+    380
+   ],
+   "n_frames": 689,
+   "n_sampled": 380,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0174,
+   "dark_frac": 0.4413,
+   "bright_static_frac": 0.0003,
+   "clip_bright_static_max": 0.0003,
+   "clip_bright_static_worst": "hemicolectomy__5Wn22szMCFU__gt_0020"
+  },
+  {
+   "video": "hemicolectomy__5YDMlxTl0k8",
+   "size": [
+    854,
+    478
+   ],
+   "n_frames": 2366,
+   "n_sampled": 478,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0026,
+   "dark_frac": 0.2206,
+   "bright_static_frac": 0.0015,
+   "clip_bright_static_max": 0.024,
+   "clip_bright_static_worst": "hemicolectomy__5YDMlxTl0k8__gt_0007"
+  },
+  {
+   "video": "hemicolectomy__6qb-oFqRjbE",
+   "size": [
+    854,
+    474
+   ],
+   "n_frames": 1465,
+   "n_sampled": 474,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0,
+   "dark_frac": 0.0571,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.034,
+   "clip_bright_static_worst": "hemicolectomy__6qb-oFqRjbE__gt_0009"
+  },
+  {
+   "video": "hemicolectomy__Jw5R_jcTtn8",
+   "size": [
+    854,
+    528
+   ],
+   "n_frames": 296,
+   "n_sampled": 528,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0,
+   "dark_frac": 0.0298,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "hemicolectomy__Jw5R_jcTtn8__gt_0004"
+  },
+  {
+   "video": "hemicolectomy__SbqubK1FX50",
+   "size": [
+    854,
+    480
+   ],
+   "n_frames": 404,
+   "n_sampled": 480,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0017,
+   "dark_frac": 0.2313,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0001,
+   "clip_bright_static_worst": "hemicolectomy__SbqubK1FX50__gt_0004"
+  },
+  {
+   "video": "hemicolectomy__Vbcmx6eCqko",
+   "size": [
+    854,
+    603
+   ],
+   "n_frames": 513,
+   "n_sampled": 603,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0383,
+   "dark_frac": 0.2985,
+   "bright_static_frac": 0.0002,
+   "clip_bright_static_max": 0.0005,
+   "clip_bright_static_worst": "hemicolectomy__Vbcmx6eCqko__gt_0001"
+  },
+  {
+   "video": "hemicolectomy__lUM_RtRsCKg",
+   "size": [
+    854,
+    478
+   ],
+   "n_frames": 138,
+   "n_sampled": 478,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0,
+   "dark_frac": 0.0386,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "hemicolectomy__lUM_RtRsCKg__gt_0002"
+  },
+  {
+   "video": "hemicolectomy__pfMlLui0jhA",
+   "size": [
+    854,
+    483
+   ],
+   "n_frames": 305,
+   "n_sampled": 483,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0506,
+   "dark_frac": 0.1089,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0001,
+   "clip_bright_static_worst": "hemicolectomy__pfMlLui0jhA__gt_0003"
+  },
+  {
+   "video": "lar___7H7G-4sevQ",
+   "size": [
+    854,
+    628
+   ],
+   "n_frames": 708,
+   "n_sampled": 628,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0,
+   "dark_frac": 0.0002,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "lar___7H7G-4sevQ__gt_0004"
+  },
+  {
+   "video": "lar__dCaGyca-jJw",
+   "size": [
+    854,
+    644
+   ],
+   "n_frames": 504,
+   "n_sampled": 644,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0087,
+   "dark_frac": 0.2519,
+   "bright_static_frac": 0.0043,
+   "clip_bright_static_max": 0.0214,
+   "clip_bright_static_worst": "lar__dCaGyca-jJw__gt_0001"
+  },
+  {
+   "video": "liver_resection__wAnvytUuDkA",
+   "size": [
+    854,
+    445
+   ],
+   "n_frames": 26,
+   "n_sampled": 445,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.1785,
+   "dark_frac": 0.1741,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "liver_resection__wAnvytUuDkA__gt_0001"
+  },
+  {
+   "video": "rarp__9WacMabNLVs",
+   "size": [
+    854,
+    632
+   ],
+   "n_frames": 471,
+   "n_sampled": 632,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0001,
+   "dark_frac": 0.2263,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0092,
+   "clip_bright_static_worst": "rarp__9WacMabNLVs__gt_0004"
+  },
+  {
+   "video": "rarp__DS7ddQltHRY",
+   "size": [
+    545,
+    280
+   ],
+   "n_frames": 650,
+   "n_sampled": 280,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0506,
+   "dark_frac": 0.3093,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.002,
+   "clip_bright_static_worst": "rarp__DS7ddQltHRY__gt_0001"
+  },
+  {
+   "video": "rarp__NitKIjCcS7U",
+   "size": [
+    854,
+    541
+   ],
+   "n_frames": 42,
+   "n_sampled": 541,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0007,
+   "dark_frac": 0.1355,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "rarp__NitKIjCcS7U__gt_0001"
+  },
+  {
+   "video": "rarp__QxmGKqOtXd8",
+   "size": [
+    840,
+    656
+   ],
+   "n_frames": 406,
+   "n_sampled": 656,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0,
+   "dark_frac": 0.3604,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0085,
+   "clip_bright_static_worst": "rarp__QxmGKqOtXd8__gt_0003"
+  },
+  {
+   "video": "rarp__RG-KrT9Yaac",
+   "size": [
+    854,
+    637
+   ],
+   "n_frames": 118,
+   "n_sampled": 637,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0148,
+   "dark_frac": 0.3224,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0044,
+   "clip_bright_static_worst": "rarp__RG-KrT9Yaac__gt_0002"
+  },
+  {
+   "video": "rarp__T_maXoZvMxs",
+   "size": [
+    854,
+    630
+   ],
+   "n_frames": 161,
+   "n_sampled": 630,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0,
+   "dark_frac": 0.1811,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "rarp__T_maXoZvMxs__gt_0005"
+  },
+  {
+   "video": "rarp__c3R8aE2rhW4",
+   "size": [
+    854,
+    480
+   ],
+   "n_frames": 400,
+   "n_sampled": 480,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0081,
+   "dark_frac": 0.2533,
+   "bright_static_frac": 0.0017,
+   "clip_bright_static_max": 0.0022,
+   "clip_bright_static_worst": "rarp__c3R8aE2rhW4__gt_0008"
+  },
+  {
+   "video": "rarp__hwgXooRFowg",
+   "size": [
+    854,
+    437
+   ],
+   "n_frames": 243,
+   "n_sampled": 437,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0366,
+   "dark_frac": 0.3264,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0204,
+   "clip_bright_static_worst": "rarp__hwgXooRFowg__gt_0002"
+  },
+  {
+   "video": "rarp__w9egS1qHdX4",
+   "size": [
+    854,
+    480
+   ],
+   "n_frames": 299,
+   "n_sampled": 480,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0194,
+   "dark_frac": 0.0666,
+   "bright_static_frac": 0.0051,
+   "clip_bright_static_max": 0.0378,
+   "clip_bright_static_worst": "rarp__w9egS1qHdX4__gt_0003"
+  },
+  {
+   "video": "rectopexy__IJfgUvxoTkM",
+   "size": [
+    854,
+    633
+   ],
+   "n_frames": 352,
+   "n_sampled": 633,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0,
+   "dark_frac": 0.0081,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "rectopexy__IJfgUvxoTkM__gt_0002"
+  },
+  {
+   "video": "sigmoidcolectomy__2CmNyZWDxO4",
+   "size": [
+    854,
+    581
+   ],
+   "n_frames": 306,
+   "n_sampled": 581,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0765,
+   "dark_frac": 0.3391,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "sigmoidcolectomy__2CmNyZWDxO4__gt_0003"
+  },
+  {
+   "video": "sigmoidcolectomy__4gmGWvP-XwU",
+   "size": [
+    854,
+    475
+   ],
+   "n_frames": 557,
+   "n_sampled": 475,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0039,
+   "dark_frac": 0.1397,
+   "bright_static_frac": 0.0007,
+   "clip_bright_static_max": 0.0012,
+   "clip_bright_static_worst": "sigmoidcolectomy__4gmGWvP-XwU__gt_0008"
+  },
+  {
+   "video": "sigmoidcolectomy__KA5RO0CMg6I",
+   "size": [
+    854,
+    480
+   ],
+   "n_frames": 150,
+   "n_sampled": 480,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0066,
+   "dark_frac": 0.1976,
+   "bright_static_frac": 0.0007,
+   "clip_bright_static_max": 0.0007,
+   "clip_bright_static_worst": "sigmoidcolectomy__KA5RO0CMg6I__gt_0001"
+  },
+  {
+   "video": "sigmoidcolectomy__MIFNpGu1cC8",
+   "size": [
+    854,
+    631
+   ],
+   "n_frames": 337,
+   "n_sampled": 631,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0058,
+   "dark_frac": 0.2895,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0022,
+   "clip_bright_static_worst": "sigmoidcolectomy__MIFNpGu1cC8__gt_0002"
+  },
+  {
+   "video": "sigmoidcolectomy__S3S_3GDc3dA",
+   "size": [
+    854,
+    471
+   ],
+   "n_frames": 229,
+   "n_sampled": 471,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0064,
+   "dark_frac": 0.389,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "sigmoidcolectomy__S3S_3GDc3dA__gt_0002"
+  },
+  {
+   "video": "splenectomy__20BJJ1jQOwc",
+   "size": [
+    854,
+    533
+   ],
+   "n_frames": 837,
+   "n_sampled": 533,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [
+    853
+   ],
+   "static_frac": 0.0093,
+   "dark_frac": 0.0173,
+   "bright_static_frac": 0.0018,
+   "clip_bright_static_max": 0.0342,
+   "clip_bright_static_worst": "splenectomy__20BJJ1jQOwc__gt_0004"
+  },
+  {
+   "video": "splenectomy__HAaMkM113Jw",
+   "size": [
+    854,
+    479
+   ],
+   "n_frames": 595,
+   "n_sampled": 479,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0327,
+   "dark_frac": 0.6723,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "splenectomy__HAaMkM113Jw__gt_0004"
+  },
+  {
+   "video": "splenectomy__mp7wFPjALaw",
+   "size": [
+    854,
+    625
+   ],
+   "n_frames": 679,
+   "n_sampled": 625,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.0,
+   "dark_frac": 0.2523,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "splenectomy__mp7wFPjALaw__gt_0003"
+  },
+  {
+   "video": "splenectomy__oHYOgkfKm68",
+   "size": [
+    854,
+    475
+   ],
+   "n_frames": 306,
+   "n_sampled": 475,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.023,
+   "dark_frac": 0.3902,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "splenectomy__oHYOgkfKm68__gt_0003"
+  },
+  {
+   "video": "splenectomy__uA6q35o0Yho",
+   "size": [
+    854,
+    589
+   ],
+   "n_frames": 688,
+   "n_sampled": 589,
+   "edge_ui_rows": [],
+   "inner_overlay_rows": [],
+   "edge_ui_cols": [],
+   "static_frac": 0.084,
+   "dark_frac": 0.0897,
+   "bright_static_frac": 0.0,
+   "clip_bright_static_max": 0.0,
+   "clip_bright_static_worst": "splenectomy__uA6q35o0Yho__gt_0004"
+  }
+ ]
+}
