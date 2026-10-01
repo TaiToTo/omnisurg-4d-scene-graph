@@ -17,11 +17,11 @@ pilot's own mask: the valid pixels whose GT is not background, which is not
 its `full` domain (`docs/evaluation.md`, "Checked against the pilot
 evaluator").
 
-TODO(pilot mode): the pilot evaluator also removed the ids in its
-`EXTRA_IGNORE`, set from the command line and written to each score as
-`extra_ignore`. Every score file in the workbench that records it has it
-empty, but those are the workshop's; confirm on the 38 conditions' JSONs
-before pilot mode assumes an empty set.
+The pilot evaluator also removed the ids in its `EXTRA_IGNORE`, set from
+the command line and written to each score as `extra_ignore`. Every score
+file in the workbench that records it has it empty, but those are the
+workshop's; pilot mode assumes an empty set only once the 38 conditions'
+JSONs have been checked (an open question of the port).
 """
 from __future__ import annotations
 
