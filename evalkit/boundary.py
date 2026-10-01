@@ -13,13 +13,23 @@ neighbour is a scored pixel with another label. Both sides of an edge are
 marked, so a boundary is 2 px wide. An edge against a pixel that is not
 scored (invalid depth, ignored, background, or a class the view leaves out)
 is not a boundary: a region is neither rewarded nor penalised for where it
-ends against them. The tolerance is a square dilation, so taken one-sided a
-boundary may be off by `BOUNDARY_TOL_PX` + 1 px and still count in full.
+ends against them. A pixel with no label (a region map's -1, say) is a
+label like any other: an edge against it, between two scored pixels, is a
+boundary, as it was for the pilot evaluator.
+
+The tolerance is a square dilation by `BOUNDARY_TOL_PX`. Because the GT marks
+both sides of its edge, a predicted pixel `BOUNDARY_TOL_PX` + 1 px from the
+GT edge still reaches the GT pixel on its own side; so an edge shifted by
+`BOUNDARY_TOL_PX` px scores 1, one shifted by `BOUNDARY_TOL_PX` + 1 px scores
+1/2 (only its near column is within reach), and one further off scores 0.
 
 The pilot evaluator marked boundaries on the whole map and then dropped the
 invalid pixels, so its edge against background counted as a boundary. Pilot
 mode gets that by passing no `scored` mask to `boundary_pixels` and masking
-the result itself.
+the result itself. Its F had a `1e-9` in the denominator and it wrote 0
+where this module returns None; pilot mode takes both from the `precision`
+and `recall` returned here, 2·p·r / (p + r + 1e-9), rather than counting
+boundary pixels a second time.
 """
 from __future__ import annotations
 
@@ -54,8 +64,9 @@ def _check_map(labels: np.ndarray, scored: np.ndarray | None) -> tuple[np.ndarra
     labels = np.asarray(labels)
     if labels.ndim != 2:
         raise ValueError(f"a label map is (H, W), got shape {labels.shape}")
-    if not np.issubdtype(labels.dtype, np.integer):
-        raise ValueError(f"a label map holds integer labels, got dtype {labels.dtype}")
+    # bool is a two-label map: an object's mask from `Objects.mask` arrives so.
+    if labels.dtype != np.bool_ and not np.issubdtype(labels.dtype, np.integer):
+        raise ValueError(f"a label map holds integer or bool labels, got dtype {labels.dtype}")
     if scored is None:
         return labels, np.ones(labels.shape, dtype=bool)
     scored = np.asarray(scored)
@@ -71,8 +82,8 @@ def boundary_pixels(labels: np.ndarray, scored: np.ndarray | None = None) -> np.
     """Mark the pixels where `labels` changes between two scored neighbours.
 
     Args:
-        labels: An (H, W) integer label map: GT classes, a class map, region
-            ids or one object's mask as 0/1.
+        labels: An (H, W) integer or bool label map: GT classes, a class map,
+            region ids or one object's mask.
         scored: An (H, W) bool mask of the pixels the metric scores. An edge
             between a scored pixel and one that is not is not a boundary.
             None scores every pixel, which is what pilot mode wants.
@@ -100,10 +111,15 @@ def within_tolerance(boundary: np.ndarray, tol: int = BOUNDARY_TOL_PX) -> np.nda
     boundary = np.asarray(boundary)
     if boundary.dtype != np.bool_ or boundary.ndim != 2:
         raise ValueError(f"a boundary is an (H, W) bool array, got {boundary.dtype} of shape {boundary.shape}")
-    if not isinstance(tol, int) or isinstance(tol, bool) or tol < 0:
+    if not isinstance(tol, (int, np.integer)) or isinstance(tol, (bool, np.bool_)) or tol < 0:
         raise ValueError(f"the tolerance is a non-negative integer number of pixels, got {tol!r}")
+    tol = int(tol)
     if tol == 0:
         return boundary.copy()
+    # TODO: decide before the freeze whether this stays on cv2.dilate or moves
+    # to a numpy shift-or over the (2·tol + 1)² offsets. The two agree on every
+    # mask tried, borders included; the question is only whether a hashed file
+    # should depend on a library's behaviour at all, when OpenCV is unpinned.
     kernel = np.ones((2 * tol + 1, 2 * tol + 1), dtype=np.uint8)
     return cv2.dilate(boundary.astype(np.uint8), kernel).astype(bool)
 

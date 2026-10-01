@@ -11,6 +11,9 @@ from evalkit.boundary import BOUNDARY_TOL_PX, BoundaryScore, boundary_pixels, bo
 H, W = 60, 100
 
 
+# TODO: these are the `exact` and `shifted(k)` frames of `tests/scenes.py`,
+# which is on its way to main on another branch. Once it is there, build them
+# from it instead of here, so that every metric is tested on one set of scenes.
 def halves(col: int = 50, ids=(1, 2)) -> np.ndarray:
     labels = np.empty((H, W), dtype=np.int32)
     labels[:, :col] = ids[0]
@@ -31,15 +34,28 @@ def test_a_map_of_one_label_has_no_boundary():
 
 
 def test_an_edge_against_a_pixel_that_is_not_scored_is_not_a_boundary():
-    # The top ten rows are removed (unannotated background, say). Where class 1
-    # meets them there is no boundary; the class 1 / class 2 edge keeps its
-    # fifty scored rows.
+    # The top ten rows hold a third label and are removed (unannotated
+    # background, say). Without the mask the row 9 / row 10 edge is a boundary
+    # across the whole width; with it, row 10 keeps only the class 1 / class 2
+    # edge, and the vertical edge keeps its fifty scored rows.
+    labels = halves()
+    labels[:10] = 0
     scored = np.ones((H, W), dtype=bool)
     scored[:10] = False
-    b = boundary_pixels(halves(), scored)
+    assert boundary_pixels(labels)[10].all()
+    b = boundary_pixels(labels, scored)
     assert not b[:10].any()
-    assert not b[10, :49].any() and not b[10, 51:].any()
+    assert np.flatnonzero(b[10]).tolist() == [49, 50]
     assert int(b.sum()) == 2 * (H - 10)
+
+
+def test_a_horizontal_edge_is_marked_like_a_vertical_one():
+    # The same frame turned on its side: the `down` pass has to find what the
+    # `across` pass found.
+    labels = np.ascontiguousarray(halves().T)
+    b = boundary_pixels(labels)
+    assert (b == boundary_pixels(halves()).T).all()
+    assert np.flatnonzero(b.any(axis=1)).tolist() == [49, 50]
 
 
 def test_without_a_scored_mask_every_pixel_is_scored_which_is_the_pilot_rule():
@@ -53,10 +69,16 @@ def test_without_a_scored_mask_every_pixel_is_scored_which_is_the_pilot_rule():
     assert pilot[10, 0] and not normal[10, 0]
 
 
+def test_an_objects_bool_mask_is_a_two_label_map():
+    # `inst_BF` takes the boundary of one object's mask, which arrives as bool.
+    labels = halves()
+    assert (boundary_pixels(labels == 1) == boundary_pixels(labels)).all()
+
+
 def test_a_label_map_must_be_a_2d_integer_array_with_a_matching_bool_mask():
     with pytest.raises(ValueError, match=r"\(H, W\)"):
         boundary_pixels(np.zeros((H, W, 3), dtype=np.int32))
-    with pytest.raises(ValueError, match="integer"):
+    with pytest.raises(ValueError, match="integer or bool"):
         boundary_pixels(np.zeros((H, W), dtype=np.float32))
     with pytest.raises(ValueError, match="bool"):
         boundary_pixels(halves(), np.ones((H, W), dtype=np.uint8))
@@ -72,10 +94,10 @@ def test_the_tolerance_is_a_square_not_a_disk():
     assert not near[13, 10] and not near[10, 13]
     assert int(near.sum()) == 25
     assert (within_tolerance(b, 0) == b).all()
-    with pytest.raises(ValueError, match="non-negative integer"):
-        within_tolerance(b, -1)
-    with pytest.raises(ValueError, match="non-negative integer"):
-        within_tolerance(b, 1.5)
+    assert (within_tolerance(b, np.int64(2)) == near).all()   # a tolerance read from an array
+    for bad in (-1, 1.5, True, np.bool_(True)):
+        with pytest.raises(ValueError, match="non-negative integer"):
+            within_tolerance(b, bad)
 
 
 def test_an_exact_boundary_scores_one_at_every_tolerance():
