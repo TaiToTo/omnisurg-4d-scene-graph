@@ -1,0 +1,32 @@
+"""Geometry shared by the pipeline and the evaluation toolkit.
+
+Everything here assumes depth, intrinsics and extrinsics that map world to
+camera (w2c). If the extrinsics of a dataset map camera to world, the
+back-projection formula has to be switched, because feeding c2w through the
+w2c formula raises nothing: the point cloud simply comes out on the far side
+of the origin.
+
+Both sides need this code. The merge cost uses `camera_normals`, and the
+propagation side builds its segmenter inputs from the same normals and edge
+maps, so it lives in neither and is imported by both. Two copies would, from
+the day one of them is fixed, return different geometry under the same name.
+
+The package is split by dependency:
+
+- `normals`: normals from depth, the geometric edge maps and the edge-burnt
+  normal image. numpy and OpenCV only. This is what the toolkit needs.
+- `project`: back-projection, projection, label transfer and label warping
+  between frames. numpy only.
+- `render`: the images the segmenter is prompted with (colormapped depth,
+  relighting, Retinex, the input-mode table). Needs scipy and matplotlib,
+  the `render` extra, so it is not imported here; import it by name.
+
+The names of `normals` and `project` are re-exported so that
+`from surgical_core import geometry` keeps working for them.
+"""
+
+from surgical_core.geometry.normals import (  # noqa: F401
+    EDGE_MASK_RING, EDGE_RING_PX, burn_geom_edge, camera_normals, edge_reliable_mask,
+    geom_edge_map, normal_edge_map, normal_map)
+from surgical_core.geometry.project import (  # noqa: F401
+    backproject, project_labels, project_labels_region, project_world_to_frame, warp_labels)
