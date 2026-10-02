@@ -30,6 +30,9 @@ the result itself. Its F had a `1e-9` in the denominator and it wrote 0
 where this module returns None; pilot mode takes both from the `precision`
 and `recall` returned here, 2·p·r / (p + r + 1e-9), rather than counting
 boundary pixels a second time.
+
+`docs/figures/boundary.png` and `docs/figures/boundary_tolerance.png` show this on a drawn scene, with the numbers the module
+gives for it.
 """
 from __future__ import annotations
 
