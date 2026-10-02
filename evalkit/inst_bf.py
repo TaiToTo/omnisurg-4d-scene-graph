@@ -24,6 +24,9 @@ was a boundary on the object's side; and it scored such a hit 0 and used a
 1e-9 in its F. Pilot mode asks for the pilot's marking with `pilot=True`,
 and reads the per-hit scores returned here to apply its own zeros and its
 own F, rather than counting boundary pixels a second time.
+
+`docs/figures/inst_bf.png` shows this on a drawn scene, with the numbers the module
+gives for it.
 """
 from __future__ import annotations
 
