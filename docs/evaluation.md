@@ -213,7 +213,9 @@ What the scores cannot see is counted instead, as `unlabelled_share` below.
 ### What each key is, per frame
 
 - `F1_50` = 2 · hits / (GT objects + predicted objects).
-- `SQ` is the mean IoU of the hits, and `inst_BF` their mean boundary F.
+- `SQ` is the mean IoU of the hits. `inst_BF` is the mean, over the hits, of
+  the boundary F between the predicted object's contour and the GT object's,
+  each marked by the boundary rule below over the scored pixels.
 - `mIoU` is the mean IoU over the classes in the GT or the class map,
   background excluded.
 - `boundary_F` compares the class map's boundaries with the GT's.
@@ -257,7 +259,11 @@ does not straddle zero. The JSON keeps the per-frame values.
 
 A metric is not defined on some frames: `F1_50` on a frame with no GT object,
 `SQ` and `inst_BF` on a frame with no hit, `mIoU` on a frame with no class,
-`unlabelled_share` on a frame with no region on a scored pixel.
+`unlabelled_share` on a frame with no region on a scored pixel. `inst_BF`
+also leaves out a hit whose GT object has no boundary pixel, because its
+contour lies wholly against removed pixels (the one object of a frame that
+fills the scored pixels, or one cut off from every other class by a tool),
+and is not defined when no hit remains; the hits left out are counted.
 Those frames do not enter the mean, and the number of frames each mean covers
 is recorded. `time_IoU` is not defined on a clip where nothing is pooled: a
 clip of one frame, or one in which no id is present in two consecutive frames
