@@ -34,6 +34,9 @@ caller that built its own mask cannot score around the fault either.
 The per-frame driver that skips and counts an excluded frame is not
 written yet, so `frame_is_excluded` has no caller but the tests. It stays
 public for that driver.
+
+`docs/figures/scored_pixels.png` shows this on a drawn scene, with the numbers the module
+gives for it.
 """
 from __future__ import annotations
 
