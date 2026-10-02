@@ -22,6 +22,9 @@ the command line and written to each score as `extra_ignore`. Every score
 file in the workbench that records it has it empty, but those are the
 workshop's; pilot mode assumes an empty set only once the 38 conditions'
 JSONs have been checked (an open question of the port).
+
+`docs/figures/vi.png` shows this on a drawn scene, with the numbers the module
+gives for it.
 """
 from __future__ import annotations
 
