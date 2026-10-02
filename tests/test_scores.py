@@ -149,8 +149,17 @@ def test_two_pilot_domains_under_one_sha_are_refused():
 def test_a_pilot_json_without_a_domain_is_not_checked_for_one():
     # The pilot's own check skipped the domain when one side had none; its
     # sha check already refuses that pair unless legacy code is allowed.
-    a, b = pilot_json(sha=None, version=None), pilot_json(sha=None, dataset="atlas")
+    a, b = pilot_json(sha=None, version=None), pilot_json(sha=None)
     assert check_comparable(a, b, allow_legacy_code=True)["population"] == "identical"
+
+
+def test_two_datasets_are_refused_even_when_one_pilot_json_records_no_domain():
+    # The pilot's own check let this pair through: without a domain on both
+    # sides it compared nothing but the clips. The dataset is recorded on
+    # both, and the specification says it must match.
+    a, b = pilot_json(sha=None, version=None), pilot_json(sha=None, dataset="atlas")
+    with pytest.raises(ValueError, match="different datasets"):
+        check_comparable(a, b, allow_legacy_code=True)
 
 
 # ---------------------------------------------------------------- the population

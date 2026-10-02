@@ -278,6 +278,15 @@ def check_comparable(
             f"  metrics remove different classes).\n  base: {ra.domain}\n  cond: {rb.domain}\n"
             "  Score them again with the same --dataset / --extra_ignore"
         )
+    # The dataset is part of the domain, but the pilot's first JSONs record
+    # no domain; the dataset they record is still compared, since a score of
+    # one dataset set beside a score of another says nothing whatever else
+    # matches.
+    if ra.dataset is not None and rb.dataset is not None and ra.dataset != rb.dataset:
+        raise ValueError(
+            f"two conditions scored on different datasets cannot be compared: "
+            f"base={ra.dataset!r} cond={rb.dataset!r}"
+        )
     settings_a = (ra.dataset, ra.pilot, ra.class_set, ra.views)
     settings_b = (rb.dataset, rb.pilot, rb.class_set, rb.views)
     if not pilot_a and settings_a != settings_b:
