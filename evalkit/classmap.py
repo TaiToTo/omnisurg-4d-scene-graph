@@ -22,6 +22,9 @@ last bit on about a quarter of frames, which the clip mean and the
 four-decimal rounding all but never show, but zero tolerance is the promise:
 the pilot-mode driver averages `ious` itself, the pilot's way, rather than
 read `miou`. The same holds for the clip mean.
+
+`docs/figures/class_map.png` shows this on a drawn scene, with the numbers the module
+gives for it.
 """
 from __future__ import annotations
 
