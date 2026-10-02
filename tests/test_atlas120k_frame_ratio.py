@@ -55,7 +55,7 @@ def test_missing_file_is_refused(tmp_path):
 
 
 def test_malformed_ratio_is_refused(tmp_path):
-    for bad in (0, -1, 2.5, "2"):
+    for bad in (0, -1, 2.5, "2", True):
         p = _write(tmp_path, [{"procedure": "p", "video": "v", "ratio": bad}])
         with pytest.raises(ValueError, match="positive integer"):
             FrameRatios.load(p)

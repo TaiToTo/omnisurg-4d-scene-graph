@@ -18,11 +18,21 @@ ambiguity. That the ratio holds over the whole video was checked at three
 points, early, middle and late, for all 14 videos and 17 controls with ratio
 1, with no exception.
 
-The ratio cannot be derived from the fps. The 14 videos are exactly those at
-30.00, 60.00, 59.94 or 50.00 fps, and the 83 at 29.97, 25, 23.98 or 15 are all
-ratio 1, so the fps says which videos to suspect. But 59.94 fps with ratio 3
-would be an annotation rate of 19.98 fps and 50.00 with ratio 3 one of 16.67,
-which no single rate explains. The table is a measurement, not a rule.
+Where the ratio comes from: the dataset's extraction script
+(`download/process_atlas120k.py` in the ATLAS repository) walks the mp4 and
+keeps every `max(1, int(fps / 15))`-th frame, numbering the kept frames from
+zero whether or not they fall in the surgical section. The division truncates,
+so 60.00 fps gives 4, 59.94 and 50.00 give 3, 30.00 gives 2, and 29.97, 25,
+23.98 and 15 give 1. The 14 videos above ratio 1 are exactly those at 30.00
+fps or more, and the measured ratios agree with the rule for all 97. The
+README's "15 fps" is loose: a 29.97 fps video is kept at its native rate.
+
+The table is still a measurement rather than the rule applied, because the
+rule's input is not under our control: the mp4 on disk is whatever the
+download produced, not necessarily the file the authors sampled, and the fps
+OpenCV reports can fall on either side of the truncation for a video near
+30 fps. The rule says which videos to suspect and what to expect; the pixels
+say what is.
 
 An unmeasured video is refused, not assumed to be 1. The table lists every
 video that was measured, ratio 1 included, so a video missing from it has an
@@ -70,7 +80,9 @@ class FrameRatios:
         for row in data["videos"]:
             key = (row["procedure"], row["video"])
             ratio = row["ratio"]
-            if not isinstance(ratio, int) or ratio < 1:
+            # `bool` is excluded by name: `true` is an `int` to Python and
+            # would pass as ratio 1.
+            if isinstance(ratio, bool) or not isinstance(ratio, int) or ratio < 1:
                 raise ValueError(f"{'/'.join(key)}: ratio {ratio!r} is not a positive integer")
             if key in ratios:
                 raise ValueError(f"{'/'.join(key)} is measured twice")
@@ -126,6 +138,12 @@ class FrameRatios:
         if ref is None:
             raise RuntimeError(f"cannot read the bundled JPEG {bundled_jpg}")
         idx = self.mp4_index(procedure, video, native_frame)
+        # TODO: check `cap.isOpened()` and that at least one frame was read,
+        # and report each as what it is. Today an unopenable video, or an
+        # `idx` past the end of the mp4, leaves `best` at inf and the error
+        # below blames the table. Then test this on a synthetic mp4
+        # (cv2.VideoWriter with mp4v writes one that seeks back correctly):
+        # plant a wrong ratio and watch it refused.
         cap = cv2.VideoCapture(video_path)
         n = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         win = 4

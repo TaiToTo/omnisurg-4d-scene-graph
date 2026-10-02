@@ -50,6 +50,14 @@ The files are byte copies of the workbench's, except that two absolute paths
 and ten free-text `note` fields were translated from Japanese. Nothing reads
 the notes.
 
+`frame_ratio.json` is the exception: it was assembled from the measurement's
+output, which was git-ignored in the workbench and is no longer on disk. The
+14 ratios above 1 and their `diff` also appear as constants in the workbench's
+`surgical_core/atlas/frame_ratio.py`; the 83 rows at ratio 1 exist only here.
+The ratios follow the dataset's own sampling rule, `max(1, int(fps / 15))`
+(see the reader's docstring), so re-measuring is the pixel match the reader's
+`verify_against_bundled` performs, run once per video.
+
 ## Who reads these
 
 `surgical_core/atlas120k/clip_rects.py` reads the crop rectangles and
