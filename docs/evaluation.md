@@ -365,8 +365,9 @@ pilot evaluator's numbers.
     domain as the pilot evaluator computed them, with background pixels
     voting on a region's name and an edge against background counted as a
     boundary; VI over the valid pixels whose GT is not background, which is
-    how the pilot evaluator computed it, with its `extra_ignore` set empty
-    as the scores record it;
+    how the pilot evaluator computed it, with its `extra_ignore` set empty,
+    as every score that records it has it (the workshop's; the 38
+    conditions' JSONs are checked before pilot mode relies on it);
   - per-class 8-connected components of at least `PILOT_MIN_CC_PX` as GT
     objects, and regions of at least that size as predicted objects;
   - frames in file order for `time_IoU`;
