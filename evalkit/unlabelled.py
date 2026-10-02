@@ -20,6 +20,9 @@ It reads no GT class, only where the GT is unlabelled, and it is a reference
 value: it never gets a star. It is reported beside a comparison whose two
 conditions differ in it by much, as the pilot measurements did for the share
 of pixels left without a region.
+
+`docs/figures/unlabelled_share.png` shows this on a drawn scene, with the numbers the module
+gives for it.
 """
 from __future__ import annotations
 
