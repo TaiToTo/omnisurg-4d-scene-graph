@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 from evalkit.classes import VIEWS, load_table
-from evalkit.scored import PixelCounts, frame_is_excluded, scored_pixels
+from evalkit.scored import DEPTH_MIN, PixelCounts, frame_is_excluded, scored_pixels, valid_depth
 
 H, W = 60, 100
 ALL = np.ones((H, W), dtype=bool)
@@ -61,13 +61,36 @@ def test_the_geometric_view_keeps_tissue_alone(cholec):
     assert int(s.mask.sum()) == 2400
 
 
-def test_invalid_depth_is_counted_first_and_the_counts_sum_to_the_frame(cholec):
+def test_in_pilot_mode_invalid_depth_is_counted_first_and_the_counts_sum_to_the_frame(cholec):
     valid = ALL.copy()
     valid[:30] = False           # the top half, across every column
-    s = scored_pixels(columns(CHOLEC), cholec, "geometric", valid)
+    s = scored_pixels(columns(CHOLEC), cholec, "geometric", valid, pilot=True)
     assert s.counts == PixelCounts(invalid_depth=3000, ignored=600, background=0, left_out=1200, scored=1200)
     assert s.counts.total == H * W
     assert not s.mask[:30].any()
+
+
+def test_in_normal_mode_a_pixel_without_valid_depth_refuses_the_frame(cholec):
+    # One pixel each of the three ways a depth can fail: not finite, zero,
+    # and positive but not above the threshold. The count names all three.
+    depth = np.full((H, W), 0.5, dtype=np.float32)
+    assert valid_depth(depth).all()
+    depth[0, 0], depth[1, 1], depth[2, 2] = np.nan, 0.0, DEPTH_MIN
+    with pytest.raises(ValueError, match="3 of 6000 pixels"):
+        valid_depth(depth)
+    # Pilot mode masks them instead, as the pilot evaluator did.
+    valid = valid_depth(depth, pilot=True)
+    assert int((~valid).sum()) == 3 and not valid[0, 0] and not valid[1, 1] and not valid[2, 2]
+    # A caller that built its own mask cannot score around them either.
+    with pytest.raises(ValueError, match="only pilot mode"):
+        scored_pixels(columns(CHOLEC), cholec, "geometric", valid)
+
+
+def test_a_depth_map_is_a_2d_float_array():
+    with pytest.raises(ValueError, match="float"):
+        valid_depth(np.ones((H, W), dtype=np.int32))
+    with pytest.raises(ValueError, match=r"\(H, W\)"):
+        valid_depth(np.ones((2, H, W), dtype=np.float32))
 
 
 def test_background_is_removed_in_every_view_and_counted(atlas):

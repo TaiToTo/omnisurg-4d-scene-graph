@@ -21,6 +21,16 @@ The caller asks `frame_is_excluded` first and skips and counts the frame;
 `scored_pixels` runs the same check on the same ids and refuses the frame,
 in every class set, so a caller that forgot cannot score it.
 
+Depth decides nothing about which pixels are scored. The pilot evaluator
+scored only the pixels whose depth was finite and above `DEPTH_MIN`, and
+pilot mode keeps that test so that its scores can be reproduced. In normal
+mode a pixel without such a depth is a data fault: the depth maps the
+pipeline runs on (Depth Anything 3) give a finite positive value on every
+pixel, and an evaluation of 2D masks has no reason to leave a pixel out
+because one model said nothing there. So `valid_depth` refuses the frame,
+and `scored_pixels` refuses a `valid` mask with a False in it, so that a
+caller that built its own mask cannot score around the fault either.
+
 The per-frame driver that skips and counts an excluded frame is not
 written yet, so `frame_is_excluded` has no caller but the tests. It stays
 public for that driver.
@@ -33,14 +43,19 @@ import numpy as np
 
 from evalkit.classes import ClassTable, ClassType
 
+# The pilot evaluator's test of a depth value: finite and above this. The
+# only place the threshold lives.
+DEPTH_MIN = 1e-6
+
 
 @dataclass(frozen=True)
 class PixelCounts:
     """Where each pixel of a frame went, by the first reason that removed it.
 
     Attributes:
-        invalid_depth: Depth not finite or not above the threshold of
-            `docs/evaluation.md`, "Valid pixels".
+        invalid_depth: Depth not finite or not above `DEPTH_MIN`. Always 0
+            in normal mode, which refuses such a frame; pilot mode masks
+            the pixels and counts them here.
         ignored: An `ignored` class: outside the view, or not a class.
         background: Labelled as nothing.
         left_out: A scored type the view leaves out (a tool in the `tissue`
@@ -48,9 +63,6 @@ class PixelCounts:
         scored: What the metrics see.
     """
 
-    # `valid` is computed by the caller. The function that takes a depth map
-    # to it does not exist yet; when it does, it is the one place the
-    # threshold lives, and this docstring names it.
     invalid_depth: int
     ignored: int
     background: int
@@ -109,7 +121,39 @@ def frame_is_excluded(mask_ids: np.ndarray, table: ClassTable) -> bool:
     return bool(_excluded_ids_present(_mask_id_map(mask_ids), table))
 
 
-def scored_pixels(mask_ids: np.ndarray, table: ClassTable, view: str, valid: np.ndarray) -> Scored:
+def valid_depth(depth: np.ndarray, *, pilot: bool = False) -> np.ndarray:
+    """The pixels whose depth is finite and above `DEPTH_MIN`, as a bool mask.
+
+    Args:
+        depth: The (H, W) float depth map of the frame.
+        pilot: In pilot mode the mask is returned as it is, which is what the
+            pilot evaluator scored over. Otherwise every pixel must pass.
+
+    Returns:
+        An (H, W) bool array; all True in normal mode.
+
+    Raises:
+        ValueError: `depth` is not an (H, W) float array; or, in normal mode,
+            a pixel has no valid depth. That is a fault in the data, not
+            something to score around: the depth maps the pipeline runs on
+            have a finite positive value on every pixel.
+    """
+    depth = np.asarray(depth)
+    if depth.ndim != 2 or not np.issubdtype(depth.dtype, np.floating):
+        raise ValueError(f"a depth map is an (H, W) float array, got {depth.dtype} of shape {depth.shape}")
+    valid = np.isfinite(depth) & (depth > DEPTH_MIN)
+    if not pilot and not valid.all():
+        n = int((~valid).sum())
+        raise ValueError(
+            f"{n} of {depth.size} pixels have no valid depth (not finite or not above {DEPTH_MIN}); "
+            f"the depth map is faulty, and the frame is refused rather than scored on the rest"
+        )
+    return valid
+
+
+def scored_pixels(
+    mask_ids: np.ndarray, table: ClassTable, view: str, valid: np.ndarray, *, pilot: bool = False,
+) -> Scored:
     """The pixels a view scores, the GT classes, and a count of the pixels it does not score.
 
     Args:
@@ -117,18 +161,27 @@ def scored_pixels(mask_ids: np.ndarray, table: ClassTable, view: str, valid: np.
             `ClassTable.mask_ids` returns them, before any mapping.
         table: The dataset's class table, in the class set to score.
         view: One of `VIEWS`.
-        valid: An (H, W) bool mask of the pixels with valid depth.
+        valid: The (H, W) bool mask `valid_depth` returned. In normal mode
+            it is all True, and a False in it is refused here as well, so
+            that no caller scores around a pixel without depth.
+        pilot: Pilot mode, where `valid` may mask pixels out.
 
     Raises:
         KeyError: A mask id the table does not have, or a view name
             `VIEWS` does not.
-        ValueError: An input is not a map of the frame's shape, or a class
-            of type `excluded` is present: the frame should have been skipped
-            before any pixel of it was scored.
+        ValueError: An input is not a map of the frame's shape; `valid` has
+            a False in normal mode; or a class of type `excluded` is
+            present: the frame should have been skipped before any pixel of
+            it was scored.
     """
     mask_ids, valid = _mask_id_map(mask_ids), np.asarray(valid)
     if valid.dtype != np.bool_ or valid.shape != mask_ids.shape:
         raise ValueError(f"`valid` must be a bool array of shape {mask_ids.shape}, got {valid.dtype} {valid.shape}")
+    if not pilot and not valid.all():
+        raise ValueError(
+            f"`valid` leaves {int((~valid).sum())} pixels out, which only pilot mode may do; in normal "
+            f"mode a pixel without valid depth is a data fault, refused by `valid_depth`"
+        )
     in_view_ids = table.ids_in_view(view)  # raises on a view `VIEWS` does not have
 
     # On the mask ids, before the mapping: in the benchmark set the marker

@@ -67,12 +67,16 @@ was replaced, then the class tables.
   means no region. The evaluator never reads a class from the pipeline. Each
   configuration of the pipeline that the paper compares — a *condition* —
   gives one prediction per clip.
-- **Valid pixels.** Only pixels whose depth is finite and greater than 10⁻⁶
-  are scored; that is the pilot evaluator's test, kept so that both modes share
-  it. The depth is the Depth Anything 3 (DA3) depth map the pilot evaluator
-  reads for the clip, the same for every condition scored on that clip. This
-  makes the comparison between conditions fair, and it also makes the scored
-  pixels depend on one model's output; the paper states that as a limitation.
+- **Depth.** The Depth Anything 3 (DA3) depth map the pilot evaluator reads
+  for the clip, the same for every condition scored on that clip. It sets
+  the pixel grid the GT is resized to, and nothing else: this is an
+  evaluation of 2D masks, and no pixel is left out because a depth model
+  said nothing there. DA3 gives a finite positive depth on every pixel; a
+  depth map with a pixel that is not finite or not above `DEPTH_MIN` is a
+  fault in the data, and the evaluator refuses the frame rather than scoring
+  the rest. The pilot evaluator instead scored only the pixels that passed
+  that test; pilot mode keeps its test, which is why `invalid_depth` is
+  among the counts below (always 0 in normal mode).
 - **Crop.** The pipeline cuts each clip to the rectangle around the
   endoscope's circle. The GT mask is cut with the same rectangle before it is
   resized, so that GT and prediction cover the same pixels. The rectangle is an
@@ -289,6 +293,7 @@ the evaluator before it is frozen.
 | name | value | why |
 |---|---|---|
 | `BOUNDARY_TOL_PX` | 2 | the pilot evaluator's value for its main boundary keys; what it allows is given with the boundary definition above |
+| `DEPTH_MIN` | 10⁻⁶ | the pilot evaluator's test of a depth value, finite and above this; in normal mode a pixel that fails it refuses the frame, in pilot mode it is masked out |
 | `MATCH_IOU` | 0.5, as IoU ≥ 0.5 after greedy pairing | the pilot evaluator's rule. PQ's convention, IoU > 0.5, makes a pairing unique; at exactly 0.5 the greedy order given with the objects decides |
 
 There is no minimum object size. The pilot evaluator dropped connected
@@ -371,6 +376,8 @@ pilot evaluator's numbers.
     boundary;
   - per-class 8-connected components of at least `PILOT_MIN_CC_PX` as GT
     objects, and regions of at least that size as predicted objects;
+  - the pixels whose depth is not finite or not above `DEPTH_MIN` masked
+    out and counted, where normal mode refuses the frame;
   - frames in file order for `time_IoU`;
   - the pilot evaluator's zeros in place of undefined values: a frame with no
     class enters the `mIoU` mean as 0; a clip with no GT object in the `full`
