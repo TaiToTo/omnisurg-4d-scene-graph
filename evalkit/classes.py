@@ -494,21 +494,26 @@ def load_table(dataset: str, class_set: str | None = None, path: Path | None = N
     )
 
 
-def table_paths() -> list[Path]:
+def table_paths(table_dir: Path | None = None) -> list[Path]:
     """The table files to hash into `eval_code_sha`: one per dataset in
     `_MASK_ENCODINGS`, and the directory may hold nothing else.
+
+    Args:
+        table_dir: The directory to check; None is the package's own. A copy
+            of the package elsewhere is checked the same way.
 
     Raises:
         FileNotFoundError: A dataset's table is missing.
         ValueError: The directory holds a file this module would not read.
     """
+    table_dir = TABLE_DIR if table_dir is None else Path(table_dir)
     # The hashed set is fixed by the code, not by what the directory holds, so
     # a stray file cannot change the sha. It is refused all the same, because
     # the one way a file gets here without being on the list is a table added
     # without registering its dataset above, and that table would be neither
     # hashed nor readable while looking like it was.
-    expected = {TABLE_DIR / f"{dataset}.json" for dataset in _MASK_ENCODINGS}
-    present = {p for p in TABLE_DIR.iterdir() if p.name != "__pycache__"}
+    expected = {table_dir / f"{dataset}.json" for dataset in _MASK_ENCODINGS}
+    present = {p for p in table_dir.iterdir() if p.name != "__pycache__"}
     missing = expected - present
     if missing:
         raise FileNotFoundError(f"class table missing: {sorted(str(p) for p in missing)}")
