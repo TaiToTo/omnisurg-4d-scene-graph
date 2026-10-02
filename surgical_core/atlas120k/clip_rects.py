@@ -22,6 +22,8 @@ rounded to integers, clamped into the frame and refused if that leaves them
 degenerate.
 
 The committed judgement is `atlas120k_meta/crop_rects.json`.
+
+`docs/figures/atlas120k_clip_rects.png` shows this on a drawn frame.
 """
 
 import json
