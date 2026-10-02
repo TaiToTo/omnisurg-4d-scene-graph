@@ -99,12 +99,14 @@ def compare(a: dict, b: dict, allow_subset: bool = False, allow_legacy_code: boo
 
     Returns:
         `n_clips`, `population`, `eval_code`, `clips`, `wins` (clips on
-        which the primary metric rose), `metrics` (key to `base`, `cond`,
-        `delta`, `n_clips`, over the clips both define; a key neither JSON
-        holds is left out), and `versions_differ` when the check reports it.
+        which the primary metric rose, among those where both define it),
+        `metrics` (key to `base`, `cond`, `delta`, `n_clips`, over the
+        clips both define; a key neither JSON holds is left out), and
+        `versions_differ` when the check reports it.
 
     Raises:
-        ValueError: The two are not comparable.
+        ValueError: The two are not comparable, or the primary metric is
+            defined on no common clip.
     """
     chk = check_comparable(a, b, allow_subset=allow_subset, allow_legacy_code=allow_legacy_code)
     clips = chk["clips"]
@@ -120,7 +122,15 @@ def compare(a: dict, b: dict, allow_subset: bool = False, allow_legacy_code: boo
             continue
         va, vb = clip_mean(ia, ks, k), clip_mean(ib, ks, k)
         deltas[k] = dict(base=round(va, 4), cond=round(vb, 4), delta=round(vb - va, 4), n_clips=len(ks))
-    wins = sum(1 for c in clips if ib[c][key] - ia[c][key] > 0)
+    # The primary metric is aligned like the others: `F1_50` is None on a
+    # clip with no GT object in the view, and a None cannot be a win or a
+    # loss. Its count is in `metrics[key]["n_clips"]`; with no clip left
+    # there is no per-clip comparison, which is said rather than written
+    # as zero wins.
+    primary = defined_clips(ia, ib, clips, key)
+    if not primary:
+        raise ValueError(f"{key} is defined on no common clip, so there is no per-clip comparison to make")
+    wins = sum(1 for c in primary if ib[c][key] - ia[c][key] > 0)
     out = dict(n_clips=len(clips), population=chk["population"], eval_code=chk["eval_code"],
                clips=clips, wins=wins, metrics=deltas)
     if "versions_differ" in chk:
@@ -212,10 +222,14 @@ def main() -> None:
         print(f"{k:24s} {r['base']:10.4f} {r['cond']:10.4f} {d:+9.4f}{mark}{note}")
 
     # Per clip: every clip a little, or one clip a lot, mean different things.
+    # Only the clips on which both conditions define the primary metric are
+    # listed; `compare` has already refused the case where none is.
+    primary = defined_clips(ia, ib, clips, key)
     print(f"\n{'clip':46s} {key + ' base':>18s} {'cond':>8s} {'Δ':>8s}")
-    for c in sorted(clips, key=lambda c: ib[c][key] - ia[c][key]):
+    for c in sorted(primary, key=lambda c: ib[c][key] - ia[c][key]):
         print(f"{c:46s} {ia[c][key]:18.3f} {ib[c][key]:8.3f} {ib[c][key] - ia[c][key]:+8.3f}")
-    print(f"\nclips on which {key} rose: {res['wins']}/{len(clips)}")
+    left_out = "" if len(primary) == len(clips) else f"   [{key} undefined on {len(clips) - len(primary)} clips]"
+    print(f"\nclips on which {key} rose: {res['wins']}/{len(primary)}{left_out}")
 
     summary = dict(base=args.base, cond=args.cond, **res)
     if args.out_json:
@@ -228,7 +242,7 @@ def main() -> None:
         fig_dir = os.path.join(os.path.dirname(os.path.abspath(args.dir)), "figs")
         os.makedirs(fig_dir, exist_ok=True)
         p = os.path.join(fig_dir, f"delta__{args.base}_vs_{args.cond}.png")
-        plot(clips, ia, ib, (args.base, args.cond), key, p)
+        plot(primary, ia, ib, (args.base, args.cond), key, p)
         print(f"→ {p}")
 
 

@@ -120,6 +120,36 @@ def test_the_evaluator_s_keys_and_primary_metric_come_from_the_json():
     assert dict(CE.metrics_of(a))["SQ/geometric"] == +1 and dict(CE.metrics_of(a))["time_IoU"] == 0
 
 
+def test_a_clip_where_the_primary_metric_is_undefined_is_neither_a_win_nor_a_crash():
+    # `F1_50` is None on a clip with no GT object in the geometric view. The
+    # pilot evaluator wrote 0 there, so the workbench version never met a
+    # None and subtracted the values directly.
+    a, b = evaluator_scores(seed=1), evaluator_scores(seed=1, shift=0.1)
+    b["per_clip"][0]["F1_50/geometric"] = None
+    res = CE.compare(a, b)
+    assert res["wins"] == 4 and res["n_clips"] == 5
+    assert res["metrics"]["F1_50/geometric"]["n_clips"] == 4
+
+
+def test_a_primary_metric_defined_on_no_common_clip_is_refused():
+    a, b = evaluator_scores(seed=1), evaluator_scores(seed=1, shift=0.1)
+    for r in b["per_clip"]:
+        r["F1_50/geometric"] = None
+    with pytest.raises(ValueError, match="defined on no common clip"):
+        CE.compare(a, b)
+
+
+def test_the_command_lists_only_the_clips_where_the_primary_metric_is_defined(tmp_path):
+    a, b = evaluator_scores(seed=1), evaluator_scores(seed=1, shift=0.1)
+    b["per_clip"][0]["F1_50/geometric"] = None
+    (tmp_path / "base.json").write_text(json.dumps(a))
+    (tmp_path / "cond.json").write_text(json.dumps(b))
+    r = subprocess.run([sys.executable, "-m", "evalkit.tools.compare_eval", "--base", "base", "--cond", "cond",
+                        "--dir", str(tmp_path)], capture_output=True, text=True, cwd=REPO, check=True)
+    assert "rose: 4/4   [F1_50/geometric undefined on 1 clips]" in r.stdout
+    assert a["per_clip"][0]["clip"] not in r.stdout.split("clip ")[-1]
+
+
 def test_an_evaluator_json_without_the_geometric_view_has_no_primary_metric():
     with pytest.raises(ValueError, match="no geometric view"):
         CE.primary_key(evaluator_scores(views=("all",)))
