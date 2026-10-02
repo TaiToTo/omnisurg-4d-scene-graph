@@ -592,17 +592,6 @@ Every class was looked at in the masks, as for ATLAS-120k:
 | 12 | Liver Ligament | (111, 74, 0) | tissue |
 | 13 | Region line | (255, 255, 255) | ignored: the line drawn between regions. Not a class of the dataset; the table gives it an id so that a GT id map can hold it, and nothing scores it |
 
-<!-- TODO(spec): the white line is 1 px wide and, in the masks, 87 % of its
-pixels are the image's outer 1 px (gone with the crop); the rest sits mostly
-in video43 and video52. Left `ignored`, an edge against it is no boundary,
-so those videos lose much of their GT boundary, and unevenly: after the
-nearest-neighbour resize the line survives only in places. Decide whether
-the loader fills the line from its neighbours, at full resolution, by a
-deterministic rule with the filled count recorded, or whether it stays
-ignored with the loss documented. Either way the pilot evaluator read it
-as background and counted an edge against it as a boundary, which is a
-normal-mode difference to list. -->
-
 Cystic Duct is `expert`, as ATLAS-120k's Cystic duct is: the class ends where
 the anatomical stretch ends. Only ATLAS-120k's benchmark, which merges the
 ducts into Bile/lymph duct, types them `tissue`. Hepatic Vein is `expert` because telling it from other
