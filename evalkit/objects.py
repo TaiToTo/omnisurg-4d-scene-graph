@@ -27,6 +27,9 @@ on a frame with no hit; the caller leaves those frames out of the mean and
 counts them. Pilot mode's GT objects are per-class connected components of at
 least `PILOT_MIN_CC_PX` and come from its own module; the pairing and the two
 formulas here are shared.
+
+`docs/figures/objects.png` shows this on a drawn scene, with the numbers the module
+gives for it.
 """
 from __future__ import annotations
 
