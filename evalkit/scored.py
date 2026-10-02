@@ -31,9 +31,8 @@ because one model said nothing there. So `valid_depth` refuses the frame,
 and `scored_pixels` refuses a `valid` mask with a False in it, so that a
 caller that built its own mask cannot score around the fault either.
 
-The per-frame driver that skips and counts an excluded frame is not
-written yet, so `frame_is_excluded` has no caller but the tests. It stays
-public for that driver.
+`evalkit.frame.score_frame` is the driver that asks `frame_is_excluded` and
+then scores every view through `scored_pixels`.
 
 `docs/figures/scored_pixels.png` shows this on a drawn scene, with the numbers the module
 gives for it in pilot mode: the scene has a patch without depth, which normal mode refuses.
@@ -86,12 +85,16 @@ class Scored:
         mask: An (H, W) bool array, True on the pixels the metrics score.
         classes: The (H, W) int32 GT class map, in the table's class set, on
             every pixel scored or not; the metrics read it under `mask`.
+        background: An (H, W) bool array, True on the valid pixels whose GT
+            is `background`: disjoint from `mask`, and what
+            `unlabelled_share` reads to see the spill the metrics cannot.
         counts: Where every pixel of the frame went.
         view: The view's name.
     """
 
     mask: np.ndarray
     classes: np.ndarray
+    background: np.ndarray
     counts: PixelCounts
     view: str
 
@@ -213,4 +216,4 @@ def scored_pixels(
         left_out=int(left_out.sum()),
         scored=int(in_view.sum()),
     )
-    return Scored(mask=in_view, classes=classes, counts=counts, view=view)
+    return Scored(mask=in_view, classes=classes, background=background, counts=counts, view=view)
