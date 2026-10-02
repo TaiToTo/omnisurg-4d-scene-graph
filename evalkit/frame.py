@@ -1,29 +1,22 @@
-"""One frame scored in every view: the per-frame metrics, from the modules that define them.
+"""One frame scored in every view, through the modules that define each metric.
 
 This is the normal-mode driver of `docs/evaluation.md`, "How a frame is
-scored". It computes nothing itself: it decides whether the frame is scored
-at all, takes the scored pixels of each view once, and hands the same GT,
-region map and scored mask to every metric module, so that each key is the
-value its module defines and no module is called on other pixels than the
-others.
+scored". It computes no metric itself: it decides whether the frame is
+scored at all, takes the scored pixels of each view once, and hands the
+same GT, region map and mask to every metric module, so that each key is
+the value its module defines, on the same pixels as the others.
 
-The order is the specification's. The excluded marker is checked on the mask
-ids, before any pixel is scored, and an excluded frame is returned with no
-view and a flag, for the clip driver to count. The depth is checked next,
-and in normal mode a pixel without valid depth refuses the frame. Then, per
-view: the scored pixels, the objects and their pairing (`F1_50`, `SQ`,
-`inst_BF`), the class map (`mIoU`, `boundary_F`), the regions' own boundary
-(`boundary_R_raw`), the variation of information, and `unlabelled_share`.
-`time_IoU` is one value per clip and is not here.
+The order is the specification's: the excluded marker on the mask ids (an
+excluded frame is returned with no view, for the clip driver to count),
+then the depth, which in normal mode refuses a pixel without a valid value,
+then per view the objects, the class map, the boundaries, the variation of
+information and `unlabelled_share`. `time_IoU` is per clip and not here.
 
-A key is None on a frame its metric is not defined on, as its module says;
-nothing writes a 0 in its place. The counts behind every key are kept, so
-that the clip driver can record how many frames each mean covers.
+A key is None on a frame its metric is not defined on; nothing writes a 0
+in its place. The counts behind every key are kept for the clip driver.
 
-Pilot mode has a driver of its own: it scores the pilot evaluator's four
-domains with per-class connected components as objects, names regions over
-background too, and writes zeros where this driver leaves None. The metric
-modules are shared; this composition is not.
+Pilot mode has a driver of its own (four domains, connected components as
+objects, zeros for None); it shares the metric modules, not this composition.
 """
 from __future__ import annotations
 
