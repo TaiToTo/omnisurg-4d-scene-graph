@@ -114,6 +114,36 @@ def test_a_clip_covered_with_different_label_counts_is_reported(tree):
     assert any("covered differently" in p for p in problems(tr, ev))
 
 
+def test_a_clip_with_provenance_and_no_label_under_one_condition_is_reported(tree):
+    # A run that died on one clip: the provenance was written, no label
+    # followed, and the other condition covers the clip in full. The tag as
+    # a whole has labels, so the "provenance but no label" check is silent.
+    tr, ev = tree
+    for p in (tr / "c2" / "track_rgb_a_rgb").glob("label_*.npy"):
+        p.unlink()
+    assert any("covered differently" in p and "c2: 0..9 labels" in p for p in problems(tr, ev))
+
+
+def test_a_condition_with_no_label_at_all_is_reported_once_not_per_clip(tree):
+    tr, ev = tree
+    plant(tr, {"track_rgb_a_stub": [(c, provenance("depth", 4), 0) for c in CLIPS]})
+    probs = problems(tr, ev)
+    assert any("no label" in p for p in probs)
+    assert not any("covered differently" in p for p in probs)
+
+
+def test_the_population_is_counted_from_the_clips_not_read_from_a_summary_field(tree):
+    # The evaluator's JSONs are not required to record `n_clips`; two
+    # absent counts compared equal, and two populations passed as one ruler.
+    tr, ev = tree
+    for t, clips in (("a_rgb", CLIPS), ("a_normal", CLIPS[:2])):
+        s = evaluator_score(f"track_rgb_{t}")
+        del s["n_clips"]
+        s["clips"], s["per_clip"], s["input_shas"] = clips, [dict(clip=c) for c in clips], {c: {} for c in clips}
+        write_score(ev, t, s)
+    assert any("2 rulers" in p for p in problems(tr, ev))
+
+
 def test_two_shas_in_one_score_directory_are_a_split_ruler(tree):
     tr, ev = tree
     write_score(ev, "a_normal", pilot_score("track_rgb_a_normal", sha="b" * 64))

@@ -44,7 +44,7 @@ import os
 import sys
 from collections.abc import Sequence
 
-from evalkit.tools.scores import load_scores, ruler
+from evalkit.tools.scores import clips_of, load_scores, ruler
 
 # The provenance file the pipeline writes beside a clip's labels.
 PROV_NAME = "seed_info.json"
@@ -158,8 +158,8 @@ def read_evals(eval_root: str) -> dict:
     Returns:
         `{tag: {"dir": track_dir_name, "sha": sha[:8], "tag": eval_code_tag,
         "ver": eval_version, "ds": dataset, "pilot": ..., "class_set": ...,
-        "views": ..., "n_clips": ..., "miss": ..., "fail": ..., "ignore":
-        tissue_ignore}}`; empty when `eval_root` is empty.
+        "views": ..., "n_clips": the clips scored, "miss": ..., "fail": ...,
+        "ignore": tissue_ignore}}`; empty when `eval_root` is empty.
 
     Raises:
         ValueError: A JSON there is not a score JSON, or records some of
@@ -181,7 +181,10 @@ def read_evals(eval_root: str) -> dict:
             dir=d.get("track_dir_name"),
             sha=str(r.eval_code_sha)[:8], tag=d.get("eval_code_tag"), ver=d.get("eval_version"),
             ds=r.dataset, pilot=r.pilot, class_set=r.class_set, views=r.views,
-            n_clips=d.get("n_clips"), miss=d.get("n_missing"), fail=d.get("n_failed"),
+            # The population is the clips the JSON scored, counted, not a
+            # count the summary may record: the evaluator's JSONs are not
+            # required to carry one, and two absent counts would read as equal.
+            n_clips=len(clips_of(d)), miss=d.get("n_missing"), fail=d.get("n_failed"),
             ignore=tuple(d.get("tissue_ignore") or ()))
     return out
 
@@ -346,6 +349,10 @@ def inventory(roots: Sequence[tuple[str, str, str]], require_scored: bool = Fals
         problems += probs
         for t, per_clip in labels.items():
             seen_tags.add(t)
+            # A tag with no label at all is already reported by `report`;
+            # counting its zeros here would report every clip of it again.
+            if not any(per_clip.values()):
+                continue
             for clip, n in per_clip.items():
                 cover[clip][f"{title}/{t}"] = n
         for k, e in read_evals(ev).items():
@@ -364,10 +371,13 @@ def inventory(roots: Sequence[tuple[str, str, str]], require_scored: bool = Fals
             problems.append(f"{len(unscored)} conditions are not scored: {unscored}")
 
     # One clip, the same number of labels under every condition. A clip's
-    # length varies between clips; across conditions it must not.
+    # length varies between clips; across conditions it must not. A zero
+    # counts: provenance with no label under one condition, where the others
+    # have labels, is a run that died on that clip, and nothing else
+    # reports it.
     ragged = []
     for clip, per_tag in sorted(cover.items()):
-        ns = {n for n in per_tag.values() if n}
+        ns = set(per_tag.values())
         if len(ns) > 1:
             worst = sorted(per_tag.items(), key=lambda x: x[1])
             ragged.append(f"{clip}: {min(ns)}..{max(ns)} labels (fewest {worst[0][0]} / most {worst[-1][0]})")
