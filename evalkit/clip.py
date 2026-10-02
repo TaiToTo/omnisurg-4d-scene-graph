@@ -1,22 +1,15 @@
-"""From frames to one clip: the means `paired_stats` resamples, with what each covers.
+"""From frames to one clip: each key's mean, with the frames it covers.
 
-Every metric but `time_IoU` is scored per frame by `evalkit.frame` and
-averaged here over the clip's GT frames, view by view. `time_IoU` is pooled
-over every tracked frame of the clip, with or without GT, by
-`evalkit.time_iou`; the entry point computes it and passes it in, and it is
-one value for the clip, the same under every view.
+The per-frame keys of `evalkit.frame` are averaged over the clip's GT frames,
+view by view, each over the frames it is defined on, and that count is kept
+next to the mean: two conditions can cover different frames, and comparing
+them without the counts once flipped the sign of a pilot result. `time_IoU`
+pools every tracked frame, GT or not, so the entry point computes it and
+passes it in; it is one value for the clip under every view.
 
-A metric not defined on a frame does not enter its mean, and the number of
-frames each mean covers is kept next to it: two conditions can cover
-different frames, and comparing them without the counts once flipped the
-sign of a pilot result. The per-frame values are kept for the JSON.
-
-Nothing is dropped without a count. The frames the excluded marker skipped
-are counted here, from the flag `score_frame` set on them, and where every
-pixel of every scored frame went is summed. A clip with no scored frame is
-refused rather than summarised as zeros.
-
-PQ is not stored. `pq` gives it per frame when a table wants it.
+Nothing is dropped without a count: the excluded frames are counted out of
+the given ones, and the pixel and object counts are summed. A clip with no
+scored frame is refused. PQ is not stored; `pq` gives it per frame.
 """
 from __future__ import annotations
 

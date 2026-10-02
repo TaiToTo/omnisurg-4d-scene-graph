@@ -25,7 +25,7 @@ flowchart TB
     F["frame.score_frame<br/>FrameScores: every view's ViewScores"]
     frame --> F
     T["time_iou<br/>time_IoU, pooled over every tracked frame"]
-    K["per clip: each key's mean per view,<br/>over the frames it is defined on, with that count"]
+    K["clip.summarize_clip<br/>ClipScores: each key's mean per view,<br/>with the frames it covers"]
     F --> K
     T --> K
     J["one score JSON per condition<br/>eval_code_sha, inputs' shas, versions"]
@@ -46,11 +46,11 @@ the clip mean leaves the frame out and records how many it covers.
 | Pixels | frame × view | `scored` | `Scored`: the scored mask, the GT classes, `PixelCounts` |
 | Metric | frame × view | `objects`, `inst_bf`, `classmap`, `boundary`, `vi`, `unlabelled` | one dataclass each, the value with the counts behind it |
 | Frame | frame | `frame` | `FrameScores`: `ViewScores` per view, or `excluded` |
-| Clip | clip (× view) | `time_iou`; the clip driver | `time_IoU` once; each key's mean per view, with the frames it covers |
+| Clip | clip (× view) | `clip`, `time_iou` | `ClipScores`: `ViewSummary` per view, `time_iou` once |
 | Condition | condition | the entry point | a score JSON, read by the tools |
 | Claim | pair of conditions | `paired_stats` | the star, by the one rule in `AGENTS.md` |
 
-The clip driver, the entry point that reads a dataset and writes the JSON,
-and the tools that read it, are the next steps of [`docs/porting.md`](../docs/porting.md).
+The entry point that reads a dataset and writes the JSON, and the tools that
+read it, are the next steps of [`docs/porting.md`](../docs/porting.md).
 Pilot mode, which reproduces the pilot evaluator's numbers, shares the metric
 modules and has a frame driver of its own.
