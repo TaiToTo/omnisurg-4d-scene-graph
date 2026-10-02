@@ -29,7 +29,7 @@ robot-assisted videos of 14 procedures, 42 classes) and CholecSeg8k
   which the paper's 42 classes and background occur. ATLAS-120k's benchmark
   merges them into 30 classes; those are scored too, for comparison with the
   benchmark, as reference values only.
-- **Nine metrics.** The two *primary* metrics, on which the paper's claims are
+- **Ten metrics.** The two *primary* metrics, on which the paper's claims are
   judged, are `F1_50` (objects found, with every extra region counted against
   it) and `SQ` (how well the found ones fit), in the geometric view.
 - **Regions are named from the GT.** Each region takes the class most of its
@@ -230,6 +230,9 @@ What the scores cannot see is counted instead, as `unlabelled_share` below.
 - `VI_split` = H(regions | GT) and `VI_merge` = H(GT | regions), the two halves
   of the variation of information, in bits, over the scored pixels. The
   pixels with no region count together as one region.
+- `time_IoU` is a region id's IoU with itself in the next frame. Unlike the
+  other metrics it is one number per clip: the IoUs of every (id, frame pair)
+  are pooled over all tracked frames, with or without GT, and averaged.
 - `unlabelled_share` is, over the regions that have a scored pixel, the share
   of their pixels lying on background among their pixels on scored or
   background pixels: the spill the other keys cannot see. A region on
@@ -238,9 +241,6 @@ What the scores cannot see is counted instead, as `unlabelled_share` below.
   where the GT is unlabelled, and gets no star. It is reported beside a
   comparison whose two conditions differ in it by much, as the pilot
   measurements did for the share of pixels left without a region.
-- `time_IoU` is a region id's IoU with itself in the next frame. Unlike the
-  other metrics it is one number per clip: the IoUs of every (id, frame pair)
-  are pooled over all tracked frames, with or without GT, and averaged.
 
 ### From frames to clips
 
