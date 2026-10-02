@@ -116,13 +116,13 @@ layout, and the conventions below.
   explained wrongly, because a comment is read only by whoever opens that
   file, and a raise is read by whoever runs it.
 - Google-style docstrings; imports at module top; comments say *why*.
-- **A function of several steps names each step.** A driver like
-  `score_view` is read to find where one key comes from, not top to bottom.
-  Give each block a line saying what it produces and from what (`# Objects:
-  the GT's and the regions', paired, give F1_50 and SQ`), so the reader lands
-  on the right lines without reading the rest. Keep it to one line per block
-  and say what the block *is*; the reason for a choice inside it is a comment
-  of its own, as below. A function short enough to read whole needs none.
+- **A function of several steps names each step.** A function that
+  composes other modules is read to find where one result comes from, not
+  top to bottom. Give each block one line saying what it produces and from
+  what, so the reader lands on the right lines without reading the rest.
+  Say what the block *is*, not why it is so: the reason for a choice inside
+  it is a comment of its own, as below. A function short enough to read
+  whole needs none.
 - **A comment gives the reason, not a reference.** Never cite a section number,
   a ticket, an audit letter or a task id (`see §2.3`, `audit B7`, `task22`):
   they point at documents this repository does not have and will not keep, so
