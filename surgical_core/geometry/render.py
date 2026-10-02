@@ -281,6 +281,7 @@ def sam_input_image(mode, depth, K, gray01, rgb, edge_gain=0.85, smooth=True):
             (RGB relit from the geometry), `"rgb_refl"` and `"rgb_shading"`
             (the Retinex reflectance and shading), `"refl_shade"`
             (reflectance relit from the geometry), or a name in `_COMBOS`.
+            Anything else raises: there is no default mode.
         depth: (H, W) depth.
         K: (3, 3) intrinsics.
         gray01: (H, W) depth normalised by `global_depth01`, for the depth modes.
@@ -290,6 +291,9 @@ def sam_input_image(mode, depth, K, gray01, rgb, edge_gain=0.85, smooth=True):
 
     Returns:
         (H, W, 3) uint8.
+
+    Raises:
+        ValueError: `mode` is not one of `SAM_INPUT_MODES`.
     """
     if mode in _COMBOS:
         kind, edge, shade = _COMBOS[mode]
@@ -320,9 +324,9 @@ def sam_input_image(mode, depth, K, gray01, rgb, edge_gain=0.85, smooth=True):
     if mode == "edge_only":
         base = np.full((*depth.shape, 3), 200, np.uint8)
         return burn_geom_edge(base, depth, K, edge_gain=edge_gain)
-    # TODO: an unknown mode lands here and comes back as colormapped depth,
-    # so a misspelt mode in a config would run the depth condition under
-    # another name. Callers are guarded by `SAM_INPUT_MODES` as argparse
-    # choices; this function should refuse too (`"depth"` matched by name,
-    # anything else a ValueError). A behaviour change, so not in the port.
-    return depth_to_colormapped(gray01)             # "depth", the default
+    if mode == "depth":
+        return depth_to_colormapped(gray01)
+    # Matched by name like every other mode, never as a default: a misspelt
+    # mode in a config would otherwise run the depth condition under another
+    # name, and nothing downstream could tell.
+    raise ValueError(f"unknown input mode {mode!r}; one of {SAM_INPUT_MODES}")
