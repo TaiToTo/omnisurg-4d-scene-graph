@@ -21,6 +21,9 @@ frames exactly as the pilot evaluator did, by `sorted()` of the
 the frame numbers' order unless the numbers are zero-padded. Also, this
 metric reads no GT and no view, so the driver computes it once per clip and
 writes the same value under every view.
+
+`docs/figures/time_iou.png` shows this on a drawn scene, with the numbers the module
+gives for it.
 """
 from __future__ import annotations
 
