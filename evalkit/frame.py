@@ -141,18 +141,26 @@ def score_view(
             the excluded marker; or `valid` has a False in it.
         KeyError: A mask id the table does not have, or an unknown view.
     """
+    # Which pixels this view scores, and the GT class on each. Every metric
+    # below reads the same `gt` under the same `mask`.
     mask_ids, regions = _check_maps(mask_ids, regions)
     scored = scored_pixels(mask_ids, table, view, valid)
     gt, mask = scored.classes, scored.mask
 
+    # Objects: the GT's and the regions', paired at IoU >= MATCH_IOU, give
+    # F1_50 and SQ; the contours of the pairs give inst_BF.
     gt_objs = gt_objects(gt, mask)
     pred_objs = predicted_objects(regions, mask)
     inst = instance_scores(gt_objs, pred_objs)
     contours = instance_boundary_f(gt_objs, pred_objs, inst)
 
+    # Classes: each region named after the GT class it covers most, then
+    # the IoU of every class and mIoU over them.
     cmap = class_map(gt, regions, mask)
     classes = class_scores(gt, cmap, mask)
 
+    # Boundaries, both against the GT's: the named regions' (boundary_F)
+    # and the regions' as drawn (boundary_R_raw).
     gt_boundary = boundary_pixels(gt, mask)
     # The class map as it is: a pixel with no region carries `NO_CLASS`,
     # which is a label like any other, so the edge between a named region
@@ -160,6 +168,8 @@ def score_view(
     boundary_f = boundary_score(boundary_pixels(cmap.classes, mask), gt_boundary)
     boundary_raw = boundary_score(boundary_pixels(regions, mask), gt_boundary)
 
+    # Agreement of the partitions (VI), and how much of the regions fell on
+    # background the view does not score.
     vi = variation_of_information(gt, regions, mask)
     share = unlabelled_share(regions, mask, scored.background)
 
