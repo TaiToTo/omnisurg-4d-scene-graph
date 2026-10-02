@@ -127,3 +127,30 @@ def test_objects_over_different_masks_or_a_pairing_of_other_objects_are_refused(
     pairing3 = instance_scores(gt_objects(gt3, ALL), pred)
     with pytest.raises(ValueError, match="computed from other objects"):
         instance_boundary_f(gt, pred, pairing3)
+
+
+def test_pilot_mode_marks_an_objects_edge_against_removed_pixels():
+    # The pilot evaluator marked an object's boundary on the whole map and
+    # masked it afterwards, so the edge against a removed pixel is a boundary
+    # on the object's side. One class filling the scored rows, exactly
+    # predicted: under the evaluator's rule the GT object has no contour and
+    # the hit is left out; under the pilot's its top edge (row 10, 100 px)
+    # is the contour, recovered exactly.
+    scored = ALL.copy()
+    scored[:10] = False
+    gt = np.ones((S.H, S.W), dtype=np.int32)
+    scene = S.Scene("one", "", gt, np.zeros((S.H, S.W), dtype=np.int32))
+    assert score(scene, scored) == InstanceBoundary(inst_bf=None, scores=(None,), n_hits=1, n_entered=0)
+    assert score(scene, scored, pilot=True) == InstanceBoundary(
+        inst_bf=1.0, scores=(BoundaryScore(1.0, 1.0, 1.0),), n_hits=1, n_entered=1,
+    )
+    # With the edge 3 px off, the top edge enters both contours. GT object 1
+    # (columns 0-49, rows 10-59): columns 49 and 50 and its top edge, 149 px.
+    # Its region (columns 0-52): columns 52 and 53 and its top edge, 152 px.
+    # Within 2 px of the other: column 52 and the top edge of the region
+    # (102 px), and columns 49-50 in rows 10-12 and the top edge of the
+    # GT object (102 px). The evaluator's rule sees the vertical edge alone.
+    first = score(S.shifted(3), scored, pilot=True).scores[0]
+    p, r = 102 / 152, 102 / 149
+    assert (first.precision, first.recall, first.f) == (pytest.approx(p), pytest.approx(r), pytest.approx(2 * p * r / (p + r)))
+    assert score(S.shifted(3), scored).inst_bf == pytest.approx(0.5)
