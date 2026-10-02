@@ -69,8 +69,8 @@ def test_a_spilled_region_is_scored_as_each_module_defines_it(atlas):
     assert v.ious == {LIVER: pytest.approx(16 / 26), GALLBLADDER: pytest.approx(74 / 84)}
     assert v.miou == pytest.approx((16 / 26 + 74 / 84) / 2)
     # The rest against the modules on the same pixels.
-    split, merge = variation_of_information(gt, lab, ALL)
-    assert (v.vi_split, v.vi_merge) == (split, merge)
+    vi = variation_of_information(gt, lab, ALL)
+    assert (v.vi_split, v.vi_merge) == (vi.split, vi.merge)
     cmap = class_map(gt, lab, ALL)
     assert v.miou == class_scores(gt, cmap, ALL).miou
     gb = boundary_pixels(gt, ALL)
