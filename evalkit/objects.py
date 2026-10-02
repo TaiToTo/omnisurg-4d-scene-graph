@@ -11,13 +11,13 @@ whatever its class. Among pairs of equal IoU the one with the higher GT
 object index is taken first, then the higher predicted index, with GT
 objects indexed by class id and predicted objects by region id, both
 ascending. That is the pilot evaluator's order, kept so that both modes
-share one rule. The first two keys decide which objects are found: at
-exactly `MATCH_IOU` a tie between two regions over one class, or two classes
-under one region, is settled by them, and an ascending order would take
-different pairs. The third key, the predicted index, only fixes the order
-in which the pairs are listed: with the first two held, taking the higher
-predicted index first or the higher GT index first gives the same pairs
-(checked exhaustively up to 4 GT and 5 predicted objects). A pair with
+share one rule. Both index keys can decide which objects are found: at
+exactly `MATCH_IOU`, two classes under one region are settled by the GT
+key and two regions over one class by the predicted key, and an ascending
+order on either would take different pairs. Which of the two index keys is
+applied first does not matter: with both descending, the pairs taken are
+the same either way (checked exhaustively up to 4 GT and 5 predicted
+objects), and that order only decides how the pairs are listed. A pair with
 IoU >= `MATCH_IOU` is a hit.
 
 `F1_50` is 2 · hits / (GT objects + predicted objects), so every extra region
@@ -98,9 +98,9 @@ class Pair:
 
 
 def _check(labels: np.ndarray, scored: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    # TODO: the class map module checks its inputs the same way; once both are
-    # in main the two checks become one, so a label map is refused for one
-    # reason everywhere.
+    # The class map module checks its inputs the same way. The two checks
+    # become one once both are in main, so that a label map is refused for
+    # one reason everywhere.
     labels = np.asarray(labels)
     scored = np.asarray(scored)
     if labels.ndim != 2 or not np.issubdtype(labels.dtype, np.integer):
@@ -115,9 +115,9 @@ def _check(labels: np.ndarray, scored: np.ndarray) -> tuple[np.ndarray, np.ndarr
 
 def _objects(labels: np.ndarray, scored: np.ndarray, present: np.ndarray) -> Objects:
     """One object per label in `present` (sorted ascending), numbered in that order."""
-    # TODO: one pass over the frame per object. With the five to seven regions
-    # a frame had in the pilot measurements that is nothing; at a few hundred
-    # regions it is half a second per 1080p frame, where
+    # One pass over the frame per object. With the five to seven regions a
+    # frame had in the pilot measurements that is nothing; at a few hundred
+    # regions it would be half a second per 1080p frame, and
     # `np.unique(labels[member], return_inverse=True, return_counts=True)`
     # builds the same map and areas in one pass (checked equal on 1080p frames).
     index = np.zeros(labels.shape, dtype=np.int32)
@@ -197,9 +197,10 @@ def pair(gt: Objects, pred: Objects) -> list[Pair]:
 
     Only overlapping pairs are candidates. Among pairs of equal IoU the one
     with the higher GT index is taken first, then the higher predicted index:
-    the pilot evaluator sorted (iou, gt, pred) descending. The predicted
-    index decides only the order of the returned list, never which pairs are
-    in it (see the module docstring).
+    the pilot evaluator sorted (iou, gt, pred) descending. Either index key
+    can decide a tie at exactly `MATCH_IOU`; which of the two is applied
+    first changes only the order of the returned list (see the module
+    docstring).
 
     Returns:
         The pairs in the order they were taken.
