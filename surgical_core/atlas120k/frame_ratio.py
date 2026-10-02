@@ -39,6 +39,9 @@ video that was measured, ratio 1 included, so a video missing from it has an
 unknown ratio and decoding its mp4 by number may read the wrong moment.
 
 The committed measurement is `atlas120k_meta/frame_ratio.json`.
+
+`docs/figures/atlas120k_frame_ratio.png` shows this on a drawn scene, with the numbers the module
+gives for it.
 """
 
 import json
