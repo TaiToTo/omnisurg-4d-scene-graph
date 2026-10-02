@@ -29,7 +29,7 @@ robot-assisted videos of 14 procedures, 42 classes) and CholecSeg8k
   which the paper's 42 classes and background occur. ATLAS-120k's benchmark
   merges them into 30 classes; those are scored too, for comparison with the
   benchmark, as reference values only.
-- **Nine metrics.** The two *primary* metrics, on which the paper's claims are
+- **Ten metrics.** The two *primary* metrics, on which the paper's claims are
   judged, are `F1_50` (objects found, with every extra region counted against
   it) and `SQ` (how well the found ones fit), in the geometric view.
 - **Regions are named from the GT.** Each region takes the class most of its
@@ -184,6 +184,17 @@ the pilot evaluator's `labeled` domain, made for the same reason; its `full`
 domain, which counted a region over unlabelled anatomy as a false positive, is
 not carried over.
 
+So a region that spills from a labelled organ into unlabelled tissue is
+scored as if it stopped at the organ's edge: the spill costs nothing. That
+is the convention of panoptic quality, where a segment's void pixels leave
+the union and a segment lying mostly on void is no false positive. The other
+convention, the Cityscapes instance evaluation, keeps the spill in the union
+and so penalises it. It is not used here because ATLAS-120k's unlabelled
+pixels include organs painted only in part: in some clips a mesentery stops
+at a free-hand line while the same fat visibly continues, and there a region
+that follows the organ past the paint would be penalised for being right.
+What the scores cannot see is counted instead, as `unlabelled_share` below.
+
 ## Metrics
 
 | what it measures | key | same key in the pilot evaluator | pilot keys it replaces |
@@ -197,6 +208,7 @@ not carried over.
 | splitting | `VI_split` | `VI_split` | `overseg_mean` |
 | merging | `VI_merge` | `VI_merge` | `underseg_error` |
 | consistency over time, reference only | `time_IoU` | `time_IoU` | — |
+| how much of the regions lies on unlabelled tissue, reference only | `unlabelled_share` | — | — |
 
 ### What each key is, per frame
 
@@ -226,6 +238,14 @@ not carried over.
 - `time_IoU` is a region id's IoU with itself in the next frame. Unlike the
   other metrics it is one number per clip: the IoUs of every (id, frame pair)
   are pooled over all tracked frames, with or without GT, and averaged.
+- `unlabelled_share` is, over the regions that have a scored pixel, the share
+  of their pixels lying on background among their pixels on scored or
+  background pixels: the spill the other keys cannot see. A region on
+  background alone is not among them, as it is no object, and pixels the view
+  removed for another reason are in neither count. It reads no GT class, only
+  where the GT is unlabelled, and gets no star. It is reported beside a
+  comparison whose two conditions differ in it by much, as the pilot
+  measurements did for the share of pixels left without a region.
 
 ### From frames to clips
 
@@ -236,7 +256,8 @@ gets a star: the rule in `AGENTS.md`, a video-level bootstrap 95 % CI that
 does not straddle zero. The JSON keeps the per-frame values.
 
 A metric is not defined on some frames: `F1_50` on a frame with no GT object,
-`SQ` and `inst_BF` on a frame with no hit, `mIoU` on a frame with no class.
+`SQ` and `inst_BF` on a frame with no hit, `mIoU` on a frame with no class,
+`unlabelled_share` on a frame with no region on a scored pixel.
 Those frames do not enter the mean, and the number of frames each mean covers
 is recorded. Two conditions can cover different frames, and comparing them
 without the counts once flipped the sign of a pilot result.
