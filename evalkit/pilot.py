@@ -14,7 +14,11 @@ evaluator's own, shared through `evalkit.objects`.
   reads the cut. The components come from `cv2.connectedComponents`, as the
   pilot's did, numbered class by class ascending and component by component
   in that function's label order; the pairing's tie rule reads the numbers,
-  so the order is part of the rule.
+  so the order is part of the rule. That order is OpenCV's own, not raster
+  order, and it decides a tie at exactly `MATCH_IOU` between two components
+  of one class. The OpenCV version is recorded with every score; whether a
+  hashed file should depend on a library's behaviour at all is decided
+  before the freeze, as it is for the boundary dilation in `evalkit.boundary`.
 - **Domains.** In place of the views, four masks: `full`, the valid pixels;
   `labeled`, without the GT's background; `tissue`, without the dataset's
   instrument classes; `labeled_tissue`, both. The instrument ids are the
@@ -46,10 +50,11 @@ PILOT_MIN_CC_PX = 300
 PILOT_BACKGROUND = 0
 
 # The GT ids the pilot evaluator's `tissue` domains removed, per dataset,
-# under the names the pilot used.
+# under the evaluator's dataset names (the pilot called them `cholec` and
+# `atlas`).
 PILOT_INSTRUMENT_IDS: Mapping[str, frozenset[int]] = MappingProxyType({
-    "cholec": frozenset({5, 9}),   # Grasper, L-hook Electrocautery
-    "atlas": frozenset({1}),       # Tools/camera
+    "cholecseg8k": frozenset({5, 9}),   # Grasper, L-hook Electrocautery
+    "atlas120k": frozenset({1}),        # Tools/camera
 })
 
 PILOT_DOMAINS = ("full", "labeled", "tissue", "labeled_tissue")

@@ -30,7 +30,8 @@ def test_a_class_cut_in_two_is_two_objects_for_the_pilot_and_one_for_the_evaluat
     # A band of class 2 across class 1: class 1 falls into two components
     # (1,200 px each) and class 2 into two as well (the band, 600 px, and
     # its half). Objects are numbered class by class, then in the order
-    # `cv2.connectedComponents` labels them, which is raster order here.
+    # `cv2.connectedComponents` labels them. That order is OpenCV's own, not
+    # raster order in general; on this scene it puts the left piece first.
     gt = S._two_classes()
     gt[:, 20:30] = 2
     g = pilot_gt_objects(gt, ALL)
@@ -92,7 +93,7 @@ def test_the_four_domains():
     gt[:, 40:60] = 5
     valid = ALL.copy()
     valid[50:] = False
-    d = pilot_domains(gt, valid, PILOT_INSTRUMENT_IDS["cholec"])
+    d = pilot_domains(gt, valid, PILOT_INSTRUMENT_IDS["cholecseg8k"])
     assert list(d) == list(PILOT_DOMAINS) == ["full", "labeled", "tissue", "labeled_tissue"]
     assert (d["full"] == valid).all()
     # Background: ten rows less the grasper's twenty columns, 800 px.
@@ -105,13 +106,13 @@ def test_the_four_domains():
 def test_the_tissue_domains_need_the_instrument_ids():
     with pytest.raises(ValueError, match="instrument ids"):
         pilot_domains(S.exact().gt, ALL, frozenset())
-    assert PILOT_INSTRUMENT_IDS == {"cholec": {5, 9}, "atlas": {1}}
+    assert PILOT_INSTRUMENT_IDS == {"cholecseg8k": {5, 9}, "atlas120k": {1}}
 
 
 def test_a_region_on_background_is_an_object_in_full_and_none_in_labeled():
     # The pilot's `labeled` domain is why the evaluator removes background.
     scene = S.on_background(10)
-    d = pilot_domains(scene.gt, ALL, PILOT_INSTRUMENT_IDS["atlas"])
+    d = pilot_domains(scene.gt, ALL, PILOT_INSTRUMENT_IDS["atlas120k"])
     full = instance_scores(pilot_gt_objects(scene.gt, d["full"]), pilot_predicted_objects(scene.lab, d["full"]))
     assert (full.n_gt, full.n_pred, full.f1_50) == (2, 3, pytest.approx(0.8))
     labeled = instance_scores(
