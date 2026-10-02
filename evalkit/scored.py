@@ -36,7 +36,7 @@ written yet, so `frame_is_excluded` has no caller but the tests. It stays
 public for that driver.
 
 `docs/figures/scored_pixels.png` shows this on a drawn scene, with the numbers the module
-gives for it.
+gives for it in pilot mode: the scene has a patch without depth, which normal mode refuses.
 """
 from __future__ import annotations
 
