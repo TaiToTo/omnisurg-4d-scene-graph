@@ -9,9 +9,10 @@ summary).
 This document specifies how the paper's segmentation results are scored. The
 pipeline splits every video frame into regions and tracks them over time,
 without naming what they are. The evaluator compares those regions with the
-ground-truth (GT) masks of two datasets: ATLAS-120k (laparoscopic videos of
-many procedures, 47 classes) and CholecSeg8k (laparoscopic cholecystectomy,
-13 classes).
+ground-truth (GT) masks of two datasets: ATLAS-120k (laparoscopic and
+robot-assisted videos of 14 procedures, 42 classes) and CholecSeg8k
+(laparoscopic cholecystectomy, 13 classes). Each count is its paper's: the
+42 leave out ATLAS-120k's background, and the 13 include CholecSeg8k's.
 
 - **One object per class in the GT, one per region in the prediction.** The
   datasets label classes, not individual things, so all pixels of one class in
@@ -23,11 +24,19 @@ many procedures, 47 classes) and CholecSeg8k (laparoscopic cholecystectomy,
   or the abdominal wall. Every metric is computed over three sets of classes,
   called *views*: all classes; tissue only, without tools; and *geometric*,
   only the tissue that depth and shape can separate.
-- **ATLAS-120k is scored with its own 30 classes**, the ones its benchmark
-  uses. Its 47 original classes are scored too, as reference values only.
-- **Nine metrics.** The two *primary* metrics, on which the paper's claims are
-  judged, are `F1_50` (objects found, with every extra region counted against
-  it) and `SQ` (how well the found ones fit), in the geometric view.
+- **Claims are judged on each dataset's own labels**, the classes its masks
+  hold, each with a type of its own. For ATLAS-120k these are 47 ids, of
+  which the paper's 42 classes and background occur. ATLAS-120k's benchmark
+  merges them into 30 classes; those are scored too, for comparison with the
+  benchmark, as reference values only.
+- **Ten metrics, three questions.** The paper asks three questions of the
+  regions, and each is judged on its own *primary* metric: how far a region
+  picked out in one frame can be followed (not decided yet, the last point
+  below); what input puts the regions' boundaries where the GT's class
+  boundaries are, judged on `boundary_R_raw` in each view; and how much of
+  the labelled structure the regions hold, judged on `F1_50` (objects found,
+  with every extra region counted against it) and `SQ` (how well the found
+  ones fit), in the geometric view.
 - **Regions are named from the GT.** Each region takes the class most of its
   pixels have in the GT, so the class-map metric `mIoU` is an oracle value,
   kinder than any real classifier would get.
@@ -54,18 +63,27 @@ was replaced, then the class tables.
 
 ### Inputs
 
-- **Ground truth.** A class per pixel: ATLAS-120k's 47 original ids, or
-  CholecSeg8k's colours read through its class table.
+- **Ground truth.** A label per pixel, read through the dataset's class
+  table the same way for both datasets: the table gives every id a mask can
+  hold its colour. CholecSeg8k's masks store colours. ATLAS-120k's store its
+  47 original ids, as palette images read by their index, and in 34 clips as
+  colours.
 - **Prediction.** One region id per pixel, from tracking, with no class; −1
   means no region. The evaluator never reads a class from the pipeline. Each
   configuration of the pipeline that the paper compares — a *condition* —
   gives one prediction per clip.
-- **Valid pixels.** Only pixels whose depth is finite and greater than 10⁻⁶
-  are scored; that is the pilot evaluator's test, kept so that both modes share
-  it. The depth is the Depth Anything 3 (DA3) depth map the pilot evaluator
-  reads for the clip, the same for every condition scored on that clip. This
-  makes the comparison between conditions fair, and it also makes the scored
-  pixels depend on one model's output; the paper states that as a limitation.
+- **Depth.** The Depth Anything 3 (DA3) depth map the pilot evaluator reads
+  for the clip, the same for every condition scored on that clip. It sets
+  the pixel grid the GT is resized to, and nothing else: this is an
+  evaluation of 2D masks, and no pixel is left out because a depth model
+  said nothing there. DA3 gives a finite positive depth on every pixel; a
+  depth map with a pixel that is not finite or not above `DEPTH_MIN` is a
+  fault in the data, and the evaluator refuses the frame rather than scoring
+  the rest. It refuses an excluded frame too: the depth map is checked
+  before the marker, so that a faulty depth map is found whether or not the
+  frame is scored. The pilot evaluator instead scored only the pixels that passed
+  that test; pilot mode keeps its test, which is why `invalid_depth` is
+  among the counts below (always 0 in normal mode).
 - **Crop.** The pipeline cuts each clip to the rectangle around the
   endoscope's circle. The GT mask is cut with the same rectangle before it is
   resized, so that GT and prediction cover the same pixels. The rectangle is an
@@ -137,9 +155,9 @@ the end:
 | type | meaning | scored |
 |---|---|---|
 | `ignored` | outside the field of view, or not a class at all | never: removed from the GT and the prediction alike, like a pixel without valid depth |
-| `background` | inside the view, labelled as nothing: unlabelled anatomy, and in ATLAS-120k the classes the 30-class mapping drops | never: removed like `ignored`, so a region lying on it is neither an object nor a false positive (see the views below) |
+| `background` | inside the view, labelled as nothing: unlabelled anatomy, and in ATLAS-120k's benchmark classes the ids the 30-class mapping drops | never: removed like `ignored`, so a region lying on it is neither an object nor a false positive (see the views below) |
 | `excluded` | a marker that takes the whole frame out of evaluation | the frame is skipped, and counted |
-| `tool` | an instrument | in the `all` view only |
+| `tool` | an instrument, or another object that is not anatomy (ATLAS-120k's catheters and non-anatomical structures) | in the `all` view only |
 | `tissue` | anatomy that the scene's depth and shape can separate | in every view |
 | `appearance` | tissue told apart only by colour or texture (blood, for one) | in the `all` and `tissue` views |
 | `expert` | tissue whose boundary is set by anatomical convention — which vessel it is, where one stretch of a tube ends — so that neither shape nor colour shows it without anatomical knowledge | in the `all` and `tissue` views |
@@ -162,16 +180,43 @@ nor penalised there. In the geometric view, a region that runs from the liver
 over the blood lying on it is not penalised for the blood, and neither is one
 that stops at its edge.
 
+The removed pixels are not filled in from their neighbours, as if the liver
+ran on under the blood. Under a thin smear it does, but a fill would have to
+hold for every class a view removes, and under most of them it does not: to
+depth, pooled blood is a surface of its own, a tool is another object in
+front, and connective tissue runs between organs, so a fill would make up
+labels over large areas, by an adjacency rule that would be one more free
+choice. It would also lean one way. A pipeline that follows shape keeps the
+liver whole across the blood, and one that follows colour cuts the spot out;
+a fill would reward the first, the behaviour depth is expected to bring, by a
+rule chosen after the pilot evaluator's scores were seen. Removing the pixels
+favours neither. What it cannot see is a region lying on removed pixels
+only, such as a spot cut out by colour: it is no object, so it is not counted
+against the condition as an extra region, and no other metric sees it either.
+How often that happens is to be measured on the GT before the evaluator is
+frozen (`docs/porting.md`, open questions).
+
 Background is removed in every view, the same way. What the datasets call
 background is not empty space: it is anatomy nobody labelled, and in
-ATLAS-120k also the kidney, pancreas and the other classes the 30-class
-mapping drops. A region the pipeline places there is not an error, so it is
-neither an object nor a false positive, and no metric sees it. The one
-surface that is close to nothing, the abdominal wall, is a class of its own
-(`backdrop`) and is scored in the `all` and `tissue` views. This is the pilot
-evaluator's `labeled` domain, made for the same reason; its `full` domain,
-which counted a region over unlabelled anatomy as a false positive, is not
-carried over.
+ATLAS-120k's benchmark classes also the kidney, pancreas and the other classes
+the 30-class mapping drops. A region the pipeline places there is not an
+error, so it is neither an object nor a false positive, and no metric sees
+it. The one surface that is close to nothing, the abdominal wall, is a class
+of its own (`backdrop`) and is scored in the `all` and `tissue` views. This is
+the pilot evaluator's `labeled` domain, made for the same reason; its `full`
+domain, which counted a region over unlabelled anatomy as a false positive, is
+not carried over.
+
+So a region that spills from a labelled organ into unlabelled tissue is
+scored as if it stopped at the organ's edge: the spill costs nothing. That
+is the convention of panoptic quality, where a segment's void pixels leave
+the union and a segment lying mostly on void is no false positive. The other
+convention, the Cityscapes instance evaluation, keeps the spill in the union
+and so penalises it. It is not used here because ATLAS-120k's unlabelled
+pixels include organs painted only in part: in some clips a mesentery stops
+at a free-hand line while the same fat visibly continues, and there a region
+that follows the organ past the paint would be penalised for being right.
+What the scores cannot see is counted instead, as `unlabelled_share` below.
 
 ## Metrics
 
@@ -186,11 +231,14 @@ carried over.
 | splitting | `VI_split` | `VI_split` | `overseg_mean` |
 | merging | `VI_merge` | `VI_merge` | `underseg_error` |
 | consistency over time, reference only | `time_IoU` | `time_IoU` | — |
+| how much of the regions lies on unlabelled tissue, reference only | `unlabelled_share` | — | — |
 
 ### What each key is, per frame
 
 - `F1_50` = 2 · hits / (GT objects + predicted objects).
-- `SQ` is the mean IoU of the hits, and `inst_BF` their mean boundary F.
+- `SQ` is the mean IoU of the hits. `inst_BF` is the mean, over the hits, of
+  the boundary F between the predicted object's contour and the GT object's,
+  each marked by the boundary rule below over the scored pixels.
 - `mIoU` is the mean IoU over the classes in the GT or the class map,
   background excluded.
 - `boundary_F` compares the class map's boundaries with the GT's.
@@ -210,10 +258,19 @@ carried over.
   empty, they score 0.
 - `VI_split` = H(regions | GT) and `VI_merge` = H(GT | regions), the two halves
   of the variation of information, in bits, over the scored pixels. The
-  pixels with no region count together as one region.
+  pixels with no region count together as one region. On a frame with no
+  scored pixel they are not defined, and the frame is counted.
 - `time_IoU` is a region id's IoU with itself in the next frame. Unlike the
   other metrics it is one number per clip: the IoUs of every (id, frame pair)
   are pooled over all tracked frames, with or without GT, and averaged.
+- `unlabelled_share` is, over the regions that have a scored pixel, the share
+  of their pixels lying on background among their pixels on scored or
+  background pixels: the spill the other keys cannot see. A region on
+  background alone is not among them, as it is no object, and pixels the view
+  removed for another reason are in neither count. It reads no GT class, only
+  where the GT is unlabelled, and gets no star. It is reported beside a
+  comparison whose two conditions differ in it by much, as the pilot
+  measurements did for the share of pixels left without a region.
 
 ### From frames to clips
 
@@ -224,9 +281,16 @@ gets a star: the rule in `AGENTS.md`, a video-level bootstrap 95 % CI that
 does not straddle zero. The JSON keeps the per-frame values.
 
 A metric is not defined on some frames: `F1_50` on a frame with no GT object,
-`SQ` and `inst_BF` on a frame with no hit, `mIoU` on a frame with no class.
+`SQ` and `inst_BF` on a frame with no hit, `mIoU` on a frame with no class,
+`unlabelled_share` on a frame with no region on a scored pixel. `inst_BF`
+also leaves out a hit whose GT object has no boundary pixel, because its
+contour lies wholly against removed pixels (the one object of a frame that
+fills the scored pixels, or one cut off from every other class by a tool),
+and is not defined when no hit remains; the hits left out are counted.
 Those frames do not enter the mean, and the number of frames each mean covers
-is recorded. Two conditions can cover different frames, and comparing them
+is recorded. `time_IoU` is not defined on a clip where nothing is pooled: a
+clip of one frame, or one in which no id is present in two consecutive frames
+with some valid pixel under it. Two conditions can cover different frames, and comparing them
 without the counts once flipped the sign of a pilot result.
 
 PQ is not stored. When a table wants it, it is SQ × F1_50 per frame, taken from
@@ -238,10 +302,24 @@ diagnostics and never get a star.
 
 ### Primary metrics
 
-`F1_50` and `SQ` in the geometric view. They were chosen before any score of
-this evaluator was looked at. The pilot evaluator's scores of the same
-quantities have been seen, which is why the choice is fixed before this
-evaluator scores anything.
+The paper asks three questions, each as a comparison between two
+conditions, and judges each on its own key, on each dataset's own labels
+(the `original` class set):
+
+| question | primary metric | view |
+|---|---|---|
+| Given one frame as an example, how far can the regions be followed? | not decided yet (below) | — |
+| Given no example, what input puts the regions' boundaries where the GT's class boundaries are? | `boundary_R_raw` | each of the three |
+| Given no GT, how much of the labelled structure is already in the regions? | `F1_50` and `SQ` | geometric |
+
+The second question is answered within each view, between conditions that
+differ in what the pipeline is given: the image, the depth, or both. The
+views sort the classes by what should separate them, so the answer can
+differ from one view to the next.
+
+These were chosen before any score of this evaluator was looked at. The
+pilot evaluator's scores of the same quantities have been seen, which is why
+the choice is fixed before this evaluator scores anything.
 
 The set is kept as small as the claims allow. The evaluator computes every
 metric in the table; which of them the paper reports is settled before any
@@ -281,6 +359,7 @@ the evaluator before it is frozen.
 | name | value | why |
 |---|---|---|
 | `BOUNDARY_TOL_PX` | 2 | the pilot evaluator's value for its main boundary keys; what it allows is given with the boundary definition above |
+| `DEPTH_MIN` | 10⁻⁶ | the pilot evaluator's test of a depth value, finite and above this; in normal mode a pixel that fails it refuses the frame, in pilot mode it is masked out |
 | `MATCH_IOU` | 0.5, as IoU ≥ 0.5 after greedy pairing | the pilot evaluator's rule. PQ's convention, IoU > 0.5, makes a pairing unique; at exactly 0.5 the greedy order given with the objects decides |
 
 There is no minimum object size. The pilot evaluator dropped connected
@@ -294,23 +373,44 @@ uses it.
 
 - A colour or id missing from the dataset's class table raises; it is never
   mapped to background. ATLAS-120k's benchmark code sends unknown ids to
-  background, so it is not reused as code.
+  background, and reads a mask through `.convert("L")`, which turns a palette
+  mask into the brightness of its palette colours rather than its ids; it is
+  not reused as code.
+- A palette mask is read by its index, never through the palette it embeds.
+  ATLAS-120k's masks embed seven different palettes, and some of them give
+  some of ids 43–46 black, or Ligated plexus the colour of Liver.
+- A mask reaches the table as the image its file holds, not as an array: an
+  array does not say whether its channels are RGB or BGR, and six pairs of
+  ATLAS-120k colours swap under that mistake, Artery and Vein among them.
+- A single-channel CholecSeg8k mask is refused: those are the watershed
+  masks, whose codes are not the table's ids. An RGBA mask is read only when
+  every pixel is opaque; four CholecSeg8k colour masks are RGBA, alpha 255.
 - The CholecSeg8k table maps (0, 50, 128) to Hepatic Vein. The dataset's
   watershed codes settle it (see the measurements below).
 - (255, 255, 255), the line CholecSeg8k draws between regions, and
   CholecSeg8k's Black Background are `ignored`.
 - `Excluded frames` is checked on ATLAS-120k's original ids, before they are
-  mapped to the 30 classes, which would turn it into background.
+  mapped to the 30 classes, which would turn it into background. In a mask
+  stored as colours it cannot be seen: its colour in the dataset's palette is
+  Background's, (0, 0, 0). There (0, 0, 0) reads as Background, and a colour
+  mask of background alone, the one frame the marker could hide in, is
+  refused. The marker occurs in no palette mask of the release, and no colour
+  mask is background alone.
 - Nothing is dropped without a count: skipped frames, ignored, background and
   invalid pixels, the pixels each view removes, and the frames a metric is not
-  defined on are counted in the JSON.
+  defined on are counted in the JSON. A removed pixel is counted once, by the
+  first reason that removes it, in this order: invalid depth, then `ignored`,
+  then `background`, then a class the view leaves out. So a frame's counts
+  are disjoint and sum to its pixels, and a black corner without depth counts
+  as invalid depth, not as ignored. The order is a convention: another one
+  would change the counts and no score, but the JSON is read against this one.
 
 ### Recorded with every score
 
 - `eval_code_sha`, which covers the class tables as well as the code, so a
   changed type is a new evaluator
-- the dataset, the class set (the 30 classes or the 47 original ids), the view,
-  and whether the score was made in pilot mode
+- the dataset, the class set (`original`, or for ATLAS-120k also
+  `benchmark`), the view, and whether the score was made in pilot mode
 - the sha of every input read: GT masks, depth maps and predictions
 - the Python, numpy, OpenCV and Pillow versions
 
@@ -336,18 +436,24 @@ pilot evaluator's numbers.
     allowed because pilot mode exists only for this check;
   - the pilot evaluator's four domains (`full`, `labeled`, `tissue`,
     `labeled_tissue`, with its instrument ids) in place of the views, for the
-    instance metrics; the class map, the boundary metrics and VI on the `full`
+    instance metrics; the class map and the boundary metrics on the `full`
     domain as the pilot evaluator computed them, with background pixels
     voting on a region's name and an edge against background counted as a
-    boundary;
+    boundary; VI over the valid pixels whose GT is not background, which is
+    how the pilot evaluator computed it, with its `extra_ignore` set empty,
+    as every score that records it has it (the workshop's; the 38
+    conditions' JSONs are checked before pilot mode relies on it);
   - per-class 8-connected components of at least `PILOT_MIN_CC_PX` as GT
     objects, and regions of at least that size as predicted objects;
+  - the pixels whose depth is not finite or not above `DEPTH_MIN` masked
+    out and counted, where normal mode refuses the frame;
   - frames in file order for `time_IoU`;
   - the pilot evaluator's zeros in place of undefined values: a frame with no
     class enters the `mIoU` mean as 0; a clip with no GT object in the `full`
-    domain writes 0 for its instance keys instead of leaving them out; and a
+    domain writes 0 for its instance keys instead of leaving them out; a
     frame whose GT boundary is empty scores 0 on the boundary metrics rather
-    than being left out.
+    than being left out; and a clip on which `time_IoU` pools nothing writes
+    0 for it.
 - On the 38 conditions already scored, pilot mode must reproduce every key it
   shares with the pilot evaluator — the metrics table names them, and their
   per-domain variants — at zero tolerance: the values written must be equal.
@@ -403,14 +509,15 @@ likely that some key reaches a star by chance.
   and VI metrics, and even there it removes the GT objects but not the
   predicted pixels on them. `eval_gt_clips.py` never passes it, so no score it
   wrote used it. ATLAS-120k classes have no type at all beyond tool.
-- **The datasets' own protocols are not followed.** ATLAS-120k's benchmark code,
+- **The datasets' own protocols are not offered.** ATLAS-120k's benchmark code,
   ATLAS-bench, maps every mask to 30 classes before scoring. The dataset's label
   table carries the same mapping as its `train_id` column. It merges similar
   classes (Omentum and Mesenterium into Fat, Aorta into Artery, Vena cava,
   Hepatic vein and V azygos into Vein), and the label table says the classes
   mapped to 0 "are either excluded from evaluation or merged into the
   background"; the benchmark merges them into background. The pilot evaluator
-  scores the 47 original ids. Only id 0 counts as background, so `Excluded
+  scores only the 47 original ids, so none of its numbers can be set beside
+  the benchmark's classes. Only id 0 counts as background there, so `Excluded
   frames` (42), a marker rather than anatomy, would be scored as foreground.
 - **A CholecSeg8k class is never read.** The pilot evaluator's colour table
   gives Hepatic Vein as (0, 255, 0), a colour no mask in the dataset contains.
@@ -496,9 +603,9 @@ What this says:
 
 ## Class tables
 
-Each table is a data file, one per dataset: every class's type, and the
-colours (CholecSeg8k) or the mapping to the 30 classes (ATLAS-120k). The files
-are hashed into `eval_code_sha` with the code.
+Each table is a data file, one per dataset: every class's type, the colour of
+every id a mask can hold, and for ATLAS-120k the mapping of its 47 ids to the
+30 classes. The files are hashed into `eval_code_sha` with the code.
 
 ### CholecSeg8k
 
@@ -521,100 +628,165 @@ Every class was looked at in the masks, as for ATLAS-120k:
 | 12 | Liver Ligament | (111, 74, 0) | tissue |
 | 13 | Region line | (255, 255, 255) | ignored: the line drawn between regions. Not a class of the dataset; the table gives it an id so that a GT id map can hold it, and nothing scores it |
 
-<!-- TODO(spec): the white line is 1 px wide and, in the masks, 87 % of its
-pixels are the image's outer 1 px (gone with the crop); the rest sits mostly
-in video43 and video52. Left `ignored`, an edge against it is no boundary,
-so those videos lose much of their GT boundary, and unevenly: after the
-nearest-neighbour resize the line survives only in places. Decide whether
-the loader fills the line from its neighbours, at full resolution, by a
-deterministic rule with the filled count recorded, or whether it stays
-ignored with the loss documented. Either way the pilot evaluator read it
-as background and counted an edge against it as a boundary, which is a
-normal-mode difference to list. Four colour masks are RGBA (alpha 255):
-the loader checks alpha and drops it. -->
-
-Cystic Duct is `expert` although ATLAS-120k's Bile/lymph duct is `tissue`:
-CholecSeg8k does not merge the ducts, so the class still ends where the
-anatomical stretch ends. Hepatic Vein is `expert` because telling it from other
+Cystic Duct is `expert`, as ATLAS-120k's Cystic duct is: the class ends where
+the anatomical stretch ends. Only ATLAS-120k's benchmark, which merges the
+ducts into Bile/lymph duct, types them `tissue`. Hepatic Vein is `expert` because telling it from other
 vessels takes anatomical knowledge. Neither moves much: Cystic Duct occurs in 3
 of the 17 videos, Hepatic Vein in 1.
 
-### ATLAS-120k: the 30 classes
+### ATLAS-120k: ids, classes and colours
 
-Scores and claims use the 30 classes that ATLAS-120k's own model and benchmark
-code score. The benchmark maps every mask before scoring, through
-`datasets/class_mapping.py` in the ATLAS-bench repository, read at commit
-`e286a584`:
+ATLAS-120k's label table, `atlas120k_tools/classes.py` in the ATLAS
+repository, lists 47 ids, 0 to 46: Background and 46 labels. Every mask of the
+release was read: 119,405 masks in 492 of its 502 clips (the other 1,613
+frames its clip index lists ship without a mask).
 
-- Seven ids become background: Kidney, Ureter, Excluded frames, Mesocolon,
-  Adrenal gland, Pancreas and Duodenum.
-- Similar classes merge:
-  - Aorta into Artery.
-  - Vena cava, Hepatic vein and V azygos into Vein.
-  - Cystic duct, Ductus choledochus, Ductus hepaticus and Thoracic duct into
-    Bile/lymph duct.
-  - Omentum and Mesenterium into Fat.
-  - Nerves into Nerve.
-  - Catheter and Non anatomical structures into Non anatomical.
+| | |
+|---|---|
+| ids that occur | every id from 0 to 46 but Hepatic vein (15), Thoracic duct (38), Nerves (39) and Excluded frames (42); none above 46 |
+| classes | the 42 labels that occur are the paper's 42 classes, and its Fig. 2 legend lists exactly them |
+| storage | 115,024 palette masks, whose index is the id, and 4,381 RGB masks in 34 clips of 7 videos; 7 of those clips hold both kinds |
+| colours of the RGB masks | 20 colours, each the one the label table gives its id. In one video, 441 frames belong to two adjacent clips, stored once as a palette mask and once in colour, and both read as the same ids |
+| palettes the palette masks embed | seven versions. Against the label table, five give some of ids 43–46 black, one gives Ligated plexus (28) the colour of Liver, and two give Pancreas (252, 186, 3) |
 
-The class set is then the benchmark's. Resolution, crop and metrics are this
+So 47 is the number of ids the masks are written in, and 42 classes and
+background are what they contain. The class table lists all 47, each with its
+colour, its type and the benchmark class it merges into. Excluded frames has no colour there, because its
+colour in the label table is Background's.
+
+The paper describes how the labels were made: the first frame of every clip
+was drawn by hand and reviewed by a surgeon, and the rest were propagated by a
+video object segmentation model (Cutie) and corrected by hand. A GT frame after
+the first is therefore a tracker's output as the annotators corrected it,
+which is worth knowing when a tracking pipeline is scored against it.
+
+### ATLAS-120k: the original ids and their types
+
+Claims are judged on the 47 original ids, the `original` class set. ATLAS-120k
+defines no types: its benchmark scores `Tools/camera` like any other class.
+Every one of the 47 ids was looked at in the masks, and each takes its own
+verdict as its type, "unsure" counted as `expert`, unless the note gives a
+reason for another: Abdominal wall and Diaphragm, "almost background", are
+`backdrop`, and Catheter, which is not anatomy, is a `tool`. Hepatic vein (15),
+Thoracic duct (38) and Nerves (39) occur in no mask of the release; they take
+the type of the benchmark class they merge into, which no score depends on.
+
+| id | label | benchmark class | verdict, note | type |
+|---:|---|---|---|---|
+| 0 | Background | Background | — | background |
+| 1 | Tools/camera | Tools/camera | tool | tool |
+| 2 | Vein (major) | Vein | unsure, "hard even from colour" | expert |
+| 3 | Artery (major) | Artery | unsure, "uses shape, but needs a lot of expertise" | expert |
+| 4 | Nerve (major) | Nerve | appearance, "very faint" | appearance |
+| 5 | Small intestine | Small intestine | tissue, "plainly shape" | tissue |
+| 6 | Colon/rectum | Colon/rectum | tissue, "fairly plainly shape" | tissue |
+| 7 | Abdominal wall | Abdominal wall | unsure, "almost background" | backdrop |
+| 8 | Diaphragm | Diaphragm | unsure, "almost background" | backdrop |
+| 9 | Omentum | Fat | tissue, "a coherent shape" | tissue |
+| 10 | Aorta | Artery | tissue, "only faintly shape" | tissue |
+| 11 | Vena cava | Vein | appearance, "colour works, but it takes expertise" | appearance |
+| 12 | Liver | Liver | tissue | tissue |
+| 13 | Cystic duct | Bile/lymph duct | unsure, "mostly shape, but where the stretch ends takes expertise" | expert |
+| 14 | Gallbladder | Gallbladder | tissue | tissue |
+| 15 | Hepatic vein | Vein | in no mask | expert |
+| 16 | Hepatic ligament | Hepatic ligament | tissue | tissue |
+| 17 | Cystic plate | Cystic plate | appearance | appearance |
+| 18 | Stomach | Stomach | tissue | tissue |
+| 19 | Ductus choledochus | Bile/lymph duct | unsure, "mostly shape, but where the stretch ends takes expertise" | expert |
+| 20 | Mesenterium | Fat | tissue, "barely shape" | tissue |
+| 21 | Ductus hepaticus | Bile/lymph duct | appearance | appearance |
+| 22 | Spleen | Spleen | tissue | tissue |
+| 23 | Uterus | Uterus | tissue | tissue |
+| 24 | Ovary | Ovary | tissue | tissue |
+| 25 | Oviduct | Oviduct | tissue | tissue |
+| 26 | Prostate | Prostate | tissue | tissue |
+| 27 | Urethra | Urethra | tissue | tissue |
+| 28 | Ligated plexus | Ligated plexus | appearance | appearance |
+| 29 | Seminal vesicles | Seminal vesicles | tissue, "shape, probably" | tissue |
+| 30 | Catheter | Non anatomical | unsure, "shape as a rule, but invisible when buried in tissue" | tool |
+| 31 | Bladder | Bladder | tissue, "sometimes by shape, sometimes not" | tissue |
+| 32 | Kidney | Background | tissue | tissue |
+| 33 | Lung | Lung | tissue | tissue |
+| 34 | Airway (bronchus/trachea) | Airway (bronchus/trachea) | unsure, "shape cannot make this division; specialist" | expert |
+| 35 | Esophagus | Esophagus | tissue | tissue |
+| 36 | Pericardium | Pericardium | unsure, "specialist" | expert |
+| 37 | V azygos | Vein | appearance, "colour might do" | appearance |
+| 38 | Thoracic duct | Bile/lymph duct | in no mask | tissue |
+| 39 | Nerves | Nerve | in no mask | appearance |
+| 40 | Ureter | Background | unsure | expert |
+| 41 | Non anatomical structures | Non anatomical | tool, "shape, as a rule" | tool |
+| 42 | Excluded frames | Background | a marker, not a class | excluded |
+| 43 | Mesocolon | Background | tissue | tissue |
+| 44 | Adrenal gland | Background | tissue | tissue |
+| 45 | Pancreas | Background | unsure, "neither shape nor colour settles it" | expert |
+| 46 | Duodenum | Background | appearance, "neither shape nor colour settles it" | appearance |
+
+The review's main difficulties were stretches of one tube (cystic duct against
+ductus choledochus) and one kind of vessel (vena cava against V azygos), told
+apart by anatomical convention. Those ids are `expert` or `appearance`, so the
+geometric view leaves them out: for the original ids the types do what the
+merge does for the benchmark's classes. Cystic duct is `expert` here as
+CholecSeg8k's Cystic Duct is.
+
+### ATLAS-120k: the benchmark's 30 classes
+
+ATLAS-120k's own model and benchmark code score 30 classes. The benchmark maps
+every mask before scoring, through `datasets/class_mapping.py` in the
+ATLAS-bench repository, read at commit `e286a584`: seven ids become
+background, and similar classes merge. The table below lists the original ids
+each class takes. The class set is then the benchmark's: Background and 29
+classes. It is scored as a second class set, `benchmark`, for comparison with
+the benchmark: written to a separate block of the JSON, as reference values
+only, and never given a star. Resolution, crop and metrics are this
 evaluator's own, so the numbers are not the benchmark's.
 
-The 47 original ids are scored as well, as reference values only. They are
-written to a separate block of the JSON, and they never get a star. There, each
-original id takes the type of the class it merges into, although the review
-judged some of them differently on their own (Cystic duct, for one, was
-"unsure", which is `expert` for CholecSeg8k's Cystic Duct). The inheritance
-is deliberate: it keeps every view's pixels the same in the two blocks, so
-that the only difference between the 30-class and the 47-id scores is how
-finely the objects are cut, and not also which pixels are scored. The seven
-ids the 30-class mapping turns into background would inherit `background` and
-vanish, so they take their own verdicts from the review below, with "unsure"
-counted as `expert`: Kidney, Mesocolon and Adrenal gland are tissue; Ureter
-and Pancreas are expert; Duodenum is appearance; and Excluded frames is
-excluded.
+The paper gives the reason for the 30: categories not represented in all
+subsets were excluded, and semantically similar classes consolidated. In the
+released splits that rule does not single out exactly the six anatomical
+classes dropped: Uterus, Ovary and Oviduct are in neither the validation nor
+the test split and are kept, and Diaphragm is not in the training split. The
+evaluator takes the mapping as the benchmark's code defines it. The reason is
+a training one, which is why claims are judged on the original ids: for a
+pipeline trained on nothing, the dropped classes are anatomy like any other.
 
-The review supports the 30 classes. Its main difficulties were stretches of
-one tube (cystic duct against ductus choledochus) and one kind of vessel (vena
-cava against V azygos) told apart by anatomical convention. The merge removes
-exactly those boundaries.
+A class that is one original id has that id's type. A merged class has one
+type for all its ids:
 
-### ATLAS-120k: types
-
-ATLAS-120k defines no types: its benchmark scores `Tools/camera` like any other
-class. Every one of the 47 classes was looked at in the masks, and the verdicts
-are below, per class of the 30. The original ids merged into each are listed,
-with the verdict and note for each. Hepatic vein (15), Thoracic duct (38) and
-Nerves (39) were found in no mask the review searched, so they have no bearing.
-
-| # | class | merged from: verdict, note | type |
+| # | class | original ids | type |
 |---:|---|---|---|
-| 1 | Tools/camera | tool | tool |
-| 2 | Vein | Vein (major): unsure, "hard even from colour"; Vena cava: appearance, "colour works, but it takes expertise"; V azygos: appearance, "colour might do" | expert |
-| 3 | Artery | Artery (major): unsure, "uses shape, but needs a lot of expertise"; Aorta: tissue, "only faintly shape" | expert |
-| 4 | Nerve | Nerve (major): appearance, "very faint" | appearance |
-| 5 | Small intestine | tissue, "plainly shape" | tissue |
-| 6 | Colon/rectum | tissue, "fairly plainly shape" | tissue |
-| 7 | Abdominal wall | unsure, "almost background" | backdrop |
-| 8 | Diaphragm | unsure, "almost background" | backdrop |
-| 9 | Fat | Omentum: tissue, "a coherent shape"; Mesenterium: tissue, "barely shape" | tissue |
-| 10 | Liver | tissue | tissue |
-| 11 | Bile/lymph duct | Cystic duct and Ductus choledochus: unsure, "mostly shape, but where the stretch ends takes expertise"; Ductus hepaticus: appearance | tissue: the merge removes the stretch boundaries |
-| 12 | Gallbladder | tissue | tissue |
-| 13 | Hepatic ligament | tissue | tissue |
-| 14 | Cystic plate | appearance | appearance |
-| 15 | Stomach | tissue | tissue |
-| 16–21 | Spleen, Uterus, Ovary, Oviduct, Prostate, Urethra | tissue | tissue |
-| 22 | Ligated plexus | appearance | appearance |
-| 23 | Seminal vesicles | tissue, "shape, probably" | tissue |
-| 24 | Non anatomical | Catheter: unsure, "shape as a rule, but invisible when buried in tissue"; Non anatomical structures: tool, "shape, as a rule" | tool |
-| 25 | Bladder | tissue, "sometimes by shape, sometimes not" | tissue |
-| 26 | Lung | tissue | tissue |
-| 27 | Airway (bronchus/trachea) | unsure, "shape cannot make this division; specialist" | expert |
-| 28 | Esophagus | tissue | tissue |
-| 29 | Pericardium | unsure, "specialist" | expert |
-| 0 | Background | also Kidney: tissue; Ureter: unsure; Excluded frames: excluded; Mesocolon and Adrenal gland: tissue; Pancreas: unsure, "neither shape nor colour settles it"; Duodenum: appearance, the same note | background |
+| 0 | Background | Background, Kidney, Ureter, Excluded frames, Mesocolon, Adrenal gland, Pancreas, Duodenum | background |
+| 1 | Tools/camera | Tools/camera | tool |
+| 2 | Vein | Vein (major), Vena cava, Hepatic vein, V azygos | expert: telling one vessel from another takes anatomy |
+| 3 | Artery | Artery (major), Aorta | expert: the same |
+| 4 | Nerve | Nerve (major), Nerves | appearance |
+| 5 | Small intestine | Small intestine | tissue |
+| 6 | Colon/rectum | Colon/rectum | tissue |
+| 7 | Abdominal wall | Abdominal wall | backdrop |
+| 8 | Diaphragm | Diaphragm | backdrop |
+| 9 | Fat | Omentum, Mesenterium | tissue |
+| 10 | Liver | Liver | tissue |
+| 11 | Bile/lymph duct | Cystic duct, Ductus choledochus, Ductus hepaticus, Thoracic duct | tissue: the merge removes the stretch boundaries |
+| 12 | Gallbladder | Gallbladder | tissue |
+| 13 | Hepatic ligament | Hepatic ligament | tissue |
+| 14 | Cystic plate | Cystic plate | appearance |
+| 15 | Stomach | Stomach | tissue |
+| 16 | Spleen | Spleen | tissue |
+| 17 | Uterus | Uterus | tissue |
+| 18 | Ovary | Ovary | tissue |
+| 19 | Oviduct | Oviduct | tissue |
+| 20 | Prostate | Prostate | tissue |
+| 21 | Urethra | Urethra | tissue |
+| 22 | Ligated plexus | Ligated plexus | appearance |
+| 23 | Seminal vesicles | Seminal vesicles | tissue |
+| 24 | Non anatomical | Catheter, Non anatomical structures | tool |
+| 25 | Bladder | Bladder | tissue |
+| 26 | Lung | Lung | tissue |
+| 27 | Airway (bronchus/trachea) | Airway (bronchus/trachea) | expert |
+| 28 | Esophagus | Esophagus | tissue |
+| 29 | Pericardium | Pericardium | expert |
 
-Vein and Artery are `expert`: Vein's members were judged unsure or
-appearance, Artery's unsure or tissue, and what every note shares is that
-telling one vessel from another takes anatomy.
+Vein and Artery are `expert`: Vein's ids were judged unsure or appearance,
+Artery's unsure or tissue, and what every note shares is that telling one
+vessel from another takes anatomy. Bile/lymph duct is `tissue`, although two
+of its ids are `expert`, because the merge removes the stretch boundaries
+that made them so.

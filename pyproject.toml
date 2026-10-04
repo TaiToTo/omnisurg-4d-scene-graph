@@ -27,6 +27,19 @@ authors = [{ name = "Yasuto Tamura" }]
 # has opencv-python.
 dependencies = ["numpy", "opencv-python", "Pillow"]
 
+[project.optional-dependencies]
+# What the pipeline's segmenter inputs need and the evaluator does not: the
+# depth colormap (matplotlib) and the Poisson integration in Retinex (scipy).
+# `surgical_core.geometry.render` is the only importer. Kept out of the base
+# install so that the toolkit still installs on a machine with neither.
+render = ["scipy", "matplotlib"]
+# What the tools under `evalkit/tools` need and the evaluator does not: the
+# Wilcoxon test that `paired_stats` reports beside the bootstrap (scipy) and
+# the per-clip chart `compare_eval` draws on request (matplotlib). The tools
+# import them only where they are used, so reading and checking scores works
+# without the extra.
+tools = ["scipy", "matplotlib"]
+
 [project.urls]
 Homepage = "https://github.com/TaiToTo/omnisurg-4d-scene-graph"
 

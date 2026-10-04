@@ -68,8 +68,10 @@ shape of another repo.
 omnisurg-4d-scene-graph/
 ├── LICENSE  README.md  CITATION.cff  pyproject.toml
 ├── surgical_core/     cholec atlas120k geometry pointcloud preprocess viewer clip_time
-├── evalkit/           the evaluator, track_metrics paired_stats kmerge compare_eval
-│                      condition_inventory check_env
+├── evalkit/           the evaluator, hashed into eval_code_sha with its class tables
+│   └── tools/         what only reads scores, never hashed: paired_stats
+│                      compare_eval condition_inventory
+│                      (track_metrics, kmerge: which side waits on docs/porting.md)
 ├── pipeline/          depth → segmentation → tracking → viewer export
 ├── recon3d_wrapper/   3D reconstruction — DA3 and Pi3 behind one interface
 ├── sam3_wrapper/      promptable segmentation and tracking (SAM 3)
@@ -105,7 +107,24 @@ layout, and the conventions below.
 - **Fail closed.** If an invariant cannot be checked, raise. Never skip quietly.
 - **A check earns its place by failing when it should**, not by passing. When
   you add one, demonstrate the failure (a self-test that plants the fault).
+- **No TODO in code.** A path known to give a wrong answer for some input
+  raises on that input, with a test that plants it. A decision not yet made
+  is written under "Open questions" in `docs/porting.md`, where it is read,
+  not in a comment, where it is not. `tests/test_no_todo_in_code.py` refuses
+  the markers (`TODO`, `FIXME`, `XXX`, `HACK`) in every tracked file but the
+  planning documents and this one. The reason is a clip extractor that knew
+  its gap frames carried the wrong frame number, wrote the TODO, and kept
+  producing data: two months later the fault was found again downstream and
+  explained wrongly, because a comment is read only by whoever opens that
+  file, and a raise is read by whoever runs it.
 - Google-style docstrings; imports at module top; comments say *why*.
+- **A function of several steps names each step.** A function that
+  composes other modules is read to find where one result comes from, not
+  top to bottom. Give each block one line saying what it produces and from
+  what, so the reader lands on the right lines without reading the rest.
+  Say what the block *is*, not why it is so: the reason for a choice inside
+  it is a comment of its own, as below. A function short enough to read
+  whole needs none.
 - **A comment gives the reason, not a reference.** Never cite a section number,
   a ticket, an audit letter or a task id (`see §2.3`, `audit B7`, `task22`):
   they point at documents this repository does not have and will not keep, so

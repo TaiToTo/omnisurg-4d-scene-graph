@@ -50,3 +50,21 @@ jobs:
       # install.
       - run: pip install pytest
       - run: pytest
+
+  # `surgical_core.geometry.render` needs the `render` extra and the tools'
+  # statistics and chart need the `tools` extra, so the job above never
+  # imports them and their tests skip there. This job installs both extras
+  # and runs the same suite, so those tests run somewhere.
+  render:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libgl1 libglib2.0-0t64
+      - run: pip install -e ".[render,tools]" pytest
+      - run: python -c "import surgical_core.geometry.render, scipy.stats, matplotlib"
+      - run: pytest
