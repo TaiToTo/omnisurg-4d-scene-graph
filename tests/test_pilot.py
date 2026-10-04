@@ -4,10 +4,12 @@ GT class 1 fills the left half and class 2 the right half (3,000 px each).
 Where the pilot evaluator's rule differs from the evaluator's, the test says
 what the evaluator's objects would give on the same frame.
 """
+import cv2
 import numpy as np
 import pytest
 
 import scenes as S
+from evalkit.classes import CLASS_SETS
 from evalkit.objects import gt_objects, instance_scores, predicted_objects
 from evalkit.pilot import (
     PILOT_DOMAINS, PILOT_INSTRUMENT_IDS, PILOT_MIN_CC_PX, pilot_domains, pilot_gt_objects,
@@ -37,7 +39,10 @@ def test_a_class_cut_in_two_is_two_objects_for_the_pilot_and_one_for_the_evaluat
     g = pilot_gt_objects(gt, ALL)
     assert g.ids == (1, 1, 2, 2)
     assert g.areas == (1200, 1200, 600, 3000)
-    assert g.index[0, 0] == 1 and g.index[0, 30] == 2 and g.index[0, 20] == 3 and g.index[0, 99] == 4
+    assert g.index[0, 0] == 1 and g.index[0, 30] == 2 and g.index[0, 20] == 3 and g.index[0, 99] == 4, (
+        f"cv2.connectedComponents {cv2.__version__} labels this scene in another order; "
+        "pilot mode numbers objects in that order, so a change in it is a change in the rule"
+    )
     assert gt_objects(gt, ALL).ids == (1, 2)
 
 
@@ -107,6 +112,9 @@ def test_the_tissue_domains_need_the_instrument_ids():
     with pytest.raises(ValueError, match="instrument ids"):
         pilot_domains(S.exact().gt, ALL, frozenset())
     assert PILOT_INSTRUMENT_IDS == {"cholecseg8k": {5, 9}, "atlas120k": {1}}
+    # Keyed by the evaluator's dataset names, so that a renamed dataset
+    # cannot leave an orphan key behind.
+    assert set(PILOT_INSTRUMENT_IDS) == set(CLASS_SETS)
 
 
 def test_a_region_on_background_is_an_object_in_full_and_none_in_labeled():

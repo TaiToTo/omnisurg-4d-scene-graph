@@ -295,7 +295,11 @@ Every command takes those paths as arguments.
    with `cv2.dilate`; a numpy shift-or over the (2·tol + 1)² offsets agrees
    on every mask tried, borders included. The question is whether a hashed
    file should depend on a library's behaviour at all while OpenCV is
-   unpinned. Decide before the evaluator is frozen.
+   unpinned. The same question, with more at stake, in pilot mode:
+   `evalkit/pilot.py` numbers a class's components in the order
+   `cv2.connectedComponents` labels them, and the pairing's tie rule reads
+   the numbers, so there the library's order is the rule itself, not an
+   implementation checked against one. Decide before the evaluator is frozen.
 6. **The benchmark mapping against its source.** The ATLAS-120k mapping to
    the benchmark's 30 classes was typed from the document and checked by
    hand against ATLAS-bench's `datasets/class_mapping.py` at commit
