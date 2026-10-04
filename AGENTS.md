@@ -125,6 +125,13 @@ layout, and the conventions below.
   Say what the block *is*, not why it is so: the reason for a choice inside
   it is a comment of its own, as below. A function short enough to read
   whole needs none.
+- **A docstring defines its terms before it uses them.** A term that
+  `docs/evaluation.md` defines is used in the sense it gives there and is
+  not defined again: a second definition drifts from the first. Any other
+  term is defined in one line, in the docstring that first relies on it,
+  before the sentence that does. A question or a rule is called by what it
+  says, not by its place in a list ("the second question"): a place means
+  something only to whoever has the list open.
 - **A comment gives the reason, not a reference.** Never cite a section number,
   a ticket, an audit letter or a task id (`see §2.3`, `audit B7`, `task22`):
   they point at documents this repository does not have and will not keep, so
