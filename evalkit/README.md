@@ -28,6 +28,12 @@ explain the answer.
   labelled things were found, with an extra region counted against it; and
   `SQ`, how closely the found ones match.
 
+![The three questions on a drawn scene. Q1: a region picked out in one frame follows the gallbladder for two frames, then leaves it. Q2: the regions' boundaries against the GT's class boundaries, found and missed, giving boundary_R_raw. Q3: regions matched to the GT's objects, two hits and one extra region, giving F1_50 and SQ](../docs/figures/three_questions.png)
+
+The three questions on a drawn scene. No key decides the first yet, so its
+panel is an illustration; the numbers in the other two are what the modules
+give on the scene.
+
 Each question is put as a comparison: the pipeline in one configuration,
 a *condition*, against another. A claim gets a star when the video-level
 bootstrap 95 % CI of the difference on the deciding key does not straddle
