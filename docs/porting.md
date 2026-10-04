@@ -265,7 +265,7 @@ Every command takes those paths as arguments.
    leaves both behind. The paper's figures come from some of those pages.
 3. **Whether step 5 has to finish before submission.** Step 3 already gives
    the numbers, and the determinism result says step 5 cannot change them.
-4. **Pilot mode's own rules.** Four places where pilot mode must not read
+4. **Pilot mode's own rules.** Five places where pilot mode must not read
    the evaluator's tables or helpers, each noted where it was found and
    collected here so the pilot-mode driver settles them in one go:
    - ATLAS-120k typing: the pilot evaluator knew one type, Tools/camera;
@@ -284,6 +284,13 @@ Every command takes those paths as arguments.
      that records it has it empty, but those are the workshop's; confirm on
      the 38 conditions' JSONs before pilot mode assumes an empty set
      (`evalkit/vi.py`).
+   - The clip means: `summarize_clip` averages with `sum() / len()`, takes a
+     mean only over the frames a key is defined on and leaves None where
+     there is none; the pilot took `np.mean`, wrote 0 where no frame defined
+     a key, and rounded the summary to four decimals. The last bit of the
+     two means differs on about 40 % of random clips, so the pilot-mode
+     driver aggregates the pilot's way and does not call `summarize_clip`
+     (`evalkit/clip.py`).
 5. **Boundary dilation before the freeze.** `evalkit/boundary.py` dilates
    with `cv2.dilate`; a numpy shift-or over the (2·tol + 1)² offsets agrees
    on every mask tried, borders included. The question is whether a hashed
@@ -334,7 +341,8 @@ Every command takes those paths as arguments.
     `score_view` and `score_frame`, so a reader looking for where one view
     is composed finds no box. And the map's step 3 shows a frame scored or
     its keys undefined, never skipped: the excluded marker takes a frame out
-    whole, and a depth map with an invalid pixel refuses it, both counted
-    for the clip driver. A phrase in the step 3 box, "or skipped whole, and
-    counted", would close that in the figure. `evalkit/README.md` is the
+    whole, counted for the clip driver, and a depth map with an invalid
+    pixel stops the run with an error, counted nowhere. A phrase in the
+    step 3 box, "or skipped whole, and counted", would close that in the
+    figure. `evalkit/README.md` is the
     short version and need not say either.
