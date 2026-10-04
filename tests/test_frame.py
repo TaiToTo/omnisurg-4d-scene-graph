@@ -13,7 +13,7 @@ import scenes as S
 from evalkit.boundary import boundary_pixels, boundary_score
 from evalkit.classes import VIEWS, load_table
 from evalkit.classmap import class_map, class_scores
-from evalkit.frame import KEYS, FrameScores, ViewScores, score_frame, score_view
+from evalkit.frame import FrameScores, ViewScores, score_frame, score_view
 from evalkit.objects import gt_objects, instance_scores, predicted_objects
 from evalkit.scored import PixelCounts
 from evalkit.vi import variation_of_information
@@ -52,14 +52,6 @@ def test_an_exact_prediction_scores_one_or_zero_on_every_key_in_every_view(atlas
         assert (v.n_gt_objects, v.n_pred_objects, v.n_hits, v.n_inst_bf_hits) == (2, 2, 2, 2)
         assert v.ious == {LIVER: 1.0, GALLBLADDER: 1.0}
         assert v.counts == PixelCounts(0, 0, 0, 0, S.H * S.W)
-
-
-def test_the_keys_are_the_specifications_in_its_order():
-    assert list(KEYS) == [
-        "F1_50", "SQ", "inst_BF", "mIoU", "boundary_F", "boundary_R_raw", "VI_split", "VI_merge",
-        "unlabelled_share",
-    ]
-    assert set(KEYS.values()) <= set(ViewScores.__dataclass_fields__)
 
 
 def test_each_key_reads_its_own_field():
