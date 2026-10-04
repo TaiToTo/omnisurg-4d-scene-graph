@@ -1,36 +1,61 @@
-"""Two conditions' score JSONs side by side, on one ruler and one set of clips.
+"""Two conditions' score JSONs side by side, refused unless measured alike on the same clips.
 
-Every judgement between conditions takes this form. Two things break a
-conclusion without showing in the numbers, and both stop the comparison
-rather than warn (`scores.check_comparable`): a different evaluator, whose
-difference would be read as the methods'; and a different population,
-since means over different clips say nothing, and a condition that lost
-its hardest clips wins without doing anything.
+Every judgement between conditions takes this form. *base* is the
+condition compared against and *cond* the one compared; a difference is
+always `cond - base`. Two things break a conclusion without showing in the
+numbers, and both stop the comparison rather than warn
+(`scores.check_comparable`). One is a different *ruler*, what a score was
+measured with: the evaluator's `eval_code_sha`, the dataset, the class
+set, the views and the mode (`scores.Ruler`), and the GT and depth maps
+each clip read, where the JSONs record them. A different ruler's
+difference would be read as the methods'. The other is a different set
+of clips, since means over different clips say nothing, and a condition
+that lost its hardest clips wins without doing anything. `--allow-subset`
+compares on the clips both hold instead, and the summary's `population`
+then says `intersection` where it otherwise says `identical`.
 
-The population can shrink per metric. A metric is None on a clip where it
+A *key* is one column of a JSON's per-clip rows. The evaluator writes
+`metric/view` (`F1_50/geometric`), and `time_IoU`, one value per clip,
+with no view. A *pilot JSON*, one the pilot evaluator wrote, is told
+apart by holding none of the fields the evaluator records
+(`scores.is_pilot_json`), and keeps the pilot evaluator's spellings:
+`inst_F1_50`, `GT_mIoU`, some with a domain after an underscore
+(`inst_F1_50_tissue`). A JSON the evaluator wrote in pilot mode is not a
+pilot JSON, and spells its keys as the evaluator does.
+
+The clips can shrink per key. A key is None on a clip where its metric
 is undefined: `SQ` and `inst_BF` on a clip with no hit, `F1_50` in a view
 with no GT object, and each JSON's own mean leaves such clips out
-independently. Subtracting those means compares two populations, so the
-mean is taken again over the clips where both conditions define the
-metric (`scores.defined_clips`, the same alignment `paired_stats` uses).
+independently. Subtracting those means compares two sets of clips, so
+the mean is taken again over the clips where both conditions define the
+key (`scores.defined_clips`, the same alignment `paired_stats` uses).
 Measured once, this changed a sign: one `inst_BF` difference was -0.0235
 between the JSONs' means and +0.0029 over the 16 clips both defined. The
 aligned count is printed and written whenever it is smaller.
 
-This is a look, not a verdict. The table prints each metric's direction
-(`scores.SIGNS`, `scores.PILOT_SIGNS`) and nothing that reads as better
-or worse: whether a difference is distinguishable from zero is decided
-by `paired_stats.verdict` alone, on the video-level bootstrap. The
-per-clip list, the chart and `wins` follow one key, `--key`, which is
-the question's primary metric; the default is `inst_F1_50` on a pilot
-JSON and `F1_50/geometric` on the evaluator's.
+This is a look, not a verdict. The table prints each key's *direction*,
+the way it is better: higher, lower, or neither for a reference value
+(`scores.SIGNS`, `scores.PILOT_SIGNS`). It prints nothing that reads as
+better or worse: whether a difference is distinguishable from zero is
+decided by `paired_stats.verdict` alone, on the video-level bootstrap.
+One key, `--key`, is followed further, into the per-clip list, the chart
+and *wins*: the clips on which it moved the better way, among those where
+both conditions define it. It is meant to be the key that decides the
+question asked. The default is `F1_50/geometric` on the evaluator's
+JSONs, one of the two keys that decide how much of the labelled
+structure the regions hold, and the workbench's `inst_F1_50` on a pilot
+JSON.
 
 Usage:
     python -m evalkit.tools.compare_eval --base single5 --cond cons5 --dir /path/to/scores
-    # the second question's primary metric, in one view
+    # boundary_R_raw, which decides what input puts the regions' boundaries
+    # on the GT's class boundaries, in the tissue view
     python -m evalkit.tools.compare_eval ... --key boundary_R_raw/tissue
-    # knowingly, on populations that differ (the summary records population: intersection)
-    python -m evalkit.tools.compare_eval ... --allow-subset --allow-legacy-code
+    # knowingly, on clip sets that differ (the summary records population: intersection)
+    python -m evalkit.tools.compare_eval ... --allow-subset
+    # knowingly, on JSONs that record no eval_code_sha (the summary records
+    # eval_code: legacy-unverified)
+    python -m evalkit.tools.compare_eval ... --allow-legacy-code
 """
 from __future__ import annotations
 
@@ -51,9 +76,11 @@ from evalkit.tools.scores import (
     sign_of,
 )
 
-# The default key of the per-clip list, the chart and `wins`: the workbench's
-# on a pilot JSON, and the third question's first primary metric on the
-# evaluator's. The other questions' primaries are asked for with `--key`.
+# The default key of the per-clip list, the chart and `wins`. On the
+# evaluator's JSONs it is `F1_50` in the geometric view, one of the two keys
+# that decide how much of the labelled structure the regions hold; on a pilot
+# JSON it is the workbench's. A key that decides another question is asked
+# for with `--key`.
 PILOT_KEY = "inst_F1_50"
 DEFAULT_KEY = ("F1_50", "geometric")
 
@@ -122,19 +149,24 @@ def compare(a: dict, b: dict, allow_subset: bool = False, allow_legacy_code: boo
         `n_clips`, `population`, `eval_code`, `clips`, `wins` (clips on
         which `key` moved the better way, among those where both define
         it), `metrics` (key to `base`, `cond`, `delta`, `n_clips`, over
-        the clips both define; a key neither JSON holds is left out),
+        the clips both define; a key that no clip has in both JSONs is
+        left out, including one only a single JSON holds),
         `versions_differ` when the check reports it, and `key` and `sign`
-        unless they are the workbench's own on a pilot JSON: that summary
-        stays byte for byte what the workbench wrote.
+        (its direction, +1 when higher is better and -1 when lower) unless
+        they are the workbench's own on a pilot JSON: that summary stays
+        byte for byte what the workbench wrote.
 
     Raises:
         ValueError: The two are not comparable, the key is not one to
             count wins on, or it is defined on no common clip.
     """
+    # The clips compared, from the check that the two share a ruler; and the key followed.
     chk = check_comparable(a, b, allow_subset=allow_subset, allow_legacy_code=allow_legacy_code)
     clips = chk["clips"]
     ia, ib = rows_of(a), rows_of(b)
     key, sign = primary_key(a, key)
+
+    # Every key's two means and their difference, over the clips both define it on.
     deltas = {}
     for k, _sign in metrics_of(a):
         # The JSONs' own means are not used: each left out its own None
@@ -145,6 +177,8 @@ def compare(a: dict, b: dict, allow_subset: bool = False, allow_legacy_code: boo
             continue
         va, vb = clip_mean(ia, ks, k), clip_mean(ib, ks, k)
         deltas[k] = dict(base=round(va, 4), cond=round(vb, 4), delta=round(vb - va, 4), n_clips=len(ks))
+
+    # The wins on the key followed, from its per-clip differences.
     # The key is aligned like the others: a None cannot be a win or a loss.
     # Its count is in `metrics[key]["n_clips"]`; with no clip left there is
     # no per-clip comparison, which is said rather than written as zero wins.
@@ -152,6 +186,8 @@ def compare(a: dict, b: dict, allow_subset: bool = False, allow_legacy_code: boo
     if not primary:
         raise ValueError(f"{key} is defined on no common clip, so there is no per-clip comparison to make")
     wins = sum(1 for c in primary if (ib[c][key] - ia[c][key]) * sign > 0)
+
+    # The summary, from the check, the means and the wins.
     out = dict(n_clips=len(clips), population=chk["population"], eval_code=chk["eval_code"],
                clips=clips, wins=wins, metrics=deltas)
     if "versions_differ" in chk:
@@ -213,10 +249,10 @@ def main() -> None:
     ap.add_argument("--cond", required=True, help="The compared condition's tag.")
     ap.add_argument("--dir", required=True, help="The directory of the score JSONs, one <tag>.json per condition.")
     ap.add_argument("--key", default="",
-                    help="The key of the per-clip list, the chart and wins: the question's primary metric "
-                         f"(default {PILOT_KEY} on a pilot JSON, {metric_key(*DEFAULT_KEY)} on the evaluator's).")
+                    help="The key of the per-clip list, the chart and wins, meant to be the one that decides "
+                         f"the question asked (default {PILOT_KEY} on a pilot JSON, {metric_key(*DEFAULT_KEY)} on the evaluator's).")
     ap.add_argument("--allow-subset", action="store_true",
-                    help="Compare on the common clips when the populations differ "
+                    help="Compare on the clips both hold when the clip sets differ "
                          "(the summary records population: intersection).")
     ap.add_argument("--allow-legacy-code", action="store_true",
                     help="Let through JSONs that record no eval_code_sha "
@@ -225,6 +261,8 @@ def main() -> None:
     ap.add_argument("--out_json", default="", help="Write the comparison summary to this JSON.")
     args = ap.parse_args()
 
+    # The comparison, from the two JSONs; and the key followed, which the
+    # summary leaves out when it is the workbench's default on a pilot JSON.
     try:
         a, b = load(args.dir, args.base), load(args.dir, args.cond)
         res = compare(a, b, allow_subset=args.allow_subset, allow_legacy_code=args.allow_legacy_code, key=args.key)
@@ -234,6 +272,7 @@ def main() -> None:
     clips = res["clips"]
     ia, ib = rows_of(a), rows_of(b)
 
+    # The table: every key's aligned means, its difference and its direction.
     print(f"=== {args.cond} vs {args.base} ({len(clips)} clips, "
           f"population={res['population']}, eval_code={res['eval_code']}) ===")
     if "versions_differ" in res:
@@ -249,6 +288,7 @@ def main() -> None:
         note = "" if r["n_clips"] == len(clips) else f"   [{r['n_clips']}/{len(clips)} clips]"
         print(f"{k:{w}s} {r['base']:10.4f} {r['cond']:10.4f} {r['delta']:+9.4f}  {DIRECTION[s]}{note}")
 
+    # The per-clip list on the key followed, and its wins.
     # Per clip: every clip a little, or one clip a lot, mean different things.
     # Only the clips on which both conditions define the key are listed, the
     # worst move first; `compare` has already refused the case where none is.
@@ -260,6 +300,7 @@ def main() -> None:
     moved = "rose" if sign > 0 else "fell"
     print(f"\nclips on which {key} {moved}: {res['wins']}/{len(primary)}{left_out}")
 
+    # The summary, written when asked.
     summary = dict(base=args.base, cond=args.cond, **res)
     if args.out_json:
         os.makedirs(os.path.dirname(args.out_json) or ".", exist_ok=True)
@@ -267,6 +308,7 @@ def main() -> None:
             json.dump(summary, f, indent=1, ensure_ascii=False)
         print(f"→ {args.out_json}")
 
+    # The chart, drawn when asked, over the clips of the per-clip list.
     if args.plot:
         fig_dir = os.path.join(os.path.dirname(os.path.abspath(args.dir)), "figs")
         os.makedirs(fig_dir, exist_ok=True)
