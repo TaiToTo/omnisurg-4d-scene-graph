@@ -101,6 +101,9 @@ def test_background_is_removed_in_every_view_and_counted(atlas):
         s = scored_pixels(frame, atlas, view, ALL)
         assert s.counts.background == 1800, view
         assert not s.mask[:, :20].any() and not s.mask[:, 90:].any()
+        # The background mask is what `unlabelled_share` reads: the valid
+        # background pixels, and never one the view scores.
+        assert (s.background == (frame == 0)).all() and not (s.background & s.mask).any()
     assert scored_pixels(frame, atlas, "all", ALL).counts.scored == 4200
     assert scored_pixels(frame, atlas, "tissue", ALL).counts == PixelCounts(0, 0, 1800, 600, 3600)
     assert scored_pixels(frame, atlas, "geometric", ALL).counts == PixelCounts(0, 0, 1800, 1800, 2400)

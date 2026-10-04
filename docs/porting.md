@@ -54,11 +54,11 @@ Where they and this document differ, this document holds.
      as a script directory at the repository root, `sam3_wrapper/` on
      `PYTHONPATH` by name, and a copy of the older `eval_track.py` as a test
      fixture.
-4. **`evalkit/` is a package.** Tools import the evaluator and each other
-   as `evalkit.<module>`, with no `sys.path` edits. `check_env97` existed
-   because frozen scripts could not check their own import path; a package
-   does not need it. `pyproject.toml` includes `evalkit*` next to
-   `surgical_core*`.
+4. **`evalkit/` is a package.** Tools import the evaluator as
+   `evalkit.<module>` and each other as `evalkit.tools.<module>`, with no
+   `sys.path` edits. `check_env97` existed because frozen scripts could not
+   check their own import path; a package does not need it. `pyproject.toml`
+   includes `evalkit*` next to `surgical_core*`.
 5. **No minimum object size, anywhere.** The evaluator has none
    (`docs/evaluation.md`, "Thresholds"). `track_metrics.MIN_AREA` (400 px)
    is removed with it, and nothing filters GT objects or predicted regions by
@@ -222,9 +222,12 @@ while the evaluator is built and reviewed is worked out in `docs/workstreams.md`
      planted mixed ruler and a planted missing condition.
    The paper's numbers are the step-3 scores read through these tools.
 5. **Port the pipeline, one stage at a time.** Each stage's output must match
-   the workbench byte for byte. The one exception is Pi3X's `runtime_sec`, per
-   `repo_migration_determinism.md`. If the package comparison in step 2 found
-   a difference, measure determinism again first. The 315 clips also get DA3
+   the workbench byte for byte. Two exceptions: Pi3X's `runtime_sec`, per
+   `repo_migration_determinism.md`; and the 14 CholecSeg8k clips whose gap
+   frames the workbench's extractor placed 1 to 3 s late (open question 8),
+   which the ported extractor converts or refuses, and which are then
+   re-extracted and re-run. If the package comparison in step 2 found a
+   difference, measure determinism again first. The 315 clips also get DA3
    and `glb_centroid`: the demo's reference grid stays DA3.
 6. **Prepare the release.**
    - An English README, `docs/data_contract.md`, the `atlas120k_meta/` README
@@ -262,7 +265,7 @@ Every command takes those paths as arguments.
    leaves both behind. The paper's figures come from some of those pages.
 3. **Whether step 5 has to finish before submission.** Step 3 already gives
    the numbers, and the determinism result says step 5 cannot change them.
-4. **Pilot mode's own rules.** Four places where pilot mode must not read
+4. **Pilot mode's own rules.** Five places where pilot mode must not read
    the evaluator's tables or helpers, each noted where it was found and
    collected here so the pilot-mode driver settles them in one go:
    - ATLAS-120k typing: the pilot evaluator knew one type, Tools/camera;
@@ -281,11 +284,22 @@ Every command takes those paths as arguments.
      that records it has it empty, but those are the workshop's; confirm on
      the 38 conditions' JSONs before pilot mode assumes an empty set
      (`evalkit/vi.py`).
+   - The clip means: `summarize_clip` averages with `sum() / len()`, takes a
+     mean only over the frames a key is defined on and leaves None where
+     there is none; the pilot took `np.mean`, wrote 0 where no frame defined
+     a key, and rounded the summary to four decimals. The last bit of the
+     two means differs on about 40 % of random clips, so the pilot-mode
+     driver aggregates the pilot's way and does not call `summarize_clip`
+     (`evalkit/clip.py`).
 5. **Boundary dilation before the freeze.** `evalkit/boundary.py` dilates
    with `cv2.dilate`; a numpy shift-or over the (2·tol + 1)² offsets agrees
    on every mask tried, borders included. The question is whether a hashed
    file should depend on a library's behaviour at all while OpenCV is
-   unpinned. Decide before the evaluator is frozen.
+   unpinned. The same question, with more at stake, in pilot mode:
+   `evalkit/pilot.py` numbers a class's components in the order
+   `cv2.connectedComponents` labels them, and the pairing's tie rule reads
+   the numbers, so there the library's order is the rule itself, not an
+   implementation checked against one. Decide before the evaluator is frozen.
 6. **The benchmark mapping against its source.** The ATLAS-120k mapping to
    the benchmark's 30 classes was typed from the document and checked by
    hand against ATLAS-bench's `datasets/class_mapping.py` at commit
@@ -313,3 +327,35 @@ Every command takes those paths as arguments.
    `hold_mean` ones. When the extractor is ported in step 5 it converts the
    gap frames or refuses the video, the 14 clips are re-extracted and re-run,
    and that is a deliberate exception to step 5's byte-for-byte rule.
+9. **What the geometric view cannot see.** The geometric view removes the
+   `appearance` pixels from the GT and the regions alike, so a region lying
+   on them only, such as a blood spot a colour-driven pipeline cuts out of
+   the liver, is no object and costs nothing. Count, in both datasets' GT
+   masks, the `appearance` pixels in connected components whose whole outer
+   border is one `tissue` class: the spots where the organ plainly runs on
+   underneath. If they are rare, nothing changes. If not, decide before the
+   freeze whether the evaluator counts the regions lying wholly on removed
+   pixels, reported like `unlabelled_share` and never starred. Filling the
+   spots from their neighbours was considered and set aside; the reasons are
+   in `docs/evaluation.md`, "Views".
+10. **The evaluator map against `evalkit/frame.py`.** Two things to carry
+    into the next redraw of `docs/figures/evaluator_map.png`, neither wrong
+    today. The map gives step 2, one frame in one view, no module, and
+    names `frame` at step 3 only; in the code both are in `frame.py`, as
+    `score_view` and `score_frame`, so a reader looking for where one view
+    is composed finds no box. And the map's step 3 shows a frame scored or
+    its keys undefined, never skipped: the excluded marker takes a frame out
+    whole, counted for the clip driver, and a depth map with an invalid
+    pixel stops the run with an error, counted nowhere. A phrase in the
+    step 3 box, "or skipped whole, and counted", would close that in the
+    figure. `evalkit/README.md` is the
+    short version and need not say either.
+11. **A class table read from outside the package.** `load_table(...,
+    path=...)` reads any file, for tests that plant a fault, and
+    `ClassTable.path` says it is for `eval_code_sha`; but nothing checks
+    that the path is one `code_sha.hashed_files()` lists, so a score made
+    with a table outside the package would carry the package's sha and look
+    comparable. The entry point is the one place that records a sha, so the
+    check belongs there: refuse a table whose path is not among the hashed
+    files before writing a score. Settle with it whether `path` stays a
+    public argument of `load_table` at all, or becomes a test-only hook.
