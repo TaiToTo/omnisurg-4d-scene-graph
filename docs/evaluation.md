@@ -412,6 +412,9 @@ uses it.
 - the dataset, the class set (`original`, or for ATLAS-120k also
   `benchmark`), the view, and whether the score was made in pilot mode
 - the sha of every input read: GT masks, depth maps and predictions
+- the name of the directory the predictions were read from, as
+  `track_dir_name`, which is how `condition_inventory` matches a score to
+  its labels; a score that does not say what it scored cannot be inventoried
 - the Python, numpy, OpenCV and Pillow versions
 
 The pilot evaluator's JSONs recorded neither the input shas nor the versions.
@@ -439,21 +442,25 @@ pilot evaluator's numbers.
     instance metrics; the class map and the boundary metrics on the `full`
     domain as the pilot evaluator computed them, with background pixels
     voting on a region's name and an edge against background counted as a
-    boundary; VI over the valid pixels whose GT is not background, which is
-    how the pilot evaluator computed it, with its `extra_ignore` set empty,
-    as every score that records it has it (the workshop's; the 38
-    conditions' JSONs are checked before pilot mode relies on it);
+    boundary; VI on the `labeled` domain, the valid pixels whose GT is not
+    background, which is the mask the pilot evaluator computed it on, with
+    its `extra_ignore` set empty, as every score that records it has it
+    (the workshop's; the 38 conditions' JSONs are checked before pilot mode
+    relies on it), so the pilot's one `VI_split` is the evaluator's
+    `VI_split/labeled`, and the same for `VI_merge`;
   - per-class 8-connected components of at least `PILOT_MIN_CC_PX` as GT
     objects, and regions of at least that size as predicted objects;
   - the pixels whose depth is not finite or not above `DEPTH_MIN` masked
     out and counted, where normal mode refuses the frame;
   - frames in file order for `time_IoU`;
-  - the pilot evaluator's zeros in place of undefined values: a frame with no
-    class enters the `mIoU` mean as 0; a clip with no GT object in the `full`
-    domain writes 0 for its instance keys instead of leaving them out; a
-    frame whose GT boundary is empty scores 0 on the boundary metrics rather
-    than being left out; and a clip on which `time_IoU` pools nothing writes
-    0 for it.
+  - the pilot evaluator's values in place of undefined ones, zeros where it
+    wrote zeros and None where it wrote None: a frame with no class enters
+    the `mIoU` mean as 0; a clip on which no frame has a GT object in a
+    domain writes `F1_50` as 0 in the `full` domain and as None in the other
+    three, and `SQ` and `inst_BF` as None in every domain, there being no
+    hit to average; a frame whose GT boundary is empty scores 0 on the
+    boundary metrics rather than being left out; and a clip on which
+    `time_IoU` pools nothing writes 0 for it.
 - On the 38 conditions already scored, pilot mode must reproduce every key it
   shares with the pilot evaluator — the metrics table names them, and their
   per-domain variants — at zero tolerance: the values written must be equal.
