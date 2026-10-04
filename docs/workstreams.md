@@ -124,11 +124,32 @@ differ, and nothing in the guide is a third copy of a scene.
 | `surgical-core/geometry` | `surgical_core/geometry/`, its test | E `extract/04-kmerge`, W | anywhere; diff against W needs the workbench |
 | `atlas120k-meta/data` | the metadata files, with a README | W | workbench machine |
 | `atlas120k-meta/readers` | `clip_rects.py`, `frame_ratio.py`, their tests | W | workbench machine |
+| `docs/short-headers` | the module headers of `main` brought under the cap of `docs/review.md` | this repository | anywhere |
 
 The first three have a source on GitHub and suit a session without the
 workbench. The last two read the workbench and stay on its machine. The two
 `atlas120k-meta` branches can be one if the result stays near five files;
 `data` first, since `readers` is tested against it.
+
+### `docs/short-headers`
+
+**Source.** This repository. `tests/test_module_headers_are_short.py` lists
+in `STILL_LONG` the modules whose header was over the cap when the rule was
+made; `docs/review.md` says what a header holds and where the rest goes.
+
+**What it is.** Each listed module's header is cut to what the module does,
+in at most twelve lines, plus its Usage. History goes to the commit that
+removes it, with the reason it was there, so that git keeps it; a definition
+of a term the specification has is dropped, and one it lacks is added to
+`docs/evaluation.md` in one line; a reason for a choice moves to a one- or
+two-line comment at the choice, or is dropped when no reader would "fix" the
+choice without it. A module whose paragraph needs "and" is split. The
+module is then removed from `STILL_LONG`, which the test refuses to keep it
+in once it is short.
+
+**Done when.** `STILL_LONG` is empty and the suite passes. A few modules per
+pull request, each pull request one area (`evalkit/`, `evalkit/tools/`,
+`surgical_core/`, `tests/`).
 
 ### `surgical-core/clip-time`
 

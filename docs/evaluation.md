@@ -430,6 +430,28 @@ rule: the two shas differ by construction. It is a verification, run by its
 own script outside `compare_eval`, that this evaluator in pilot mode writes the
 pilot evaluator's numbers.
 
+### Terms the tools read a score with
+
+- A *score JSON* is one condition's scores: a summary and one *row* per
+  clip, under `per_clip`. A *key* is one column of the rows: the evaluator
+  writes `metric/view` (`F1_50/geometric`) and `time_IoU` once per clip; a
+  *pilot JSON*, one the pilot evaluator wrote, is told apart by holding none
+  of the fields above and keeps the pilot evaluator's spellings
+  (`inst_F1_50`, `inst_F1_50_tissue`, with the domain after an underscore).
+  A JSON this evaluator writes in pilot mode is not a pilot JSON.
+- A *ruler* is what a score was measured with: everything in the
+  comparability rule above. Two scores on one ruler are comparable.
+- A *tag* is a condition's name on disk: the directory under each clip that
+  holds its labels, and separately the name of its score JSON; the score
+  names the label directory it read in `track_dir_name`.
+- In a comparison, *base* is the condition compared against and *cond* the
+  one compared; a difference is `cond − base`. A key's *direction* is the
+  way it is better: higher, lower, or neither for a reference value. The
+  *population* is the clips the two are compared on, `identical` when both
+  hold the same clips and `intersection` when compared on the common ones;
+  per key it shrinks to the clips on which both define it. The *wins* on a
+  key are the clips on which it moved the better way, among those.
+
 ### Checked against the pilot evaluator
 
 - Pilot mode runs this evaluator with the pilot evaluator's rules:
