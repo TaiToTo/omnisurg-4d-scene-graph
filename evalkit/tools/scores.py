@@ -108,9 +108,18 @@ class Ruler:
 
 
 def load_scores(path: str | Path) -> dict:
-    """Read one score JSON."""
+    """Read one score JSON.
+
+    Raises:
+        ValueError: The file holds a `NaN` or an infinity. JSON has no such
+            number, `json` would read it as a float all the same, and a
+            mean over it is a NaN that prints like a value.
+    """
+    def refuse(token: str):
+        raise ValueError(f"{path}: holds {token}, which is not a JSON number and not a score")
+
     with open(path, encoding="utf-8") as f:
-        return json.load(f)
+        return json.load(f, parse_constant=refuse)
 
 
 def is_pilot_json(summary: Mapping) -> bool:

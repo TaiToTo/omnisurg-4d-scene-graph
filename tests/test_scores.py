@@ -321,3 +321,15 @@ def test_defined_clips_keeps_the_clips_where_both_sides_have_a_value():
     other[CLIPS[1]]["SQ"] = None
     assert defined_clips(rows, other, CLIPS, "SQ") == CLIPS[:1]
     assert defined_clips(rows, other, CLIPS, "absent") == []
+
+
+def test_a_json_that_holds_a_nan_or_an_infinity_is_refused(tmp_path):
+    # `json` reads a bare `NaN` as a float, and a mean over it is a NaN that
+    # prints like a value and counts as a loss.
+    p = tmp_path / "s.json"
+    for token in ("NaN", "Infinity", "-Infinity"):
+        p.write_text('{"per_clip": [{"clip": "c", "SQ": ' + token + '}]}')
+        with pytest.raises(ValueError, match=f"holds {token}"):
+            scores.load_scores(p)
+    p.write_text('{"per_clip": [{"clip": "c", "SQ": 0.5}]}')
+    assert scores.load_scores(p)["per_clip"][0]["SQ"] == 0.5
