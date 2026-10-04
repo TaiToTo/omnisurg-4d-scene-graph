@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 
 from evalkit.tools import compare_eval as CE
-from evalkit.tools.scores import PILOT_EVAL_CODE_SHA, metric_key
+from evalkit.tools.scores import PILOT_EVAL_CODE_SHA, PILOT_SIGNS, metric_key
 
 REPO = Path(__file__).resolve().parent.parent
 VIDEOS = ("adrenalectomy__16GPCUPkXYQ", "appendectomy__41RKDh3INiU", "gastric_surgery__4FHGGFZsPzw",
@@ -28,7 +28,7 @@ def pilot_scores(tag: str, shift: float, seed: int) -> dict:
     rows = []
     for c in clips:
         r = {"clip": c, "extra_ignore": []}
-        for k, _ in CE.PILOT_METRICS:
+        for k in PILOT_SIGNS:
             if k == "time_IoU":
                 continue
             v = round(min(1.0, max(0.0, rnd.gauss(0.5 + shift, 0.15))), 4)
@@ -38,10 +38,11 @@ def pilot_scores(tag: str, shift: float, seed: int) -> dict:
                 dataset="atlas", tissue_ignore=[1, 2], clips=clips, per_clip=rows)
 
 
-def evaluator_scores(pilot=False, class_set="original", views=("all", "tissue", "geometric"), shift=0.0, seed=1):
+def evaluator_scores(pilot=False, class_set="original", views=("all", "tissue", "geometric"), shift=0.0, seed=1,
+                     metrics=("F1_50", "SQ")):
     rnd = random.Random(seed)
     clips = [f"{v}__gt_0001" for v in VIDEOS]
-    rows = [dict(clip=c, **{metric_key(m, v): round(rnd.random() + shift, 4) for v in views for m in ("F1_50", "SQ")},
+    rows = [dict(clip=c, **{metric_key(m, v): round(rnd.random() + shift, 4) for v in views for m in metrics},
                  time_IoU=0.5) for c in clips]
     return dict(eval_code_sha=SHA, dataset="atlas120k", pilot=pilot, class_set=class_set, views=list(views),
                 clips=clips, input_shas={c: {"gt_masks": "g", "depth": "d", "predictions": "p"} for c in clips},
@@ -112,7 +113,7 @@ def test_different_populations_are_refused_unless_a_subset_is_allowed():
 
 def test_the_evaluator_s_keys_and_primary_metric_come_from_the_json():
     a, b = evaluator_scores(seed=1), evaluator_scores(seed=1, shift=0.1)
-    assert CE.primary_key(a) == "F1_50/geometric"
+    assert CE.primary_key(a) == ("F1_50/geometric", +1)
     res = CE.compare(a, b)
     assert set(res["metrics"]) == {"F1_50/all", "SQ/all", "F1_50/tissue", "SQ/tissue",
                                    "F1_50/geometric", "SQ/geometric", "time_IoU"}
@@ -147,12 +148,97 @@ def test_the_command_lists_only_the_clips_where_the_primary_metric_is_defined(tm
     r = subprocess.run([sys.executable, "-m", "evalkit.tools.compare_eval", "--base", "base", "--cond", "cond",
                         "--dir", str(tmp_path)], capture_output=True, text=True, cwd=REPO, check=True)
     assert "rose: 4/4   [F1_50/geometric undefined on 1 clips]" in r.stdout
-    assert a["per_clip"][0]["clip"] not in r.stdout.split("clip ")[-1]
+    # The clip's name appears nowhere but the per-clip list.
+    assert a["per_clip"][0]["clip"] not in r.stdout
 
 
-def test_an_evaluator_json_without_the_geometric_view_has_no_primary_metric():
+def test_an_evaluator_json_without_the_geometric_view_has_no_default_key():
     with pytest.raises(ValueError, match="no geometric view"):
         CE.primary_key(evaluator_scores(views=("all",)))
+    assert CE.primary_key(evaluator_scores(views=("all",)), "SQ/all") == ("SQ/all", +1)
+
+
+# ---------------------------------------------------------------- the key and its direction
+
+
+def test_the_pilot_directions_are_the_specification_s():
+    signs = dict(CE.metrics_of(pilot_scores("base", 0.0, 5)))
+    # `time_IoU` is a reference value and `n_regions_mean` a count: neither has a better way.
+    assert signs["time_IoU"] == 0 and signs["n_regions_mean"] == 0
+    assert signs["underseg_error"] == -1 and signs["overseg_mean"] == -1
+    assert all(s == +1 for k, s in signs.items() if k not in ("time_IoU", "n_regions_mean", "underseg_error", "overseg_mean"))
+
+
+def test_the_summary_records_the_key_unless_it_is_the_workbench_s_on_a_pilot_json():
+    a, b = pilot_scores("base", 0.0, 5), pilot_scores("cond", 0.03, 6)
+    # The workbench's summary has no such field, and the pilot summary must stay its bytes.
+    assert "key" not in CE.compare(a, b) and "sign" not in CE.compare(a, b)
+    res = CE.compare(a, b, key="underseg_error")
+    assert (res["key"], res["sign"]) == ("underseg_error", -1)
+    res = CE.compare(evaluator_scores(seed=1), evaluator_scores(seed=1, shift=0.1))
+    assert (res["key"], res["sign"]) == ("F1_50/geometric", +1)
+
+
+def test_a_key_where_lower_is_better_counts_a_fall_as_a_win():
+    a = evaluator_scores(seed=1, metrics=("F1_50", "VI_split"))
+    b = evaluator_scores(seed=1, shift=0.1, metrics=("F1_50", "VI_split"))
+    # `cond` is higher on every clip: every clip is a win on F1_50 and none on VI_split.
+    assert CE.compare(a, b)["wins"] == 5
+    assert CE.compare(a, b, key="VI_split/all")["wins"] == 0
+    assert CE.compare(b, a, key="VI_split/all")["wins"] == 5
+
+
+def test_a_reference_value_or_a_key_the_json_does_not_report_is_refused():
+    a, b = evaluator_scores(seed=1), evaluator_scores(seed=1, shift=0.1)
+    with pytest.raises(ValueError, match="reference value with no direction"):
+        CE.compare(a, b, key="time_IoU")
+    with pytest.raises(ValueError, match="not a key this JSON reports"):
+        CE.compare(a, b, key="inst_F1_50")
+    with pytest.raises(ValueError, match="not a key this JSON reports"):
+        CE.compare(pilot_scores("base", 0.0, 5), pilot_scores("cond", 0.03, 6), key="F1_50/geometric")
+
+
+def run(tmp_path, a, b, *more):
+    (tmp_path / "base.json").write_text(json.dumps(a))
+    (tmp_path / "cond.json").write_text(json.dumps(b))
+    return subprocess.run([sys.executable, "-m", "evalkit.tools.compare_eval", "--base", "base", "--cond", "cond",
+                           "--dir", str(tmp_path), *more], capture_output=True, text=True, cwd=REPO)
+
+
+def directions(stdout: str) -> dict[str, str]:
+    """Each metric line's direction phrase, by metric."""
+    table = stdout.split("\n\nclip")[0].splitlines()[2:]
+    return {line.split()[0]: next(d for d in CE.DIRECTION.values() if d in line) for line in table}
+
+
+def test_the_table_prints_a_direction_and_no_mark_that_reads_as_a_verdict(tmp_path):
+    # The verdict is `paired_stats.verdict` alone; a mark on a sign would be
+    # a second one, read as "better" on a difference of 0.0004.
+    a, b = pilot_scores("base", 0.0, 5), pilot_scores("cond", 0.03, 6)
+    forward, backward = run(tmp_path, a, b), run(tmp_path, b, a)
+    assert forward.returncode == 0 and backward.returncode == 0, forward.stderr + backward.stderr
+    for r in (forward, backward):
+        assert not any(m in r.stdout for m in ("○", "×", "★", "✗")), r.stdout
+    # Swapping the conditions flips every delta and changes no direction.
+    assert directions(forward.stdout) == directions(backward.stdout)
+    d = directions(forward.stdout)
+    assert d["inst_F1_50"] == "higher is better" and d["underseg_error"] == "lower is better"
+    assert d["time_IoU"] == "reference, never marked"
+    # No metric's name is cut off or shifts the columns.
+    assert all(line.split()[0] in d for line in forward.stdout.split("\n\nclip")[0].splitlines()[2:])
+    assert "inst_F1_50_labeled_tissue " in forward.stdout and "unlabelled_share" not in forward.stdout
+
+
+def test_the_command_takes_the_key_and_says_which_way_it_moved(tmp_path):
+    a = evaluator_scores(seed=1, metrics=("F1_50", "VI_split"))
+    b = evaluator_scores(seed=1, shift=0.1, metrics=("F1_50", "VI_split"))
+    r = run(tmp_path, a, b, "--key", "VI_split/tissue", "--out_json", str(tmp_path / "cmp.json"))
+    assert r.returncode == 0, r.stderr
+    assert "clips on which VI_split/tissue fell: 0/5" in r.stdout
+    j = json.loads((tmp_path / "cmp.json").read_text())
+    assert (j["key"], j["sign"], j["wins"]) == ("VI_split/tissue", -1, 0)
+    r = run(tmp_path, a, b, "--key", "time_IoU")
+    assert r.returncode != 0 and "reference value" in r.stderr and "Traceback" not in r.stderr
 
 
 def test_differing_versions_are_carried_into_the_summary():
@@ -179,11 +265,32 @@ def test_the_command_writes_the_summary_and_the_chart(tmp_path):
     assert (tmp_path / "figs" / "delta__base_vs_cond.png").stat().st_size > 0
 
 
+def test_the_chart_is_drawn_when_the_key_is_undefined_on_a_clip(tmp_path):
+    # Drawn over the clips both define, like the list; over all of them, the
+    # None is subtracted and the command dies after printing the table.
+    pytest.importorskip("matplotlib", reason="the chart needs the `tools` extra")
+    d = tmp_path / "scores"
+    d.mkdir()
+    a, b = evaluator_scores(seed=1), evaluator_scores(seed=1, shift=0.1)
+    b["per_clip"][0]["F1_50/geometric"] = None
+    r = run(d, a, b, "--plot")
+    assert r.returncode == 0, r.stderr
+    assert (tmp_path / "figs" / "delta__base_vs_cond.png").stat().st_size > 0
+
+
 def test_the_command_stops_on_a_mix_of_shas(tmp_path):
     a, b = pilot_scores("base", 0.0, 5), pilot_scores("cond", 0.03, 6)
     b["eval_code_sha"] = "b" * 64
-    (tmp_path / "base.json").write_text(json.dumps(a))
-    (tmp_path / "cond.json").write_text(json.dumps(b))
+    r = run(tmp_path, a, b)
+    assert r.returncode != 0 and "different evaluators" in r.stderr
+
+
+def test_the_command_stops_on_a_missing_or_broken_json(tmp_path):
+    (tmp_path / "base.json").write_text(json.dumps(pilot_scores("base", 0.0, 5)))
     r = subprocess.run([sys.executable, "-m", "evalkit.tools.compare_eval", "--base", "base", "--cond", "cond",
                         "--dir", str(tmp_path)], capture_output=True, text=True, cwd=REPO)
-    assert r.returncode != 0 and "different evaluators" in r.stderr
+    assert r.returncode != 0 and "cond.json" in r.stderr and "Traceback" not in r.stderr
+    (tmp_path / "cond.json").write_text("{not json")
+    r = subprocess.run([sys.executable, "-m", "evalkit.tools.compare_eval", "--base", "base", "--cond", "cond",
+                        "--dir", str(tmp_path)], capture_output=True, text=True, cwd=REPO)
+    assert r.returncode != 0 and "Expecting" in r.stderr and "Traceback" not in r.stderr
