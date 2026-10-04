@@ -19,7 +19,7 @@ import numpy as np
 import pytest
 
 from evalkit.tools import paired_stats as PS
-from evalkit.tools.scores import PILOT_EVAL_CODE_SHA, FRAME_METRICS, CLIP_METRICS, metric_key
+from evalkit.tools.scores import CLIP_METRICS, FRAME_METRICS, PILOT_EVAL_CODE_SHA, PILOT_SIGNS, metric_key
 
 pytest.importorskip("scipy", reason="the Wilcoxon test needs the `tools` extra")
 
@@ -143,10 +143,11 @@ def test_is_star_matches_verdict():
     assert PS.is_star([-0.05, -0.01], sign=-1) and not PS.is_star([0.01, 0.05], sign=-1)
 
 
-def test_every_pilot_key_has_a_direction():
-    assert set(PS.PILOT_SIGNS) == set(PS.PILOT_KEYS)
-    assert PS.PILOT_SIGNS["underseg_error"] == -1
-    assert all(PS.PILOT_SIGNS[k] == +1 for k in PS.PILOT_KEYS if k != "underseg_error")
+def test_every_pilot_key_has_a_direction_from_the_one_table():
+    assert set(PS.PILOT_KEYS) <= set(PILOT_SIGNS)
+    assert PILOT_SIGNS["underseg_error"] == -1
+    assert all(PILOT_SIGNS[k] == +1 for k in PS.PILOT_KEYS if k != "underseg_error")
+    assert all(PS.sign_of_key(pilot_scores("a", 0.0, 1), k) == PILOT_SIGNS[k] for k in PS.PILOT_KEYS)
 
 
 def test_video_of():
@@ -437,6 +438,11 @@ def marks_bound_to_a_truth_value(src: str) -> list[str]:
     return bad
 
 
+# Every glyph that reads as "better" or "worse" in a table: the verdict's own
+# two, and the circle and cross that read as a verdict on a sign alone.
+MARKS = ("★", "✗", "○", "×")
+
+
 def _emits_a_mark(tree) -> bool:
     docstrings = set()
     for n in ast.walk(tree):
@@ -445,7 +451,7 @@ def _emits_a_mark(tree) -> bool:
             first = body[0]
             if isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant) and isinstance(first.value.value, str):
                 docstrings.add(id(first.value))
-    return any(isinstance(n, ast.Constant) and isinstance(n.value, str) and ("★" in n.value or "✗" in n.value)
+    return any(isinstance(n, ast.Constant) and isinstance(n.value, str) and any(m in n.value for m in MARKS)
                and id(n) not in docstrings for n in ast.walk(tree))
 
 
@@ -590,6 +596,7 @@ def test_the_bool_scan_lets_counting_and_comparing_pass(src):
 
 PRINTS_WITHOUT_BORROWING = [
     'print("★" if lo > 0 else "")',
+    'mark = "○" if d * sign > 0 else "×"',
     'from evalkit.tools.paired_stats import boot_ci\nmark = "★" if boot_ci(d)[0] > 0 else ""',
     'import evalkit.tools.paired_stats\nmark = "★"',
     'from evalkit.tools import paired_stats as PS\nmark = "★"\nvideo = PS.video_of(c)',
