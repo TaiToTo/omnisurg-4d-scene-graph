@@ -120,6 +120,12 @@ def primary_key(summary: dict, key: str = "") -> tuple[str, int]:
             key = metric_key(*DEFAULT_KEY)
     if key not in signs:
         raise ValueError(f"{key} is not a key this JSON reports; the keys are {list(signs)}")
+    # The pilot's list names every key the pilot evaluator ever wrote, and
+    # the evaluator's is built from the views; a key missing from every row
+    # is told apart from one that is None on every clip.
+    if not any(key in r for r in summary["per_clip"]):
+        raise ValueError(f"{key} is in no row of this JSON; the keys its rows hold are "
+                         f"{sorted({k for r in summary['per_clip'] for k in r if k in signs})}")
     if signs[key] == 0:
         raise ValueError(f"{key} is a reference value with no direction, so no clip can win on it")
     return key, signs[key]
@@ -300,12 +306,18 @@ def main() -> None:
     moved = "rose" if sign > 0 else "fell"
     print(f"\nclips on which {key} {moved}: {res['wins']}/{len(primary)}{left_out}")
 
-    # The summary, written when asked.
+    # The summary, written when asked. A NaN is refused as `paired_stats`
+    # refuses it: `json` would write a bare `NaN`, which is not JSON, and a
+    # reader would take it for a value.
     summary = dict(base=args.base, cond=args.cond, **res)
     if args.out_json:
         os.makedirs(os.path.dirname(args.out_json) or ".", exist_ok=True)
+        try:
+            text = json.dumps(summary, indent=1, ensure_ascii=False, allow_nan=False)
+        except ValueError as e:
+            raise SystemExit(f"{args.out_json}: not written, a score holds a NaN ({e})") from e
         with open(args.out_json, "w", encoding="utf-8") as f:
-            json.dump(summary, f, indent=1, ensure_ascii=False)
+            f.write(text)
         print(f"→ {args.out_json}")
 
     # The chart, drawn when asked, over the clips of the per-clip list.

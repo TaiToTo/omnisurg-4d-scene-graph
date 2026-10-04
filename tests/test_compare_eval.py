@@ -188,6 +188,18 @@ def test_a_key_where_lower_is_better_counts_a_fall_as_a_win():
     assert CE.compare(b, a, key="VI_split/all")["wins"] == 5
 
 
+def test_a_key_in_no_row_of_a_pilot_json_is_refused_by_name():
+    # The pilot's list names every key the pilot evaluator ever wrote;
+    # `time_IoU` is in the list and in none of these rows, and the refusal
+    # has to say so, not that it is defined on no common clip.
+    a, b = pilot_scores("base", 0.0, 5), pilot_scores("cond", 0.03, 6)
+    for r in a["per_clip"] + b["per_clip"]:
+        r["time_IoU"] = 0.5
+        del r["inst_BF"]
+    with pytest.raises(ValueError, match="inst_BF is in no row"):
+        CE.compare(a, b, key="inst_BF")
+
+
 def test_a_reference_value_or_a_key_the_json_does_not_report_is_refused():
     a, b = evaluator_scores(seed=1), evaluator_scores(seed=1, shift=0.1)
     with pytest.raises(ValueError, match="reference value with no direction"):
@@ -224,9 +236,13 @@ def test_the_table_prints_a_direction_and_no_mark_that_reads_as_a_verdict(tmp_pa
     d = directions(forward.stdout)
     assert d["inst_F1_50"] == "higher is better" and d["underseg_error"] == "lower is better"
     assert d["time_IoU"] == "reference, never marked"
-    # No metric's name is cut off or shifts the columns.
-    assert all(line.split()[0] in d for line in forward.stdout.split("\n\nclip")[0].splitlines()[2:])
-    assert "inst_F1_50_labeled_tissue " in forward.stdout and "unlabelled_share" not in forward.stdout
+    # Every pilot key has a line, whole, and the direction column is one
+    # column: a name wider than the column would push its line's direction
+    # to the right.
+    table = forward.stdout.split("\n\nclip")[0].splitlines()[2:]
+    assert {line.split()[0] for line in table} == set(PILOT_SIGNS)
+    assert len({line.index(d[line.split()[0]]) for line in table}) == 1
+    assert "unlabelled_share" not in forward.stdout
 
 
 def test_the_command_takes_the_key_and_says_which_way_it_moved(tmp_path):
@@ -276,6 +292,15 @@ def test_the_chart_is_drawn_when_the_key_is_undefined_on_a_clip(tmp_path):
     r = run(d, a, b, "--plot")
     assert r.returncode == 0, r.stderr
     assert (tmp_path / "figs" / "delta__base_vs_cond.png").stat().st_size > 0
+
+
+def test_the_summary_is_not_written_with_a_nan_in_it(tmp_path):
+    a, b = pilot_scores("base", 0.0, 5), pilot_scores("cond", 0.03, 6)
+    b["per_clip"][0]["inst_F1_50"] = float("nan")
+    out = tmp_path / "cmp.json"
+    r = run(tmp_path, a, b, "--out_json", str(out))
+    assert r.returncode != 0 and "NaN" in r.stderr and "Traceback" not in r.stderr
+    assert not out.exists()
 
 
 def test_the_command_stops_on_a_mix_of_shas(tmp_path):
