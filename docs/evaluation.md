@@ -29,9 +29,14 @@ robot-assisted videos of 14 procedures, 42 classes) and CholecSeg8k
   which the paper's 42 classes and background occur. ATLAS-120k's benchmark
   merges them into 30 classes; those are scored too, for comparison with the
   benchmark, as reference values only.
-- **Ten metrics.** The two *primary* metrics, on which the paper's claims are
-  judged, are `F1_50` (objects found, with every extra region counted against
-  it) and `SQ` (how well the found ones fit), in the geometric view.
+- **Ten metrics, three questions.** The paper asks three questions of the
+  regions, and each is judged on its own *primary* metric: how far a region
+  picked out in one frame can be followed (not decided yet, the last point
+  below); what input puts the regions' boundaries where the GT's class
+  boundaries are, judged on `boundary_R_raw` in each view; and how much of
+  the labelled structure the regions hold, judged on `F1_50` (objects found,
+  with every extra region counted against it) and `SQ` (how well the found
+  ones fit), in the geometric view.
 - **Regions are named from the GT.** Each region takes the class most of its
   pixels have in the GT, so the class-map metric `mIoU` is an oracle value,
   kinder than any real classifier would get.
@@ -295,11 +300,24 @@ diagnostics and never get a star.
 
 ### Primary metrics
 
-`F1_50` and `SQ` in the geometric view, on each dataset's own labels (the
-`original` class set). They were chosen before any score of
-this evaluator was looked at. The pilot evaluator's scores of the same
-quantities have been seen, which is why the choice is fixed before this
-evaluator scores anything.
+The paper asks three questions, each as a comparison between two
+conditions, and judges each on its own key, on each dataset's own labels
+(the `original` class set):
+
+| question | primary metric | view |
+|---|---|---|
+| Given one frame as an example, how far can the regions be followed? | not decided yet (below) | — |
+| Given no example, what input puts the regions' boundaries where the GT's class boundaries are? | `boundary_R_raw` | each of the three |
+| Given no GT, how much of the labelled structure is already in the regions? | `F1_50` and `SQ` | geometric |
+
+The second question is answered within each view, between conditions that
+differ in what the pipeline is given: the image, the depth, or both. The
+views sort the classes by what should separate them, so the answer can
+differ from one view to the next.
+
+These were chosen before any score of this evaluator was looked at. The
+pilot evaluator's scores of the same quantities have been seen, which is why
+the choice is fixed before this evaluator scores anything.
 
 The set is kept as small as the claims allow. The evaluator computes every
 metric in the table; which of them the paper reports is settled before any
