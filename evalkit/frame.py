@@ -6,10 +6,12 @@ scored at all, takes the scored pixels of each view once, and hands the
 same GT, region map and mask to every metric module, so that each key is
 the value its module defines, on the same pixels as the others.
 
-The order is the specification's: the excluded marker on the mask ids (an
-excluded frame is returned with no view, for the clip driver to count),
-then the depth, which in normal mode refuses a pixel without a valid value,
-then per view the objects, the class map, the boundaries, the variation of
+A frame is checked before it is scored: the depth map first, which in
+normal mode refuses a pixel without a valid value whether or not the frame
+is scored, then the excluded marker on the mask ids, on which the frame is
+returned with no view, for the clip driver to count. The keys themselves do
+not depend on one another, and each view takes them in the specification's
+order: the objects, the class map, the boundaries, the variation of
 information and `unlabelled_share`. `time_IoU` is per clip and not here.
 
 A key is None on a frame its metric is not defined on; nothing writes a 0
@@ -222,10 +224,12 @@ def score_frame(
     depth = np.asarray(depth)
     if depth.shape != mask_ids.shape:
         raise ValueError(f"`depth` has shape {depth.shape}, the GT mask {mask_ids.shape}")
+    # The depth map before the marker: a pixel without valid depth is a
+    # fault in the pipeline's output, and skipping the frame would hide it.
+    valid = valid_depth(depth)
     # On the mask ids, before any pixel is scored: a frame the annotators
     # took out is skipped and counted, never scored in part.
     if frame_is_excluded(mask_ids, table):
         return FrameScores(excluded=True, views=MappingProxyType({}))
-    valid = valid_depth(depth)
     views = {view: score_view(mask_ids, regions, valid, table, view) for view in VIEWS}
     return FrameScores(excluded=False, views=MappingProxyType(views))

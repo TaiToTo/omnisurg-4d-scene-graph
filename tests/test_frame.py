@@ -260,6 +260,12 @@ def test_a_pixel_without_valid_depth_refuses_the_frame(atlas):
     depth[0, 0] = np.nan
     with pytest.raises(ValueError, match="no valid depth"):
         score_frame(atlas_ids(S.exact().gt), S.exact().lab, depth, atlas)
+    # An excluded frame too: the depth map is checked before the marker, so
+    # a faulty depth map is found whether or not the frame is scored.
+    gt = atlas_ids(S.exact().gt)
+    gt[:10, :10] = EXCLUDED
+    with pytest.raises(ValueError, match="no valid depth"):
+        score_frame(gt, S.exact().lab, depth, atlas)
     with pytest.raises(ValueError, match="only pilot mode"):
         score_view(atlas_ids(S.exact().gt), S.exact().lab, np.isfinite(depth), atlas, "all")
 
