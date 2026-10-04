@@ -31,6 +31,7 @@ MARKER = re.compile(r"\b(TODO|FIXME|XXX|HACK)\b")
 ALLOWED = frozenset({
     "docs/porting.md",
     "docs/workstreams.md",
+    "docs/review.md",
     "AGENTS.md",
     "CLAUDE.md",
     "tests/test_no_todo_in_code.py",

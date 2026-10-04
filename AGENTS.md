@@ -77,7 +77,7 @@ omnisurg-4d-scene-graph/
 ├── sam3_wrapper/      promptable segmentation and tracking (SAM 3)
 ├── atlas120k_meta/    crop rectangles, cuts, clip population (no video)
 ├── viewer/
-├── docs/              evaluation.md, porting.md, data_contract.md, pipeline.md
+├── docs/              evaluation.md, review.md, porting.md, data_contract.md, pipeline.md
 ├── tests/
 └── .github/workflows/ci.yml
 ```
@@ -104,41 +104,23 @@ layout, and the conventions below.
 
 ## Conventions
 
+One line each here; what each asks for, where what it cuts goes, and which
+test refuses a breach are in `docs/review.md`, which a change is reviewed
+against.
+
 - **Fail closed.** If an invariant cannot be checked, raise. Never skip quietly.
-- **A check earns its place by failing when it should**, not by passing. When
-  you add one, demonstrate the failure (a self-test that plants the fault).
-- **No TODO in code.** A path known to give a wrong answer for some input
-  raises on that input, with a test that plants it. A decision not yet made
-  is written under "Open questions" in `docs/porting.md`, where it is read,
-  not in a comment, where it is not. `tests/test_no_todo_in_code.py` refuses
-  the markers (`TODO`, `FIXME`, `XXX`, `HACK`) in every tracked file but the
-  planning documents and this one. The reason is a clip extractor that knew
-  its gap frames carried the wrong frame number, wrote the TODO, and kept
-  producing data: two months later the fault was found again downstream and
-  explained wrongly, because a comment is read only by whoever opens that
-  file, and a raise is read by whoever runs it.
-- Google-style docstrings; imports at module top; comments say *why*.
-- **A function of several steps names each step.** A function that
-  composes other modules is read to find where one result comes from, not
-  top to bottom. Give each block one line saying what it produces and from
-  what, so the reader lands on the right lines without reading the rest.
-  Say what the block *is*, not why it is so: the reason for a choice inside
-  it is a comment of its own, as below. A function short enough to read
-  whole needs none.
-- **A docstring defines its terms before it uses them.** A term that
-  `docs/evaluation.md` defines is used in the sense it gives there and is
-  not defined again: a second definition drifts from the first. Any other
-  term is defined in one line, in the docstring that first relies on it,
-  before the sentence that does. A question or a rule is called by what it
-  says, not by its place in a list ("the second question"): a place means
-  something only to whoever has the list open.
-- **A comment gives the reason, not a reference.** Never cite a section number,
-  a ticket, an audit letter or a task id (`see §2.3`, `audit B7`, `task22`):
-  they point at documents this repository does not have and will not keep, so
-  the reader is left holding a dead pointer instead of a reason. Write the
-  reason itself, in a line or two; if it does not fit, it belongs in the
-  docstring. The only citable things are the ones that outlive the work — the
-  frozen sha, the module that defines a rule (`paired_stats.VERDICT_RULE`), a
-  published paper.
-- Code and docs in English.
+- **A check earns its place by failing when it should**, with a test that
+  plants the fault.
+- **No TODO in code.** A wrong path raises on its input; an open decision is
+  written under "Open questions", in `docs/porting.md` while the port lasts
+  and in the area's specification after.
+- **A module's header is short**: what the module does, in at most twelve
+  lines, then how to run it. No history, no glossary, no defence of choices.
+- **A term is defined once**, in its area's specification or in the one
+  docstring that uses it; a question or a rule is called by what it says,
+  never by its place in a list.
+- **A function of several steps names each step**, one line per block.
+- **A comment gives the reason, not a reference.** Never a section number,
+  a ticket or a task id.
+- Google-style docstrings; imports at module top; code and docs in English.
 - Never vendor upstream model code — depend on it.
