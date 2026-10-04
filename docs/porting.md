@@ -359,3 +359,14 @@ Every command takes those paths as arguments.
     check belongs there: refuse a table whose path is not among the hashed
     files before writing a score. Settle with it whether `path` stays a
     public argument of `load_table` at all, or becomes a test-only hook.
+12. **The fewest videos for an interval.** `paired_stats.boot_ci` refuses a
+    population of one video, where every resample is the same video and
+    the interval is a point. Two is the floor that removes that failure,
+    not a statistical one: with n videos the chance that a resample draws
+    one video n times is n^-n, above 2.5 % up to three videos, so on two
+    or three the 95 % interval is the range of the video means, and two
+    videos that agree in sign give a mark. `wilcoxon_video` draws its own
+    line at six for the same reason. Whether the interval gets a floor
+    above two, and where, is a decision about the paper's populations, not
+    the code's; until it is made, a subset's interval is read for its sign
+    only, as `--drop-video` says.

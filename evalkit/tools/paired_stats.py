@@ -1,37 +1,26 @@
 """Paired statistics between two conditions, and the one rule that gives a claim a star.
 
-Two sources of variance must not be confused. Running a condition again
-gives the same numbers (tracking is deterministic; measured, zero), so the
-difference between two conditions carries no run noise. The spread between
-clips is large, but it cancels when the same clips are subtracted pairwise;
-laying two conditions' standard deviations side by side and looking for
-overlap throws that power away. F1 is a ratio of counts, bounded and
-skewed, so a standard deviation is not a standard error of its mean; the
-SDs here describe the distributions, and the decision rests on the paired
-differences, through a bootstrap confidence interval, with a Wilcoxon
-p-value reported beside it.
+The decision rests on the paired differences. Tracking is deterministic,
+so a difference between two conditions carries no run noise, and the
+spread between clips cancels when the same clips are subtracted; two SDs
+laid side by side throw that away, and F1 is a bounded ratio whose SD is
+not a standard error. A bootstrap 95 % interval of the mean difference
+decides, with a Wilcoxon p-value reported beside it.
 
-The population is the one the comparability check compared, aligned per
-metric. `SQ` and `inst_BF` are None on a clip with no hit, independently
-in each condition. An implementation that drops a metric when any clip is
-None loses the primary metric silently, and reports a population that
-`compare_eval` does not; so the clips are aligned by
-`scores.defined_clips`, the same way there, and a shrunken population is
-printed as `[16/18 clips, 6/7 videos]`.
+The bootstrap resamples videos, not clips: a video's clips are not
+independent, and resampling them gives an interval too narrow. Below two
+videos there is no interval, only a point that would read as a verdict;
+`boot_ci` refuses, and the row says None.
 
-The direction of a metric is part of the verdict. `VI_split` counts bits
-of disagreement, so a drop is the improvement; `time_IoU` and
-`unlabelled_share` are reference values and get no mark either way. The
-difference is recorded as `cond - base`, the way the metric itself moved,
-with the metric's `sign` beside it, and `verdict` reads the two together;
-a reader of the JSON does not orient the interval by hand.
+The population is the one `check_comparable` compared, aligned per metric
+by `scores.defined_clips` as `compare_eval` does, since `SQ` and `inst_BF`
+are None on a clip with no hit. A shrunken population is printed as
+`[16/18 clips, 6/7 videos]`, never averaged silently.
 
-The bootstrap resamples videos, not clips. A video supplies several clips,
-and the clips of one video are not independent: resampling clips gives an
-interval that is too narrow. Both intervals are printed; the video one
-decides. Below two videos there is no interval: every resample is the same
-video, and the point that comes out reads as a verdict. `boot_ci` refuses,
-and the row says None, which `verdict` reads as no mark.
+Each row records `cond - base`, the way the metric moved, and the metric's
+`sign`; `verdict` reads the two together, so a metric where less is better
+(`VI_split`) or a reference value never marked (`time_IoU`) is not
+oriented by hand.
 
 Usage:
     python -m evalkit.tools.paired_stats --eval-dir /path/to/scores \\
