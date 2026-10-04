@@ -80,6 +80,17 @@ Where they and this document differ, this document holds.
     history and the files. In every new clone, set the repository-local
     `user.email` to the GitHub no-reply address before the first commit. The
     global config on a development machine holds a personal one.
+11. **Pilot mode is removed before the freeze.** Pilot mode stays in the
+    evaluator until the check against the pilot evaluator has passed, so
+    that the check runs through the entry point that produces the paper's
+    numbers. The *pilot-mode driver* in this document is that entry point
+    run in pilot mode, not a script of its own. Once the check has passed,
+    everything only pilot mode uses is removed: `evalkit/pilot.py`, the
+    entry point's pilot path, and the `pilot` arguments of
+    `evalkit/scored.py`. The normal-mode tests must still pass, and then the
+    evaluator is frozen. Moving pilot mode out of `evalkit/` was the
+    alternative. It could then be deleted at any time, but the check would
+    reach a driver of its own and never the entry point.
 
 ## What moves
 
@@ -200,7 +211,8 @@ while the evaluator is built and reviewed is worked out in `docs/workstreams.md`
    - the hand-derived tests pass, in both modes;
    - in pilot mode, the evaluator reproduces every key it shares with the
      pilot evaluator, at zero tolerance, on the 38 scored conditions.
-   Record its sha with every score; do not freeze it (decision 2).
+   Record its sha with every score; do not freeze it (decision 2). Pilot
+   mode stays in it until just before the freeze (decision 11).
    The first `pip install -e .` of this repository happens here. Compare the
    packages it resolves with `environment.packages` in the determinism
    measurement's JSON, so that a mismatch is known before step 5 rather than
@@ -296,11 +308,11 @@ Every command takes those paths as arguments.
    with `cv2.dilate`; a numpy shift-or over the (2·tol + 1)² offsets agrees
    on every mask tried, borders included. The question is whether a hashed
    file should depend on a library's behaviour at all while OpenCV is
-   unpinned. The same question, with more at stake, in pilot mode:
-   `evalkit/pilot.py` numbers a class's components in the order
-   `cv2.connectedComponents` labels them, and the pairing's tie rule reads
-   the numbers, so there the library's order is the rule itself, not an
-   implementation checked against one. Decide before the evaluator is frozen.
+   unpinned. Decide before the evaluator is frozen. Pilot mode depends on
+   OpenCV more deeply: `evalkit/pilot.py` numbers a class's components in
+   the order `cv2.connectedComponents` labels them, and the pairing's tie
+   rule reads those numbers. That never reaches the frozen files, since
+   pilot mode is removed before the freeze (decision 11).
 6. **The benchmark mapping against its source.** The ATLAS-120k mapping to
    the benchmark's 30 classes was typed from the document and checked by
    hand against ATLAS-bench's `datasets/class_mapping.py` at commit
