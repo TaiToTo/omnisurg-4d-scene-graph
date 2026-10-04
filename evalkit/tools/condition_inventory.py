@@ -1,41 +1,12 @@
-"""What ran, under which condition, on which clips: counted from the files on disk, never judged.
+"""What ran under which condition, on which clips, counted from the files on disk.
 
-A record of runs kept by hand cannot be checked from outside: a run left
-out or written down wrong looks like any other line. This tool goes the
-other way. It reads only the provenance file the pipeline writes beside
-each clip's labels (`seed_info.json`, from `run_per_frame_seg` and
-`track_sam3`) and the score JSONs, and tables what is on disk.
-
-A *condition* is one way of making labels: one set of the provenance
-fields in `PROV_KEYS` and `SEED_KEYS`. A *tag* is a condition's name on
-disk: the directory under each clip that holds its labels. A score JSON
-is named by its own tag, which differs (`t12_normal` scores the labels of
-`track_normal_t12_gtseed`), so a score names the label directory it read
-in `track_dir_name`, and that is how the two are matched. A *ruler* is
-what a score was measured with, in the sense of `docs/evaluation.md`:
-everything two scores must share to be compared, which
-`scores.check_comparable` decides.
-
-Nothing is guessed. What the provenance does not say is written as None,
-and the shell scripts that launched a run are never read: a script is
-edited later, the provenance is written with the labels.
-
-Four things are checked, and any of them failing sets the exit code:
-
-- A condition is not mixed across clips. Labels under one tag made with
-  different arguments would measure a difference in arguments as a
-  difference in inputs.
-- Every condition covers the same clips, with the same number of labels
-  per clip. A run that died half-way is not counted as a condition.
-- Scores and labels correspond: a score whose labels are gone, and, when
-  asked, labels nobody scored.
-- The ruler is one. The scores in a directory were made by one
-  evaluator, in one mode, on one class set, one set of views, one
-  dataset, one population and the same inputs per clip; a directory where
-  that is not so must not be compared within.
-
-The directories are always arguments. A default would make the tool count
-another tree, silently, the day a directory is renamed.
+Reads the provenance the pipeline writes beside each clip's labels
+(`seed_info.json`) and the score JSONs, prints a table per root, and
+exits non-zero on a problem: a tag whose clips were made under more than
+one condition; a condition missing clips or labels the others have; a
+score whose labels are gone, or with `--require-scored` labels nobody
+scored; and scores in one directory that `scores.check_comparable` would
+not compare with one another. Terms as in `docs/evaluation.md`.
 
 Usage:
     python -m evalkit.tools.condition_inventory \\
@@ -59,10 +30,9 @@ from evalkit.tools.scores import check_comparable, clips_of, load_scores, ruler
 # The provenance file the pipeline writes beside a clip's labels.
 PROV_NAME = "seed_info.json"
 
-# The provenance fields that make a condition what it is. `clip` and `tag`
-# are where the labels are, not what made them, so they are not keys.
-# `frames` differs per clip by nature (it is that clip's frame numbers), so
-# only its kind is kept, or every clip would be a condition of its own.
+# The provenance fields that tell one condition from another. `clip` and
+# `tag` say where the labels are, not what made them; of `frames`, which is
+# that clip's own frame numbers, only the kind is kept.
 PROV_KEYS = ("sam_input", "depth_source", "seed_source", "track_base",
              "seed_min_area", "seed_topk", "point_grids")
 SEED_KEYS = ("points_per_side", "seed_edge_gain", "seed_smooth",
@@ -71,9 +41,8 @@ SEED_KEYS = ("points_per_side", "seed_edge_gain", "seed_smooth",
 # A label directory that holds pictures, never labels of a condition.
 VIZ_DIR = "viz"
 
-# What a cell of the matrix says about a condition. Letters, not marks: a
-# circle or a cross beside a condition's name reads as a verdict on it,
-# and the only verdict is `paired_stats.verdict`.
+# What a cell of the matrix says about a condition. Letters, not marks: a mark
+# beside a condition's name reads as a verdict, and the only verdict is `paired_stats.verdict`.
 SCORED, LABELS_ONLY, PROVENANCE_ONLY, NOT_RUN = "S", "L", "P", "-"
 
 
@@ -137,16 +106,14 @@ def read_conditions(track_root: str) -> dict:
     out = collections.defaultdict(lambda: {"keys": collections.defaultdict(list),
                                            "notes": collections.defaultdict(list),
                                            "labels": {}, "mtime": []})
-    # The clips with a provenance file, by what it says.
+    # The clips with a provenance file, by what it says. Only the provenance is
+    # read, never the script that launched the run: a script is edited later.
     for p in glob.glob(os.path.join(track_root, "*", "*", PROV_NAME)):
         lab_dir = os.path.dirname(p)
         tag = os.path.basename(lab_dir)
         clip = os.path.basename(os.path.dirname(lab_dir))
-        # Per clip: a clip's label count is its length, so it varies within
-        # a tag by nature. What must agree is the count of one clip across
-        # tags, which `inventory` checks. Counted before the provenance is
-        # read, so that a clip with a broken one is counted once, here, and
-        # not again below as a clip without provenance.
+        # Counted before the provenance is read, so that a clip with a broken
+        # one is counted once, here, and not again below as one without.
         out[tag]["labels"][clip] = len(glob.glob(os.path.join(lab_dir, "label_*.npy")))
         out[tag]["mtime"].append(os.path.getmtime(p))
         try:
@@ -162,9 +129,8 @@ def read_conditions(track_root: str) -> dict:
                           "frames": frames_kind(d.get("frames"))},
                          sort_keys=True, ensure_ascii=False)
         out[tag]["keys"][key].append(clip)
-    # The clips with labels and no provenance file, per clip: a tag can
-    # hold clips with and without it, and skipping the tag would hide the
-    # latter from the mixed-condition check.
+    # The clips with labels and no provenance file, per clip: a tag can hold
+    # both kinds, and skipping it would hide these from the mixed-condition check.
     for d in glob.glob(os.path.join(track_root, "*", "*", "")):
         tag = os.path.basename(d.rstrip("/"))
         clip = os.path.basename(os.path.dirname(d.rstrip("/")))
@@ -208,74 +174,74 @@ def read_evals(eval_root: str) -> dict:
     return out
 
 
-def evals_by_dir(evals: dict) -> dict:
-    """Score tags by the label directory they read, from `track_dir_name`, never from the tag's name.
-
-    The two names differ (`t12_normal` reads `track_normal_t12_gtseed`), and
-    one directory can be scored under several tags, so the value is a list.
-    """
-    out = collections.defaultdict(list)
-    for t, e in evals.items():
-        out[e["dir"]].append(t)
-    return out
-
-
 def clips_of_condition(c: dict) -> set[str]:
     """The clips a tag covers: those with readable provenance and those without, in one set."""
     return set(c["labels"])
 
 
-def rulers_of(evals: dict) -> tuple[list[list[str]], list[str]]:
-    """Group the score tags by ruler, with `scores.check_comparable` as the judge of sameness.
+def comparable_groups(evals: dict) -> tuple[list[list[str]], list[tuple[str, str, str]]]:
+    """Group the score tags so that every two in a group are comparable, by `scores.check_comparable`.
 
-    Each tag is compared with the first tag of each group in turn and joins
-    the first group that takes it; a tag no group takes starts one. So two
-    scores are in one group only when the comparison tool would compare
-    them, and the reasons it would not are returned with the groups.
+    Each tag joins the first group whose every member it is comparable
+    with, and starts one when there is none. Every member, not the first
+    alone: the check is not transitive, since a pilot JSON that records no
+    domain is comparable with one of either domain.
 
     Returns:
-        The groups, each a sorted list of tags, largest first; and one line
-        per tag that started a group after the first, with the reason it
-        was not comparable with the first group's first tag.
+        The groups, each a sorted list of tags, largest first; and, per tag
+        that started a group after the first, the tag, the first member of
+        the first group it is not comparable with, and the check's message.
     """
     groups: list[list[str]] = []
-    reasons: list[str] = []
+    reasons: list[tuple[str, str, str]] = []
     for tag in sorted(evals):
         for g in groups:
-            try:
-                check_comparable(evals[g[0]]["summary"], evals[tag]["summary"])
-            except ValueError as e:
-                if g is groups[0]:
-                    first = str(e).splitlines()[0]
-                continue
-            g.append(tag)
-            break
+            refused = _refusal(evals, g, tag)
+            if refused is None:
+                g.append(tag)
+                break
+            if g is groups[0]:
+                first = refused
         else:
             if groups:
-                reasons.append(f"{tag} vs {groups[0][0]}: {first}")
+                reasons.append((tag, *first))
             groups.append([tag])
     return sorted(groups, key=lambda g: (-len(g), g)), reasons
 
 
-def describe_ruler(summary: dict) -> str:
-    """One line saying what a score was measured with, for the table."""
+def _refusal(evals: dict, group: list[str], tag: str) -> tuple[str, str] | None:
+    """The first member of `group` that `tag` is not comparable with, and the check's message; None when it joins."""
+    for member in group:
+        try:
+            check_comparable(evals[member]["summary"], evals[tag]["summary"])
+        except ValueError as e:
+            return member, str(e)
+    return None
+
+
+def describe_group(summary: dict) -> str:
+    """One line saying what a group's scores were measured with, and on how many clips, for the table."""
     r = ruler(summary)
     return (f"sha={str(r.eval_code_sha)[:8]} pilot={r.pilot} class_set={r.class_set} "
             f"views={list(r.views)} dataset={r.dataset} n_clips={len(clips_of(summary))}")
 
 
-def report(track_root: str, eval_root: str, title: str) -> tuple[list[str], dict]:
+def report(track_root: str, evals: dict, title: str, scored_dirs: set[str]) -> tuple[list[str], dict]:
     """Count one root and print its table.
+
+    Args:
+        track_root: The label root.
+        evals: This root's scores, as `read_evals` gives them.
+        title: The heading.
+        scored_dirs: The label directories the scores of every root name,
+            so that labels scored from another root read as scored.
 
     Returns:
         The problems found, and `{tag: {clip: label count}}`. Scores are
-        not matched to labels here: a score can read a directory under
-        another root, so `inventory` matches them across roots.
+        matched to labels in `inventory`, across roots.
     """
-    # The conditions and the scores of this root, from disk.
+    # The conditions of this root, from disk.
     conds = read_conditions(track_root)
-    evals = read_evals(eval_root)
-    by_dir = evals_by_dir(evals)
     problems = []
     if not conds:
         print(f"\n### {title}: no labels ({track_root})")
@@ -297,7 +263,7 @@ def report(track_root: str, eval_root: str, title: str) -> tuple[list[str], dict
         ts = c["mtime"] or [0]
         day = lambda t: datetime.datetime.fromtimestamp(t).strftime("%m-%d")
         dt = day(min(ts)) if day(min(ts)) == day(max(ts)) else f"{day(min(ts))}..{day(max(ts))}"
-        mark = "scored" if by_dir.get(tag) else "no"
+        mark = "scored" if tag in scored_dirs else "no"
         notes = c.get("notes") or {}
         if len(c["keys"]) > 1:
             problems.append(f"{title}/{tag}: {len(c['keys'])} conditions are mixed under one tag")
@@ -308,9 +274,8 @@ def report(track_root: str, eval_root: str, title: str) -> tuple[list[str], dict
                 print(f"      [{len(cl):3d} clips] !! {note}")
             continue
         if not c["keys"]:
-            # No readable provenance at all: said so, and on to the next
-            # tag, so that the one-ruler check is still reached and the
-            # exit code set.
+            # No readable provenance at all: said so, and on to the next tag,
+            # so that the scores are still checked and the exit code set.
             for note, cl in sorted(notes.items()):
                 problems.append(f"{title}/{tag}: {note} ({len(cl)} clips); "
                                 "the condition cannot be verified, so it enters no comparison")
@@ -332,29 +297,36 @@ def report(track_root: str, eval_root: str, title: str) -> tuple[list[str], dict
         if nlab == 0:
             problems.append(f"{title}/{tag}: provenance but no label; a run that was started and stopped")
 
-    # The rulers of this root's scores, and the problem when there is more than one.
+    # The groups of scores comparable with one another, and the problem when there is more than one.
     if evals:
-        groups, reasons = rulers_of(evals)
-        print(f"\n  rulers: {len(groups)}")
+        groups, reasons = comparable_groups(evals)
+        print(f"\n  comparable groups: {len(groups)}")
         for g in groups:
-            print(f"    {describe_ruler(evals[g[0]]['summary'])} → {len(g)} conditions: {g}")
-        for line in reasons:
-            print(f"    !! {line}")
+            print(f"    {describe_group(evals[g[0]]['summary'])} → {len(g)} conditions: {g}")
+        for tag, member, why in reasons:
+            print(f"    !! {tag} vs {member}: " + why.replace("\n", "\n       "))
         if len(groups) > 1:
-            problems.append(f"{title}: the scores were made with {len(groups)} rulers; "
-                            "conditions must not be compared within this directory")
+            problems.append(f"{title}: the scores fall into {len(groups)} groups that cannot be compared "
+                            "with one another; compare conditions within a group only")
     return problems, {t: c["labels"] for t, c in conds.items()}
 
 
-def matrix(track_root: str, eval_root: str, title: str = "") -> None:
+def matrix(track_root: str, eval_root: str, title: str = "", scored_dirs: set[str] | None = None) -> None:
     """The input by points-per-side table of the per-frame conditions; a hole is a condition not yet run.
 
     Reads one root only. With an empty `eval_root` the stage is not scored
     here, so no cell is marked scored, and that is not an omission.
+
+    Args:
+        track_root: The label root.
+        eval_root: Its score root, read when `scored_dirs` is not given.
+        title: The heading.
+        scored_dirs: The label directories the scores of every root name.
     """
     # The cells, from the conditions seeded per frame.
     conds = read_conditions(track_root)
-    by_dir = evals_by_dir(read_evals(eval_root))
+    if scored_dirs is None:
+        scored_dirs = {e["dir"] for e in read_evals(eval_root).values()}
     cell = collections.defaultdict(list)
     for tag, c in conds.items():
         if len(c["keys"]) != 1:
@@ -363,12 +335,13 @@ def matrix(track_root: str, eval_root: str, title: str = "") -> None:
         if k["seed_source"] != "per_frame":
             continue
         nlab = sum(c["labels"].values())
-        state = SCORED if (by_dir.get(tag) and nlab) else (LABELS_ONLY if nlab else PROVENANCE_ONLY)
+        state = SCORED if (tag in scored_dirs and nlab) else (LABELS_ONLY if nlab else PROVENANCE_ONLY)
         cell[(k["sam_input"], k["points_per_side"], k["depth_source"])].append(
             (state, tag, sum(len(v) for v in c["keys"].values()), nlab))
-    # The axes: a provenance field can be None, so they sort by their spelling.
+    # The axes: a provenance field can be None, so the inputs and the sources
+    # sort by their spelling, and a None points-per-side is the last column.
     inputs = sorted({a for a, _, _ in cell}, key=str)
-    ppss = sorted({b for _, b, _ in cell if b is not None})
+    ppss = sorted({b for _, b, _ in cell}, key=lambda p: (p is None, p or 0))
     srcs = sorted({c for _, _, c in cell}, key=str)
 
     # The table, one per depth source.
@@ -382,8 +355,10 @@ def matrix(track_root: str, eval_root: str, title: str = "") -> None:
         for inp in inputs:
             row = [str(inp).ljust(14)]
             for p in ppss:
-                v = cell.get((inp, p, src))
-                row.append((v[0][0] if v else NOT_RUN).rjust(10))
+                # Every condition in the cell, one letter each, in the legend's order.
+                states = {s for s, *_ in cell.get((inp, p, src), ())}
+                letters = "/".join(s for s in (SCORED, LABELS_ONLY, PROVENANCE_ONLY) if s in states)
+                row.append((letters or NOT_RUN).rjust(10))
             print("    " + "".join(row))
     print(f"\n  A '{NOT_RUN}' is a condition to run next; match its name against the table above.")
 
@@ -406,11 +381,15 @@ def inventory(roots: Sequence[tuple[str, str, str]], require_scored: bool = Fals
     for tr, ev, _ in roots:
         check_root_exists(tr, ev)
 
+    # The scores of every root, read once: a score can name labels under another root.
+    evals = {ev: read_evals(ev) for _, ev, _ in roots if ev}
+    all_evals = {k: e["dir"] for evs in evals.values() for k, e in evs.items()}
+    scored_dirs = set(all_evals.values())
+
     # Each root's table and problems, and its label counts per clip and tag.
     problems, seen_tags, cover = [], set(), collections.defaultdict(dict)
-    all_evals = {}
     for tr, ev, title in roots:
-        probs, labels = report(tr, ev, title)
+        probs, labels = report(tr, evals.get(ev, {}), title, scored_dirs)
         problems += probs
         for t, per_clip in labels.items():
             seen_tags.add(t)
@@ -420,26 +399,21 @@ def inventory(roots: Sequence[tuple[str, str, str]], require_scored: bool = Fals
                 continue
             for clip, n in per_clip.items():
                 cover[clip][f"{title}/{t}"] = n
-        for k, e in read_evals(ev).items():
-            all_evals[k] = e["dir"]
 
     # Scores whose labels are gone, matched by directory name across roots.
     orphan = sorted(t for t, d in all_evals.items() if d not in seen_tags)
     if orphan:
         problems.append(f"{len(orphan)} scores have no labels: {orphan}")
     # Labels nobody scored.
-    scored_dirs = set(all_evals.values())
     unscored = sorted(t for t in seen_tags if t not in scored_dirs and t != VIZ_DIR)
     if unscored:
         print(f"\n### {len(unscored)} label directories nobody scored: {unscored}")
         if require_scored:
             problems.append(f"{len(unscored)} conditions are not scored: {unscored}")
 
-    # One clip, the same number of labels under every condition. A clip's
-    # length varies between clips; across conditions it must not. A zero
-    # counts: provenance with no label under one condition, where the others
-    # have labels, is a run that died on that clip, and nothing else
-    # reports it.
+    # One clip, the same number of labels under every condition. A zero counts:
+    # provenance with no label under one condition, where the others have
+    # labels, is a run that died on that clip, and nothing else reports it.
     ragged = []
     for clip, per_tag in sorted(cover.items()):
         ns = set(per_tag.values())
@@ -453,12 +427,13 @@ def inventory(roots: Sequence[tuple[str, str, str]], require_scored: bool = Fals
 
     # The matrix of the first root, when asked.
     if draw_matrix:
-        matrix(*roots[0])
+        matrix(*roots[0], scored_dirs=scored_dirs)
     return problems
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    # No default root: a default would count another tree, silently, the day a directory is renamed.
     ap.add_argument("--root", action="append", default=[], metavar="SPEC", required=True,
                     help="A directory to count, as `<label root>[:<score root>[:<title>]]`. "
                          "May be given several times. A root that does not exist stops the run.")
@@ -478,7 +453,7 @@ def main() -> None:
         for p in problems:
             print(f"  - {p}")
         sys.exit(1)
-    print("no problem: no mixed condition, no missing clip, no split ruler")
+    print("no problem: no mixed condition, no missing clip, every score comparable with the others")
 
 
 if __name__ == "__main__":

@@ -2,8 +2,10 @@
 
 A sound tree of two conditions on three clips, with clip lengths that
 differ (5, 9, 13 labels: a clip's length is its own), is built in a
-temporary directory, and one fault at a time is planted in it: the
-workbench's six, and the mixes the evaluator's JSONs make possible.
+temporary directory, and one fault at a time is planted in it: a mixed
+condition, a short one, provenance without labels, labels without
+provenance, scores that cannot be compared, a missing root, and the
+mixes the evaluator's JSONs make possible.
 """
 import json
 import os
@@ -60,7 +62,7 @@ def write_score(ev: Path, tag: str, score: dict) -> None:
 
 @pytest.fixture
 def tree(tmp_path):
-    """A sound tree: two conditions on three clips, both scored by one ruler."""
+    """A sound tree: two conditions on three clips, whose two scores are comparable."""
     tr, ev = tmp_path / "tracks", tmp_path / "scores"
     ev.mkdir()
     plant(tr, {f"track_rgb_{t}": [(c, provenance(i, 8), LABELS[c]) for c in CLIPS]
@@ -79,7 +81,7 @@ def problems(tr, ev, **kw):
 
 def test_a_sound_tree_raises_no_problem(tree, capsys):
     assert problems(*tree) == []
-    assert "rulers: 1" in capsys.readouterr().out
+    assert "comparable groups: 1" in capsys.readouterr().out
 
 
 def test_a_sound_tree_scored_by_the_evaluator_raises_no_problem(tree, capsys):
@@ -87,13 +89,13 @@ def test_a_sound_tree_scored_by_the_evaluator_raises_no_problem(tree, capsys):
     for t in ("a_rgb", "a_normal"):
         write_score(ev, t, evaluator_score(f"track_rgb_{t}"))
     assert problems(tr, ev) == []
-    assert "rulers: 1" in capsys.readouterr().out
+    assert "comparable groups: 1" in capsys.readouterr().out
 
 
-def test_the_ruler_is_what_the_comparison_tool_calls_comparable(tree, capsys):
-    # The order of `tissue_ignore` and the evaluator's tag are not part of
-    # the ruler: the comparison tool would compare these two, so the
-    # inventory must not split them.
+def test_a_group_is_what_the_comparison_tool_calls_comparable(tree, capsys):
+    # The order of `tissue_ignore` and the evaluator's tag do not stop the
+    # comparison tool from comparing these two, so the inventory must not
+    # split them.
     tr, ev = tree
     s = pilot_score("track_rgb_a_normal")
     s["tissue_ignore"], s["eval_code_tag"] = [1], "another tag"
@@ -102,7 +104,7 @@ def test_the_ruler_is_what_the_comparison_tool_calls_comparable(tree, capsys):
     write_score(ev, "a_normal", s)
     write_score(ev, "a_rgb", s2)
     assert problems(tr, ev) == []
-    assert "rulers: 1" in capsys.readouterr().out
+    assert "comparable groups: 1" in capsys.readouterr().out
 
 
 # ---------------------------------------------------------------- the planted faults
@@ -180,55 +182,76 @@ def test_a_condition_with_no_label_at_all_is_reported_once_not_per_clip(tree):
 
 def test_the_population_is_counted_from_the_clips_not_read_from_a_summary_field(tree):
     # The evaluator's JSONs are not required to record `n_clips`; two
-    # absent counts compared equal, and two populations passed as one ruler.
+    # absent counts compared equal, and two populations passed as comparable.
     tr, ev = tree
     for t, clips in (("a_rgb", CLIPS), ("a_normal", CLIPS[:2])):
         s = evaluator_score(f"track_rgb_{t}")
         del s["n_clips"]
         s["clips"], s["per_clip"], s["input_shas"] = clips, [dict(clip=c) for c in clips], {c: {} for c in clips}
         write_score(ev, t, s)
-    assert any("2 rulers" in p for p in problems(tr, ev))
+    assert any("2 groups" in p for p in problems(tr, ev))
 
 
-def test_two_populations_of_the_same_size_are_two_rulers(tree):
+def test_two_populations_of_the_same_size_are_two_groups(tree):
     tr, ev = tree
     write_score(ev, "a_normal", evaluator_score("track_rgb_a_normal", clips=["c1", "c2", "c4"]))
     write_score(ev, "a_rgb", evaluator_score("track_rgb_a_rgb"))
-    assert any("2 rulers" in p for p in problems(tr, ev))
+    assert any("2 groups" in p for p in problems(tr, ev))
 
 
-def test_two_scores_that_read_different_depth_maps_are_two_rulers(tree, capsys):
+def test_two_scores_that_read_different_depth_maps_are_two_groups(tree, capsys):
     tr, ev = tree
     write_score(ev, "a_normal", evaluator_score("track_rgb_a_normal", depth="other"))
     write_score(ev, "a_rgb", evaluator_score("track_rgb_a_rgb"))
-    assert any("2 rulers" in p for p in problems(tr, ev))
+    assert any("2 groups" in p for p in problems(tr, ev))
     assert "read a different depth" in capsys.readouterr().out
 
 
-def test_two_shas_in_one_score_directory_are_a_split_ruler(tree):
+def test_two_shas_in_one_score_directory_are_two_groups_and_the_whole_reason_is_printed(tree, capsys):
+    # The check's message runs over several lines; the first alone ended at
+    # "cannot be compared: the difference" and said nothing of what differed.
     tr, ev = tree
     write_score(ev, "a_normal", pilot_score("track_rgb_a_normal", sha="b" * 64))
-    assert any("2 rulers" in p for p in problems(tr, ev))
+    assert any("2 groups" in p for p in problems(tr, ev))
+    out = capsys.readouterr().out
+    assert "!! a_rgb vs a_normal: two conditions scored by different evaluators" in out
+    assert "between the methods would carry the difference between the evaluators" in out
 
 
-def test_two_modes_under_one_sha_are_a_split_ruler(tree):
+def test_two_modes_under_one_sha_are_two_groups(tree):
     tr, ev = tree
     write_score(ev, "a_rgb", evaluator_score("track_rgb_a_rgb"))
     write_score(ev, "a_normal", evaluator_score("track_rgb_a_normal", pilot=True))
-    assert any("2 rulers" in p for p in problems(tr, ev))
+    assert any("2 groups" in p for p in problems(tr, ev))
 
 
-def test_two_class_sets_under_one_sha_are_a_split_ruler(tree):
+def test_two_class_sets_under_one_sha_are_two_groups(tree):
     tr, ev = tree
     write_score(ev, "a_rgb", evaluator_score("track_rgb_a_rgb"))
     write_score(ev, "a_normal", evaluator_score("track_rgb_a_normal", class_set="benchmark"))
-    assert any("2 rulers" in p for p in problems(tr, ev))
+    assert any("2 groups" in p for p in problems(tr, ev))
 
 
-def test_a_pilot_json_and_an_evaluator_json_are_two_rulers(tree):
+def test_a_pilot_json_and_an_evaluator_json_are_two_groups(tree):
     tr, ev = tree
     write_score(ev, "a_rgb", evaluator_score("track_rgb_a_rgb"))
-    assert any("2 rulers" in p for p in problems(tr, ev))
+    assert any("2 groups" in p for p in problems(tr, ev))
+
+
+def test_every_score_in_a_group_is_comparable_with_every_other_not_with_the_first_alone(tree):
+    # A pilot JSON that records no domain is comparable with one of either
+    # domain, and two of different domains are not: checked against the
+    # first member alone, the three passed as one group.
+    tr, ev = tree
+    plant(tr, {"track_rgb_a_legacy": [(c, provenance("depth", 8), LABELS[c]) for c in CLIPS]})
+    legacy = pilot_score("track_rgb_a_legacy")
+    del legacy["eval_version"]
+    write_score(ev, "a_legacy", legacy)
+    one, two = pilot_score("track_rgb_a_normal"), pilot_score("track_rgb_a_rgb")
+    one["tissue_ignore"], two["tissue_ignore"] = [1], [2]
+    write_score(ev, "a_normal", one)
+    write_score(ev, "a_rgb", two)
+    assert any("2 groups" in p for p in problems(tr, ev))
 
 
 def test_a_score_whose_labels_are_gone_is_reported(tree):
@@ -255,6 +278,20 @@ def test_a_score_is_matched_to_its_labels_by_track_dir_name_across_roots(tmp_pat
     write_score(ev, "a", pilot_score("track_a"))
     write_score(ev, "t12_a", pilot_score("track_a_t12"))
     assert CI.inventory([(str(seed), str(ev), "seed"), (str(prop), "", "propagated")], require_scored=True) == []
+
+
+def test_the_table_says_scored_of_labels_scored_from_another_root(tmp_path, capsys):
+    # The propagation root's table said "no" of labels the seed root's
+    # directory scores, while the match across roots counted them as scored.
+    seed, prop, ev = tmp_path / "seed", tmp_path / "prop", tmp_path / "scores"
+    ev.mkdir()
+    plant(seed, {"track_a": [(c, provenance("rgb", 8), LABELS[c]) for c in CLIPS]})
+    plant(prop, {"track_a_t12": [(c, provenance("rgb", 8), LABELS[c]) for c in CLIPS]})
+    write_score(ev, "a", pilot_score("track_a"))
+    write_score(ev, "t12_a", pilot_score("track_a_t12"))
+    CI.inventory([(str(seed), str(ev), "seed"), (str(prop), "", "propagated")])
+    line = next(l for l in capsys.readouterr().out.splitlines() if l.startswith("track_a_t12"))
+    assert "scored" in line.split() and "no" not in line.split()
 
 
 # ---------------------------------------------------------------- what it refuses before counting
@@ -347,6 +384,29 @@ def test_the_matrix_prints_letters_not_marks_and_takes_a_none(tree, capsys):
     assert rows["None"] == [CI.LABELS_ONLY, CI.NOT_RUN]
 
 
+def test_the_matrix_keeps_a_condition_whose_points_per_side_is_none(tree, capsys):
+    # A None points-per-side fell out of the columns, and the condition read as not run.
+    tr, ev = tree
+    plant(tr, {"track_rgb_a_nopps": [(c, provenance("depth", None), LABELS[c]) for c in CLIPS]})
+    CI.matrix(str(tr), str(ev), "T")
+    out = capsys.readouterr().out
+    header = next(l for l in out.splitlines() if l.strip().startswith("input"))
+    assert header.split()[1:] == ["pps8", "ppsNone"]
+    rows = {l.split()[0]: l.split()[1:] for l in out.splitlines() if l.strip().startswith(("rgb", "depth "))}
+    assert rows["rgb"] == [CI.SCORED, CI.NOT_RUN]
+    assert rows["depth"] == [CI.NOT_RUN, CI.LABELS_ONLY]
+
+
+def test_the_matrix_shows_every_condition_in_a_cell_not_the_one_found_first(tree, capsys):
+    # Two tags with the same input, points-per-side and depth source, one
+    # scored and one not: the cell showed whichever the glob found first.
+    tr, ev = tree
+    plant(tr, {"track_rgb_a_again": [(c, provenance("rgb", 8), LABELS[c]) for c in CLIPS]})
+    CI.matrix(str(tr), str(ev), "T")
+    rows = {l.split()[0]: l.split()[1:] for l in capsys.readouterr().out.splitlines() if l.strip().startswith("rgb")}
+    assert rows["rgb"] == [f"{CI.SCORED}/{CI.LABELS_ONLY}"]
+
+
 # ---------------------------------------------------------------- the command
 
 
@@ -356,6 +416,6 @@ def test_the_command_sets_the_exit_code_on_a_problem(tree):
     assert subprocess.run(cmd, capture_output=True, cwd=REPO).returncode == 0
     write_score(ev, "a_normal", pilot_score("track_rgb_a_normal", sha="b" * 64))
     r = subprocess.run(cmd, capture_output=True, text=True, cwd=REPO)
-    assert r.returncode == 1 and "2 rulers" in r.stdout
+    assert r.returncode == 1 and "2 groups" in r.stdout
     r = subprocess.run(cmd[:-2] + ["--root", str(tr / "nowhere")], capture_output=True, text=True, cwd=REPO)
     assert r.returncode == 1 and "does not exist" in r.stderr
