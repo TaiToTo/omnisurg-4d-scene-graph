@@ -169,10 +169,10 @@ def test_the_pilot_directions_are_the_specification_s():
     assert all(s == +1 for k, s in signs.items() if k not in ("time_IoU", "n_regions_mean", "underseg_error", "overseg_mean"))
 
 
-def test_the_summary_records_the_key_unless_it_is_the_workbench_s_on_a_pilot_json():
+def test_the_summary_records_the_key_and_its_direction():
     a, b = pilot_scores("base", 0.0, 5), pilot_scores("cond", 0.03, 6)
-    # The workbench's summary has no such field, and the pilot summary must stay its bytes.
-    assert "key" not in CE.compare(a, b) and "sign" not in CE.compare(a, b)
+    res = CE.compare(a, b)
+    assert (res["key"], res["sign"]) == ("inst_F1_50", +1)
     res = CE.compare(a, b, key="underseg_error")
     assert (res["key"], res["sign"]) == ("underseg_error", -1)
     res = CE.compare(evaluator_scores(seed=1), evaluator_scores(seed=1, shift=0.1))

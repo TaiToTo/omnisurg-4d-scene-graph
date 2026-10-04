@@ -439,7 +439,7 @@ def marks_bound_to_a_truth_value(src: str) -> list[str]:
 
 
 # Every glyph that reads as "better" or "worse" in a table: the verdict's own
-# two, and the circle and cross a sign alone was once printed as.
+# two, and the circle and cross that read as a verdict on a sign alone.
 MARKS = ("★", "✗", "○", "×")
 
 
