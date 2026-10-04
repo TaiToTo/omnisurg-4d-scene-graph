@@ -18,8 +18,9 @@ driver that writes half the record has lost the other half somewhere.
 The pilot evaluator's JSONs also carry a domain of their own, `tissue_ignore`
 and the per-clip `extra_ignore`, which decided what its `tissue` domain
 removed at run time under one sha. Two of its JSONs are compared only when
-those agree, as the pilot's own check demanded; the evaluator's JSONs have
-no such setting, the class set and the views say it all.
+those agree — `tissue_ignore` for the run, `extra_ignore` clip by clip —
+as the pilot's own check demanded; the evaluator's JSONs have no such
+setting, the class set and the views say it all.
 
 The per-clip layout the tools expect from the evaluator is fixed here and
 nowhere else: each per-frame metric of `docs/evaluation.md` is one key per
@@ -101,9 +102,10 @@ class Ruler:
             by the pilot evaluator itself or by this one in pilot mode.
         class_set: The class set scored; `original` for a pilot JSON.
         views: The views the JSON holds; the pilot's domains for a pilot JSON.
-        domain: The pilot evaluator's run-time domain, `(dataset, tissue_ignore,
-            extra_ignore sets)`, or None when the JSON records none, or when it
-            is the evaluator's.
+        domain: The pilot evaluator's run-level domain, `(dataset,
+            tissue_ignore)`, or None when the JSON records none, or when it
+            is the evaluator's. The per-clip `extra_ignore` is domain too,
+            and is checked clip by clip on the clips compared.
     """
 
     eval_code_sha: str | None
@@ -137,8 +139,14 @@ def is_pilot_json(summary: Mapping) -> bool:
 
 
 def clips_of(summary: Mapping) -> list[str]:
-    """The clips a JSON scored, from `clips`, or from `per_clip` in a JSON written before `clips` existed."""
-    return list(summary.get("clips") or [r["clip"] for r in summary["per_clip"]])
+    """The clips a JSON scored, from `clips`, or from `per_clip` in a JSON written before `clips` existed.
+
+    An empty `clips` is a claim, not a missing field: it says nothing was
+    scored, and does not fall back on whatever `per_clip` holds.
+    """
+    if "clips" in summary:
+        return list(summary["clips"])
+    return [r["clip"] for r in summary["per_clip"]]
 
 
 def rows_of(summary: Mapping) -> dict[str, dict]:
@@ -151,8 +159,7 @@ def _pilot_domain(summary: Mapping) -> tuple | None:
     # pilot's check compared domains only when both sides had one.
     if summary.get("eval_version") is None:
         return None
-    extra = sorted({tuple(sorted(r.get("extra_ignore") or ())) for r in summary["per_clip"]})
-    return (summary.get("dataset"), tuple(sorted(summary.get("tissue_ignore") or ())), tuple(extra))
+    return (summary.get("dataset"), tuple(sorted(summary.get("tissue_ignore") or ())))
 
 
 def ruler(summary: Mapping) -> Ruler:
@@ -196,6 +203,18 @@ def defined_clips(a: Mapping[str, Mapping], b: Mapping[str, Mapping], clips: lis
     return [c for c in clips if a[c].get(key) is not None and b[c].get(key) is not None]
 
 
+def _check_extra_ignores(a: Mapping, b: Mapping, clips: list[str]) -> None:
+    rows_a, rows_b = rows_of(a), rows_of(b)
+    for clip in clips:
+        ea = tuple(sorted(rows_a[clip].get("extra_ignore") or ()))
+        eb = tuple(sorted(rows_b[clip].get("extra_ignore") or ()))
+        if ea != eb:
+            raise ValueError(
+                f"{clip}: the two scores removed a different extra_ignore ({list(ea)} vs {list(eb)}); "
+                "what `tissue` removed on one clip must be one set of classes"
+            )
+
+
 def _check_inputs(a: Mapping, b: Mapping, clips: list[str]) -> None:
     sa, sb = a["input_shas"], b["input_shas"]
     for clip in clips:
@@ -203,6 +222,11 @@ def _check_inputs(a: Mapping, b: Mapping, clips: list[str]) -> None:
         if ia is None or ib is None:
             raise ValueError(f"{clip}: a score records no input shas for it, so what it read cannot be checked")
         names = (set(ia) | set(ib)) - {PREDICTION_INPUT}
+        if not names:
+            raise ValueError(
+                f"{clip}: the scores name no input beyond the predictions, so whether they "
+                "read one GT and one depth map cannot be checked"
+            )
         for name in sorted(names):
             if ia.get(name) != ib.get(name):
                 raise ValueError(
@@ -237,8 +261,9 @@ def check_comparable(
     Raises:
         ValueError: The shas differ or one is missing; one JSON is the pilot
             evaluator's and the other the evaluator's; the mode, class set,
-            views or dataset differ; the pilot domains differ; the clips
-            differ, or no clip is common; or the two read different inputs.
+            views or dataset differ; the pilot domains or a compared clip's
+            `extra_ignore` differ; the clips differ, no clip is common, or
+            neither JSON holds one; or the two read different inputs.
     """
     ra, rb = ruler(a), ruler(b)
     sa, sb = ra.eval_code_sha, rb.eval_code_sha
@@ -276,7 +301,7 @@ def check_comparable(
         raise ValueError(
             "two conditions scored on different domains cannot be compared (their `tissue`\n"
             f"  metrics remove different classes).\n  base: {ra.domain}\n  cond: {rb.domain}\n"
-            "  Score them again with the same --dataset / --extra_ignore"
+            "  Score them again with the same --dataset"
         )
     # The dataset is part of the domain, but the pilot's first JSONs record
     # no domain; the dataset they record is still compared, since a score of
@@ -299,6 +324,8 @@ def check_comparable(
 
     ca, cb = clips_of(a), clips_of(b)
     if sorted(ca) == sorted(cb):
+        if not ca:
+            raise ValueError("neither score holds a clip, so there is nothing to compare")
         clips, population = sorted(ca), "identical"
     else:
         only_a, only_b = sorted(set(ca) - set(cb)), sorted(set(cb) - set(ca))
@@ -316,6 +343,13 @@ def check_comparable(
         population = "intersection"
 
     out = dict(clips=clips, population=population, eval_code=code)
+    # The per-clip extra_ignore is run-time domain too, and comparing its
+    # values as a set would lose which clip each belongs to: the same values
+    # on the other clips are a different domain. Checked clip by clip, on
+    # the compared clips only, and only when both sides record a domain, as
+    # the run-level check is.
+    if pilot_a and ra.domain is not None and rb.domain is not None:
+        _check_extra_ignores(a, b, clips)
     if not pilot_a:
         _check_inputs(a, b, clips)
         va, vb = a["versions"] or {}, b["versions"] or {}
