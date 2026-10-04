@@ -79,7 +79,9 @@ was replaced, then the class tables.
   said nothing there. DA3 gives a finite positive depth on every pixel; a
   depth map with a pixel that is not finite or not above `DEPTH_MIN` is a
   fault in the data, and the evaluator refuses the frame rather than scoring
-  the rest. The pilot evaluator instead scored only the pixels that passed
+  the rest. It refuses an excluded frame too: the depth map is checked
+  before the marker, so that a faulty depth map is found whether or not the
+  frame is scored. The pilot evaluator instead scored only the pixels that passed
   that test; pilot mode keeps its test, which is why `invalid_depth` is
   among the counts below (always 0 in normal mode).
 - **Crop.** The pipeline cuts each clip to the rectangle around the

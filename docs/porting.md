@@ -324,3 +324,14 @@ Every command takes those paths as arguments.
    pixels, reported like `unlabelled_share` and never starred. Filling the
    spots from their neighbours was considered and set aside; the reasons are
    in `docs/evaluation.md`, "Views".
+10. **The evaluator map against `evalkit/frame.py`.** Two things to carry
+    into the next redraw of `docs/figures/evaluator_map.png`, neither wrong
+    today. The map gives step 2, one frame in one view, no module, and
+    names `frame` at step 3 only; in the code both are in `frame.py`, as
+    `score_view` and `score_frame`, so a reader looking for where one view
+    is composed finds no box. And the map's step 3 shows a frame scored or
+    its keys undefined, never skipped: the excluded marker takes a frame out
+    whole, and a depth map with an invalid pixel refuses it, both counted
+    for the clip driver. A phrase in the step 3 box, "or skipped whole, and
+    counted", would close that in the figure. `evalkit/README.md` is the
+    short version and need not say either.
