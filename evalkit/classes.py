@@ -97,10 +97,9 @@ _WITH_BENCHMARK = frozenset({"atlas120k"})
 # inherit. `benchmark` is ATLAS-120k's 30 classes, scored for comparison with
 # its benchmark and never given a star.
 # Pilot mode scores ATLAS-120k's original ids by the pilot evaluator's rules,
-# where Tools/camera is the only type there is, while the `original` set
-# types every id and makes Catheter and Non anatomical structures tools too.
-# So pilot mode does not read these types: its instrument ids are its own,
-# `evalkit.pilot.PILOT_INSTRUMENT_IDS`.
+# where Tools/camera is the only type there is. The `original` set types every
+# id, and makes Catheter and Non anatomical structures tools too, so pilot mode
+# needs a typing of its own and must not read these types.
 CLASS_SETS: Mapping[str, tuple[str, ...]] = MappingProxyType({
     "cholecseg8k": ("original",),
     "atlas120k": ("original", "benchmark"),

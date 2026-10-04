@@ -222,9 +222,12 @@ while the evaluator is built and reviewed is worked out in `docs/workstreams.md`
      planted mixed ruler and a planted missing condition.
    The paper's numbers are the step-3 scores read through these tools.
 5. **Port the pipeline, one stage at a time.** Each stage's output must match
-   the workbench byte for byte. The one exception is Pi3X's `runtime_sec`, per
-   `repo_migration_determinism.md`. If the package comparison in step 2 found
-   a difference, measure determinism again first. The 315 clips also get DA3
+   the workbench byte for byte. Two exceptions: Pi3X's `runtime_sec`, per
+   `repo_migration_determinism.md`; and the 14 CholecSeg8k clips whose gap
+   frames the workbench's extractor placed 1 to 3 s late (open question 8),
+   which the ported extractor converts or refuses, and which are then
+   re-extracted and re-run. If the package comparison in step 2 found a
+   difference, measure determinism again first. The 315 clips also get DA3
    and `glb_centroid`: the demo's reference grid stays DA3.
 6. **Prepare the release.**
    - An English README, `docs/data_contract.md`, the `atlas120k_meta/` README
@@ -262,3 +265,84 @@ Every command takes those paths as arguments.
    leaves both behind. The paper's figures come from some of those pages.
 3. **Whether step 5 has to finish before submission.** Step 3 already gives
    the numbers, and the determinism result says step 5 cannot change them.
+4. **Pilot mode's own rules.** Five places where pilot mode must not read
+   the evaluator's tables or helpers, each noted where it was found and
+   collected here so the pilot-mode driver settles them in one go:
+   - ATLAS-120k typing: the pilot evaluator knew one type, Tools/camera;
+     the `original` set types every id. Pilot mode needs a typing of its own
+     (`evalkit/classes.py`).
+   - `mIoU`: `ClassScores.miou` sums IoUs in class id order; the pilot took
+     `np.mean` over a dict in set order. The last bit differs on about a
+     quarter of frames, and zero tolerance is the promise, so the driver
+     averages `ious` the pilot's way (`evalkit/classmap.py`).
+   - `time_IoU`: the pilot ordered frames by `sorted()` of the `label_*.npy`
+     names, lexicographic, not numeric unless zero-padded; the driver orders
+     them that way in pilot mode, and writes the one per-clip value under
+     every view (`evalkit/time_iou.py`).
+   - `EXTRA_IGNORE`: the pilot removed those ids too, from the command line,
+     recorded in each score as `extra_ignore`. Every score in the workbench
+     that records it has it empty, but those are the workshop's; confirm on
+     the 38 conditions' JSONs before pilot mode assumes an empty set
+     (`evalkit/vi.py`).
+   - The clip means: `summarize_clip` averages with `sum() / len()`, takes a
+     mean only over the frames a key is defined on and leaves None where
+     there is none; the pilot took `np.mean`, wrote 0 where no frame defined
+     a key, and rounded the summary to four decimals. The last bit of the
+     two means differs on about 40 % of random clips, so the pilot-mode
+     driver aggregates the pilot's way and does not call `summarize_clip`
+     (`evalkit/clip.py`).
+5. **Boundary dilation before the freeze.** `evalkit/boundary.py` dilates
+   with `cv2.dilate`; a numpy shift-or over the (2·tol + 1)² offsets agrees
+   on every mask tried, borders included. The question is whether a hashed
+   file should depend on a library's behaviour at all while OpenCV is
+   unpinned. Decide before the evaluator is frozen.
+6. **The benchmark mapping against its source.** The ATLAS-120k mapping to
+   the benchmark's 30 classes was typed from the document and checked by
+   hand against ATLAS-bench's `datasets/class_mapping.py` at commit
+   e286a584, all 47 ids agreeing. A script that takes that file's path and
+   repeats the check would make it reproducible.
+7. **CholecSeg8k's Region line.** The white line between regions is 1 px
+   wide; in the masks 87 % of its pixels are the image's outer 1 px (gone
+   with the crop) and the rest sits mostly in video43 and video52. Left
+   `ignored`, an edge against it is no boundary, so those videos lose much of
+   their GT boundary, and unevenly: after the nearest-neighbour resize the
+   line survives only in places. Decide whether the loader fills the line
+   from its neighbours, at full resolution, by a deterministic rule with the
+   filled count recorded, or whether it stays ignored with the loss
+   documented. Either way the pilot evaluator read it as background and
+   counted an edge against it as a boundary, a normal-mode difference to list.
+8. **CholecSeg8k clips whose frames run out of order.** In videos where
+   CholecSeg8k numbers frames at about 30 fps, the workbench's extractor
+   (`scripts/extract_cholec_track.py`) resolves the true 25 fps frame for the
+   frames that carry a mask and leaves the gap frames it decodes from the
+   video at the unconverted number, 1 to 3 s later in the video than their
+   place in the clip; the recorded times are right, the order of the images
+   is wrong, and one image can appear twice. 14 of the 27 pilot clips are
+   affected, 11 visibly. Removing them changes the verdict of several F1 and
+   IDF1 comparisons (power, not sign) and none of the `boundary_F` or
+   `hold_mean` ones. When the extractor is ported in step 5 it converts the
+   gap frames or refuses the video, the 14 clips are re-extracted and re-run,
+   and that is a deliberate exception to step 5's byte-for-byte rule.
+9. **What the geometric view cannot see.** The geometric view removes the
+   `appearance` pixels from the GT and the regions alike, so a region lying
+   on them only, such as a blood spot a colour-driven pipeline cuts out of
+   the liver, is no object and costs nothing. Count, in both datasets' GT
+   masks, the `appearance` pixels in connected components whose whole outer
+   border is one `tissue` class: the spots where the organ plainly runs on
+   underneath. If they are rare, nothing changes. If not, decide before the
+   freeze whether the evaluator counts the regions lying wholly on removed
+   pixels, reported like `unlabelled_share` and never starred. Filling the
+   spots from their neighbours was considered and set aside; the reasons are
+   in `docs/evaluation.md`, "Views".
+10. **The evaluator map against `evalkit/frame.py`.** Two things to carry
+    into the next redraw of `docs/figures/evaluator_map.png`, neither wrong
+    today. The map gives step 2, one frame in one view, no module, and
+    names `frame` at step 3 only; in the code both are in `frame.py`, as
+    `score_view` and `score_frame`, so a reader looking for where one view
+    is composed finds no box. And the map's step 3 shows a frame scored or
+    its keys undefined, never skipped: the excluded marker takes a frame out
+    whole, counted for the clip driver, and a depth map with an invalid
+    pixel stops the run with an error, counted nowhere. A phrase in the
+    step 3 box, "or skipped whole, and counted", would close that in the
+    figure. `evalkit/README.md` is the
+    short version and need not say either.
