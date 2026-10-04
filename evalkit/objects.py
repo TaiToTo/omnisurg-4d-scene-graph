@@ -1,4 +1,4 @@
-"""Objects, their pairing, and the two primary metrics `F1_50` and `SQ`.
+"""Objects, their pairing, and the two metrics taken over them, `F1_50` and `SQ`.
 
 The datasets label classes, not individual things, so in the GT an object is
 one class's whole region in one frame; in the prediction an object is one

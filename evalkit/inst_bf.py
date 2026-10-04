@@ -17,9 +17,16 @@ That is the rule the frame-level boundary metrics follow on a frame without
 a GT boundary, applied per object. When only the predicted object's boundary
 is empty, the hit scores 0, as the frame-level metrics do.
 
-The pilot evaluator scored such a hit 0 and used a 1e-9 in its F. Pilot mode
-reads the per-hit scores returned here and applies its own zeros and its own
-F, rather than counting boundary pixels a second time.
+The pilot evaluator marked each object's boundary on the whole map and
+masked it afterwards, so an object's edge against a removed pixel (invalid
+depth, or background and instruments in its `labeled` and `tissue` domains)
+was a boundary on the object's side; and it scored such a hit 0 and used a
+1e-9 in its F. Pilot mode asks for the pilot's marking with `pilot=True`,
+and reads the per-hit scores returned here to apply its own zeros and its
+own F, rather than counting boundary pixels a second time.
+
+`docs/figures/inst_bf.png` shows this on a drawn scene, with the numbers the module
+gives for it.
 """
 from __future__ import annotations
 
@@ -51,8 +58,18 @@ class InstanceBoundary:
     n_entered: int
 
 
+def _object_boundary(mask: np.ndarray, scored: np.ndarray, pilot: bool) -> np.ndarray:
+    # An object's mask is a two-label map, so its boundary is the edge between
+    # the object and the rest, marked on both sides. Under the evaluator's
+    # rule an edge against a removed pixel is no boundary; the pilot marked
+    # it and then dropped the removed side.
+    if pilot:
+        return boundary_pixels(mask) & scored
+    return boundary_pixels(mask, scored)
+
+
 def instance_boundary_f(
-    gt: Objects, pred: Objects, scores: InstanceScores, tol: int = BOUNDARY_TOL_PX,
+    gt: Objects, pred: Objects, scores: InstanceScores, tol: int = BOUNDARY_TOL_PX, *, pilot: bool = False,
 ) -> InstanceBoundary:
     """Score the contour of every hit, and take `inst_BF` as the mean.
 
@@ -63,12 +80,16 @@ def instance_boundary_f(
         scores: The pairing of the two, from `instance_scores`; its hits are
             the pairs scored here.
         tol: The tolerance in pixels.
+        pilot: Mark each object's boundary on the whole map and mask it
+            afterwards, as the pilot evaluator did, so that an object's edge
+            against a removed pixel is a boundary on the object's side.
 
     Raises:
         ValueError: The two object maps were taken over different scored
-            masks, or `scores` was not computed from these objects: each
-            hit's contour would then be read off the wrong pixels without a
-            crash.
+            masks, or `scores` pairs other numbers of objects than were
+            given: each hit's contour would then be read off the wrong
+            pixels without a crash. A pairing of other objects in the same
+            numbers cannot be told apart here.
     """
     if gt.index.shape != pred.index.shape or not np.array_equal(gt.scored, pred.scored):
         raise ValueError(
@@ -83,10 +104,8 @@ def instance_boundary_f(
     scored = gt.scored
     per_hit = []
     for hit in scores.hits:
-        # Each object's mask is a two-label map, so its boundary is the edge
-        # between the object and the other scored pixels, marked on both sides.
-        gt_boundary = boundary_pixels(gt.mask(hit.gt), scored)
-        pred_boundary = boundary_pixels(pred.mask(hit.pred), scored)
+        gt_boundary = _object_boundary(gt.mask(hit.gt), scored, pilot)
+        pred_boundary = _object_boundary(pred.mask(hit.pred), scored, pilot)
         per_hit.append(boundary_score(pred_boundary, gt_boundary, tol))
     entered = [s.f for s in per_hit if s is not None]
     inst_bf = sum(entered) / len(entered) if entered else None

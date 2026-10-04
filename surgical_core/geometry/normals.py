@@ -90,15 +90,19 @@ EDGE_RING_PX = 2
 def edge_reliable_mask(m):
     """Pixels whose crease and step are trustworthy: valid, and `EDGE_RING_PX`
     away from any invalid pixel and from the image border."""
-    # TODO: `EDGE_RING_PX = 0` would mask every pixel, because `r[-0:]` is
-    # the whole array, not an empty slice. The width is 2 and is not meant to
-    # move; if it ever does, guard the four border slices.
-    k = np.ones((2 * EDGE_RING_PX + 1, 2 * EDGE_RING_PX + 1), np.uint8)
+    px = int(EDGE_RING_PX)
+    if px < 0:
+        raise ValueError(f"EDGE_RING_PX is a width in pixels, got {EDGE_RING_PX!r}")
+    k = np.ones((2 * px + 1, 2 * px + 1), np.uint8)
     r = cv2.erode(m.astype(np.uint8), k).astype(bool)
-    r[:EDGE_RING_PX, :] = False
-    r[-EDGE_RING_PX:, :] = False
-    r[:, :EDGE_RING_PX] = False
-    r[:, -EDGE_RING_PX:] = False
+    # The border slices are written only for a positive width: `r[-0:]` is
+    # the whole array, not an empty slice, so a width of 0 would otherwise
+    # mask every pixel instead of none.
+    if px:
+        r[:px, :] = False
+        r[-px:, :] = False
+        r[:, :px] = False
+        r[:, -px:] = False
     return r
 
 
