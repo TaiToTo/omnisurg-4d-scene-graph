@@ -35,7 +35,7 @@ from evalkit.scored import PixelCounts, frame_is_excluded, scored_pixels, valid_
 from evalkit.unlabelled import unlabelled_share
 from evalkit.vi import variation_of_information
 
-# The specification's key for each metric, to the field that holds it. The
+# The specification's key for each per-frame metric, to the field that holds it. The
 # one place the two spellings meet; the JSON is written through it.
 KEYS: Mapping[str, str] = MappingProxyType({
     "F1_50": "f1_50",
@@ -137,8 +137,9 @@ def score_view(
         view: One of `VIEWS`.
 
     Raises:
-        ValueError: An input is not a map of one shape; the frame carries
-            the excluded marker; or `valid` has a False in it.
+        ValueError: An input is not a map of one shape; a region id is
+            below -1; the frame carries the excluded marker; or `valid`
+            has a False in it.
         KeyError: A mask id the table does not have, or an unknown view.
     """
     # Which pixels this view scores, and the GT class on each. Every metric
@@ -213,8 +214,8 @@ def score_frame(
         excluded marker, `excluded=True` and no view.
 
     Raises:
-        ValueError: An input is not a map of the depth map's shape, or a
-            pixel has no valid depth.
+        ValueError: An input is not a map of the depth map's shape, a
+            region id is below -1, or a pixel has no valid depth.
         KeyError: A mask id the table does not have.
     """
     mask_ids, regions = _check_maps(mask_ids, regions)
