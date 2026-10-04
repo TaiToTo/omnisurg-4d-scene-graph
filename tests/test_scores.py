@@ -54,7 +54,7 @@ def test_a_json_with_none_of_the_evaluator_fields_is_the_pilot_evaluator_s():
     assert is_pilot_json(pilot_json())
     r = ruler(pilot_json())
     assert (r.pilot, r.class_set, r.views) == (True, "original", PILOT_DOMAINS)
-    assert r.domain == ("cholec", (5, 9), ((),))
+    assert r.domain == ("cholec", (5, 9))
 
 
 def test_a_json_with_all_the_evaluator_fields_is_the_evaluator_s():
@@ -146,11 +146,38 @@ def test_two_pilot_domains_under_one_sha_are_refused():
         check_comparable(pilot_json(), b)
 
 
+def test_swapped_extra_ignores_under_one_set_of_values_are_refused():
+    # The same two values, each on the other clip: what `tissue` removed
+    # from a clip differs even though the values agree as a set.
+    a, b = pilot_json(), pilot_json()
+    a["per_clip"][0]["extra_ignore"], a["per_clip"][1]["extra_ignore"] = [3], [7]
+    b["per_clip"][0]["extra_ignore"], b["per_clip"][1]["extra_ignore"] = [7], [3]
+    assert check_comparable(a, copy.deepcopy(a))["population"] == "identical"
+    with pytest.raises(ValueError, match="extra_ignore"):
+        check_comparable(a, b)
+
+
+def test_extra_ignores_are_checked_on_the_compared_clips_only():
+    # The clip that is not compared may differ in anything.
+    a, b = pilot_json(), pilot_json(clips=CLIPS[:1])
+    a["per_clip"][1]["extra_ignore"] = [7]
+    assert check_comparable(a, b, allow_subset=True)["clips"] == CLIPS[:1]
+
+
 def test_a_pilot_json_without_a_domain_is_not_checked_for_one():
     # The pilot's own check skipped the domain when one side had none; its
     # sha check already refuses that pair unless legacy code is allowed.
-    a, b = pilot_json(sha=None, version=None), pilot_json(sha=None, dataset="atlas")
+    a, b = pilot_json(sha=None, version=None), pilot_json(sha=None)
     assert check_comparable(a, b, allow_legacy_code=True)["population"] == "identical"
+
+
+def test_two_datasets_are_refused_even_when_one_pilot_json_records_no_domain():
+    # The pilot's own check let this pair through: without a domain on both
+    # sides it compared nothing but the clips. The dataset is recorded on
+    # both, and the specification says it must match.
+    a, b = pilot_json(sha=None, version=None), pilot_json(sha=None, dataset="atlas")
+    with pytest.raises(ValueError, match="different datasets"):
+        check_comparable(a, b, allow_legacy_code=True)
 
 
 # ---------------------------------------------------------------- the population
@@ -167,6 +194,38 @@ def test_different_clip_sets_are_refused_unless_a_subset_is_allowed():
 def test_no_common_clip_is_refused_even_with_a_subset_allowed():
     with pytest.raises(ValueError, match="no clip is common"):
         check_comparable(pilot_json(clips=CLIPS[:1]), pilot_json(clips=CLIPS[1:]), allow_subset=True)
+
+
+def test_an_empty_clips_field_is_a_claim_and_not_a_missing_one():
+    # `clips: []` says nothing was scored; falling back on a leftover
+    # `per_clip` would compare clips the JSON never claims.
+    j = pilot_json()
+    j["clips"] = []
+    assert clips_of(j) == []
+
+
+def test_two_scores_of_no_clips_at_all_are_refused():
+    with pytest.raises(ValueError, match="nothing to compare"):
+        check_comparable(pilot_json(clips=[]), pilot_json(clips=[]))
+
+
+@pytest.mark.parametrize("make", [pilot_json, evaluator_json])
+def test_a_json_whose_clips_and_rows_disagree_is_refused(make):
+    # The population is read from `clips` and the values from `per_clip`;
+    # where they disagree, a pair is checked on one set of clips and
+    # averaged over another, with nothing failing.
+    fewer_claimed = make()
+    fewer_claimed["clips"] = CLIPS[:1]
+    with pytest.raises(ValueError, match=r"(?s)cond: .*name different clips.*per_clip only: \['VID02_s15_80_crop'\]"):
+        check_comparable(make(), fewer_claimed)
+    fewer_rows = make()
+    fewer_rows["per_clip"] = fewer_rows["per_clip"][:1]
+    with pytest.raises(ValueError, match=r"(?s)base: .*name different clips.*clips only: \['VID02_s15_80_crop'\]"):
+        check_comparable(fewer_rows, make())
+    twice = make()
+    twice["per_clip"].append(copy.deepcopy(twice["per_clip"][0]))
+    with pytest.raises(ValueError, match=r"more than one row for \['VID01_s15_80_crop'\]"):
+        check_comparable(make(), twice)
 
 
 # ---------------------------------------------------------------- the inputs and the versions
@@ -197,6 +256,19 @@ def test_a_clip_without_input_shas_is_refused():
     del b["input_shas"][CLIPS[0]]
     with pytest.raises(ValueError, match="no input shas"):
         check_comparable(evaluator_json(), b)
+
+
+def test_input_shas_that_name_no_input_beyond_the_predictions_are_refused():
+    # `{}` on both sides slips past a name-by-name comparison: there is no
+    # name to compare, and nothing says the two read the same GT.
+    a, b = evaluator_json(), evaluator_json()
+    a["input_shas"][CLIPS[0]], b["input_shas"][CLIPS[0]] = {}, {}
+    with pytest.raises(ValueError, match="no input beyond the predictions"):
+        check_comparable(a, b)
+    a["input_shas"][CLIPS[0]] = {"predictions": "p"}
+    b["input_shas"][CLIPS[0]] = {"predictions": "q"}
+    with pytest.raises(ValueError, match="no input beyond the predictions"):
+        check_comparable(a, b)
 
 
 def test_inputs_are_checked_on_the_compared_clips_only():

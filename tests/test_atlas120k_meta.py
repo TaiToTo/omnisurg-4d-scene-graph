@@ -1,8 +1,8 @@
 """The ATLAS-120k metadata files agree with one another, and carry nothing private.
 
 The files under `atlas120k_meta/` are copies of data made in the private
-workbench, and nothing in this repository reads them yet. Until the readers
-are ported, these checks are what keeps an edit to one file from quietly
+workbench. The readers in `surgical_core/atlas120k/` check each file on its
+own; these checks are what keeps an edit to one file from quietly
 contradicting another: the paper's population is one list, every clip in it
 has a crop rectangle and a depth fingerprint, and none of the files carries a
 path from the machine they were made on.

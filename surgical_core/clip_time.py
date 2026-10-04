@@ -11,21 +11,15 @@ number, not as a crash.
 """
 from __future__ import annotations
 
-import importlib
 import json
 import os
 
 import numpy as np
 
-# The module that holds the measured ratio of mp4 frame numbers to clip-index
-# frame numbers for each ATLAS-120k video. It is imported by name, only when a
-# manifest does not record its own ratio: a manifest that does never needs
-# the table, and a clip that needs a table that is not there is refused
-# rather than passed at a default.
-MEASURED_RATIOS = "surgical_core.atlas120k.frame_ratio"
+from surgical_core.atlas120k.frame_ratio import FrameRatios
 
 
-def frame_times(root: str, clip: str) -> np.ndarray:
+def frame_times(root: str, clip: str, ratios: FrameRatios | None = None) -> np.ndarray:
     """Return the real time of every frame, in seconds, as an (N,) array.
 
     The times are relative to the clip; only their differences carry meaning.
@@ -57,11 +51,16 @@ def frame_times(root: str, clip: str) -> np.ndarray:
     ratio is 2, 3 or 4. The manifest records it as `frame_ratio`, and
     forgetting to multiply shrinks that clip's time by the ratio. In the
     paper's population of 315 clips, 40 have a ratio other than 1; one 11.5 s
-    clip came out as 3.8 s before the ratio was applied.
+    clip came out as 3.8 s before the ratio was applied. A manifest written
+    before the ratio was recorded has no `frame_ratio`; for it, `ratios` is
+    asked, and the clip passes only if its video was measured at 1.
 
     Args:
         root: Directory that holds the clips.
         clip: Name of the clip under `root`.
+        ratios: The measured ratios, from `atlas120k_meta/frame_ratio.json`.
+            Needed only for an ATLAS-120k manifest without `frame_ratio`;
+            such a manifest is refused when it is not given.
 
     Returns:
         Seconds, shape (N,): for CholecSeg8k the manifest's `timestamp_sec`,
@@ -101,7 +100,7 @@ def frame_times(root: str, clip: str) -> np.ndarray:
     nf = [fr.get("native_frame") for fr in frames]
     fps = man.get("fps_native")
     if fps and len(nf) >= 2 and all(v is not None for v in nf):
-        ratio = _ratio_of(clip, man)
+        ratio = _ratio_of(clip, man, ratios)
         t = np.asarray(nf, dtype=float) * ratio / float(fps)
         # Only a population that records `gt_step_sec_actual` can be checked.
         # ATLAS-120k frames are an even stride, so the median step must match.
@@ -121,28 +120,29 @@ def frame_times(root: str, clip: str) -> np.ndarray:
         "not mixed in.")
 
 
-def _ratio_of(clip: str, man: dict) -> float:
+def _ratio_of(clip: str, man: dict, ratios: FrameRatios | None) -> float:
     """Return the ratio to multiply `native_frame` by, from the manifest or the table.
 
     A manifest without `frame_ratio` is one of two things: a clip that has no
     ratio at all (CholecSeg8k, or a manifest that names no video), or an
     ATLAS-120k clip extracted before the ratio was recorded. The first kind
     passes at 1. The second kind is checked against the table of measured
-    ratios, and refused when the table says the ratio is not 1: a default of 1
-    would let that clip in with its time shrunk to a half, a third or a
+    ratios, and refused unless the table says 1: a default of 1 would let a
+    clip of another ratio in with its time shrunk to a half, a third or a
     quarter, and nothing downstream would notice.
 
     Args:
         clip: Name of the clip, for the message when it is refused.
         man: The parsed `frame_manifest.json`.
+        ratios: The measured ratios, or `None` when the caller has none.
 
     Returns:
         The ratio.
 
     Raises:
         RuntimeError: The manifest records a ratio that is not positive, or
-            it names a video and records no ratio, and either the table says
-            the ratio is not 1 or there is no table to ask.
+            it names a video and records no ratio, and either no table was
+            given, the video is not in it, or its ratio there is not 1.
     """
     if man.get("frame_ratio") is not None:
         ratio = float(man["frame_ratio"])
@@ -160,27 +160,21 @@ def _ratio_of(clip: str, man: dict) -> float:
     if not (procedure and youtube_id):
         return 1.0      # no video named: not ATLAS-120k, and nothing to multiply by
 
-    try:
-        table = importlib.import_module(MEASURED_RATIOS)
-    except ModuleNotFoundError as e:
-        # Only the table itself, or a package above it, being absent means
-        # "no table". A dependency missing inside the table (`e.name` is then
-        # that dependency) is a broken install, and saying "no table" about it
-        # would send the reader to the wrong place. The comparison is on
-        # package boundaries, not string prefixes: `surgical_core.atlas`, the
-        # workbench's old name for the package, is a prefix of the table's
-        # name, and an import of it left inside the table must be reported as
-        # itself. An error raised without a name says nothing about what is
-        # missing, so it is passed on too.
-        is_table = e.name is not None and (
-            e.name == MEASURED_RATIOS or MEASURED_RATIOS.startswith(e.name + "."))
-        if not is_table:
-            raise
+    if ratios is None:
         raise RuntimeError(
-            f"{clip}: the manifest has no `frame_ratio`, and the table of measured "
-            f"ratios ({MEASURED_RATIOS}) is not available, so the ratio is "
-            "unknown. Re-extract the clip, or write the ratio into the manifest.") from e
-    measured = table.frame_ratio(procedure, youtube_id)
+            f"{clip}: the manifest has no `frame_ratio` and no table of measured "
+            "ratios was given, so the ratio is unknown. Pass the table, re-extract "
+            "the clip, or write the ratio into the manifest.")
+    try:
+        measured = ratios.ratio(procedure, youtube_id)
+    except KeyError as e:
+        # The table refuses an unmeasured video rather than answer 1; the
+        # clip is refused the same way as any other clip without seconds.
+        raise RuntimeError(
+            f"{clip}: the manifest has no `frame_ratio`, and {procedure}/{youtube_id} "
+            "is not in the table of measured ratios, so the ratio is unknown. "
+            "Measure the video, re-extract the clip, or write the ratio into the "
+            "manifest.") from e
     if measured != 1:
         raise RuntimeError(
             f"{clip}: the manifest has no `frame_ratio`, but the measured ratio of "
