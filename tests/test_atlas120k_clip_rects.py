@@ -51,10 +51,34 @@ def test_last_wins(tmp_path):
     assert load_clip_rects(p)[("proc", "vid", "clip_0001")] == (1, 2, 300, 400)
 
 
+def test_a_later_skip_withdraws_the_rectangle(tmp_path):
+    """The later entry wins for `skip` too: a clip withdrawn after it was
+    accepted falls back to the video's rectangle."""
+    p = _write(tmp_path, [_row(verdict="ok"), _row(verdict="skip")])
+    assert load_clip_rects(p) == {}
+
+
 def test_rect_is_clamped_into_the_frame(tmp_path):
     """A drag past the frame edge is clamped, not rejected."""
     p = _write(tmp_path, [_row(rect=[1800, 900, 500, 500], src_size=[1920, 1080])])
     assert load_clip_rects(p)[("proc", "vid", "clip_0001")] == (1800, 900, 120, 180)
+
+
+def test_rect_past_the_left_and_top_is_cut_not_moved(tmp_path):
+    """Past the left or top edge, what is kept is the part inside the frame.
+    Moving the origin to 0 and keeping the size would crop a region nobody
+    drew."""
+    p = _write(tmp_path, [_row(rect=[-100, -50, 300, 200], src_size=[640, 480])])
+    assert load_clip_rects(p)[("proc", "vid", "clip_0001")] == (0, 0, 200, 150)
+
+
+def test_rect_without_src_size_is_refused(tmp_path):
+    """Without the frame size the rectangle cannot be checked, and a negative
+    origin would wrap around in a numpy slice instead of failing."""
+    row = _row(rect=[-100, -50, 300, 200])
+    del row["src_size"]
+    with pytest.raises(ValueError, match="no src_size"):
+        load_clip_rects(_write(tmp_path, [row]))
 
 
 def test_clamping_into_a_degenerate_rect_raises(tmp_path):
