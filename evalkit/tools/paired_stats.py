@@ -11,17 +11,27 @@ SDs here describe the distributions, and the decision rests on the paired
 differences, through a bootstrap confidence interval, with a Wilcoxon
 p-value reported beside it.
 
-The population is aligned per metric. `SQ` and `inst_BF` are None on a
-clip with no hit, independently in each condition. An implementation that
-drops a metric when any clip is None loses the primary metric silently,
-and reports a population that `compare_eval` does not; so the clips are
-aligned by `scores.defined_clips`, the same way there, and a shrunken
-population is printed as `[16/18 clips]`.
+The population is the one the comparability check compared, aligned per
+metric. `SQ` and `inst_BF` are None on a clip with no hit, independently
+in each condition. An implementation that drops a metric when any clip is
+None loses the primary metric silently, and reports a population that
+`compare_eval` does not; so the clips are aligned by
+`scores.defined_clips`, the same way there, and a shrunken population is
+printed as `[16/18 clips, 6/7 videos]`.
+
+The direction of a metric is part of the verdict. `VI_split` counts bits
+of disagreement, so a drop is the improvement; `time_IoU` and
+`unlabelled_share` are reference values and get no mark either way. The
+difference is recorded as `cond - base`, the way the metric itself moved,
+with the metric's `sign` beside it, and `verdict` reads the two together;
+a reader of the JSON does not orient the interval by hand.
 
 The bootstrap resamples videos, not clips. A video supplies several clips,
 and the clips of one video are not independent: resampling clips gives an
 interval that is too narrow. Both intervals are printed; the video one
-decides.
+decides. Below two videos there is no interval: every resample is the same
+video, and the point that comes out reads as a verdict. `boot_ci` refuses,
+and the row says None, which `verdict` reads as no mark.
 
 Usage:
     python -m evalkit.tools.paired_stats --eval-dir /path/to/scores \\
@@ -33,17 +43,30 @@ import argparse
 import hashlib
 import json
 import os
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
+from types import MappingProxyType
 
 import numpy as np
 
-from evalkit.tools.scores import check_comparable, defined_clips, is_pilot_json, load_scores, metric_keys, rows_of
+from evalkit.tools.scores import (
+    check_comparable,
+    defined_clips,
+    is_pilot_json,
+    load_scores,
+    metric_keys,
+    rows_of,
+    sign_of,
+)
 
 # The keys reported on a pilot evaluator's JSON, in the order the workbench
 # reported them. A key the JSON does not hold is skipped and said so. The
 # evaluator's JSONs name their keys themselves (`scores.metric_keys`).
 PILOT_KEYS = ("inst_F1_50", "inst_F1_75", "inst_F1_avg", "PQ", "SQ", "inst_BF",
               "boundary_F", "boundary_R_raw", "boundary_P_raw", "GT_mIoU", "underseg_error")
+# Which way each pilot key is better, as `scores.SIGNS` says for the
+# evaluator's keys. `underseg_error` is the share of GT that a prediction
+# swallowed into a neighbour, so less is better; every other key is a score.
+PILOT_SIGNS: Mapping[str, int] = MappingProxyType({k: -1 if k == "underseg_error" else +1 for k in PILOT_KEYS})
 N_BOOT = 10000
 # The global seed. The draw is not decided by it alone: `_boot_rng` builds
 # the generator from `[SEED, blake2b(differences, groups)]`, so that the same
@@ -57,6 +80,11 @@ SEED_SCHEME = "default_rng([SEED, blake2b(d, groups)]), independent of call orde
 def keys_of(summary: dict) -> Sequence[str]:
     """The keys to report on a JSON: the pilot's list on a pilot JSON, the evaluator's own otherwise."""
     return PILOT_KEYS if is_pilot_json(summary) else metric_keys(summary)
+
+
+def sign_of_key(summary: dict, key: str) -> int:
+    """Which way `key` is better on this JSON: the pilot's table on a pilot JSON, `scores.sign_of` otherwise."""
+    return PILOT_SIGNS[key] if is_pilot_json(summary) else sign_of(key)
 
 
 def load_json(tag: str, eval_dir: str) -> dict:
@@ -132,11 +160,29 @@ def boot_ci(d: np.ndarray, groups: np.ndarray | None = None, rng=None,
 
     Raises:
         TypeError: `rng` was passed.
+        ValueError: `groups` does not name one unit per difference, or
+            there are fewer than two units to resample. With one unit
+            every resample is the same one, and the point that comes out
+            is not an interval but reads as a verdict.
     """
     if rng is not None:
         raise TypeError(
             "boot_ci no longer takes a generator: the interval depended on call order. "
             "Call boot_ci(d, groups); pass seed= only to redraw everything."
+        )
+    d = np.asarray(d, dtype=np.float64)
+    if groups is not None:
+        # A list compared with one group is a single False, not a mask, and
+        # the interval came out (nan, nan): no mark, and no error.
+        groups = np.asarray(groups)
+        if groups.shape != d.shape:
+            raise ValueError(f"groups names {groups.shape} units for {d.shape} differences")
+    units = len(d) if groups is None else len(np.unique(groups))
+    if units < 2:
+        what = "difference" if groups is None else "video"
+        raise ValueError(
+            f"a bootstrap over {units} {what} has no interval: every resample is the same one, "
+            "and the point it gives would read as a verdict"
         )
     rng = _boot_rng(d, groups, seed)
     if groups is None:
@@ -156,15 +202,17 @@ def boot_ci(d: np.ndarray, groups: np.ndarray | None = None, rng=None,
 # borrows `verdict` rather than deciding one.
 #
 # The decision is the video-level bootstrap 95 % interval not straddling
-# zero, and nothing else. The clip-level interval and the p-values are
-# printed beside it as reference and never decide.
+# zero, read in the metric's direction, and nothing else. The clip-level
+# interval and the p-values are printed beside it as reference and never
+# decide.
 #
 # Why p is not part of it: the unit. ATLAS-120k's clips come from a few
 # videos, and one video can supply a third of them, so a Wilcoxon over clip
 # pairs inflates the evidence. The video-level p is conservative but
 # undefined below six videos, which some populations have; the interval is
-# defined on any population. The claim about 3D predicates was decided by
-# the interval alone already, so one rule covers every claim.
+# defined on any population of two videos or more. The claim about 3D
+# predicates was decided by the interval alone already, so one rule covers
+# every claim.
 #
 # The change was not small: of 4,883 comparisons that had both the video
 # interval and a p-value, 340 (7.0 %) changed mark under this rule, every
@@ -174,21 +222,28 @@ def boot_ci(d: np.ndarray, groups: np.ndarray | None = None, rng=None,
 VERDICT_RULE = "the video-level bootstrap 95 % CI does not straddle zero (p is reported, never decisive)"
 
 
-def verdict(ci95_video: tuple[float, float] | list[float] | None) -> str:
+def verdict(ci95_video: tuple[float, float] | list[float] | None, sign: int = +1) -> str:
     """A star (better), a cross (worse) or nothing (not distinguishable), from the video-level interval.
 
-    The sign assumes that a positive difference is better; for a metric
-    where smaller is better the caller orients the difference first.
-
     Args:
-        ci95_video: `[lo, hi]` of the video-level bootstrap; None when there is none.
+        ci95_video: `[lo, hi]` of the video-level bootstrap of `cond - base`;
+            None when there is none.
+        sign: Which way the metric is better, as `scores.SIGNS` spells it:
+            +1 larger, -1 smaller, 0 a reference value that is never marked.
 
     Returns:
         `"★"`, `"✗"` or `""`.
+
+    Raises:
+        ValueError: `sign` is not +1, -1 or 0.
     """
-    if ci95_video is None or ci95_video[0] is None or ci95_video[1] is None:
+    if sign not in (1, -1, 0):
+        raise ValueError(f"sign is +1, -1 or 0, not {sign!r}")
+    if sign == 0 or ci95_video is None or ci95_video[0] is None or ci95_video[1] is None:
         return ""
     lo, hi = float(ci95_video[0]), float(ci95_video[1])
+    if sign < 0:
+        lo, hi = -hi, -lo
     if lo > 0:
         return "★"
     if hi < 0:
@@ -196,31 +251,43 @@ def verdict(ci95_video: tuple[float, float] | list[float] | None) -> str:
     return ""
 
 
-def is_star(ci95_video) -> bool:
+def is_star(ci95_video, sign: int = +1) -> bool:
     """Whether `verdict` gives a star, for a caller that wants the truth value alone."""
-    return verdict(ci95_video) == "★"
+    return verdict(ci95_video, sign) == "★"
 
 
-def _stats_of(va: np.ndarray, vb: np.ndarray, kvids: np.ndarray) -> dict:
+def _sd(x: np.ndarray) -> float | None:
+    """The sample SD, or None on one value, where `std(ddof=1)` would write NaN into the JSON."""
+    return None if len(x) < 2 else round(float(x.std(ddof=1)), 4)
+
+
+def _stats_of(va: np.ndarray, vb: np.ndarray, kvids: np.ndarray, sign: int) -> dict:
+    """The row of one key: the counts, the two distributions, the paired difference and its intervals.
+
+    A quantity that has no value on this few clips or videos is None, never
+    a NaN or a point: the SDs on one clip, the clip interval on one clip,
+    the video interval and the video-level p below their minimum.
+    """
     from scipy import stats
 
     d = vb - va
+    n_videos = int(len(np.unique(kvids)))
     w = stats.wilcoxon(d, zero_method="wilcox") if np.any(d != 0) else None
-    lo_c, hi_c = boot_ci(d, None)
-    lo_v, hi_v = boot_ci(d, kvids)
+    ci_clip = None if len(d) < 2 else [round(x, 4) for x in boot_ci(d, None)]
+    ci_video = None if n_videos < 2 else [round(x, 4) for x in boot_ci(d, kvids)]
     pv = wilcoxon_video(d, kvids)
     return dict(
         # A shrunken population is never averaged silently: the counts stay.
-        n_clips=len(va), n_videos=int(len(set(kvids))),
-        base_mean=round(float(va.mean()), 4), base_sd=round(float(va.std(ddof=1)), 4),
-        cond_mean=round(float(vb.mean()), 4), cond_sd=round(float(vb.std(ddof=1)), 4),
-        delta_mean=round(float(d.mean()), 4), delta_sd=round(float(d.std(ddof=1)), 4),
+        n_clips=len(va), n_videos=n_videos, sign=sign,
+        base_mean=round(float(va.mean()), 4), base_sd=_sd(va),
+        cond_mean=round(float(vb.mean()), 4), cond_sd=_sd(vb),
+        delta_mean=round(float(d.mean()), 4), delta_sd=_sd(d),
         delta_median=round(float(np.median(d)), 4),
         wins=int((d > 0).sum()), losses=int((d < 0).sum()), ties=int((d == 0).sum()),
         wilcoxon_p=None if w is None else round(float(w.pvalue), 5),
         wilcoxon_p_video=None if pv is None else round(pv, 5),
-        ci95_clip=[round(lo_c, 4), round(hi_c, 4)],
-        ci95_video=[round(lo_v, 4), round(hi_v, 4)],
+        ci95_clip=ci_clip,
+        ci95_video=ci_video,
     )
 
 
@@ -242,16 +309,21 @@ def compare_pair(ja: dict, jb: dict, drop: Sequence[str] = (), allow_legacy_code
         the check reports it.
 
     Raises:
-        ValueError: The two JSONs are not comparable, or `drop` leaves no clip.
+        ValueError: The two JSONs are not comparable, `drop` names a video
+            the scores do not have, or `drop` leaves no clip.
     """
     # The ruler and the domain are checked, not only the population; the
     # check also settles that the populations are equal (no subset here).
     chk = check_comparable(ja, jb, allow_legacy_code=allow_legacy_code)
     a, b = rows_of(ja), rows_of(jb)
-    # The subset is taken after the populations were found equal; taking it
-    # first would hide a mismatch.
+    # The subset is taken from the clips the check compared, and after it:
+    # taking it first would hide a mismatch, and taking it from the rows
+    # would be a second population beside the one checked.
     drop = set(drop)
-    clips = sorted(c for c in set(a) & set(b) if video_of(c) not in drop)
+    unknown = drop - {video_of(c) for c in chk["clips"]}
+    if unknown:
+        raise ValueError(f"--drop-video names no video of these scores: {sorted(unknown)}")
+    clips = [c for c in chk["clips"] if video_of(c) not in drop]
     if not clips:
         raise ValueError(f"--drop-video left no clip ({sorted(drop)})")
     vids = [video_of(c) for c in clips]
@@ -263,13 +335,21 @@ def compare_pair(ja: dict, jb: dict, drop: Sequence[str] = (), allow_legacy_code
         kvids = np.array([video_of(c) for c in ks])
         va = np.array([a[c][k] for c in ks], dtype=np.float64)
         vb = np.array([b[c][k] for c in ks], dtype=np.float64)
-        res[k] = _stats_of(va, vb, kvids)
+        res[k] = _stats_of(va, vb, kvids, sign_of_key(ja, k))
     out = dict(n_clips=len(clips), n_videos=int(len(set(vids))), dropped_videos=sorted(drop),
                # What it was measured with stays with the result.
                eval_code=chk["eval_code"], population=chk["population"], metrics=res)
     if "versions_differ" in chk:
         out["versions_differ"] = chk["versions_differ"]
     return out
+
+
+def _num(x: float | None, spec: str) -> str:
+    return "none" if x is None else format(x, spec)
+
+
+def _interval(ci: list[float] | None) -> str:
+    return "none" if ci is None else f"[{ci[0]:+.4f}, {ci[1]:+.4f}]"
 
 
 def _print_pair(base: str, cond: str, pair: dict, keys: Sequence[str]) -> None:
@@ -281,14 +361,16 @@ def _print_pair(base: str, cond: str, pair: dict, keys: Sequence[str]) -> None:
         if r is None:
             print(f"  {k}: (not in this JSON / defined on no common clip)")
             continue
-        note = "" if r["n_clips"] == pair["n_clips"] else f"   [{r['n_clips']}/{pair['n_clips']} clips]"
+        note = ""
+        if (r["n_clips"], r["n_videos"]) != (pair["n_clips"], pair["n_videos"]):
+            note = f"   [{r['n_clips']}/{pair['n_clips']} clips, {r['n_videos']}/{pair['n_videos']} videos]"
         print(f"  {k}{note}")
-        print(f"    per condition (SD over clips): {base} {r['base_mean']:.4f}±{r['base_sd']:.4f}"
-              f"   {cond} {r['cond_mean']:.4f}±{r['cond_sd']:.4f}")
+        print(f"    per condition (SD over clips): {base} {r['base_mean']:.4f}±{_num(r['base_sd'], '.4f')}"
+              f"   {cond} {r['cond_mean']:.4f}±{_num(r['cond_sd'], '.4f')}")
         print(f"    paired difference: mean {r['delta_mean']:+.4f} / median {r['delta_median']:+.4f}"
-              f" / SD {r['delta_sd']:.4f} / wins-losses-ties {r['wins']}-{r['losses']}-{r['ties']}")
-        print(f"    95% CI  clips resampled [{r['ci95_clip'][0]:+.4f}, {r['ci95_clip'][1]:+.4f}]"
-              f"   videos resampled [{r['ci95_video'][0]:+.4f}, {r['ci95_video'][1]:+.4f}]"
+              f" / SD {_num(r['delta_sd'], '.4f')} / wins-losses-ties {r['wins']}-{r['losses']}-{r['ties']}")
+        print(f"    95% CI  clips resampled {_interval(r['ci95_clip'])}"
+              f"   videos resampled {_interval(r['ci95_video'])}"
               f"   Wilcoxon p={r['wilcoxon_p']} (per video p={r['wilcoxon_p_video']})")
 
 
@@ -307,18 +389,21 @@ def main() -> None:
     drop = {v.strip() for v in args.drop_video.split(",") if v.strip()}
     out = {}
     for pair in [p.strip() for p in args.pairs.split(",") if p.strip()]:
-        base, cond = pair.split(":")
-        ja, jb = load_json(base, args.eval_dir), load_json(cond, args.eval_dir)
         try:
+            base, sep, cond = pair.partition(":")
+            if not (sep and base and cond) or ":" in cond:
+                raise ValueError("--pairs takes <base>:<cond>")
+            ja, jb = load_json(base, args.eval_dir), load_json(cond, args.eval_dir)
             out[pair] = compare_pair(ja, jb, drop, allow_legacy_code=args.allow_legacy_code)
-        except ValueError as e:
+        except (ValueError, OSError) as e:
             raise SystemExit(f"{pair}: {e}") from e
         _print_pair(base, cond, out[pair], keys_of(ja))
 
     if args.out:
         os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
         with open(args.out, "w", encoding="utf-8") as f:
-            json.dump({"n_boot": N_BOOT, "seed": SEED, "seed_scheme": SEED_SCHEME, "pairs": out}, f, indent=1)
+            json.dump({"n_boot": N_BOOT, "seed": SEED, "seed_scheme": SEED_SCHEME, "pairs": out}, f,
+                      indent=1, allow_nan=False)
         print(f"\n→ {args.out}")
 
 
