@@ -28,7 +28,24 @@ gives for it.
 """
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import numpy as np
+
+
+@dataclass(frozen=True)
+class VIScores:
+    """The two halves of one frame's variation of information, in bits.
+
+    Attributes:
+        split: `VI_split`, H(regions | GT): the information the regions add
+            to the GT, which is what cutting one class into several costs.
+        merge: `VI_merge`, H(GT | regions): the information the regions
+            lose of the GT, which is what one region over several classes costs.
+    """
+
+    split: float
+    merge: float
 
 
 def _entropy_bits(p: np.ndarray) -> float:
@@ -39,7 +56,7 @@ def _entropy_bits(p: np.ndarray) -> float:
 
 def variation_of_information(
     gt: np.ndarray, regions: np.ndarray, scored: np.ndarray,
-) -> tuple[float, float] | None:
+) -> VIScores | None:
     """`VI_split` and `VI_merge` of one frame.
 
     Args:
@@ -50,7 +67,7 @@ def variation_of_information(
         scored: An (H, W) bool mask of the pixels the metric scores.
 
     Returns:
-        (`VI_split`, `VI_merge`) in bits, or None when no pixel is scored:
+        `VI_split` and `VI_merge` in bits, or None when no pixel is scored:
         the metric is not defined there, and the caller counts the frame.
         A value that is zero in exact arithmetic can come out as a rounding
         residue of either sign, about 1e-16; the pilot evaluator wrote the
@@ -85,4 +102,4 @@ def variation_of_information(
     h_xy = _entropy_bits(joint.ravel())
     h_x = _entropy_bits(joint.sum(axis=1))
     h_y = _entropy_bits(joint.sum(axis=0))
-    return h_xy - h_y, h_xy - h_x
+    return VIScores(split=h_xy - h_y, merge=h_xy - h_x)
