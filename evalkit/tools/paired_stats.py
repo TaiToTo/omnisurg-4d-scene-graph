@@ -32,12 +32,12 @@ import argparse
 import hashlib
 import json
 import os
-from collections.abc import Mapping, Sequence
-from types import MappingProxyType
+from collections.abc import Sequence
 
 import numpy as np
 
 from evalkit.tools.scores import (
+    PILOT_SIGNS,
     check_comparable,
     defined_clips,
     is_pilot_json,
@@ -48,14 +48,11 @@ from evalkit.tools.scores import (
 )
 
 # The keys reported on a pilot evaluator's JSON, in the order the workbench
-# reported them. A key the JSON does not hold is skipped and said so. The
+# reported them: the subset of `scores.PILOT_SIGNS` the workbench's script
+# bootstrapped. A key the JSON does not hold is skipped and said so. The
 # evaluator's JSONs name their keys themselves (`scores.metric_keys`).
 PILOT_KEYS = ("inst_F1_50", "inst_F1_75", "inst_F1_avg", "PQ", "SQ", "inst_BF",
               "boundary_F", "boundary_R_raw", "boundary_P_raw", "GT_mIoU", "underseg_error")
-# Which way each pilot key is better, as `scores.SIGNS` says for the
-# evaluator's keys. `underseg_error` is the share of GT that a prediction
-# swallowed into a neighbour, so less is better; every other key is a score.
-PILOT_SIGNS: Mapping[str, int] = MappingProxyType({k: -1 if k == "underseg_error" else +1 for k in PILOT_KEYS})
 N_BOOT = 10000
 # The global seed. The draw is not decided by it alone: `_boot_rng` builds
 # the generator from `[SEED, blake2b(differences, groups)]`, so that the same

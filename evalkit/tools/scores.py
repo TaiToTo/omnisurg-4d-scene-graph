@@ -56,6 +56,22 @@ SIGNS: Mapping[str, int] = MappingProxyType({
     "unlabelled_share": 0, "time_IoU": 0,
 })
 
+# The pilot evaluator's own keys, in the order the workbench printed them
+# (detection first, then mask quality and contours, since F1 at 0.5 stays
+# perfect while a boundary is tens of pixels off), with which way each is
+# better. `underseg_error` is the share of GT a prediction swallowed into a
+# neighbour and `overseg_mean` counts the fragments a GT object was split
+# into, so less is better. `time_IoU` is a reference value by the
+# specification and `n_regions_mean` a count read for its direction alone,
+# so neither is marked. Every tool that reports a pilot key takes its
+# direction from here; a second table would drift from this one.
+PILOT_SIGNS: Mapping[str, int] = MappingProxyType({
+    "inst_F1_50": +1, "inst_F1_75": +1, "inst_F1_avg": +1, "PQ": +1, "SQ": +1, "inst_BF": +1,
+    "GT_mIoU": +1, "boundary_F": +1, "boundary_R_raw": +1, "boundary_P_raw": +1,
+    "time_IoU": 0, "underseg_error": -1, "overseg_mean": -1, "n_regions_mean": 0,
+    "inst_F1_50_labeled": +1, "inst_F1_50_tissue": +1, "inst_F1_50_labeled_tissue": +1,
+})
+
 # The entry of `input_shas` that is the condition's own. Every other entry
 # names an input two comparable scores must have read alike.
 PREDICTION_INPUT = "predictions"
