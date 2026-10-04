@@ -1,34 +1,25 @@
-"""Reading a score JSON: its clips, its rows, its metric keys and the ruler it was measured with.
+"""One reader for every score JSON: its clips, its rows, its keys, and the ruler it was measured with.
 
-Every tool that reads scores reads them through this module, so that the
-one rule of `docs/evaluation.md` ("Recorded with every score") is checked in
-one place: two scores are comparable only when their `eval_code_sha`,
-dataset, class set, views and mode match, they cover the same clips, and
-they read the same GT masks and depth maps. A difference in the versions
-of Python and the libraries is reported, never refused.
+Every tool reads scores through this module, so the rule of
+`docs/evaluation.md` ("Recorded with every score") is checked in one
+place. `check_comparable` refuses a pair unless everything that must
+match does: `eval_code_sha`, dataset, class set, views, mode, the clip
+population, and the GT and depth each clip was scored against. Library
+versions are the one difference reported instead of refused.
 
-Two kinds of JSON arrive here. The evaluator's carry the fields listed in
-`EVALUATOR_FIELDS`. The pilot evaluator's carry none of them: they were
-written before those fields existed, and the tools read them all the same,
-taking each missing field as the pilot evaluator's own (original class set,
-its four domains in place of views, its rules in place of a mode). A JSON
-with some of the fields but not all is refused, because it is neither: a
-driver that writes half the record has lost the other half somewhere.
+Two kinds of JSON arrive. The evaluator's carry every field in
+`EVALUATOR_FIELDS`. The pilot evaluator's predate those fields and carry
+none; they are read with the pilot's own settings filled in (class set
+`original`, its four domains as views, its rules as the mode). A JSON
+with some fields but not all is neither one, and is refused. A pilot
+JSON also carries its run-time domain — `tissue_ignore` for the run,
+`extra_ignore` clip by clip — which decided what its `tissue` metrics
+removed; two pilot JSONs must agree on that too.
 
-The pilot evaluator's JSONs also carry a domain of their own, `tissue_ignore`
-and the per-clip `extra_ignore`, which decided what its `tissue` domain
-removed at run time under one sha. Two of its JSONs are compared only when
-those agree — `tissue_ignore` for the run, `extra_ignore` clip by clip —
-as the pilot's own check demanded; the evaluator's JSONs have no such
-setting, the class set and the views say it all.
-
-The per-clip layout the tools expect from the evaluator is fixed here and
-nowhere else: each per-frame metric of `docs/evaluation.md` is one key per
-view, spelled `metric_key(metric, view)`, and `time_IoU`, one value per clip
-in every view, is spelled by its name alone. A pilot JSON spells its keys as
-the pilot evaluator did (`inst_F1_50`, `inst_F1_50_tissue`, `GT_mIoU`, ...),
-and each tool keeps the list of them it reported in the workbench, so that
-on the pilot's JSONs it writes what the workbench version wrote.
+The key layout is fixed here and nowhere else. The evaluator writes one
+key per metric per view, `metric_key(metric, view)`, and `time_IoU` once
+per clip. A pilot JSON keeps the pilot evaluator's own spellings
+(`inst_F1_50`, `GT_mIoU`, ...), and each tool lists the ones it reports.
 """
 from __future__ import annotations
 
