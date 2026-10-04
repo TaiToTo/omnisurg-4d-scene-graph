@@ -34,11 +34,13 @@ def pilot_score(track_dir: str, sha: str = PILOT_EVAL_CODE_SHA) -> dict:
                 clips=CLIPS, per_clip=[dict(clip=c, extra_ignore=[]) for c in CLIPS])
 
 
-def evaluator_score(track_dir: str, pilot: bool = False, class_set: str = "original") -> dict:
+def evaluator_score(track_dir: str, pilot: bool = False, class_set: str = "original", clips=CLIPS,
+                    depth: str = "d") -> dict:
     return dict(track_dir_name=track_dir, eval_code_sha="a" * 64, dataset="atlas120k", pilot=pilot,
-                class_set=class_set, views=["all", "tissue", "geometric"], n_clips=3, n_missing=0,
-                n_failed=0, clips=CLIPS, input_shas={c: {} for c in CLIPS}, versions={},
-                per_clip=[dict(clip=c) for c in CLIPS])
+                class_set=class_set, views=["all", "tissue", "geometric"], n_clips=len(clips), n_missing=0,
+                n_failed=0, clips=list(clips), versions={},
+                input_shas={c: {"gt_masks": "g", "depth": depth, "predictions": track_dir} for c in clips},
+                per_clip=[dict(clip=c) for c in clips])
 
 
 def plant(base: Path, spec: dict) -> None:
@@ -80,6 +82,29 @@ def test_a_sound_tree_raises_no_problem(tree, capsys):
     assert "rulers: 1" in capsys.readouterr().out
 
 
+def test_a_sound_tree_scored_by_the_evaluator_raises_no_problem(tree, capsys):
+    tr, ev = tree
+    for t in ("a_rgb", "a_normal"):
+        write_score(ev, t, evaluator_score(f"track_rgb_{t}"))
+    assert problems(tr, ev) == []
+    assert "rulers: 1" in capsys.readouterr().out
+
+
+def test_the_ruler_is_what_the_comparison_tool_calls_comparable(tree, capsys):
+    # The order of `tissue_ignore` and the evaluator's tag are not part of
+    # the ruler: the comparison tool would compare these two, so the
+    # inventory must not split them.
+    tr, ev = tree
+    s = pilot_score("track_rgb_a_normal")
+    s["tissue_ignore"], s["eval_code_tag"] = [1], "another tag"
+    s2 = pilot_score("track_rgb_a_rgb")
+    s2["tissue_ignore"] = [1]
+    write_score(ev, "a_normal", s)
+    write_score(ev, "a_rgb", s2)
+    assert problems(tr, ev) == []
+    assert "rulers: 1" in capsys.readouterr().out
+
+
 # ---------------------------------------------------------------- the planted faults
 
 
@@ -92,7 +117,16 @@ def test_a_condition_mixed_across_clips_is_reported(tree):
 def test_a_condition_on_fewer_clips_is_reported(tree):
     tr, ev = tree
     plant(tr, {"track_rgb_a_short": [("c1", provenance("depth", 8), 5)]})
-    assert any("1 clips where the others have 3" in p for p in problems(tr, ev))
+    assert any("1 clips where the others have 3 (missing ['c2', 'c3'])" in p for p in problems(tr, ev))
+
+
+def test_a_condition_on_other_clips_of_the_same_number_is_reported(tree):
+    # Three clips, as the others have, but not the same three: a count
+    # alone passed this.
+    tr, ev = tree
+    plant(tr, {"track_rgb_a_other": [(c, provenance("depth", 8), 5) for c in ("c1", "c2", "c4")]})
+    assert any("a_other: 3 clips where the others have 3 (missing ['c3']) (extra ['c4'])" in p
+               for p in problems(tr, ev))
 
 
 def test_provenance_without_labels_is_reported(tree):
@@ -124,6 +158,18 @@ def test_a_clip_with_provenance_and_no_label_under_one_condition_is_reported(tre
     assert any("covered differently" in p and "c2: 0..9 labels" in p for p in problems(tr, ev))
 
 
+def test_a_broken_provenance_is_counted_once_and_blamed_on_its_own_tag(tree):
+    # Counted under "unreadable" and again under "no provenance", the
+    # broken tag covered four clips of three, and the sound tag was the
+    # one reported as having died half-way.
+    tr, ev = tree
+    (tr / "c2" / "track_rgb_a_rgb" / CI.PROV_NAME).write_text("{not json")
+    probs = problems(tr, ev)
+    assert any("a_rgb: 1 clips have no provenance" in p or "a_rgb" in p and "unreadable" in p for p in probs)
+    assert not any("a_normal" in p for p in probs)
+    assert not any("where the others have" in p for p in probs)
+
+
 def test_a_condition_with_no_label_at_all_is_reported_once_not_per_clip(tree):
     tr, ev = tree
     plant(tr, {"track_rgb_a_stub": [(c, provenance("depth", 4), 0) for c in CLIPS]})
@@ -142,6 +188,21 @@ def test_the_population_is_counted_from_the_clips_not_read_from_a_summary_field(
         s["clips"], s["per_clip"], s["input_shas"] = clips, [dict(clip=c) for c in clips], {c: {} for c in clips}
         write_score(ev, t, s)
     assert any("2 rulers" in p for p in problems(tr, ev))
+
+
+def test_two_populations_of_the_same_size_are_two_rulers(tree):
+    tr, ev = tree
+    write_score(ev, "a_normal", evaluator_score("track_rgb_a_normal", clips=["c1", "c2", "c4"]))
+    write_score(ev, "a_rgb", evaluator_score("track_rgb_a_rgb"))
+    assert any("2 rulers" in p for p in problems(tr, ev))
+
+
+def test_two_scores_that_read_different_depth_maps_are_two_rulers(tree, capsys):
+    tr, ev = tree
+    write_score(ev, "a_normal", evaluator_score("track_rgb_a_normal", depth="other"))
+    write_score(ev, "a_rgb", evaluator_score("track_rgb_a_rgb"))
+    assert any("2 rulers" in p for p in problems(tr, ev))
+    assert "read a different depth" in capsys.readouterr().out
 
 
 def test_two_shas_in_one_score_directory_are_a_split_ruler(tree):
@@ -210,6 +271,21 @@ def test_a_file_is_not_a_root(tmp_path):
         CI.check_root_exists(str(tmp_path / "tracks.json"))
 
 
+def test_a_score_root_that_does_not_exist_is_refused(tmp_path):
+    (tmp_path / "tracks").mkdir()
+    with pytest.raises(ValueError, match="score directory does not exist"):
+        CI.inventory([(str(tmp_path / "tracks"), str(tmp_path / "scroes"), "T")])
+
+
+def test_a_score_that_does_not_name_its_labels_is_refused(tree):
+    tr, ev = tree
+    s = evaluator_score("track_rgb_a_rgb")
+    del s["track_dir_name"]
+    write_score(ev, "a_rgb", s)
+    with pytest.raises(ValueError, match="no track_dir_name"):
+        problems(tr, ev)
+
+
 def test_a_score_directory_with_something_that_is_not_a_score_is_refused(tree):
     tr, ev = tree
     (ev / "paired.json").write_text(json.dumps({"n_boot": 10000, "pairs": {}}))
@@ -248,6 +324,27 @@ def test_an_empty_label_root_and_a_fourth_field_are_refused():
         CI.parse_root(":outputs/eval")
     with pytest.raises(ValueError, match="at most"):
         CI.parse_root("a:b:c:d")
+
+
+# ---------------------------------------------------------------- the matrix
+
+
+def test_the_matrix_prints_letters_not_marks_and_takes_a_none(tree, capsys):
+    tr, ev = tree
+    none = provenance("rgb", 8)
+    none["sam_input"] = None
+    plant(tr, {"track_rgb_a_none": [(c, none, LABELS[c]) for c in CLIPS]})
+    plant(tr, {"track_rgb_a_prov": [(c, provenance("depth", 16), 0) for c in CLIPS]})
+    CI.matrix(str(tr), str(ev), "T")
+    out = capsys.readouterr().out
+    assert not any(m in out for m in ("○", "×", "△", "★", "✗"))
+    assert f"{CI.SCORED} scored" in out and "None" in out
+    # The rows: `rgb` scored at pps 8 and not run at 16, `depth` provenance
+    # only at 16, `None` a row of its own and not a traceback.
+    rows = {l.split()[0]: l.split()[1:] for l in out.splitlines() if l.strip().startswith(("rgb", "None", "depth "))}
+    assert rows["rgb"] == [CI.SCORED, CI.NOT_RUN]
+    assert rows["depth"] == [CI.NOT_RUN, CI.PROVENANCE_ONLY]
+    assert rows["None"] == [CI.LABELS_ONLY, CI.NOT_RUN]
 
 
 # ---------------------------------------------------------------- the command
