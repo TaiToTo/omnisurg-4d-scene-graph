@@ -1,19 +1,29 @@
-"""The clip-index to mp4 frame ratio: reading the table and refusing what is not in it.
+"""The clip-index to mp4 frame ratio: reading the table, refusing what is not
+in it, and checking a ratio against pixels.
 
-Whether a ratio is right can only be checked against pixels, so what is tested
-here is that the table is used safely: an unmeasured video is refused rather
-than given a ratio of 1, a malformed table is refused as a whole, and the
-committed table covers every video the paper measures.
+The table is tested for being used safely: an unmeasured video is refused
+rather than given a ratio of 1, a malformed table is refused as a whole, and
+the committed table covers every video the paper measures. The pixel check is
+tested on a synthetic mp4 whose ratio is known, by planting a wrong ratio and
+watching it refused, and by planting each way the check could blame the table
+for something else.
 """
 
 import json
 from pathlib import Path
 
+import cv2
+import numpy as np
 import pytest
 
-from surgical_core.atlas120k.frame_ratio import FrameRatios
+from surgical_core.atlas120k.frame_ratio import MIN_NATIVE_FRAME, MISS_FLOOR, FrameRatios
 
 META = Path(__file__).resolve().parent.parent / "atlas120k_meta"
+
+# The synthetic video: long enough for frame `MIN_NATIVE_FRAME` at the true
+# ratio, and short enough that frame 60 at that ratio is past its end.
+N_FRAMES = 200
+TRUE_RATIO = 4
 
 
 @pytest.fixture(scope="module")
@@ -61,6 +71,15 @@ def test_malformed_ratio_is_refused(tmp_path):
             FrameRatios.load(p)
 
 
+@pytest.mark.parametrize("bad", [True, "8", 0, -1, MISS_FLOOR, 80, float("nan")])
+def test_malformed_match_tol_is_refused(tmp_path, bad):
+    """A tolerance at or above the smallest miss passes a frame from another
+    moment as a match, so the check could no longer fail."""
+    p = _write(tmp_path, [{"procedure": "p", "video": "v", "ratio": 1}], match_tol=bad)
+    with pytest.raises(ValueError, match="does not separate"):
+        FrameRatios.load(p)
+
+
 def test_video_measured_twice_is_refused(tmp_path):
     p = _write(tmp_path, [{"procedure": "p", "video": "v", "ratio": 1},
                           {"procedure": "p", "video": "v", "ratio": 2}])
@@ -89,3 +108,82 @@ def test_committed_table_matches_within_tolerance():
     for row in data["videos"]:
         assert row["mp4_frame"] == row["native_frame"] * row["ratio"], row
         assert row["diff"] < data["match_tol"] / 4, row
+
+
+@pytest.fixture(scope="module")
+def video(tmp_path_factory):
+    """A synthetic mp4 whose frames all look different, and a JPEG of any frame.
+
+    Each frame is a flat colour drawn at random with its number written on
+    it, so two frames differ by far more than `match_tol` while a frame and
+    its own JPEG differ only by the two compressions. mp4v seeks back to the
+    requested frame, which the check relies on.
+    """
+    d = tmp_path_factory.mktemp("video")
+    path = str(d / "v.mp4")
+    writer = cv2.VideoWriter(path, cv2.VideoWriter_fourcc(*"mp4v"), 60, (160, 120))
+    assert writer.isOpened(), "this OpenCV cannot write mp4v"
+    rng = np.random.default_rng(0)
+    frames = []
+    for i in range(N_FRAMES):
+        frame = np.empty((120, 160, 3), np.uint8)
+        frame[:] = rng.integers(0, 256, 3)
+        cv2.putText(frame, str(i), (10, 80), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 3)
+        writer.write(frame)
+        frames.append(frame)
+    writer.release()
+
+    def jpg(mp4_frame: int) -> str:
+        out = str(d / f"frame_{mp4_frame:06d}.jpg")
+        cv2.imwrite(out, frames[mp4_frame])
+        return out
+
+    return path, jpg
+
+
+def _one(ratio: int) -> FrameRatios:
+    return FrameRatios({("p", "v"): ratio}, 8.0)
+
+
+def test_verify_passes_the_right_ratio(video):
+    path, jpg = video
+    native = MIN_NATIVE_FRAME
+    assert _one(TRUE_RATIO).verify_against_bundled(
+        path, jpg(native * TRUE_RATIO), "p", "v", native) < 8.0
+
+
+@pytest.mark.parametrize("wrong", [1, 2, 3])
+def test_verify_refuses_a_wrong_ratio(video, wrong):
+    """The failing case must fail: a stale ratio fetches a frame from another
+    moment, and the check says so."""
+    path, jpg = video
+    native = MIN_NATIVE_FRAME
+    with pytest.raises(RuntimeError, match="do not correspond"):
+        _one(wrong).verify_against_bundled(path, jpg(native * TRUE_RATIO), "p", "v", native)
+
+
+@pytest.mark.parametrize("native", [0, 2, MIN_NATIVE_FRAME - 1])
+def test_verify_refuses_a_frame_too_early_to_tell_ratios_apart(video, native):
+    """At frame 2, ratio 3 maps to mp4 frame 6 and the window reaches the
+    true frame 8, so a wrong ratio would pass; at frame 0 every ratio maps to
+    the same frame. Such a frame is refused, not checked."""
+    path, jpg = video
+    with pytest.raises(ValueError, match="too close to the start"):
+        _one(3).verify_against_bundled(path, jpg(native * TRUE_RATIO), "p", "v", native)
+
+
+def test_verify_reports_an_unopenable_video(video, tmp_path):
+    """A missing video is not reported as a stale table."""
+    _, jpg = video
+    native = MIN_NATIVE_FRAME
+    with pytest.raises(RuntimeError, match="cannot open the video"):
+        _one(TRUE_RATIO).verify_against_bundled(
+            str(tmp_path / "no_such.mp4"), jpg(native * TRUE_RATIO), "p", "v", native)
+
+
+def test_verify_reports_a_position_past_the_end(video):
+    """Frame 60 at ratio 4 is mp4 frame 240 of 200. Nothing is read there,
+    and the message names both causes rather than the video alone."""
+    path, jpg = video
+    with pytest.raises(RuntimeError, match="no frame could be read.*ratio is too large"):
+        _one(TRUE_RATIO).verify_against_bundled(path, jpg(0), "p", "v", 60)

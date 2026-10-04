@@ -50,15 +50,46 @@ import os
 import cv2
 import numpy as np
 
+# The smallest mean absolute difference measured between a bundled JPEG and a
+# frame that is not it. A tolerance at or above it passes a miss as a match.
+MISS_FLOOR = 20.0
+
+# How many mp4 frames either side of the mapped one are read, to absorb seek
+# inaccuracy.
+WINDOW = 4
+
+# The misses behind `MISS_FLOOR` were measured on frame numbers of 26 and up,
+# where a wrong ratio lands at least 26 mp4 frames from the match. A wrong
+# ratio moves frame n at least n frames away and the window reads `WINDOW` of
+# them back, so below 26 + `WINDOW` the check would compare frames closer than
+# any miss was measured at, and in a slow scene those can look the same.
+MIN_NATIVE_FRAME = 26 + WINDOW
+
 
 class FrameRatios:
     """The measured ratios, keyed by `(procedure, video)`."""
 
     def __init__(self, ratios: dict[tuple[str, str], int], match_tol: float):
-        self._ratios = dict(ratios)
+        """Hold the ratios and the tolerance, refusing a value that cannot be either.
+
+        Raises:
+            ValueError: a ratio is not a positive integer, or `match_tol` is
+                not a number between 0 and `MISS_FLOOR`.
+        """
+        for key, ratio in ratios.items():
+            # `bool` is excluded by name: `true` is an `int` to Python and
+            # would pass as ratio 1.
+            if isinstance(ratio, bool) or not isinstance(ratio, int) or ratio < 1:
+                raise ValueError(f"{'/'.join(key)}: ratio {ratio!r} is not a positive integer")
         # Above this mean absolute difference, a bundled JPEG and the mp4
-        # frame it maps to are different frames. Matches sit at 0.7 to 1.9
-        # and misses at 20 and above, so the gap is wide.
+        # frame it maps to are different frames. Matches sit at 0.7 to 1.9.
+        if (isinstance(match_tol, bool) or not isinstance(match_tol, (int, float))
+                or not 0 < match_tol < MISS_FLOOR):
+            raise ValueError(
+                f"match_tol {match_tol!r} does not separate a match from a miss: it "
+                f"must be a number above 0 and below {MISS_FLOOR}, the smallest "
+                "difference a miss was measured at.")
+        self._ratios = dict(ratios)
         self.match_tol = float(match_tol)
 
     @classmethod
@@ -72,8 +103,8 @@ class FrameRatios:
         Raises:
             FileNotFoundError: the file is missing. Without it every video is
                 unmeasured, and that is reported here, not one video at a time.
-            ValueError: a ratio is not a positive integer, or a video is
-                listed twice.
+            ValueError: a video is listed twice, or a value is refused by the
+                constructor.
         """
         if not os.path.exists(path):
             raise FileNotFoundError(f"no frame-ratio measurement at {path}")
@@ -82,14 +113,9 @@ class FrameRatios:
         ratios: dict[tuple[str, str], int] = {}
         for row in data["videos"]:
             key = (row["procedure"], row["video"])
-            ratio = row["ratio"]
-            # `bool` is excluded by name: `true` is an `int` to Python and
-            # would pass as ratio 1.
-            if isinstance(ratio, bool) or not isinstance(ratio, int) or ratio < 1:
-                raise ValueError(f"{'/'.join(key)}: ratio {ratio!r} is not a positive integer")
             if key in ratios:
                 raise ValueError(f"{'/'.join(key)} is measured twice")
-            ratios[key] = ratio
+            ratios[key] = row["ratio"]
         return cls(ratios, data["match_tol"])
 
     def __contains__(self, key: tuple[str, str]) -> bool:
@@ -127,42 +153,65 @@ class FrameRatios:
         """Check, on the spot, that the mapped mp4 frame is the bundled JPEG.
 
         This catches a stale table or a replaced video. The best match within
-        four frames either side is taken, to absorb seek inaccuracy: the
+        `WINDOW` frames either side is taken, to absorb seek inaccuracy: the
         question is whether the frame is there, not exactly where.
+
+        Args:
+            native_frame: the clip-index number of the bundled JPEG, at least
+                `MIN_NATIVE_FRAME`. Near the start of the video every ratio
+                maps to nearly the same mp4 frame, so a wrong one would pass.
 
         Returns:
             The mean absolute difference of the match.
 
         Raises:
-            RuntimeError: the JPEG cannot be read, or no frame in the window
-                is within `match_tol` of it.
+            ValueError: `native_frame` is below `MIN_NATIVE_FRAME`.
+            RuntimeError: the JPEG or the video cannot be opened, no frame
+                could be read at the mapped position, or no frame in the
+                window is within `match_tol` of the JPEG.
         """
+        ratio = self.ratio(procedure, video)
+        if int(native_frame) < MIN_NATIVE_FRAME:
+            raise ValueError(
+                f"{procedure}/{video}: clip-index frame {native_frame} is too close to "
+                f"the start of the video to tell ratios apart; verify on frame "
+                f"{MIN_NATIVE_FRAME} or later.")
         ref = cv2.imread(bundled_jpg, cv2.IMREAD_COLOR)
         if ref is None:
             raise RuntimeError(f"cannot read the bundled JPEG {bundled_jpg}")
         idx = self.mp4_index(procedure, video, native_frame)
-        # TODO: check `cap.isOpened()` and that at least one frame was read,
-        # and report each as what it is. Today an unopenable video, or an
-        # `idx` past the end of the mp4, leaves `best` at inf and the error
-        # below blames the table. Then test this on a synthetic mp4
-        # (cv2.VideoWriter with mp4v writes one that seeks back correctly):
-        # plant a wrong ratio and watch it refused.
+
+        # The smallest difference from the JPEG over the window around `idx`,
+        # and how many frames the window held.
         cap = cv2.VideoCapture(video_path)
-        n = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        win = 4
-        cap.set(cv2.CAP_PROP_POS_FRAMES, max(0, idx - win))
-        best = float("inf")
-        for _ in range(2 * win + 1):
-            ok, frame = cap.read()
-            if not ok:
-                break
-            a = cv2.resize(frame, (ref.shape[1], ref.shape[0]))
-            best = min(best, float(np.abs(a.astype(np.int16) - ref.astype(np.int16)).mean()))
-        cap.release()
+        try:
+            if not cap.isOpened():
+                raise RuntimeError(f"cannot open the video {video_path}")
+            n = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            cap.set(cv2.CAP_PROP_POS_FRAMES, max(0, idx - WINDOW))
+            best, read = float("inf"), 0
+            for _ in range(2 * WINDOW + 1):
+                ok, frame = cap.read()
+                if not ok:
+                    break
+                read += 1
+                a = cv2.resize(frame, (ref.shape[1], ref.shape[0]))
+                best = min(best, float(np.abs(a.astype(np.int16) - ref.astype(np.int16)).mean()))
+        finally:
+            cap.release()
+
+        # Nothing read means the position is past the end. That is not the
+        # video's fault alone: a ratio too large puts it there too.
+        if read == 0:
+            raise RuntimeError(
+                f"{procedure}/{video}: clip-index frame {native_frame} maps with ratio "
+                f"{ratio} to mp4 frame {idx}, but no frame could be read there "
+                f"({n} frames in {os.path.basename(video_path)}). The ratio is too "
+                "large, or the video is shorter than the one measured.")
         if best > self.match_tol:
             raise RuntimeError(
                 f"frame numbers do not correspond: {procedure}/{video} clip-index "
-                f"frame {native_frame} maps with ratio {self.ratio(procedure, video)} to "
+                f"frame {native_frame} maps with ratio {ratio} to "
                 f"mp4 frame {idx}, but the mean absolute difference from "
                 f"{os.path.basename(bundled_jpg)} is {best:.1f} (tolerance "
                 f"{self.match_tol}, {n} frames in the mp4). The table is stale or "
