@@ -54,11 +54,11 @@ Where they and this document differ, this document holds.
      as a script directory at the repository root, `sam3_wrapper/` on
      `PYTHONPATH` by name, and a copy of the older `eval_track.py` as a test
      fixture.
-4. **`evalkit/` is a package.** Tools import the evaluator and each other
-   as `evalkit.<module>`, with no `sys.path` edits. `check_env97` existed
-   because frozen scripts could not check their own import path; a package
-   does not need it. `pyproject.toml` includes `evalkit*` next to
-   `surgical_core*`.
+4. **`evalkit/` is a package.** Tools import the evaluator as
+   `evalkit.<module>` and each other as `evalkit.tools.<module>`, with no
+   `sys.path` edits. `check_env97` existed because frozen scripts could not
+   check their own import path; a package does not need it. `pyproject.toml`
+   includes `evalkit*` next to `surgical_core*`.
 5. **No minimum object size, anywhere.** The evaluator has none
    (`docs/evaluation.md`, "Thresholds"). `track_metrics.MIN_AREA` (400 px)
    is removed with it, and nothing filters GT objects or predicted regions by
@@ -350,3 +350,12 @@ Every command takes those paths as arguments.
     step 3 box, "or skipped whole, and counted", would close that in the
     figure. `evalkit/README.md` is the
     short version and need not say either.
+11. **A class table read from outside the package.** `load_table(...,
+    path=...)` reads any file, for tests that plant a fault, and
+    `ClassTable.path` says it is for `eval_code_sha`; but nothing checks
+    that the path is one `code_sha.hashed_files()` lists, so a score made
+    with a table outside the package would carry the package's sha and look
+    comparable. The entry point is the one place that records a sha, so the
+    check belongs there: refuse a table whose path is not among the hashed
+    files before writing a score. Settle with it whether `path` stays a
+    public argument of `load_table` at all, or becomes a test-only hook.

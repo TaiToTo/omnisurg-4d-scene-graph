@@ -37,6 +37,11 @@ from PIL import Image
 
 TABLE_DIR = Path(__file__).resolve().parent / "class_tables"
 
+# Names Python and the filesystem write into any directory on their own,
+# which git never tracks and no module reads: the bytecode cache, and the
+# file Finder leaves wherever it opens. Skipped when a directory is checked.
+UNTRACKED_NAMES = frozenset({"__pycache__", ".DS_Store"})
+
 Colour = tuple[int, int, int]
 
 
@@ -512,7 +517,7 @@ def table_paths(table_dir: Path | None = None) -> list[Path]:
     # without registering its dataset above, and that table would be neither
     # hashed nor readable while looking like it was.
     expected = {table_dir / f"{dataset}.json" for dataset in _MASK_ENCODINGS}
-    present = {p for p in table_dir.iterdir() if p.name != "__pycache__"}
+    present = {p for p in table_dir.iterdir() if p.name not in UNTRACKED_NAMES}
     missing = expected - present
     if missing:
         raise FileNotFoundError(f"class table missing: {sorted(str(p) for p in missing)}")
