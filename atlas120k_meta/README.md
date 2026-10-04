@@ -52,14 +52,19 @@ the notes.
 
 `frame_ratio.json` is the exception: it was assembled from the measurement's
 output, which was git-ignored in the workbench and is no longer on disk. The
-14 ratios above 1 and their `diff` also appear as constants in the workbench's
-`surgical_core/atlas/frame_ratio.py`; the 83 rows at ratio 1 exist only here.
-The ratios follow the dataset's own sampling rule, `max(1, int(fps / 15))`
-(see the reader's docstring), so re-measuring is the pixel match the reader's
-`verify_against_bundled` performs, run once per video.
+workbench's `surgical_core/atlas/frame_ratio.py` carries all 97 video names
+and, for the 14 ratios above 1, the ratio and its `diff` as constants; the
+frame pair each video was matched on, and the `diff` of the 83 at ratio 1,
+exist only here. The ratios follow the dataset's own sampling rule,
+`max(1, int(fps / 15))` (see the reader's docstring). The reader's
+`verify_against_bundled` checks a ratio against the pixels but does not find
+one: re-measuring a video means calling it once per candidate ratio and
+keeping the one that matches.
 
 ## Who reads these
 
 `surgical_core/atlas120k/clip_rects.py` reads the crop rectangles and
 `frame_ratio.py` the frame ratios; both take the file's path as an argument.
+`surgical_core/clip_time.py` is handed the frame ratios when a manifest does
+not record its own.
 `tests/test_atlas120k_meta.py` pins what must hold between the files.
