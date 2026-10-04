@@ -287,10 +287,11 @@ Every command takes those paths as arguments.
    - The clip means: `summarize_clip` averages with `sum() / len()`, takes a
      mean only over the frames a key is defined on and leaves None where
      there is none; the pilot took `np.mean`, wrote 0 where no frame defined
-     a key, and rounded the summary to four decimals. The last bit of the
-     two means differs on about 40 % of random clips, so the pilot-mode
-     driver aggregates the pilot's way and does not call `summarize_clip`
-     (`evalkit/clip.py`).
+     a key (None for `SQ` and `inst_BF`, and for the instance keys outside
+     the `full` domain, as `docs/evaluation.md` says), and rounded the
+     summary to four decimals. The last bit of the two means differs on
+     about 40 % of random clips, so the pilot-mode driver aggregates the
+     pilot's way and does not call `summarize_clip` (`evalkit/clip.py`).
 5. **Boundary dilation before the freeze.** `evalkit/boundary.py` dilates
    with `cv2.dilate`; a numpy shift-or over the (2·tol + 1)² offsets agrees
    on every mask tried, borders included. The question is whether a hashed
@@ -370,3 +371,11 @@ Every command takes those paths as arguments.
     above two, and where, is a decision about the paper's populations, not
     the code's; until it is made, a subset's interval is read for its sign
     only, as `--drop-video` says.
+13. **The frame counts in the check against the pilot evaluator.**
+    `pilot_check` compares the clip values as the pilot rounded them, four
+    decimals, and a mean over a clip's frames can absorb one frame left out
+    or added. The pilot's counts (`n_gt_frames`, `n_vi_frames`, and
+    `n_inst_frames`, `n_SQ_frames`, `n_BF_frames` per domain) would catch
+    that. The evaluator keeps the count behind every key
+    (`ClipScores.n_frames`) but has not fixed how a JSON spells it; when the
+    pilot-mode driver does, `SHARED` takes the counts too.

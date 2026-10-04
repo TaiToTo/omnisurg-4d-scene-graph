@@ -165,7 +165,7 @@ def rows_of(summary: Mapping) -> dict[str, dict]:
     return {r["clip"]: r for r in summary["per_clip"]}
 
 
-def _check_rows(summary: Mapping, side: str) -> None:
+def check_rows(summary: Mapping, side: str) -> None:
     """Refuse a JSON whose `clips` and `per_clip` name different clips, or name one twice.
 
     The tools take the population from `clips_of` and the values from
@@ -356,8 +356,8 @@ def check_comparable(
             f"  cond: dataset={rb.dataset!r} pilot={rb.pilot} class_set={rb.class_set!r} views={list(rb.views)}"
         )
 
-    _check_rows(a, "base")
-    _check_rows(b, "cond")
+    check_rows(a, "base")
+    check_rows(b, "cond")
     ca, cb = clips_of(a), clips_of(b)
     if sorted(ca) == sorted(cb):
         if not ca:
