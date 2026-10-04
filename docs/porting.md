@@ -313,3 +313,14 @@ Every command takes those paths as arguments.
    `hold_mean` ones. When the extractor is ported in step 5 it converts the
    gap frames or refuses the video, the 14 clips are re-extracted and re-run,
    and that is a deliberate exception to step 5's byte-for-byte rule.
+9. **What the geometric view cannot see.** The geometric view removes the
+   `appearance` pixels from the GT and the regions alike, so a region lying
+   on them only, such as a blood spot a colour-driven pipeline cuts out of
+   the liver, is no object and costs nothing. Count, in both datasets' GT
+   masks, the `appearance` pixels in connected components whose whole outer
+   border is one `tissue` class: the spots where the organ plainly runs on
+   underneath. If they are rare, nothing changes. If not, decide before the
+   freeze whether the evaluator counts the regions lying wholly on removed
+   pixels, reported like `unlabelled_share` and never starred. Filling the
+   spots from their neighbours was considered and set aside; the reasons are
+   in `docs/evaluation.md`, "Views".

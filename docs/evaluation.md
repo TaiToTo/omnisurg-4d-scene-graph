@@ -173,6 +173,22 @@ nor penalised there. In the geometric view, a region that runs from the liver
 over the blood lying on it is not penalised for the blood, and neither is one
 that stops at its edge.
 
+The removed pixels are not filled in from their neighbours, as if the liver
+ran on under the blood. Under a thin smear it does, but a fill would have to
+hold for every class a view removes, and under most of them it does not: to
+depth, pooled blood is a surface of its own, a tool is another object in
+front, and connective tissue runs between organs, so a fill would make up
+labels over large areas, by an adjacency rule that would be one more free
+choice. It would also lean one way. A pipeline that follows shape keeps the
+liver whole across the blood, and one that follows colour cuts the spot out;
+a fill would reward the first, the behaviour depth is expected to bring, by a
+rule chosen after the pilot evaluator's scores were seen. Removing the pixels
+favours neither. What it cannot see is a region lying on removed pixels
+only, such as a spot cut out by colour: it is no object, so it is not counted
+against the condition as an extra region, and no other metric sees it either.
+How often that happens is to be measured on the GT before the evaluator is
+frozen (`docs/porting.md`, open questions).
+
 Background is removed in every view, the same way. What the datasets call
 background is not empty space: it is anatomy nobody labelled, and in
 ATLAS-120k's benchmark classes also the kidney, pancreas and the other classes
