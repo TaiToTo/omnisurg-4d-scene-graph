@@ -29,9 +29,14 @@ robot-assisted videos of 14 procedures, 42 classes) and CholecSeg8k
   which the paper's 42 classes and background occur. ATLAS-120k's benchmark
   merges them into 30 classes; those are scored too, for comparison with the
   benchmark, as reference values only.
-- **Ten metrics.** The two *primary* metrics, on which the paper's claims are
-  judged, are `F1_50` (objects found, with every extra region counted against
-  it) and `SQ` (how well the found ones fit), in the geometric view.
+- **Ten metrics, three questions.** The paper asks three questions of the
+  regions, and each is judged on its own *primary* metric: how far a region
+  picked out in one frame can be followed (not decided yet, the last point
+  below); what input puts the regions' boundaries where the GT's class
+  boundaries are, judged on `boundary_R_raw` in each view; and how much of
+  the labelled structure the regions hold, judged on `F1_50` (objects found,
+  with every extra region counted against it) and `SQ` (how well the found
+  ones fit), in the geometric view.
 - **Regions are named from the GT.** Each region takes the class most of its
   pixels have in the GT, so the class-map metric `mIoU` is an oracle value,
   kinder than any real classifier would get.
@@ -173,6 +178,22 @@ nor penalised there. In the geometric view, a region that runs from the liver
 over the blood lying on it is not penalised for the blood, and neither is one
 that stops at its edge.
 
+The removed pixels are not filled in from their neighbours, as if the liver
+ran on under the blood. Under a thin smear it does, but a fill would have to
+hold for every class a view removes, and under most of them it does not: to
+depth, pooled blood is a surface of its own, a tool is another object in
+front, and connective tissue runs between organs, so a fill would make up
+labels over large areas, by an adjacency rule that would be one more free
+choice. It would also lean one way. A pipeline that follows shape keeps the
+liver whole across the blood, and one that follows colour cuts the spot out;
+a fill would reward the first, the behaviour depth is expected to bring, by a
+rule chosen after the pilot evaluator's scores were seen. Removing the pixels
+favours neither. What it cannot see is a region lying on removed pixels
+only, such as a spot cut out by colour: it is no object, so it is not counted
+against the condition as an extra region, and no other metric sees it either.
+How often that happens is to be measured on the GT before the evaluator is
+frozen (`docs/porting.md`, open questions).
+
 Background is removed in every view, the same way. What the datasets call
 background is not empty space: it is anatomy nobody labelled, and in
 ATLAS-120k's benchmark classes also the kidney, pancreas and the other classes
@@ -279,11 +300,24 @@ diagnostics and never get a star.
 
 ### Primary metrics
 
-`F1_50` and `SQ` in the geometric view, on each dataset's own labels (the
-`original` class set). They were chosen before any score of
-this evaluator was looked at. The pilot evaluator's scores of the same
-quantities have been seen, which is why the choice is fixed before this
-evaluator scores anything.
+The paper asks three questions, each as a comparison between two
+conditions, and judges each on its own key, on each dataset's own labels
+(the `original` class set):
+
+| question | primary metric | view |
+|---|---|---|
+| Given one frame as an example, how far can the regions be followed? | not decided yet (below) | — |
+| Given no example, what input puts the regions' boundaries where the GT's class boundaries are? | `boundary_R_raw` | each of the three |
+| Given no GT, how much of the labelled structure is already in the regions? | `F1_50` and `SQ` | geometric |
+
+The second question is answered within each view, between conditions that
+differ in what the pipeline is given: the image, the depth, or both. The
+views sort the classes by what should separate them, so the answer can
+differ from one view to the next.
+
+These were chosen before any score of this evaluator was looked at. The
+pilot evaluator's scores of the same quantities have been seen, which is why
+the choice is fixed before this evaluator scores anything.
 
 The set is kept as small as the claims allow. The evaluator computes every
 metric in the table; which of them the paper reports is settled before any
@@ -591,17 +625,6 @@ Every class was looked at in the masks, as for ATLAS-120k:
 | 11 | Hepatic Vein | (0, 50, 128) | expert |
 | 12 | Liver Ligament | (111, 74, 0) | tissue |
 | 13 | Region line | (255, 255, 255) | ignored: the line drawn between regions. Not a class of the dataset; the table gives it an id so that a GT id map can hold it, and nothing scores it |
-
-<!-- TODO(spec): the white line is 1 px wide and, in the masks, 87 % of its
-pixels are the image's outer 1 px (gone with the crop); the rest sits mostly
-in video43 and video52. Left `ignored`, an edge against it is no boundary,
-so those videos lose much of their GT boundary, and unevenly: after the
-nearest-neighbour resize the line survives only in places. Decide whether
-the loader fills the line from its neighbours, at full resolution, by a
-deterministic rule with the filled count recorded, or whether it stays
-ignored with the loss documented. Either way the pilot evaluator read it
-as background and counted an edge against it as a boundary, which is a
-normal-mode difference to list. -->
 
 Cystic Duct is `expert`, as ATLAS-120k's Cystic duct is: the class ends where
 the anatomical stretch ends. Only ATLAS-120k's benchmark, which merges the

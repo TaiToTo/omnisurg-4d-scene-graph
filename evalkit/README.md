@@ -1,56 +1,62 @@
 # evalkit
 
-The evaluator specified in [`docs/evaluation.md`](../docs/evaluation.md). The
-rules live there; this page shows how the scores are layered, from the pixels
-of one frame to the star on a claim, and which module holds each layer.
+The code that turns the pipeline's output into the numbers the paper
+reports. The full rules are in [`docs/evaluation.md`](../docs/evaluation.md);
+this page is the short version, with a map of the parts.
 
-## From pixels to a star
+## What it measures
 
-```mermaid
-flowchart TB
-    subgraph frame["One frame, one view"]
-        direction TB
-        S["scored_pixels<br/>which pixels the view scores"]
-        O["objects<br/>F1_50, SQ"]
-        B["inst_bf<br/>inst_BF"]
-        C["classmap<br/>mIoU"]
-        D["boundary<br/>boundary_F, boundary_R_raw"]
-        V["vi<br/>VI_split, VI_merge"]
-        U["unlabelled<br/>unlabelled_share"]
-        S --> O --> B
-        S --> C --> D
-        S --> V
-        S --> U
-    end
-    F["frame.score_frame<br/>FrameScores: every view's ViewScores"]
-    frame --> F
-    T["time_iou<br/>time_IoU, pooled over every tracked frame"]
-    K["per clip: each key's mean per view,<br/>over the frames it is defined on, with that count"]
-    F --> K
-    T --> K
-    J["one score JSON per condition<br/>eval_code_sha, inputs' shas, versions"]
-    K --> J
-    P["paired_stats<br/>video-level bootstrap 95 % CI: the star"]
-    J --> P
-```
+The pipeline cuts every frame of a surgical video into regions and follows
+them over time. It is not trained on surgery and it never names a region.
+Against two public datasets with hand-labelled masks, the evaluator asks
+three questions. Each is decided by one key, named here; the other keys help
+explain the answer.
 
-Every module on the frame level reads the same GT, region map and scored
-mask, so each key is the value its module defines on the same pixels as the
-others. A key that is not defined on a frame is `None` there, never `0`, and
-the clip mean leaves the frame out and records how many it covers.
+- **Given one frame as an example, how far can the regions be followed?**
+  With no training, for how many frames does a region picked out once keep
+  covering the same thing? *Decided by:* not settled yet. `time_IoU` is
+  reported for reference, but it rewards coarse regions and cannot decide.
+- **Given no example at all, what input makes the regions' boundaries fall
+  where the labelled classes' boundaries are?** The image, the 3D shape from
+  depth, or both; and for which classes and which procedures, since the
+  answer differs between them. *Decided by:* `boundary_R_raw`, how many of
+  the labelled boundaries the regions find, between conditions that differ
+  in their input, within each of the three views below.
+- **Given no ground truth, how much of the labelled structure is already in
+  the regions?** Whether the things a surgeon would name are found, and how
+  closely, before anyone names them. *Decided by:* `F1_50`, how many of the
+  labelled things were found, with an extra region counted against it; and
+  `SQ`, how closely the found ones match.
 
-## The layers
+![The three questions on a drawn scene. Q1: a region picked out in one frame follows the gallbladder for two frames, then leaves it. Q2: the regions' boundaries against the GT's class boundaries, found and missed, giving boundary_R_raw. Q3: regions matched to the GT's objects, two hits and one extra region, giving F1_50 and SQ](../docs/figures/three_questions.png)
 
-| Layer | One value per | Module | Returns |
-|---|---|---|---|
-| Pixels | frame × view | `scored` | `Scored`: the scored mask, the GT classes, `PixelCounts` |
-| Metric | frame × view | `objects`, `inst_bf`, `classmap`, `boundary`, `vi`, `unlabelled` | one dataclass each, the value with the counts behind it |
-| Frame | frame | `frame` | `FrameScores`: `ViewScores` per view, or `excluded` |
-| Clip | clip (× view) | `time_iou`; the clip driver | `time_IoU` once; each key's mean per view, with the frames it covers |
-| Condition | condition | the entry point | a score JSON, read by the tools |
-| Claim | pair of conditions | `paired_stats` | the star, by the one rule in `AGENTS.md` |
+The three questions on a drawn scene. No key decides the first yet, so its
+panel is an illustration; the numbers in the other two are what the modules
+give on the scene.
 
-The clip driver, the entry point that reads a dataset and writes the JSON,
-and the tools that read it, are the next steps of [`docs/porting.md`](../docs/porting.md).
-Pilot mode, which reproduces the pilot evaluator's numbers, shares the metric
-modules and has a frame driver of its own.
+Each question is put as a comparison: the pipeline in one configuration,
+a *condition*, against another. A claim gets a star when the video-level
+bootstrap 95 % CI of the difference on the deciding key does not straddle
+zero: whole videos are resampled, so that the clips of one video are not
+counted as independent evidence. The rule is written once, in
+`paired_stats`.
+
+Every key is computed on three sets of classes, called *views*: all classes;
+tissue only; and the tissue that depth and shape can separate. The third
+question is judged on the last view. The second is answered within each
+view: the views sort the classes by what should separate them, and the
+conditions vary what the pipeline is given, the image, the depth or both.
+
+## The map
+
+![The evaluator at a glance: a clip's inputs; one frame, scored in three views; one clip, each key's mean over its frames; one condition, one score file; two conditions, the key that decides each question](../docs/figures/evalkit_overview.png)
+
+Six steps, from a clip's inputs to the three questions: steps 2 to 5 score
+one condition, and step 6 compares two.
+
+The same steps, part by part: what each part computes, and the module that
+holds it. Arrows say what is computed from what; Q1 to Q3 mark the parts that
+hold the key deciding each question above. What a module returns is in its
+docstring.
+
+![The evaluator, part by part: a clip's inputs; scored pixels and the keys of one frame in one view; one frame in every view; one clip; one score file per condition; the tools that compare two conditions](../docs/figures/evaluator_map.png)
