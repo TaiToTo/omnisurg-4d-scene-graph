@@ -120,13 +120,17 @@ def warp_labels(L_src, depth_src, K_src, ext_src, K_dst, ext_dst):
     ui, vi = np.round(u).astype(int), np.round(v).astype(int)
     ok = (Z > 1e-6) & (ui >= 0) & (ui < W) & (vi >= 0) & (vi < H)
     ui, vi, Z, lab = ui[ok], vi[ok], Z[ok], lab[ok]
-    order = np.argsort(-Z)                            # far first, so near overwrites
+    # One explicit winner per pixel: the nearest point. Sorting by pixel and
+    # then by depth puts it first in its pixel's run. Writing every point
+    # through repeated indices and trusting the last write to win is not
+    # something NumPy promises, so it is not relied on. Two points at exactly
+    # the same depth on the same pixel are settled by source order (lexsort is
+    # stable), where the old far-first sort left the choice to the sort.
+    flat = vi * W + ui
+    order = np.lexsort((Z, flat))
+    flat, lab = flat[order], lab[order]
+    first = np.ones(flat.size, dtype=bool)
+    first[1:] = flat[1:] != flat[:-1]
     out = np.full((H, W), -1, dtype=int)
-    # TODO: "near overwrites" assigns through repeated indices and needs the
-    # last write to win, which NumPy does not promise. It holds in practice
-    # (no pixel differed from an explicit nearest-wins reference over 50
-    # random warps), but choosing the nearest point per pixel explicitly
-    # (`np.unique` on the flat index after sorting by Z) would not depend on
-    # it. A behaviour change in principle, so not in the port.
-    out[vi[order], ui[order]] = lab[order]
+    out.flat[flat[first]] = lab[first]
     return out

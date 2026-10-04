@@ -6,10 +6,12 @@ scored at all, takes the scored pixels of each view once, and hands the
 same GT, region map and mask to every metric module, so that each key is
 the value its module defines, on the same pixels as the others.
 
-The order is the specification's: the excluded marker on the mask ids (an
-excluded frame is returned with no view, for the clip driver to count),
-then the depth, which in normal mode refuses a pixel without a valid value,
-then per view the objects, the class map, the boundaries, the variation of
+A frame is checked before it is scored: the depth map first, which in
+normal mode refuses a pixel without a valid value whether or not the frame
+is scored, then the excluded marker on the mask ids, on which the frame is
+returned with no view, for the clip driver to count. The keys themselves do
+not depend on one another, and each view takes them in the specification's
+order: the objects, the class map, the boundaries, the variation of
 information and `unlabelled_share`. `time_IoU` is per clip and not here.
 
 A key is None on a frame its metric is not defined on; nothing writes a 0
@@ -35,7 +37,7 @@ from evalkit.scored import PixelCounts, frame_is_excluded, scored_pixels, valid_
 from evalkit.unlabelled import unlabelled_share
 from evalkit.vi import variation_of_information
 
-# The specification's key for each metric, to the field that holds it. The
+# The specification's key for each per-frame metric, to the field that holds it. The
 # one place the two spellings meet; the JSON is written through it.
 KEYS: Mapping[str, str] = MappingProxyType({
     "F1_50": "f1_50",
@@ -137,22 +139,31 @@ def score_view(
         view: One of `VIEWS`.
 
     Raises:
-        ValueError: An input is not a map of one shape; the frame carries
-            the excluded marker; or `valid` has a False in it.
+        ValueError: An input is not a map of one shape; a region id is
+            below -1; the frame carries the excluded marker; or `valid`
+            has a False in it.
         KeyError: A mask id the table does not have, or an unknown view.
     """
+    # Which pixels this view scores, and the GT class on each. Every metric
+    # below reads the same `gt` under the same `mask`.
     mask_ids, regions = _check_maps(mask_ids, regions)
     scored = scored_pixels(mask_ids, table, view, valid)
     gt, mask = scored.classes, scored.mask
 
+    # Objects: the GT's and the regions', paired at IoU >= MATCH_IOU, give
+    # F1_50 and SQ; the contours of the pairs give inst_BF.
     gt_objs = gt_objects(gt, mask)
     pred_objs = predicted_objects(regions, mask)
     inst = instance_scores(gt_objs, pred_objs)
     contours = instance_boundary_f(gt_objs, pred_objs, inst)
 
+    # Classes: each region named after the GT class it covers most, then
+    # the IoU of every class and mIoU over them.
     cmap = class_map(gt, regions, mask)
     classes = class_scores(gt, cmap, mask)
 
+    # Boundaries, both against the GT's: the named regions' (boundary_F)
+    # and the regions' as drawn (boundary_R_raw).
     gt_boundary = boundary_pixels(gt, mask)
     # The class map as it is: a pixel with no region carries `NO_CLASS`,
     # which is a label like any other, so the edge between a named region
@@ -160,6 +171,8 @@ def score_view(
     boundary_f = boundary_score(boundary_pixels(cmap.classes, mask), gt_boundary)
     boundary_raw = boundary_score(boundary_pixels(regions, mask), gt_boundary)
 
+    # Agreement of the partitions (VI), and how much of the regions fell on
+    # background the view does not score.
     vi = variation_of_information(gt, regions, mask)
     share = unlabelled_share(regions, mask, scored.background)
 
@@ -203,18 +216,20 @@ def score_frame(
         excluded marker, `excluded=True` and no view.
 
     Raises:
-        ValueError: An input is not a map of the depth map's shape, or a
-            pixel has no valid depth.
+        ValueError: An input is not a map of the depth map's shape, a
+            region id is below -1, or a pixel has no valid depth.
         KeyError: A mask id the table does not have.
     """
     mask_ids, regions = _check_maps(mask_ids, regions)
     depth = np.asarray(depth)
     if depth.shape != mask_ids.shape:
         raise ValueError(f"`depth` has shape {depth.shape}, the GT mask {mask_ids.shape}")
+    # The depth map before the marker: a pixel without valid depth is a
+    # fault in the pipeline's output, and skipping the frame would hide it.
+    valid = valid_depth(depth)
     # On the mask ids, before any pixel is scored: a frame the annotators
     # took out is skipped and counted, never scored in part.
     if frame_is_excluded(mask_ids, table):
         return FrameScores(excluded=True, views=MappingProxyType({}))
-    valid = valid_depth(depth)
     views = {view: score_view(mask_ids, regions, valid, table, view) for view in VIEWS}
     return FrameScores(excluded=False, views=MappingProxyType(views))

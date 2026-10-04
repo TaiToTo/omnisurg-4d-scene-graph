@@ -14,17 +14,24 @@ from evalkit.boundary import boundary_pixels, boundary_score
 from evalkit.classes import VIEWS, load_table
 from evalkit.classmap import class_map, class_scores
 from evalkit.frame import KEYS, FrameScores, ViewScores, score_frame, score_view
+from evalkit.objects import gt_objects, instance_scores, predicted_objects
 from evalkit.scored import PixelCounts
 from evalkit.vi import variation_of_information
 
 ALL = np.ones((S.H, S.W), dtype=bool)
 DEPTH = np.ones((S.H, S.W), dtype=np.float32)
-LIVER, GALLBLADDER, TOOL, BLOOD, BACKGROUND, EXCLUDED = 12, 14, 1, 11, 0, 42
+LIVER, GALLBLADDER, TOOL, VENA_CAVA, BACKGROUND, EXCLUDED = 12, 14, 1, 11, 0, 42
+OMENTUM, MESENTERIUM = 9, 20     # one benchmark class, two original ids
 
 
 @pytest.fixture(scope="module")
 def atlas():
     return load_table("atlas120k")
+
+
+@pytest.fixture(scope="module")
+def benchmark():
+    return load_table("atlas120k", "benchmark")
 
 
 def atlas_ids(gt: np.ndarray) -> np.ndarray:
@@ -53,6 +60,21 @@ def test_the_keys_are_the_specifications_in_its_order():
         "unlabelled_share",
     ]
     assert set(KEYS.values()) <= set(ViewScores.__dataclass_fields__)
+
+
+def test_each_key_reads_its_own_field():
+    # Every field a different value, so that two keys swapped (F1_50 and
+    # SQ, boundary_F and boundary_R_raw, VI_split and VI_merge) show in the
+    # JSON the clip driver writes through `metrics()`.
+    v = ViewScores(
+        view="all", counts=PixelCounts(0, 0, 0, 0, 1), f1_50=0.1, sq=0.2, inst_bf=0.3, miou=0.4,
+        boundary_f=0.5, boundary_r_raw=0.6, vi_split=0.7, vi_merge=0.8, unlabelled_share=0.9,
+        n_gt_objects=1, n_pred_objects=2, n_hits=3, n_inst_bf_hits=4, ious={},
+    )
+    assert v.metrics() == {
+        "F1_50": 0.1, "SQ": 0.2, "inst_BF": 0.3, "mIoU": 0.4, "boundary_F": 0.5,
+        "boundary_R_raw": 0.6, "VI_split": 0.7, "VI_merge": 0.8, "unlabelled_share": 0.9,
+    }
 
 
 def test_a_spilled_region_is_scored_as_each_module_defines_it(atlas):
@@ -88,19 +110,48 @@ def test_boundary_f_reads_the_class_map_and_boundary_r_raw_the_regions(atlas):
     assert v.boundary_f == 1.0 and v.boundary_r_raw == 1.0
     assert v.miou == 1.0
     assert v.f1_50 == pytest.approx(2 * 2 / (2 + 3))
+    assert (v.n_gt_objects, v.n_pred_objects, v.n_hits) == (2, 3, 2)
     assert boundary_score(boundary_pixels(scene.lab, ALL), boundary_pixels(scene.gt, ALL)).precision == 0.5
 
 
+def test_boundary_r_raw_reads_the_regions_and_not_the_class_map(atlas):
+    # Region 1 is liver columns 0-14 and gallbladder columns 50-59, named
+    # liver by majority; region 0 is the liver between. The regions keep
+    # the true edge at column 50, so `boundary_R_raw` is 1, while the class
+    # map, liver on both sides of it, loses it: a driver that fed the class
+    # map to `boundary_R_raw` would see 0, the value `boundary_F` has.
+    gt = atlas_ids(S.exact().gt)
+    lab = np.full((S.H, S.W), 2, dtype=np.int32)
+    lab[:, 15:50] = 0
+    lab[:, :15] = lab[:, 50:60] = 1
+    v = score_frame(gt, lab, DEPTH, atlas).views["all"]
+    assert v.boundary_r_raw == 1.0 and v.boundary_f == 0.0
+
+
+def test_boundary_f_is_the_f_score_and_not_the_precision(atlas):
+    # Region 1 is liver columns 0-9 and gallbladder columns 50-64, named
+    # gallbladder by majority, so the class map has an extra edge at column
+    # 10 beside the true one: precision 1/2, recall 1, F 2/3.
+    gt = atlas_ids(S.exact().gt)
+    lab = S.exact().lab.copy()
+    lab[:, 50:] = 2
+    lab[:, :10] = lab[:, 50:65] = 1
+    v = score_frame(gt, lab, DEPTH, atlas).views["all"]
+    cmap = class_map(gt, lab, ALL)
+    assert boundary_score(boundary_pixels(cmap.classes, ALL), boundary_pixels(gt, ALL)).precision == 0.5
+    assert v.boundary_f == pytest.approx(2 / 3) and v.boundary_r_raw == 1.0
+
+
 def test_the_views_differ_only_in_the_pixels_they_score(atlas):
-    # Columns 0-39 liver, 40-49 a tool, 50-89 gallbladder, 90-99 blood (a
-    # vein, `appearance`). The prediction is exact. The `all` view scores
+    # Columns 0-39 liver, 40-49 a tool, 50-89 gallbladder, 90-99 the vena
+    # cava (`appearance`). The prediction is exact. The `all` view scores
     # four objects, `tissue` three, `geometric` two; each view's counts say
     # what it removed, and every key stays 1 or 0 because nothing is wrong.
     # In the geometric view the tool band separates the two tissues, so no
     # two scored neighbours differ: that view has no GT boundary, and its
     # boundary keys are undefined rather than 1.
     gt = np.empty((S.H, S.W), dtype=np.int32)
-    gt[:, :40], gt[:, 40:50], gt[:, 50:90], gt[:, 90:] = LIVER, TOOL, GALLBLADDER, BLOOD
+    gt[:, :40], gt[:, 40:50], gt[:, 50:90], gt[:, 90:] = LIVER, TOOL, GALLBLADDER, VENA_CAVA
     lab = np.empty((S.H, S.W), dtype=np.int32)
     lab[:, :40], lab[:, 40:50], lab[:, 50:90], lab[:, 90:] = 0, 1, 2, 3
     r = score_frame(gt, lab, DEPTH, atlas)
@@ -132,10 +183,48 @@ def test_a_region_on_unlabelled_tissue_is_no_object_and_a_spill_onto_it_is_count
     assert v.unlabelled_share == pytest.approx(500 / (2500 + 500 + 2500))
 
 
+def test_a_region_is_named_by_its_scored_pixels_and_not_by_the_background_under_it(atlas):
+    # Region 2 covers the 15 top-left rows: 500 px of unlabelled background
+    # over 250 px of liver. Named by its scored pixels it is liver and
+    # mIoU is 1; a vote over every valid pixel, which is the pilot
+    # evaluator's rule, would name it background.
+    scene = S.on_background(10)
+    lab = scene.lab.copy()
+    lab[:15, :S.HALF] = 2
+    v = score_frame(atlas_ids(scene.gt), lab, DEPTH, atlas).views["geometric"]
+    assert v.miou == 1.0 and v.ious == {LIVER: 1.0, GALLBLADDER: 1.0}
+    assert v.counts.background == 1000
+
+
+def test_unlabelled_share_counts_background_and_not_the_pixels_a_view_removed(atlas):
+    # Columns 0-39 liver, 40-49 a tool, 50-99 gallbladder; region 0 runs
+    # over the tool band. The geometric view removes the band for being a
+    # tool, not for being unlabelled, so the spill is in neither count and
+    # the share is 0; counted as background it would be 600 / 6000.
+    gt = np.empty((S.H, S.W), dtype=np.int32)
+    gt[:, :40], gt[:, 40:50], gt[:, 50:] = LIVER, TOOL, GALLBLADDER
+    v = score_frame(gt, S.exact().lab, DEPTH, atlas).views["geometric"]
+    assert v.counts == PixelCounts(0, 0, 0, 600, 5400)
+    assert v.unlabelled_share == 0.0 and v.f1_50 == 1.0
+
+
+def test_the_gt_is_the_class_sets_class_and_not_the_mask_id(benchmark):
+    # Omentum and Mesenterium are two original ids and one benchmark class.
+    # Under one region they are one GT object, found; read as mask ids they
+    # would be two, and F1_50 2 / 3.
+    gt = np.empty((S.H, S.W), dtype=np.int32)
+    gt[:, :S.HALF], gt[:, S.HALF:] = OMENTUM, MESENTERIUM
+    lab = np.zeros((S.H, S.W), dtype=np.int32)
+    v = score_frame(gt, lab, DEPTH, benchmark).views["all"]
+    assert (v.n_gt_objects, v.n_pred_objects, v.n_hits, v.f1_50) == (1, 1, 1, 1.0)
+    assert v.miou == 1.0 and set(v.ious) == {benchmark.class_of(OMENTUM)} == {benchmark.class_of(MESENTERIUM)}
+    assert instance_scores(gt_objects(gt, ALL), predicted_objects(lab, ALL)).n_gt == 2
+
+
 def test_a_view_that_removes_every_pixel_defines_no_key(atlas):
-    # Blood alone: the geometric view scores nothing, and every key is None
+    # The vena cava alone: the geometric view scores nothing, and every key is None
     # rather than 0, with the counts saying why.
-    gt = np.full((S.H, S.W), BLOOD, dtype=np.int32)
+    gt = np.full((S.H, S.W), VENA_CAVA, dtype=np.int32)
     r = score_frame(gt, S.exact().lab, DEPTH, atlas)
     v = r.views["geometric"]
     assert v.counts == PixelCounts(0, 0, 0, 6000, 0)
@@ -171,6 +260,12 @@ def test_a_pixel_without_valid_depth_refuses_the_frame(atlas):
     depth[0, 0] = np.nan
     with pytest.raises(ValueError, match="no valid depth"):
         score_frame(atlas_ids(S.exact().gt), S.exact().lab, depth, atlas)
+    # An excluded frame too: the depth map is checked before the marker, so
+    # a faulty depth map is found whether or not the frame is scored.
+    gt = atlas_ids(S.exact().gt)
+    gt[:10, :10] = EXCLUDED
+    with pytest.raises(ValueError, match="no valid depth"):
+        score_frame(gt, S.exact().lab, depth, atlas)
     with pytest.raises(ValueError, match="only pilot mode"):
         score_view(atlas_ids(S.exact().gt), S.exact().lab, np.isfinite(depth), atlas, "all")
 
