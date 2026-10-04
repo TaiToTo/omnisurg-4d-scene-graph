@@ -195,3 +195,21 @@ def test_the_command_names_the_tag_it_could_not_check(tmp_path):
     cmd = [sys.executable, "-m", "evalkit.tools.pilot_check", "--pilot-dir", str(pd), "--eval-dir", str(ed)]
     r = subprocess.run(cmd, capture_output=True, text=True, cwd=REPO)
     assert r.returncode != 0 and r.stderr.startswith("a: the JSON given as the evaluator's is not a pilot-mode score")
+
+
+def test_the_command_names_the_tag_and_the_path_of_a_json_it_cannot_read(tmp_path):
+    pd, ed = tmp_path / "pilot", tmp_path / "ours"
+    pd.mkdir(), ed.mkdir()
+    (pd / "a.json").write_text(json.dumps(pilot_json()))
+    (ed / "a.json").write_text("{not json")
+    cmd = [sys.executable, "-m", "evalkit.tools.pilot_check", "--pilot-dir", str(pd), "--eval-dir", str(ed)]
+    r = subprocess.run(cmd, capture_output=True, text=True, cwd=REPO)
+    assert r.returncode != 0 and "Traceback" not in r.stderr
+    assert r.stderr.startswith(f"a: the pilot-mode JSON {ed / 'a.json'} cannot be read")
+    # A pilot JSON that will not open, here a directory under its name, is refused the same way.
+    (ed / "a.json").write_text(json.dumps(ours_json()))
+    (pd / "a.json").unlink()
+    (pd / "a.json").mkdir()
+    r = subprocess.run(cmd, capture_output=True, text=True, cwd=REPO)
+    assert r.returncode != 0 and "Traceback" not in r.stderr
+    assert r.stderr.startswith(f"a: the pilot evaluator's JSON {pd / 'a.json'} cannot be read")

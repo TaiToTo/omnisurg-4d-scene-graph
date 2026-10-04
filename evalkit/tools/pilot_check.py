@@ -1,41 +1,12 @@
-"""The check against the pilot evaluator: pilot mode must write the pilot evaluator's numbers.
+"""Pilot mode against the pilot evaluator: every key the two share, equal on every clip.
 
-This is the verification of `docs/evaluation.md`, "Checked against the
-pilot evaluator", and not a comparison under `scores.check_comparable`:
-the two shas differ by construction, so that check would refuse the pair.
-Only the keys the two evaluators share are compared, the metrics table
-names them, and on every clip of every condition the values written must
-be equal. There is no tolerance to loosen: whatever width were allowed
-here is the width a fault in the port could pass through.
-
-A pilot evaluator's JSON spells its keys as it did, with a suffix per
-domain (`inst_F1_50`, `inst_F1_50_labeled`, ...). The evaluator in pilot
-mode scores the same four domains in place of views, so its keys are the
-view spelling over those domains (`F1_50/full`, `F1_50/labeled`, ...).
-The class map and the boundary metrics the pilot computed on the `full`
-domain alone, and the variation of information on the valid pixels whose
-GT is not background, which is the `labeled` domain's mask; `time_IoU` is
-one value per clip. `SHARED` is that correspondence.
-
-The keys the pilot wrote and the evaluator does not (`inst_F1_75`, `PQ`,
-`GT_mDice`, the tolerances, the counts) are not compared: the metrics
-table says what each one is replaced by, and that replacement is the
-point of the new evaluator, not a fault. A shared key that the evaluator's
-JSON lacks on a clip the pilot scored is a difference, and so is a value
-in place of the pilot's None, or a None in place of its value: pilot mode
-writes what the pilot wrote. A pilot row that lacks a shared key is
-refused, not skipped: the pilot evaluator writes every shared key on
-every clip, so such a row is a JSON that is not whole, and skipping it
-would report "equal" on a value never compared.
-
-The evaluator's sha is read from the pilot-mode JSONs and printed with
-the result: the sha this check passes at is the one the freeze records,
-and a directory scored by two evaluators is refused, since the result
-would belong to neither.
-
-The driver that scores a condition in pilot mode is not here; this module
-diffs what it wrote against the pilot's JSON of the same condition, by
-tag, and the run happens where the pilot evaluator and its scores are.
+The verification of `docs/evaluation.md`, "Checked against the pilot
+evaluator". For each condition, matched by tag, the pilot evaluator's
+JSON and this evaluator's pilot-mode JSON must hold the same value, None
+included, for every pair of keys in `SHARED`, with no tolerance. The
+result names the evaluator's sha, the one the freeze records. The driver
+that writes the pilot-mode JSONs is not here: the check runs where the
+pilot evaluator and its scores are, and takes their paths as arguments.
 
 Usage:
     python -m evalkit.tools.pilot_check --pilot-dir /path/to/the/pilot/scores \\
@@ -84,10 +55,13 @@ def _shared() -> tuple[tuple[str, str], ...]:
     return tuple(pairs)
 
 
-# `(pilot key, evaluator key)` for every key the two evaluators share.
+# `(pilot key, evaluator key)` for every key the two evaluators share. A key the
+# evaluator replaced (`inst_F1_75`, `PQ`, the counts) is not compared: the replacement is the point.
 SHARED = _shared()
 
 
+# No tolerance: whatever width were allowed here is the width a fault in the
+# port could pass through.
 def _equal(a, b) -> bool:
     if isinstance(a, bool) or isinstance(b, bool):
         return a is b
@@ -119,6 +93,7 @@ def diff_shared(pilot: Mapping, ours: Mapping) -> list[str]:
             pilot row lacks a shared key.
     """
     # The two JSONs, refused unless one is the pilot evaluator's and the other pilot mode's.
+    # Not `scores.check_comparable`: the two shas differ by construction, and it would refuse the pair.
     if not is_pilot_json(pilot) or pilot.get("eval_code_sha") != PILOT_EVAL_CODE_SHA:
         raise ValueError(
             "the JSON given as the pilot evaluator's is not its "
@@ -161,6 +136,14 @@ def diff_shared(pilot: Mapping, ours: Mapping) -> list[str]:
     return out
 
 
+def _read(path: str, role: str) -> dict:
+    """`load_scores`, with a file that will not open or parse refused by its role and path."""
+    try:
+        return load_scores(path)
+    except (OSError, ValueError) as e:
+        raise ValueError(f"{role} {path} cannot be read: {e}") from e
+
+
 def check_dirs(pilot_dir: str, eval_dir: str) -> tuple[str, dict[str, list[str]]]:
     """Diff every condition of `pilot_dir` against the JSON of the same tag in `eval_dir`.
 
@@ -172,7 +155,8 @@ def check_dirs(pilot_dir: str, eval_dir: str) -> tuple[str, dict[str, list[str]]
     Raises:
         ValueError: `pilot_dir` holds no JSON; `eval_dir` holds none of
             the tags; the pilot-mode JSONs were made by more than one
-            evaluator; or a pair cannot be checked.
+            evaluator; a JSON of a pair cannot be read; or a pair cannot
+            be checked.
     """
     tags = sorted(os.path.basename(p)[:-5] for p in glob.glob(os.path.join(pilot_dir, "*.json")))
     if not tags:
@@ -183,9 +167,9 @@ def check_dirs(pilot_dir: str, eval_dir: str) -> tuple[str, dict[str, list[str]]
         if not os.path.exists(theirs):
             out[tag] = [f"{tag}: not scored in pilot mode ({theirs} is missing)"]
             continue
-        ours = load_scores(theirs)
         try:
-            out[tag] = diff_shared(load_scores(os.path.join(pilot_dir, f"{tag}.json")), ours)
+            ours = _read(theirs, "the pilot-mode JSON")
+            out[tag] = diff_shared(_read(os.path.join(pilot_dir, f"{tag}.json"), "the pilot evaluator's JSON"), ours)
         except ValueError as e:
             raise ValueError(f"{tag}: {e}") from e
         shas.setdefault(ruler(ours).eval_code_sha, []).append(tag)
