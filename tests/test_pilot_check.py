@@ -34,8 +34,8 @@ def ours_json(clips=CLIPS, pilot=True, views=PILOT_DOMAINS):
         r = dict(clip=c, time_IoU=0.0, **{metric_key("mIoU", "full"): 0.5 + i / 10,
                                           metric_key("boundary_F", "full"): 0.4,
                                           metric_key("boundary_R_raw", "full"): 0.3,
-                                          metric_key("VI_split", "full"): 1.25,
-                                          metric_key("VI_merge", "full"): 0.75})
+                                          metric_key("VI_split", "labeled"): 1.25,
+                                          metric_key("VI_merge", "labeled"): 0.75})
         for d in views:
             r[metric_key("F1_50", d)] = 0.6 if d == "full" else None
             r[metric_key("SQ", d)] = None if d != "full" else 0.7
@@ -50,6 +50,10 @@ def test_the_shared_keys_are_the_table_s():
     assert ("inst_F1_50", "F1_50/full") in PC.SHARED
     assert ("inst_F1_50_labeled_tissue", "F1_50/labeled_tissue") in PC.SHARED
     assert ("GT_mIoU", "mIoU/full") in PC.SHARED and ("time_IoU", "time_IoU") in PC.SHARED
+    # The pilot's VI is on the valid pixels whose GT is not background: the
+    # `labeled` domain's mask, not `full`'s.
+    assert ("VI_split", "VI_split/labeled") in PC.SHARED and ("VI_merge", "VI_merge/labeled") in PC.SHARED
+    assert not any(ok == "VI_split/full" for _, ok in PC.SHARED)
     assert not any(pk in ("inst_F1_75", "PQ", "GT_mDice", "boundary_P_raw") for pk, _ in PC.SHARED)
     assert len(PC.SHARED) == 3 * len(PILOT_DOMAINS) + 5 + 1
 
@@ -71,17 +75,53 @@ def test_a_none_where_the_pilot_wrote_zero_is_a_difference():
     assert any("inst_BF/full: None != pilot inst_BF=0.0" in x for x in PC.diff_shared(pilot_json(), ours))
 
 
+def test_a_zero_where_the_pilot_wrote_none_is_a_difference():
+    # The pilot writes None for `SQ` outside `full` on a clip with no GT
+    # object there; a driver that wrote 0 in its place would be wrong.
+    ours = ours_json()
+    ours["per_clip"][0][metric_key("SQ", "labeled")] = 0.0
+    assert any("SQ/labeled: 0.0 != pilot SQ_labeled=None" in x for x in PC.diff_shared(pilot_json(), ours))
+
+
 def test_a_shared_key_the_evaluator_lacks_is_a_difference():
     ours = ours_json()
     del ours["per_clip"][0]["time_IoU"]
     assert any("time_IoU: missing" in x for x in PC.diff_shared(pilot_json(), ours))
 
 
-def test_a_key_the_pilot_did_not_write_is_not_compared():
+def test_a_pilot_row_without_a_shared_key_is_refused_not_skipped():
+    # Skipped, a row of `clip` alone would read as "diff 0".
     pilot = pilot_json()
-    for r in pilot["per_clip"]:
-        del r["VI_split"]
-    assert PC.diff_shared(pilot, ours_json()) == []
+    del pilot["per_clip"][1]["VI_split"]
+    with pytest.raises(ValueError, match=f"{CLIPS[1]}: the pilot evaluator's row lacks VI_split"):
+        PC.diff_shared(pilot, ours_json())
+    pilot = pilot_json()
+    pilot["per_clip"] = [dict(clip=c) for c in CLIPS]
+    with pytest.raises(ValueError, match="row lacks"):
+        PC.diff_shared(pilot, ours_json())
+
+
+def test_a_pilot_row_that_removed_an_extra_ignore_is_refused():
+    pilot = pilot_json()
+    pilot["per_clip"][0]["extra_ignore"] = [7]
+    with pytest.raises(ValueError, match=f"{CLIPS[0]}: the pilot evaluator's row removed extra_ignore"):
+        PC.diff_shared(pilot, ours_json())
+
+
+def test_a_clip_named_twice_or_a_population_that_disagrees_with_its_rows_is_refused():
+    pilot = pilot_json()
+    pilot["per_clip"].append(dict(pilot["per_clip"][0]))
+    with pytest.raises(ValueError, match="the pilot evaluator's JSON: per_clip holds more than one row"):
+        PC.diff_shared(pilot, ours_json())
+    ours = ours_json()
+    ours["clips"] = CLIPS[:1]
+    with pytest.raises(ValueError, match="the pilot-mode JSON: the JSON's clips and its per_clip rows"):
+        PC.diff_shared(pilot_json(), ours)
+
+
+def test_two_jsons_without_a_clip_are_refused():
+    with pytest.raises(ValueError, match="neither JSON holds a clip"):
+        PC.diff_shared(pilot_json(clips=[]), ours_json(clips=[]))
 
 
 def test_the_pilot_s_replaced_keys_are_not_compared():
@@ -96,9 +136,9 @@ def test_a_clip_only_one_side_scored_is_a_difference():
 
 
 def test_a_json_that_is_not_the_pilot_s_is_refused():
-    with pytest.raises(ValueError, match="not the pilot evaluator's"):
+    with pytest.raises(ValueError, match="given as the pilot evaluator's is not its"):
         PC.diff_shared(pilot_json(sha="b" * 64), ours_json())
-    with pytest.raises(ValueError, match="not the pilot evaluator's"):
+    with pytest.raises(ValueError, match="given as the pilot evaluator's is not its"):
         PC.diff_shared(ours_json(), ours_json())
 
 
@@ -123,9 +163,35 @@ def test_the_command_diffs_every_condition_by_tag(tmp_path):
     cmd = [sys.executable, "-m", "evalkit.tools.pilot_check", "--pilot-dir", str(pd), "--eval-dir", str(ed)]
     r = subprocess.run(cmd, capture_output=True, text=True, cwd=REPO)
     assert r.returncode == 0 and "all 2 conditions" in r.stdout
+    # The evaluator's sha is named with the result: it is the one the freeze records.
+    assert f"evaluator {'a' * 16} reproduces the pilot evaluator" in r.stdout
+    assert f"against the pilot evaluator {PILOT_EVAL_CODE_SHA[:16]}" in r.stdout
     ours = ours_json()
     ours["per_clip"][0][metric_key("F1_50", "full")] = 0.61
     (ed / "b.json").write_text(json.dumps(ours))
     (pd / "c.json").write_text(json.dumps(pilot_json()))
     r = subprocess.run(cmd, capture_output=True, text=True, cwd=REPO)
     assert r.returncode == 1 and "2 of 3 conditions differ" in r.stdout and "not scored in pilot mode" in r.stdout
+
+
+def test_the_command_refuses_a_directory_scored_by_two_evaluators(tmp_path):
+    pd, ed = tmp_path / "pilot", tmp_path / "ours"
+    pd.mkdir(), ed.mkdir()
+    for tag, sha in (("a", "a" * 64), ("b", "b" * 64)):
+        (pd / f"{tag}.json").write_text(json.dumps(pilot_json()))
+        ours = ours_json()
+        ours["eval_code_sha"] = sha
+        (ed / f"{tag}.json").write_text(json.dumps(ours))
+    cmd = [sys.executable, "-m", "evalkit.tools.pilot_check", "--pilot-dir", str(pd), "--eval-dir", str(ed)]
+    r = subprocess.run(cmd, capture_output=True, text=True, cwd=REPO)
+    assert r.returncode != 0 and "made by 2 evaluators" in r.stderr and "Traceback" not in r.stderr
+
+
+def test_the_command_names_the_tag_it_could_not_check(tmp_path):
+    pd, ed = tmp_path / "pilot", tmp_path / "ours"
+    pd.mkdir(), ed.mkdir()
+    (pd / "a.json").write_text(json.dumps(pilot_json()))
+    (ed / "a.json").write_text(json.dumps(ours_json(pilot=False)))
+    cmd = [sys.executable, "-m", "evalkit.tools.pilot_check", "--pilot-dir", str(pd), "--eval-dir", str(ed)]
+    r = subprocess.run(cmd, capture_output=True, text=True, cwd=REPO)
+    assert r.returncode != 0 and r.stderr.startswith("a: the JSON given as the evaluator's is not a pilot-mode score")
