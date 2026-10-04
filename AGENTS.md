@@ -68,8 +68,10 @@ shape of another repo.
 omnisurg-4d-scene-graph/
 ├── LICENSE  README.md  CITATION.cff  pyproject.toml
 ├── surgical_core/     cholec atlas120k geometry pointcloud preprocess viewer clip_time
-├── evalkit/           the evaluator, track_metrics paired_stats kmerge compare_eval
-│                      condition_inventory check_env
+├── evalkit/           the evaluator, hashed into eval_code_sha with its class tables
+│   └── tools/         what only reads scores, never hashed: paired_stats
+│                      compare_eval condition_inventory
+│                      (track_metrics, kmerge: which side waits on docs/porting.md)
 ├── pipeline/          depth → segmentation → tracking → viewer export
 ├── recon3d_wrapper/   3D reconstruction — DA3 and Pi3 behind one interface
 ├── sam3_wrapper/      promptable segmentation and tracking (SAM 3)
