@@ -29,10 +29,11 @@ explain the answer.
   `SQ`, how closely the found ones match.
 
 Each question is put as a comparison: the pipeline in one configuration,
-a *condition*, against another. A claim gets a star when A beats B on the
-deciding key by a statistically significant margin. The test resamples whole videos, so that the clips of
-one video are not counted as independent evidence. The exact rule is written
-once, in `paired_stats`.
+a *condition*, against another. A claim gets a star when the video-level
+bootstrap 95 % CI of the difference on the deciding key does not straddle
+zero: whole videos are resampled, so that the clips of one video are not
+counted as independent evidence. The rule is written once, in
+`paired_stats`.
 
 Every key is computed on three sets of classes, called *views*: all classes;
 tissue only; and the tissue that depth and shape can separate. The third
