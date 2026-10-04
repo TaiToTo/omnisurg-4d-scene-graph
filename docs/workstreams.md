@@ -29,8 +29,8 @@ to run on the machine that has the workbench.
 
 ## Rules every workstream follows
 
-These repeat what `AGENTS.md` and `docs/porting.md` already say, in the form a
-session starting cold needs.
+These repeat what `AGENTS.md`, `docs/review.md` and `docs/porting.md` already
+say, in the form a session starting cold needs.
 
 - **Branch from `main`**, never from a branch under review. One concern per
   branch, about five changed files, one pull request. Branch names are
@@ -127,29 +127,10 @@ differ, and nothing in the guide is a third copy of a scene.
 | `docs/short-headers` | the module headers of `main` brought under the cap of `docs/review.md` | this repository | anywhere |
 
 The first three have a source on GitHub and suit a session without the
-workbench. The last two read the workbench and stay on its machine. The two
-`atlas120k-meta` branches can be one if the result stays near five files;
-`data` first, since `readers` is tested against it.
-
-### `docs/short-headers`
-
-**Source.** This repository. `tests/test_module_headers_are_short.py` lists
-in `STILL_LONG` the modules whose header was over the cap when the rule was
-made; `docs/review.md` says what a header holds and where the rest goes.
-
-**What it is.** Each listed module's header is cut to what the module does,
-in at most twelve lines, plus its Usage. History goes to the commit that
-removes it, with the reason it was there, so that git keeps it; a definition
-of a term the specification has is dropped, and one it lacks is added to
-`docs/evaluation.md` in one line; a reason for a choice moves to a one- or
-two-line comment at the choice, or is dropped when no reader would "fix" the
-choice without it. A module whose paragraph needs "and" is split. The
-module is then removed from `STILL_LONG`, which the test refuses to keep it
-in once it is short.
-
-**Done when.** `STILL_LONG` is empty and the suite passes. A few modules per
-pull request, each pull request one area (`evalkit/`, `evalkit/tools/`,
-`surgical_core/`, `tests/`).
+workbench. The two `atlas120k-meta` branches read the workbench and stay on
+its machine; they can be one if the result stays near five files, `data`
+first, since `readers` is tested against it. `docs/short-headers` reads
+only this repository.
 
 ### `surgical-core/clip-time`
 
@@ -315,6 +296,32 @@ real one.
 
 **Done when.** Both tests pass against the new modules; `clip_rects` is
 tested against the file committed by `atlas120k-meta/data`; no Japanese left.
+
+### `docs/short-headers`
+
+**Source.** This repository. `tests/test_module_headers_are_short.py` lists
+in `STILL_LONG` the modules whose header was over the cap when the rule was
+made; `docs/review.md` says what a header holds and where the rest goes.
+
+**What it is.** Each listed module's header is cut to what the module does,
+in at most twelve lines, plus its Usage. History goes to the commit that
+removes it, with the reason it was there, so that git keeps it; a definition
+of a term its area's specification has is dropped, and one it lacks is
+added there in one line (`docs/evaluation.md` for the evaluator and its
+tools, the README of `atlas120k_meta/` for its readers); a reason for a
+choice moves to a one- or two-line comment at the choice, or is dropped when
+no reader would "fix" the choice without it. A module whose paragraph needs
+"and" is split. The module is then removed from `STILL_LONG`, which the test
+refuses to keep it in once it is short.
+
+**Order.** The modules under `evalkit/` that `code_sha.HASHED_MODULES`
+names go first, before the evaluator is frozen: after the freeze not a byte
+of them changes, docstrings included. A few modules per pull request, each
+pull request one area (`evalkit/`, `evalkit/tools/`, `surgical_core/`,
+`tests/`).
+
+**Done when.** `STILL_LONG` is empty and the suite passes; the list and the
+tests that keep it are then deleted, and the cap alone remains.
 
 ## After the class-table review merges
 

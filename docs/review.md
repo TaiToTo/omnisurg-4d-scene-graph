@@ -11,19 +11,20 @@ which test refuses a breach.
 
 | rule | test |
 |---|---|
-| no `TODO`, `FIXME`, `XXX`, `HACK` in a tracked file | `tests/test_no_todo_in_code.py` |
-| a module's header is at most `HEADER_LINES` lines before its Usage | `tests/test_module_headers_are_short.py` |
-| no mark (`★`, `✗`, `○`, `×`) printed without borrowing `paired_stats.verdict`, none decided by a p-value | `tests/test_paired_stats.py` |
-| no personal address in the history | `tests/test_no_personal_email.py` |
+| no `TODO`, `FIXME`, `XXX`, `HACK` in a tracked file, the planning documents and this page excepted | `tests/test_no_todo_in_code.py` |
+| a module's header is at most `HEADER_LINES` lines, and a listed long module is not added after the fact | `tests/test_module_headers_are_short.py` |
+| no mark (`★`, `✗`) printed without borrowing `paired_stats.verdict`, none decided by a p-value | `tests/test_paired_stats.py` |
+| no personal address in the history or in a tracked file | `tests/test_no_personal_email.py` |
 
 A rule without a test in this table is checked by the reviewer.
 
 ## A module's header
 
-The module docstring says what the module does, in one paragraph of at most
-twelve lines, and then, for a command, how to run it under `Usage:`. A reader
-decides from it whether this is the file they want, and nothing else is
-asked of it.
+The module docstring says what the module does, in at most twelve lines,
+the summary line and blank lines counted, and then, for a command, how to
+run it under `Usage:`, which is the last section and the only one left out
+of the count. A reader decides from it whether this is the file they want,
+and nothing else is asked of it.
 
 What it does not hold, and where that goes instead:
 
@@ -31,15 +32,19 @@ What it does not hold, and where that goes instead:
   what a review changed. The commit message and the pull request keep it,
   and git keeps those. An incident that a check now prevents is recorded by
   the test that plants the fault: its name says what happened.
-- **Definitions.** A term is defined once, in `docs/evaluation.md`, and used
-  everywhere else in that sense. A term that only this module needs is
-  defined in one line, in the docstring that first relies on it, before the
-  sentence that does; a second definition of a term the specification
-  already has drifts from the first.
+- **Definitions.** A term is defined once: in the specification of its
+  area (`docs/evaluation.md` for a score and its metrics, the README of
+  `atlas120k_meta/` for its files), or, when one module alone uses it, in
+  that module's docstring, in one line before the sentence that relies on
+  it. Everywhere else the term is used in that sense; a second definition
+  drifts from the first.
 - **Reasons.** The reason for a choice is a comment of one or two lines at
   the line that makes the choice, and only where a reader would otherwise
-  "fix" it. A reason that needs more than two lines is a decision, and
-  belongs in `docs/porting.md` or `docs/evaluation.md`.
+  "fix" it. A reason that needs more than two lines is a decision, and is
+  written in the specification of its area under a heading of its own; the
+  comment then names that heading, which is a page of this repository the
+  reader can open, not a dead pointer. `docs/porting.md` is not that place:
+  it is deleted when the port is done.
 
 A header that still does not fit is a module that does more than one thing:
 if saying what it does needs "and", split it, and give each part its own
@@ -47,7 +52,11 @@ header. Split for that reason only; every file is one more to open.
 
 The modules longer than the cap when the rule was made are listed in the
 test as `STILL_LONG`, and the workstream `docs/short-headers` shortens them.
-A module leaves the list when it is shortened, and cannot rejoin it.
+A module leaves the list when it is shortened, and cannot rejoin it: the
+test reads the list as the commit that introduced it wrote it, and refuses
+a name that was not there. The modules that `eval_code_sha` hashes are
+shortened before the evaluator is frozen, since afterwards not a byte of
+them changes.
 
 ## Docstrings and comments
 
@@ -57,7 +66,7 @@ A module leaves the list when it is shortened, and cannot rejoin it.
   bottom; one line per block, saying what it produces and from what. The
   reason for a choice inside a block is a comment of its own. A function
   short enough to read whole needs none.
-- **A term is called by what it says.** A question or a rule is named by
+- **A question or a rule is called by what it says**, that is, named by
   what it asks or states, never by its place in a list ("the second
   question"): a place means something only to whoever has the list open.
 - **A comment gives the reason, not a reference.** Never a section number, a
@@ -77,8 +86,9 @@ A module leaves the list when it is shortened, and cannot rejoin it.
   refusing it.
 - **No TODO in code.** A path known to give a wrong answer for some input
   raises on that input, with a test that plants it. A decision not yet made
-  is written under "Open questions" in `docs/porting.md`, where it is read,
-  not in a comment, where it is not. The reason is a clip extractor that
+  is written under "Open questions", where it is read, not in a comment,
+  where it is not: in `docs/porting.md` while the port lasts, and afterwards
+  in the specification of its area. The reason is a clip extractor that
   knew its gap frames carried the wrong frame number, wrote the TODO, and
   kept producing data: two months later the fault was found again
   downstream and explained wrongly, because a comment is read only by
@@ -95,6 +105,7 @@ A module leaves the list when it is shortened, and cannot rejoin it.
   what it is stacked on, when `main` was merged in, or how many review rounds
   it took. Those are in the history.
 - A document in the repository names no pull request number and no merge
-  status. A figure is drawn, and the text is the intent: a figure that
-  disagrees with the text is fixed toward the text.
+  status. A figure is an image under `docs/figures/`, not a diagram
+  generated from text such as Mermaid; the text is the intent, and a figure
+  that disagrees with it is fixed toward the text.
 - Commit messages and pull request text are in English.

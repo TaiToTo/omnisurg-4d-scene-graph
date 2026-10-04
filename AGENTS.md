@@ -112,11 +112,13 @@ against.
 - **A check earns its place by failing when it should**, with a test that
   plants the fault.
 - **No TODO in code.** A wrong path raises on its input; an open decision is
-  written under "Open questions" in `docs/porting.md`.
+  written under "Open questions", in `docs/porting.md` while the port lasts
+  and in the area's specification after.
 - **A module's header is short**: what the module does, in at most twelve
   lines, then how to run it. No history, no glossary, no defence of choices.
-- **A term is defined once**, in `docs/evaluation.md`, and called by what it
-  says, never by its place in a list.
+- **A term is defined once**, in its area's specification or in the one
+  docstring that uses it; a question or a rule is called by what it says,
+  never by its place in a list.
 - **A function of several steps names each step**, one line per block.
 - **A comment gives the reason, not a reference.** Never a section number,
   a ticket or a task id.

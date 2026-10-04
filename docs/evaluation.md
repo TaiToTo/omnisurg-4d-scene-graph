@@ -436,11 +436,14 @@ pilot evaluator's numbers.
   clip, under `per_clip`. A *key* is one column of the rows: the evaluator
   writes `metric/view` (`F1_50/geometric`) and `time_IoU` once per clip; a
   *pilot JSON*, one the pilot evaluator wrote, is told apart by holding none
-  of the fields above and keeps the pilot evaluator's spellings
+  of the class set, views, mode, input shas and versions
+  (`scores.EVALUATOR_FIELDS`) and keeps the pilot evaluator's spellings
   (`inst_F1_50`, `inst_F1_50_tissue`, with the domain after an underscore).
   A JSON this evaluator writes in pilot mode is not a pilot JSON.
-- A *ruler* is what a score was measured with: everything in the
-  comparability rule above. Two scores on one ruler are comparable.
+- A *ruler* is what a score was measured with, as `scores.Ruler` holds it:
+  `eval_code_sha`, dataset, mode, class set, views, and for a pilot JSON its
+  domain. Two scores are *comparable* when they share a ruler, cover the
+  same clips and read the same GT masks and depth maps, the rule above.
 - A *tag* is a condition's name on disk: the directory under each clip that
   holds its labels, and separately the name of its score JSON; the score
   names the label directory it read in `track_dir_name`.
