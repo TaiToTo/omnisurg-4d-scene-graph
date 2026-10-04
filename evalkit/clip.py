@@ -10,6 +10,11 @@ passes it in; it is one value for the clip under every view.
 Nothing is dropped without a count: the excluded frames are counted out of
 the given ones, and the pixel and object counts are summed. A clip with no
 scored frame is refused. PQ is not stored; `pq` gives it per frame.
+
+This is the normal-mode clip summary. Pilot mode has a driver of its own:
+the pilot evaluator averages with `np.mean`, writes 0 where no frame
+defines a key, and rounds to four decimals, and zero tolerance against its
+scores is the promise, so it does not reuse this composition.
 """
 from __future__ import annotations
 
@@ -128,6 +133,11 @@ def summarize_clip(frames: Sequence[ScoredFrame], time_iou: float | None) -> Cli
             excluded ones among them as `score_frame` returned them.
         time_iou: The clip's `time_IoU` from `evalkit.time_iou`, or None
             where it pooled nothing.
+
+    Returns:
+        The clip's `ClipScores`: a `ViewSummary` per view of `VIEWS`, the
+        `time_iou` as given, the scored and excluded frame counts, and the
+        frames as given.
 
     Raises:
         ValueError: No frame; a frame number given twice; a scored frame

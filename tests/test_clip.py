@@ -10,11 +10,11 @@ import pytest
 import scenes as S
 from evalkit.classes import VIEWS, load_table
 from evalkit.clip import ClipScores, ScoredFrame, pq, summarize_clip
-from evalkit.frame import KEYS, score_frame
+from evalkit.frame import KEYS, FrameScores, score_frame
 from evalkit.scored import PixelCounts
 
 DEPTH = np.ones((S.H, S.W), dtype=np.float32)
-LIVER, GALLBLADDER, BACKGROUND, EXCLUDED = 12, 14, 0, 42
+LIVER, GALLBLADDER, TOOL, VENA_CAVA, BACKGROUND, EXCLUDED = 12, 14, 1, 11, 0, 42
 ATLAS = load_table("atlas120k")
 
 
@@ -66,6 +66,24 @@ def test_each_mean_covers_the_frames_its_key_is_defined_on(clip):
             assert v.means[key] == 0.5 and v.n_frames[key] == 2, key
 
 
+def test_each_view_is_summarised_from_its_own_scores():
+    # The views scene of `tests/test_frame.py` (liver, a tool, gallbladder,
+    # the vena cava, the prediction exact), then the exact scene. The tool
+    # and the vena cava give each view other objects and pixels, and the
+    # geometric view no GT boundary on the first frame.
+    gt = np.empty((S.H, S.W), dtype=np.int32)
+    gt[:, :40], gt[:, 40:50], gt[:, 50:90], gt[:, 90:] = LIVER, TOOL, GALLBLADDER, VENA_CAVA
+    lab = np.empty((S.H, S.W), dtype=np.int32)
+    lab[:, :40], lab[:, 40:50], lab[:, 50:90], lab[:, 90:] = 0, 1, 2, 3
+    c = summarize_clip([frame(1, gt, lab), exact(2)], None)
+    assert {view: v.n_gt_objects for view, v in c.views.items()} == {"all": 6, "tissue": 5, "geometric": 4}
+    assert c.views["all"].pixels == PixelCounts(0, 0, 0, 0, 2 * S.H * S.W)
+    assert c.views["tissue"].pixels == PixelCounts(0, 0, 0, 600, 5400 + S.H * S.W)
+    assert c.views["geometric"].pixels == PixelCounts(0, 0, 0, 1200, 4800 + S.H * S.W)
+    assert {view: v.n_frames["boundary_R_raw"] for view, v in c.views.items()} == {
+        "all": 2, "tissue": 2, "geometric": 1}
+
+
 def test_the_counts_are_kept_and_the_excluded_frame_is_counted_not_scored(clip):
     assert (clip.n_scored_frames, clip.n_excluded_frames, clip.time_iou) == (3, 1, 0.75)
     assert [f.frame for f in clip.frames] == [10, 30, 20, 40]
@@ -89,6 +107,8 @@ def test_the_means_and_counts_are_read_only(clip):
     v = clip.views["all"]
     with pytest.raises(TypeError):
         v.means["F1_50"] = 0.0
+    with pytest.raises(TypeError):
+        v.n_frames["F1_50"] = 0
     with pytest.raises(TypeError):
         clip.views["all"] = v
 
@@ -123,7 +143,7 @@ def test_a_frame_given_twice_is_refused():
 def test_a_frame_scored_in_fewer_views_than_the_specification_is_refused():
     f = exact(1)
     views = {k: v for k, v in f.scores.views.items() if k != "geometric"}
-    partial = ScoredFrame(1, type(f.scores)(excluded=False, views=views))
+    partial = ScoredFrame(1, FrameScores(excluded=False, views=views))
     with pytest.raises(ValueError, match="not in"):
         summarize_clip([partial], None)
 
@@ -134,3 +154,4 @@ def test_time_iou_is_none_or_an_iou():
         with pytest.raises(ValueError, match="time_iou"):
             summarize_clip([f], bad)
     assert summarize_clip([f], 0).time_iou == 0.0
+    assert summarize_clip([f], 1).time_iou == 1.0
