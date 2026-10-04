@@ -145,6 +145,28 @@ def rows_of(summary: Mapping) -> dict[str, dict]:
     return {r["clip"]: r for r in summary["per_clip"]}
 
 
+def _check_rows(summary: Mapping, side: str) -> None:
+    """Refuse a JSON whose `clips` and `per_clip` name different clips, or name one twice.
+
+    The tools take the population from `clips_of` and the values from
+    `rows_of`. Where the two disagree, a pair is checked on one set of
+    clips and averaged over another with nothing failing; a clip named
+    twice in `per_clip` keeps its last row and loses the other silently.
+    """
+    rows = [r["clip"] for r in summary["per_clip"]]
+    twice = sorted({c for c in rows if rows.count(c) > 1})
+    if twice:
+        raise ValueError(f"{side}: per_clip holds more than one row for {twice}")
+    claimed = set(clips_of(summary))
+    if claimed != set(rows):
+        raise ValueError(
+            f"{side}: the JSON's clips and its per_clip rows name different clips\n"
+            f"  in clips only: {sorted(claimed - set(rows))}\n"
+            f"  in per_clip only: {sorted(set(rows) - claimed)}\n"
+            "  The population is read from one and the values from the other, so they must agree"
+        )
+
+
 def _pilot_domain(summary: Mapping) -> tuple | None:
     # The pilot's first JSONs recorded no `eval_version` and no domain; the
     # pilot's check compared domains only when both sides had one.
@@ -253,7 +275,8 @@ def check_comparable(
         ValueError: The shas differ or one is missing; one JSON is the pilot
             evaluator's and the other the evaluator's; the mode, class set,
             views or dataset differ; the pilot domains or a compared clip's
-            `extra_ignore` differ; the clips differ, no clip is common, or
+            `extra_ignore` differ; a JSON's `clips` and `per_clip` name
+            different clips; the clips differ, no clip is common, or
             neither JSON holds one; or the two read different inputs.
     """
     ra, rb = ruler(a), ruler(b)
@@ -313,6 +336,8 @@ def check_comparable(
             f"  cond: dataset={rb.dataset!r} pilot={rb.pilot} class_set={rb.class_set!r} views={list(rb.views)}"
         )
 
+    _check_rows(a, "base")
+    _check_rows(b, "cond")
     ca, cb = clips_of(a), clips_of(b)
     if sorted(ca) == sorted(cb):
         if not ca:

@@ -209,6 +209,25 @@ def test_two_scores_of_no_clips_at_all_are_refused():
         check_comparable(pilot_json(clips=[]), pilot_json(clips=[]))
 
 
+@pytest.mark.parametrize("make", [pilot_json, evaluator_json])
+def test_a_json_whose_clips_and_rows_disagree_is_refused(make):
+    # The population is read from `clips` and the values from `per_clip`;
+    # where they disagree, a pair is checked on one set of clips and
+    # averaged over another, with nothing failing.
+    fewer_claimed = make()
+    fewer_claimed["clips"] = CLIPS[:1]
+    with pytest.raises(ValueError, match=r"(?s)cond: .*name different clips.*per_clip only: \['VID02_s15_80_crop'\]"):
+        check_comparable(make(), fewer_claimed)
+    fewer_rows = make()
+    fewer_rows["per_clip"] = fewer_rows["per_clip"][:1]
+    with pytest.raises(ValueError, match=r"(?s)base: .*name different clips.*clips only: \['VID02_s15_80_crop'\]"):
+        check_comparable(fewer_rows, make())
+    twice = make()
+    twice["per_clip"].append(copy.deepcopy(twice["per_clip"][0]))
+    with pytest.raises(ValueError, match=r"more than one row for \['VID01_s15_80_crop'\]"):
+        check_comparable(make(), twice)
+
+
 # ---------------------------------------------------------------- the inputs and the versions
 
 

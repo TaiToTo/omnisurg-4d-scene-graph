@@ -113,7 +113,7 @@ copy to read the RGB clips, and the ported copies read `evalkit.classes`.
 
 | file | from the workbench | reviewed | work |
 |---|---|---|---|
-| `paired_stats.py` | `ipcai2027_experiment/scripts/paired_stats.py` | `extract/03-metrics` (#3) | `VERDICT_RULE` does not change. The comparability check now comes from the evaluator, not the pilot's `check_comparable`. `video_of` is defined here rather than delegated. |
+| `paired_stats.py` | `ipcai2027_experiment/scripts/paired_stats.py` | `extract/03-metrics` (#3) | `VERDICT_RULE` does not change. The comparability check now comes from the evaluator, not the pilot's `check_comparable`, and the statistics are taken on the clips it compared. `video_of` is defined here rather than delegated. Each row records the metric's `sign` and `verdict` reads the interval in it, so a metric where smaller is better, or a reference value that is never marked, is not oriented by the caller. A bootstrap over fewer than two units refuses rather than return a point. |
 | `compare_eval.py` | `depth_sam_tracking_experiment/compare_eval.py` | `extract/03-metrics` (#3) | It refuses to mix shas through the evaluator's check, which also compares dataset, class set, view and mode. |
 | `track_metrics.py` | `depth_sam_tracking_experiment/track_metrics.py` | `extract/03-metrics` (#3) | It imports `BACKGROUND`, `_gt_idmap` and `_load_depth` from the pilot's `eval_track`; they come from the evaluator instead. `MIN_AREA` is removed (decision 5). Whether it is part of the evaluator waits on open question 1; if it is, it moves to the table above. |
 | `surgical_core/clip_time.py` | `surgical_core/clip_time.py` | `extract/03-metrics` (#3) | English only. |
@@ -359,3 +359,14 @@ Every command takes those paths as arguments.
     check belongs there: refuse a table whose path is not among the hashed
     files before writing a score. Settle with it whether `path` stays a
     public argument of `load_table` at all, or becomes a test-only hook.
+12. **The fewest videos for an interval.** `paired_stats.boot_ci` refuses a
+    population of one video, where every resample is the same video and
+    the interval is a point. Two is the floor that removes that failure,
+    not a statistical one: with n videos the chance that a resample draws
+    one video n times is n^-n, above 2.5 % up to three videos, so on two
+    or three the 95 % interval is the range of the video means, and two
+    videos that agree in sign give a mark. `wilcoxon_video` draws its own
+    line at six for the same reason. Whether the interval gets a floor
+    above two, and where, is a decision about the paper's populations, not
+    the code's; until it is made, a subset's interval is read for its sign
+    only, as `--drop-video` says.
