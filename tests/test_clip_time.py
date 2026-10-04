@@ -3,20 +3,24 @@
 The function is the one place that turns a manifest into seconds, so what
 these tests pin is the rule itself: which key wins, that the ratio is applied,
 and that every case where seconds cannot be made is refused rather than
-filled in with a default.
+filled in with a default. Where a manifest needs the table of measured
+ratios, the tests ask the committed one.
 """
-import importlib.abc
-import importlib.machinery
 import json
-import sys
-import types
 from pathlib import Path
 
 import numpy as np
 import pytest
 
-from surgical_core import clip_time
+from surgical_core.atlas120k.frame_ratio import FrameRatios
 from surgical_core.clip_time import frame_times
+
+META = Path(__file__).resolve().parent.parent / "atlas120k_meta"
+
+
+@pytest.fixture(scope="module")
+def ratios():
+    return FrameRatios.load(str(META / "frame_ratio.json"))
 
 
 def _clip(tmp_path: Path, frames: list[dict], **meta) -> tuple[str, str]:
@@ -26,54 +30,6 @@ def _clip(tmp_path: Path, frames: list[dict], **meta) -> tuple[str, str]:
     with open(d / "frame_manifest.json", "w", encoding="utf-8") as f:
         json.dump(dict(frames=frames, **meta), f)
     return str(tmp_path), "clip_0001"
-
-
-def _plant_table(monkeypatch, ratio: int | None) -> None:
-    """Stand in for the table of measured ratios, or remove it.
-
-    `None` makes the import fail, whether or not the real module is installed:
-    a `None` entry in `sys.modules` is how Python marks a module that cannot
-    be imported.
-    """
-    if ratio is None:
-        monkeypatch.setitem(sys.modules, clip_time.MEASURED_RATIOS, None)
-        return
-    mod = types.ModuleType(clip_time.MEASURED_RATIOS)
-    mod.frame_ratio = lambda procedure, youtube_id: ratio
-    monkeypatch.setitem(sys.modules, clip_time.MEASURED_RATIOS, mod)
-
-
-def _plant_broken_table(monkeypatch, missing: str | None) -> None:
-    """Stand in for a table that is found but fails to import something.
-
-    The stand-in goes through the real import machinery (a finder on
-    `sys.meta_path`), so what `frame_times` sees is exactly what a table with
-    a bad import would raise: a `ModuleNotFoundError` naming `missing`, or
-    one raised without a name when `missing` is `None`.
-    """
-    class Loader(importlib.abc.Loader):
-        def create_module(self, spec):
-            return None
-
-        def exec_module(self, module):
-            if missing is None:
-                raise ModuleNotFoundError("raised without a name")
-            raise ModuleNotFoundError(f"No module named '{missing}'", name=missing)
-
-    class Finder(importlib.abc.MetaPathFinder):
-        def find_spec(self, name, path, target=None):
-            if name == clip_time.MEASURED_RATIOS:
-                return importlib.machinery.ModuleSpec(name, Loader())
-            return None
-
-    # The finder answers for the table only; its parent packages need to
-    # exist for the dotted import to reach it.
-    parent = clip_time.MEASURED_RATIOS.rpartition(".")[0]
-    pkg = types.ModuleType(parent)
-    pkg.__path__ = []
-    monkeypatch.setitem(sys.modules, parent, pkg)
-    monkeypatch.delitem(sys.modules, clip_time.MEASURED_RATIOS, raising=False)
-    monkeypatch.setattr(sys, "meta_path", [Finder()] + sys.meta_path)
 
 
 def test_cholec_uses_timestamp_sec(tmp_path):
@@ -96,81 +52,57 @@ def test_frame_ratio_is_applied(tmp_path):
     assert t.tolist() == pytest.approx([0.0, 3 * 10 / 59.94])
 
 
-def test_no_ratio_and_no_video_means_ratio_1(tmp_path, monkeypatch):
+def test_no_ratio_and_no_video_means_ratio_1(tmp_path):
     """A manifest that names no video has no ratio to look up, so it passes at
-    1 whether or not a table is there. That keeps the populations without a
-    ratio (CholecSeg8k) as they are; an ATLAS-120k clip extracted before the
-    ratio was recorded is a different thing, and the next tests refuse it."""
-    _plant_table(monkeypatch, None)
+    1 without a table. That keeps the populations without a ratio
+    (CholecSeg8k) as they are; an ATLAS-120k clip extracted before the ratio
+    was recorded is a different thing, and the next tests refuse it."""
     root, clip = _clip(tmp_path, [{"native_frame": 30}, {"native_frame": 60}],
                        fps_native=30.0)
     assert frame_times(root, clip).tolist() == [1.0, 2.0]
 
 
 def test_atlas_manifest_without_ratio_is_refused_when_table_says_otherwise(
-        tmp_path, monkeypatch):
+        tmp_path, ratios):
     """The failing case must fail: no silent default of 1.
 
     Such a manifest has neither `frame_ratio` nor `gt_step_sec_actual`, so
     the step check cannot catch it; asking the table is the only way to know.
     """
-    _plant_table(monkeypatch, 3)
     root, clip = _clip(tmp_path, [{"native_frame": 30}, {"native_frame": 60}],
                        fps_native=60.0, procedure="rarp", youtube_id="AZw_lOLChmM")
     with pytest.raises(RuntimeError, match="measured ratio of this video is 3"):
-        frame_times(root, clip)
+        frame_times(root, clip, ratios)
 
 
-def test_atlas_manifest_without_ratio_passes_when_table_says_1(tmp_path, monkeypatch):
+def test_atlas_manifest_without_ratio_passes_when_table_says_1(tmp_path, ratios):
     """Only a ratio known to differ from 1 is refused."""
-    _plant_table(monkeypatch, 1)
     root, clip = _clip(tmp_path, [{"native_frame": 30}, {"native_frame": 60}],
                        fps_native=30.0, procedure="adrenalectomy",
                        youtube_id="16GPCUPkXYQ")
-    assert frame_times(root, clip).tolist() == [1.0, 2.0]
+    assert frame_times(root, clip, ratios).tolist() == [1.0, 2.0]
 
 
-def test_atlas_manifest_without_ratio_is_refused_without_a_table(tmp_path, monkeypatch):
+def test_atlas_manifest_without_ratio_is_refused_without_a_table(tmp_path):
     """No table to ask means the ratio is unknown, and unknown is refused."""
-    _plant_table(monkeypatch, None)
     root, clip = _clip(tmp_path, [{"native_frame": 30}, {"native_frame": 60}],
                        fps_native=30.0, procedure="adrenalectomy",
                        youtube_id="16GPCUPkXYQ")
-    with pytest.raises(RuntimeError, match="is not available"):
+    with pytest.raises(RuntimeError, match="no table of measured ratios was given"):
         frame_times(root, clip)
 
 
-@pytest.mark.parametrize("missing", ["cv2", "surgical_core.atlas", None])
-def test_a_dependency_missing_inside_the_table_is_not_called_no_table(
-        tmp_path, monkeypatch, missing):
-    """A table that is there but cannot import something of its own is a
-    broken install, not a missing table, and the error must say which.
-
-    `surgical_core.atlas` is the workbench's old name for the package, the
-    import most likely to be left inside the table by mistake, and a string
-    prefix of the table's own name: a prefix comparison would call it "no
-    table". An error raised without a name names nothing, so it is passed on
-    rather than guessed about.
-    """
-    _plant_broken_table(monkeypatch, missing)
-    root, clip = _clip(tmp_path, [{"native_frame": 30}, {"native_frame": 60}],
-                       fps_native=30.0, procedure="adrenalectomy",
-                       youtube_id="16GPCUPkXYQ")
-    with pytest.raises(ModuleNotFoundError, match=missing or "without a name"):
-        frame_times(root, clip)
-
-
-def test_a_package_above_the_table_missing_is_no_table(tmp_path, monkeypatch):
-    """Until `atlas120k-meta/readers` lands, the package the table lives in
-    does not exist either; that is the ordinary "no table" case."""
-    parent = clip_time.MEASURED_RATIOS.rpartition(".")[0]
-    monkeypatch.setitem(sys.modules, parent, None)
-    monkeypatch.delitem(sys.modules, clip_time.MEASURED_RATIOS, raising=False)
-    root, clip = _clip(tmp_path, [{"native_frame": 30}, {"native_frame": 60}],
-                       fps_native=30.0, procedure="adrenalectomy",
-                       youtube_id="16GPCUPkXYQ")
-    with pytest.raises(RuntimeError, match="is not available"):
-        frame_times(root, clip)
+def test_atlas_manifest_of_an_unmeasured_video_is_refused(tmp_path, ratios):
+    """A video the table does not hold has an unknown ratio, not ratio 1. A
+    manifest whose `procedure` is a display string rather than the
+    directory name misses the table the same way."""
+    for i, (procedure, video) in enumerate((("newprocedure", "newvideo"),
+                                            ("pi3x (ATLAS-120k)", "16GPCUPkXYQ"))):
+        (tmp_path / str(i)).mkdir()
+        root, clip = _clip(tmp_path / str(i), [{"native_frame": 30}, {"native_frame": 60}],
+                           fps_native=30.0, procedure=procedure, youtube_id=video)
+        with pytest.raises(RuntimeError, match="is not in the table"):
+            frame_times(root, clip, ratios)
 
 
 @pytest.mark.parametrize("ratio", [0, -2])
