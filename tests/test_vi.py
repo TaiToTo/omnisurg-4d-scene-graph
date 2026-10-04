@@ -6,7 +6,7 @@ binary entropy in bits, h(1/2) = 1 and h(0.1) = 0.4690.
 import numpy as np
 import pytest
 
-from evalkit.vi import variation_of_information
+from evalkit.vi import VIScores, variation_of_information
 
 H, W = 60, 100
 HALF = W // 2
@@ -32,7 +32,7 @@ def split_at(col: int, ids=(0, 1)) -> np.ndarray:
 
 
 def test_an_exact_prediction_has_no_information_lost_either_way():
-    assert variation_of_information(two_classes(), split_at(HALF), ALL) == (0.0, 0.0)
+    assert variation_of_information(two_classes(), split_at(HALF), ALL) == VIScores(0.0, 0.0)
 
 
 def test_a_class_halved_costs_one_bit_on_that_class_and_nothing_on_merge():
@@ -40,15 +40,15 @@ def test_a_class_halved_costs_one_bit_on_that_class_and_nothing_on_merge():
     # by class 1's half of the pixels.
     lab = split_at(HALF, (0, 2))
     lab[:, HALF // 2:HALF] = 1
-    split, merge = variation_of_information(two_classes(), lab, ALL)
-    assert split == pytest.approx(0.5)
-    assert merge == pytest.approx(0.0)
+    vi = variation_of_information(two_classes(), lab, ALL)
+    assert vi.split == pytest.approx(0.5)
+    assert vi.merge == pytest.approx(0.0)
 
 
 def test_one_region_over_two_equal_classes_costs_one_bit_of_merge():
-    split, merge = variation_of_information(two_classes(), np.zeros((H, W), np.int32), ALL)
-    assert split == pytest.approx(0.0)
-    assert merge == pytest.approx(1.0)
+    vi = variation_of_information(two_classes(), np.zeros((H, W), np.int32), ALL)
+    assert vi.split == pytest.approx(0.0)
+    assert vi.merge == pytest.approx(1.0)
 
 
 def test_pixels_with_no_region_count_together_as_one_region():
@@ -58,12 +58,13 @@ def test_pixels_with_no_region_count_together_as_one_region():
     # carries one bit of merge on a tenth of the pixels.
     lab = split_at(HALF)
     lab[:, HALF - 5:HALF + 5] = -1
-    split, merge = variation_of_information(two_classes(), lab, ALL)
-    assert split == pytest.approx(h(0.1))
-    assert merge == pytest.approx(0.1)
+    vi = variation_of_information(two_classes(), lab, ALL)
+    assert vi.split == pytest.approx(h(0.1))
+    assert vi.merge == pytest.approx(0.1)
     # Had every such pixel been its own region, the split would be far larger.
     none = np.full((H, W), -1, dtype=np.int32)
-    assert variation_of_information(two_classes(), none, ALL) == pytest.approx((0.0, 1.0))
+    vi = variation_of_information(two_classes(), none, ALL)
+    assert vi.split == pytest.approx(0.0) and vi.merge == pytest.approx(1.0)
 
 
 def test_only_scored_pixels_enter():
@@ -74,9 +75,8 @@ def test_only_scored_pixels_enter():
     gt[:10] = 0
     lab = split_at(HALF)
     lab[:10] = 0
-    assert variation_of_information(gt, lab, gt != 0) == (0.0, 0.0)
-    _, merge_if_counted = variation_of_information(gt, lab, ALL)
-    assert merge_if_counted > 0
+    assert variation_of_information(gt, lab, gt != 0) == VIScores(0.0, 0.0)
+    assert variation_of_information(gt, lab, ALL).merge > 0
 
 
 def test_a_negative_gt_id_on_a_scored_pixel_is_refused():
@@ -85,7 +85,7 @@ def test_a_negative_gt_id_on_a_scored_pixel_is_refused():
     with pytest.raises(ValueError, match="negative"):
         variation_of_information(gt, split_at(HALF), ALL)
     # Off the scored pixels it is not looked at.
-    assert variation_of_information(gt, split_at(HALF), gt >= 0) == (0.0, 0.0)
+    assert variation_of_information(gt, split_at(HALF), gt >= 0) == VIScores(0.0, 0.0)
 
 
 def test_undefined_without_a_scored_pixel():
