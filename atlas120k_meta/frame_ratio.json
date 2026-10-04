@@ -1,0 +1,782 @@
+{
+ "match_tol": 8.0,
+ "n_videos": 97,
+ "videos": [
+  {
+   "procedure": "adrenalectomy",
+   "video": "16GPCUPkXYQ",
+   "ratio": 1,
+   "native_frame": 2978,
+   "mp4_frame": 2978,
+   "diff": 0.96
+  },
+  {
+   "procedure": "appendectomy",
+   "video": "41RKDh3INiU",
+   "ratio": 1,
+   "native_frame": 254,
+   "mp4_frame": 254,
+   "diff": 1.02
+  },
+  {
+   "procedure": "appendectomy",
+   "video": "XEcjPI5Alb0",
+   "ratio": 1,
+   "native_frame": 1313,
+   "mp4_frame": 1313,
+   "diff": 1.03
+  },
+  {
+   "procedure": "appendectomy",
+   "video": "ZdBpRNRFf1A",
+   "ratio": 1,
+   "native_frame": 855,
+   "mp4_frame": 855,
+   "diff": 0.76
+  },
+  {
+   "procedure": "appendectomy",
+   "video": "ibPeqahGcSo",
+   "ratio": 1,
+   "native_frame": 324,
+   "mp4_frame": 324,
+   "diff": 1.1
+  },
+  {
+   "procedure": "cholecystectomy",
+   "video": "1trsPYQ7rmg",
+   "ratio": 3,
+   "native_frame": 30,
+   "mp4_frame": 90,
+   "diff": 1.25
+  },
+  {
+   "procedure": "cholecystectomy",
+   "video": "1ud3syYKD3A",
+   "ratio": 4,
+   "native_frame": 30,
+   "mp4_frame": 120,
+   "diff": 1.5
+  },
+  {
+   "procedure": "cholecystectomy",
+   "video": "4FpUGXO9mzg",
+   "ratio": 1,
+   "native_frame": 30,
+   "mp4_frame": 30,
+   "diff": 1.19
+  },
+  {
+   "procedure": "cholecystectomy",
+   "video": "4T6Le0qwfJ8",
+   "ratio": 1,
+   "native_frame": 358,
+   "mp4_frame": 358,
+   "diff": 1.28
+  },
+  {
+   "procedure": "cholecystectomy",
+   "video": "4taQcQXVl_k",
+   "ratio": 1,
+   "native_frame": 1735,
+   "mp4_frame": 1735,
+   "diff": 1.07
+  },
+  {
+   "procedure": "cholecystectomy",
+   "video": "5TEvJOWx7OM",
+   "ratio": 1,
+   "native_frame": 410,
+   "mp4_frame": 410,
+   "diff": 1.14
+  },
+  {
+   "procedure": "cholecystectomy",
+   "video": "5fAHdwofg4o",
+   "ratio": 2,
+   "native_frame": 79,
+   "mp4_frame": 158,
+   "diff": 0.93
+  },
+  {
+   "procedure": "cholecystectomy",
+   "video": "76_rHrx0OwM",
+   "ratio": 1,
+   "native_frame": 3961,
+   "mp4_frame": 3961,
+   "diff": 1.07
+  },
+  {
+   "procedure": "cholecystectomy",
+   "video": "7ApGq0IlR3k",
+   "ratio": 1,
+   "native_frame": 30,
+   "mp4_frame": 30,
+   "diff": 0.96
+  },
+  {
+   "procedure": "cholecystectomy",
+   "video": "7RqTNr2Bmvk",
+   "ratio": 1,
+   "native_frame": 8509,
+   "mp4_frame": 8509,
+   "diff": 0.91
+  },
+  {
+   "procedure": "cholecystectomy",
+   "video": "8PaByofhGZ4",
+   "ratio": 1,
+   "native_frame": 983,
+   "mp4_frame": 983,
+   "diff": 0.95
+  },
+  {
+   "procedure": "cholecystectomy",
+   "video": "BdZKjLz-twU",
+   "ratio": 1,
+   "native_frame": 30,
+   "mp4_frame": 30,
+   "diff": 1.14
+  },
+  {
+   "procedure": "cholecystectomy",
+   "video": "Bj13QcLRCVc",
+   "ratio": 2,
+   "native_frame": 30,
+   "mp4_frame": 60,
+   "diff": 1.35
+  },
+  {
+   "procedure": "cholecystectomy",
+   "video": "DKufff9lglk",
+   "ratio": 1,
+   "native_frame": 875,
+   "mp4_frame": 875,
+   "diff": 0.98
+  },
+  {
+   "procedure": "cholecystectomy",
+   "video": "EKQDBj7u0-c",
+   "ratio": 1,
+   "native_frame": 441,
+   "mp4_frame": 441,
+   "diff": 0.78
+  },
+  {
+   "procedure": "cholecystectomy",
+   "video": "EPcntn3KRAQ",
+   "ratio": 1,
+   "native_frame": 30,
+   "mp4_frame": 30,
+   "diff": 1.36
+  },
+  {
+   "procedure": "cholecystectomy",
+   "video": "FQ-KABSrark",
+   "ratio": 1,
+   "native_frame": 164,
+   "mp4_frame": 164,
+   "diff": 1.35
+  },
+  {
+   "procedure": "cholecystectomy",
+   "video": "J5bg8KTYrw0",
+   "ratio": 1,
+   "native_frame": 994,
+   "mp4_frame": 994,
+   "diff": 1.12
+  },
+  {
+   "procedure": "cholecystectomy",
+   "video": "JedzslyadF8",
+   "ratio": 1,
+   "native_frame": 264,
+   "mp4_frame": 264,
+   "diff": 1.86
+  },
+  {
+   "procedure": "cholecystectomy",
+   "video": "Kg9vCLSWM1E",
+   "ratio": 1,
+   "native_frame": 114,
+   "mp4_frame": 114,
+   "diff": 1.05
+  },
+  {
+   "procedure": "cholecystectomy",
+   "video": "N9VnLoUpEgw",
+   "ratio": 1,
+   "native_frame": 505,
+   "mp4_frame": 505,
+   "diff": 1.21
+  },
+  {
+   "procedure": "cholecystectomy",
+   "video": "Va3QomCEaTE",
+   "ratio": 4,
+   "native_frame": 30,
+   "mp4_frame": 120,
+   "diff": 1.3
+  },
+  {
+   "procedure": "cholecystectomy",
+   "video": "_-aytJndMV4",
+   "ratio": 1,
+   "native_frame": 1268,
+   "mp4_frame": 1268,
+   "diff": 1.42
+  },
+  {
+   "procedure": "cholecystectomy",
+   "video": "_qtEBCP-yq8",
+   "ratio": 1,
+   "native_frame": 649,
+   "mp4_frame": 649,
+   "diff": 1.19
+  },
+  {
+   "procedure": "cholecystectomy",
+   "video": "fWucwHRt4UA",
+   "ratio": 1,
+   "native_frame": 141,
+   "mp4_frame": 141,
+   "diff": 0.79
+  },
+  {
+   "procedure": "cholecystectomy",
+   "video": "m0j9Us_4zR8",
+   "ratio": 1,
+   "native_frame": 296,
+   "mp4_frame": 296,
+   "diff": 1.53
+  },
+  {
+   "procedure": "cholecystectomy",
+   "video": "nqgYPh_x5T8",
+   "ratio": 1,
+   "native_frame": 195,
+   "mp4_frame": 195,
+   "diff": 1.01
+  },
+  {
+   "procedure": "cholecystectomy",
+   "video": "oAz3BaHSsJc",
+   "ratio": 1,
+   "native_frame": 195,
+   "mp4_frame": 195,
+   "diff": 1.3
+  },
+  {
+   "procedure": "cholecystectomy",
+   "video": "pNW9U_mOUEQ",
+   "ratio": 1,
+   "native_frame": 161,
+   "mp4_frame": 161,
+   "diff": 1.23
+  },
+  {
+   "procedure": "cholecystectomy",
+   "video": "rgdlZajfGgU",
+   "ratio": 1,
+   "native_frame": 30,
+   "mp4_frame": 30,
+   "diff": 1.17
+  },
+  {
+   "procedure": "cholecystectomy",
+   "video": "s8k98gGeFf0",
+   "ratio": 1,
+   "native_frame": 684,
+   "mp4_frame": 684,
+   "diff": 0.97
+  },
+  {
+   "procedure": "cholecystectomy",
+   "video": "xEps8nqblY0",
+   "ratio": 1,
+   "native_frame": 30,
+   "mp4_frame": 30,
+   "diff": 1.36
+  },
+  {
+   "procedure": "colectomy",
+   "video": "0ZOUS_v-fsM",
+   "ratio": 1,
+   "native_frame": 398,
+   "mp4_frame": 398,
+   "diff": 1.22
+  },
+  {
+   "procedure": "colectomy",
+   "video": "2JkHKbNsKs8",
+   "ratio": 1,
+   "native_frame": 2619,
+   "mp4_frame": 2619,
+   "diff": 1.26
+  },
+  {
+   "procedure": "colectomy",
+   "video": "2ZwZU_vteAY",
+   "ratio": 1,
+   "native_frame": 10219,
+   "mp4_frame": 10219,
+   "diff": 1.47
+  },
+  {
+   "procedure": "colectomy",
+   "video": "5Z-C4hsIeDk",
+   "ratio": 3,
+   "native_frame": 3448,
+   "mp4_frame": 10344,
+   "diff": 1.09
+  },
+  {
+   "procedure": "colectomy",
+   "video": "7ENyRFIj8qA",
+   "ratio": 1,
+   "native_frame": 16031,
+   "mp4_frame": 16031,
+   "diff": 0.74
+  },
+  {
+   "procedure": "colectomy",
+   "video": "PiwjyeRRqXk",
+   "ratio": 1,
+   "native_frame": 88,
+   "mp4_frame": 88,
+   "diff": 0.97
+  },
+  {
+   "procedure": "colectomy",
+   "video": "_9ylo-3B49g",
+   "ratio": 1,
+   "native_frame": 26,
+   "mp4_frame": 26,
+   "diff": 1.19
+  },
+  {
+   "procedure": "esophagectomy",
+   "video": "1AZemLscDK4",
+   "ratio": 1,
+   "native_frame": 1948,
+   "mp4_frame": 1948,
+   "diff": 1.41
+  },
+  {
+   "procedure": "esophagectomy",
+   "video": "6X7BRo4hNt8",
+   "ratio": 2,
+   "native_frame": 107,
+   "mp4_frame": 214,
+   "diff": 1.07
+  },
+  {
+   "procedure": "esophagectomy",
+   "video": "C1cBTvzklpw",
+   "ratio": 1,
+   "native_frame": 613,
+   "mp4_frame": 613,
+   "diff": 1.13
+  },
+  {
+   "procedure": "esophagectomy",
+   "video": "CDTl9wnODBw",
+   "ratio": 1,
+   "native_frame": 5481,
+   "mp4_frame": 5481,
+   "diff": 1.16
+  },
+  {
+   "procedure": "esophagectomy",
+   "video": "J4baNI2MKfY",
+   "ratio": 1,
+   "native_frame": 14077,
+   "mp4_frame": 14077,
+   "diff": 1.09
+  },
+  {
+   "procedure": "esophagectomy",
+   "video": "TJNzaGq4l1I",
+   "ratio": 1,
+   "native_frame": 508,
+   "mp4_frame": 508,
+   "diff": 1.31
+  },
+  {
+   "procedure": "esophagectomy",
+   "video": "X2n2mJxEwKs",
+   "ratio": 2,
+   "native_frame": 104,
+   "mp4_frame": 208,
+   "diff": 1.0
+  },
+  {
+   "procedure": "esophagectomy",
+   "video": "Y-kKc439v8o",
+   "ratio": 1,
+   "native_frame": 216,
+   "mp4_frame": 216,
+   "diff": 1.2
+  },
+  {
+   "procedure": "esophagectomy",
+   "video": "aTSG2tm6baY",
+   "ratio": 1,
+   "native_frame": 897,
+   "mp4_frame": 897,
+   "diff": 1.11
+  },
+  {
+   "procedure": "esophagectomy",
+   "video": "b1oazd6RKHs",
+   "ratio": 1,
+   "native_frame": 3639,
+   "mp4_frame": 3639,
+   "diff": 0.91
+  },
+  {
+   "procedure": "esophagectomy",
+   "video": "rriqrf2Obv8",
+   "ratio": 1,
+   "native_frame": 2541,
+   "mp4_frame": 2541,
+   "diff": 1.31
+  },
+  {
+   "procedure": "esophagectomy",
+   "video": "vvqkGphQc1U",
+   "ratio": 2,
+   "native_frame": 420,
+   "mp4_frame": 840,
+   "diff": 0.97
+  },
+  {
+   "procedure": "esophagectomy",
+   "video": "zQBHloIfhd8",
+   "ratio": 1,
+   "native_frame": 1372,
+   "mp4_frame": 1372,
+   "diff": 1.16
+  },
+  {
+   "procedure": "gastric_surgery",
+   "video": "3qfVO2Ovsgk",
+   "ratio": 1,
+   "native_frame": 909,
+   "mp4_frame": 909,
+   "diff": 1.23
+  },
+  {
+   "procedure": "gastric_surgery",
+   "video": "4FHGGFZsPzw",
+   "ratio": 1,
+   "native_frame": 3003,
+   "mp4_frame": 3003,
+   "diff": 1.21
+  },
+  {
+   "procedure": "gastric_surgery",
+   "video": "7AzfciNaS90",
+   "ratio": 1,
+   "native_frame": 1740,
+   "mp4_frame": 1740,
+   "diff": 1.53
+  },
+  {
+   "procedure": "gastrojejunostomy",
+   "video": "9-41mie67Cw",
+   "ratio": 1,
+   "native_frame": 1007,
+   "mp4_frame": 1007,
+   "diff": 0.94
+  },
+  {
+   "procedure": "gastrojejunostomy",
+   "video": "JZNS119Bu5A",
+   "ratio": 1,
+   "native_frame": 444,
+   "mp4_frame": 444,
+   "diff": 1.25
+  },
+  {
+   "procedure": "gastrojejunostomy",
+   "video": "agJexAzuAX8",
+   "ratio": 2,
+   "native_frame": 22797,
+   "mp4_frame": 45594,
+   "diff": 1.46
+  },
+  {
+   "procedure": "gastrojejunostomy",
+   "video": "hRdeqmI_VIs",
+   "ratio": 1,
+   "native_frame": 397,
+   "mp4_frame": 397,
+   "diff": 1.53
+  },
+  {
+   "procedure": "gastrojejunostomy",
+   "video": "hl952KH9MHg",
+   "ratio": 1,
+   "native_frame": 2465,
+   "mp4_frame": 2465,
+   "diff": 1.19
+  },
+  {
+   "procedure": "hemicolectomy",
+   "video": "5Wn22szMCFU",
+   "ratio": 1,
+   "native_frame": 980,
+   "mp4_frame": 980,
+   "diff": 0.78
+  },
+  {
+   "procedure": "hemicolectomy",
+   "video": "5YDMlxTl0k8",
+   "ratio": 1,
+   "native_frame": 533,
+   "mp4_frame": 533,
+   "diff": 1.0
+  },
+  {
+   "procedure": "hemicolectomy",
+   "video": "6qb-oFqRjbE",
+   "ratio": 1,
+   "native_frame": 933,
+   "mp4_frame": 933,
+   "diff": 1.2
+  },
+  {
+   "procedure": "hemicolectomy",
+   "video": "Jw5R_jcTtn8",
+   "ratio": 1,
+   "native_frame": 738,
+   "mp4_frame": 738,
+   "diff": 1.04
+  },
+  {
+   "procedure": "hemicolectomy",
+   "video": "SbqubK1FX50",
+   "ratio": 1,
+   "native_frame": 1018,
+   "mp4_frame": 1018,
+   "diff": 1.25
+  },
+  {
+   "procedure": "hemicolectomy",
+   "video": "Vbcmx6eCqko",
+   "ratio": 1,
+   "native_frame": 241,
+   "mp4_frame": 241,
+   "diff": 1.54
+  },
+  {
+   "procedure": "hemicolectomy",
+   "video": "lUM_RtRsCKg",
+   "ratio": 1,
+   "native_frame": 1111,
+   "mp4_frame": 1111,
+   "diff": 1.36
+  },
+  {
+   "procedure": "hemicolectomy",
+   "video": "pfMlLui0jhA",
+   "ratio": 1,
+   "native_frame": 1083,
+   "mp4_frame": 1083,
+   "diff": 1.2
+  },
+  {
+   "procedure": "lar",
+   "video": "_7H7G-4sevQ",
+   "ratio": 1,
+   "native_frame": 30,
+   "mp4_frame": 30,
+   "diff": 1.06
+  },
+  {
+   "procedure": "lar",
+   "video": "dCaGyca-jJw",
+   "ratio": 1,
+   "native_frame": 1173,
+   "mp4_frame": 1173,
+   "diff": 1.05
+  },
+  {
+   "procedure": "liver_resection",
+   "video": "wAnvytUuDkA",
+   "ratio": 2,
+   "native_frame": 1182,
+   "mp4_frame": 2364,
+   "diff": 1.22
+  },
+  {
+   "procedure": "rarp",
+   "video": "9WacMabNLVs",
+   "ratio": 1,
+   "native_frame": 151,
+   "mp4_frame": 151,
+   "diff": 1.21
+  },
+  {
+   "procedure": "rarp",
+   "video": "AZw_lOLChmM",
+   "ratio": 3,
+   "native_frame": 2778,
+   "mp4_frame": 8334,
+   "diff": 1.29
+  },
+  {
+   "procedure": "rarp",
+   "video": "DS7ddQltHRY",
+   "ratio": 1,
+   "native_frame": 2383,
+   "mp4_frame": 2383,
+   "diff": 1.27
+  },
+  {
+   "procedure": "rarp",
+   "video": "NitKIjCcS7U",
+   "ratio": 1,
+   "native_frame": 8225,
+   "mp4_frame": 8225,
+   "diff": 1.39
+  },
+  {
+   "procedure": "rarp",
+   "video": "QxmGKqOtXd8",
+   "ratio": 1,
+   "native_frame": 28948,
+   "mp4_frame": 28948,
+   "diff": 1.06
+  },
+  {
+   "procedure": "rarp",
+   "video": "RG-KrT9Yaac",
+   "ratio": 1,
+   "native_frame": 5792,
+   "mp4_frame": 5792,
+   "diff": 1.43
+  },
+  {
+   "procedure": "rarp",
+   "video": "T_maXoZvMxs",
+   "ratio": 1,
+   "native_frame": 1058,
+   "mp4_frame": 1058,
+   "diff": 1.08
+  },
+  {
+   "procedure": "rarp",
+   "video": "c3R8aE2rhW4",
+   "ratio": 1,
+   "native_frame": 7492,
+   "mp4_frame": 7492,
+   "diff": 1.44
+  },
+  {
+   "procedure": "rarp",
+   "video": "hwgXooRFowg",
+   "ratio": 2,
+   "native_frame": 15798,
+   "mp4_frame": 31596,
+   "diff": 1.28
+  },
+  {
+   "procedure": "rarp",
+   "video": "w9egS1qHdX4",
+   "ratio": 3,
+   "native_frame": 353,
+   "mp4_frame": 1059,
+   "diff": 1.38
+  },
+  {
+   "procedure": "rectopexy",
+   "video": "IJfgUvxoTkM",
+   "ratio": 1,
+   "native_frame": 55,
+   "mp4_frame": 55,
+   "diff": 1.11
+  },
+  {
+   "procedure": "sigmoidcolectomy",
+   "video": "2CmNyZWDxO4",
+   "ratio": 1,
+   "native_frame": 473,
+   "mp4_frame": 473,
+   "diff": 1.02
+  },
+  {
+   "procedure": "sigmoidcolectomy",
+   "video": "4gmGWvP-XwU",
+   "ratio": 1,
+   "native_frame": 30,
+   "mp4_frame": 30,
+   "diff": 1.29
+  },
+  {
+   "procedure": "sigmoidcolectomy",
+   "video": "KA5RO0CMg6I",
+   "ratio": 1,
+   "native_frame": 3986,
+   "mp4_frame": 3986,
+   "diff": 1.46
+  },
+  {
+   "procedure": "sigmoidcolectomy",
+   "video": "MIFNpGu1cC8",
+   "ratio": 1,
+   "native_frame": 3143,
+   "mp4_frame": 3143,
+   "diff": 1.13
+  },
+  {
+   "procedure": "sigmoidcolectomy",
+   "video": "S3S_3GDc3dA",
+   "ratio": 1,
+   "native_frame": 137,
+   "mp4_frame": 137,
+   "diff": 1.06
+  },
+  {
+   "procedure": "splenectomy",
+   "video": "20BJJ1jQOwc",
+   "ratio": 1,
+   "native_frame": 416,
+   "mp4_frame": 416,
+   "diff": 1.48
+  },
+  {
+   "procedure": "splenectomy",
+   "video": "HAaMkM113Jw",
+   "ratio": 1,
+   "native_frame": 6727,
+   "mp4_frame": 6727,
+   "diff": 0.9
+  },
+  {
+   "procedure": "splenectomy",
+   "video": "mp7wFPjALaw",
+   "ratio": 1,
+   "native_frame": 1072,
+   "mp4_frame": 1072,
+   "diff": 1.34
+  },
+  {
+   "procedure": "splenectomy",
+   "video": "oHYOgkfKm68",
+   "ratio": 1,
+   "native_frame": 13952,
+   "mp4_frame": 13952,
+   "diff": 1.11
+  },
+  {
+   "procedure": "splenectomy",
+   "video": "uA6q35o0Yho",
+   "ratio": 1,
+   "native_frame": 4449,
+   "mp4_frame": 4449,
+   "diff": 0.93
+  }
+ ]
+}

@@ -263,8 +263,10 @@ does not have one rectangle, since the recording changes mid-video in some,
 and the recipe's guess was wrong for most clips, so a person judged each clip
 and the file is that judgement. `frame_ratio` holds the measured ratio between
 a clip index's frame numbers and the mp4's: for some videos the annotation
-numbers frames at a lower rate, the ratio cannot be derived from the fps, so
-it is a measurement, and an unmeasured video is refused rather than guessed.
+numbers frames at a lower rate. The ratio follows from the fps by the
+dataset's sampling rule, but the mp4 on disk is not necessarily the one the
+authors sampled, so the table is a measurement, and an unmeasured video is refused
+rather than guessed.
 
 **Work.** Port as `surgical_core/atlas120k/clip_rects.py` and `frame_ratio.py`
 (the module is `atlas120k`, decision 8 in `docs/porting.md`). English only;
