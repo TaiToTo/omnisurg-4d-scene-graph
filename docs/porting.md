@@ -222,9 +222,12 @@ while the evaluator is built and reviewed is worked out in `docs/workstreams.md`
      planted mixed ruler and a planted missing condition.
    The paper's numbers are the step-3 scores read through these tools.
 5. **Port the pipeline, one stage at a time.** Each stage's output must match
-   the workbench byte for byte. The one exception is Pi3X's `runtime_sec`, per
-   `repo_migration_determinism.md`. If the package comparison in step 2 found
-   a difference, measure determinism again first. The 315 clips also get DA3
+   the workbench byte for byte. Two exceptions: Pi3X's `runtime_sec`, per
+   `repo_migration_determinism.md`; and the 14 CholecSeg8k clips whose gap
+   frames the workbench's extractor placed 1 to 3 s late (open question 8),
+   which the ported extractor converts or refuses, and which are then
+   re-extracted and re-run. If the package comparison in step 2 found a
+   difference, measure determinism again first. The 315 clips also get DA3
    and `glb_centroid`: the demo's reference grid stays DA3.
 6. **Prepare the release.**
    - An English README, `docs/data_contract.md`, the `atlas120k_meta/` README
