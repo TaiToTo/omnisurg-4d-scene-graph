@@ -193,8 +193,15 @@ rule chosen after the pilot evaluator's scores were seen. Removing the pixels
 favours neither. What it cannot see is a region lying on removed pixels
 only, such as a spot cut out by colour: it is no object, so it is not counted
 against the condition as an extra region, and no other metric sees it either.
-How often that happens is to be measured on the GT before the evaluator is
-frozen (`docs/porting.md`, open questions).
+
+Where a fill would be defensible at all, a spot of `appearance` pixels whose
+whole outer border is one `tissue` class, the GT has almost none. Counted
+on the masks as released, before any crop: in CholecSeg8k, such spots hold
+0.6 % of the `appearance` pixels and 0.04 % of the `tissue` pixels the
+geometric view scores; 6 % of frames have one, and the median spot is 24 px. In ATLAS-120k's population, read every fifth mask,
+6 of 21,093 frames have one, holding 0.008 % of the `appearance` pixels.
+Removing and filling differ on almost no pixel, so nothing is counted for
+the difference.
 
 Background is removed in every view, the same way. What the datasets call
 background is not empty space: it is anatomy nobody labelled, and in

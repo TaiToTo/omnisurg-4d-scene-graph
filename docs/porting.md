@@ -340,30 +340,19 @@ Every command takes those paths as arguments.
    `hold_mean` ones. When the extractor is ported in step 5 it converts the
    gap frames or refuses the video, the 14 clips are re-extracted and re-run,
    and that is a deliberate exception to step 5's byte-for-byte rule.
-9. **What the geometric view cannot see.** The geometric view removes the
-   `appearance` pixels from the GT and the regions alike, so a region lying
-   on them only, such as a blood spot a colour-driven pipeline cuts out of
-   the liver, is no object and costs nothing. Count, in both datasets' GT
-   masks, the `appearance` pixels in connected components whose whole outer
-   border is one `tissue` class: the spots where the organ plainly runs on
-   underneath. If they are rare, nothing changes. If not, decide before the
-   freeze whether the evaluator counts the regions lying wholly on removed
-   pixels, reported like `unlabelled_share` and never starred. Filling the
-   spots from their neighbours was considered and set aside; the reasons are
-   in `docs/evaluation.md`, "Views".
-10. **The evaluator map against `evalkit/frame.py`.** Two things to carry
-    into the next redraw of `docs/figures/evaluator_map.png`, neither wrong
-    today. The map gives step 2, one frame in one view, no module, and
-    names `frame` at step 3 only; in the code both are in `frame.py`, as
-    `score_view` and `score_frame`, so a reader looking for where one view
-    is composed finds no box. And the map's step 3 shows a frame scored or
-    its keys undefined, never skipped: the excluded marker takes a frame out
-    whole, counted for the clip driver, and a depth map with an invalid
-    pixel stops the run with an error, counted nowhere. A phrase in the
-    step 3 box, "or skipped whole, and counted", would close that in the
-    figure. `evalkit/README.md` is the
-    short version and need not say either.
-11. **A class table read from outside the package.** `load_table(...,
+9. **The evaluator map against `evalkit/frame.py`.** Two things to carry
+   into the next redraw of `docs/figures/evaluator_map.png`, neither wrong
+   today. The map gives step 2, one frame in one view, no module, and
+   names `frame` at step 3 only; in the code both are in `frame.py`, as
+   `score_view` and `score_frame`, so a reader looking for where one view
+   is composed finds no box. And the map's step 3 shows a frame scored or
+   its keys undefined, never skipped: the excluded marker takes a frame out
+   whole, counted for the clip driver, and a depth map with an invalid
+   pixel stops the run with an error, counted nowhere. A phrase in the
+   step 3 box, "or skipped whole, and counted", would close that in the
+   figure. `evalkit/README.md` is the
+   short version and need not say either.
+10. **A class table read from outside the package.** `load_table(...,
     path=...)` reads any file, for tests that plant a fault, and
     `ClassTable.path` says it is for `eval_code_sha`; but nothing checks
     that the path is one `code_sha.hashed_files()` lists, so a score made
@@ -372,7 +361,7 @@ Every command takes those paths as arguments.
     check belongs there: refuse a table whose path is not among the hashed
     files before writing a score. Settle with it whether `path` stays a
     public argument of `load_table` at all, or becomes a test-only hook.
-12. **The fewest videos for an interval.** `paired_stats.boot_ci` refuses a
+11. **The fewest videos for an interval.** `paired_stats.boot_ci` refuses a
     population of one video, where every resample is the same video and
     the interval is a point. Two is the floor that removes that failure,
     not a statistical one: with n videos the chance that a resample draws
@@ -383,7 +372,7 @@ Every command takes those paths as arguments.
     above two, and where, is a decision about the paper's populations, not
     the code's; until it is made, a subset's interval is read for its sign
     only, as `--drop-video` says.
-13. **The frame counts in the check against the pilot evaluator.**
+12. **The frame counts in the check against the pilot evaluator.**
     `pilot_check` compares the clip values as the pilot rounded them, four
     decimals, and a mean over a clip's frames can absorb one frame left out
     or added. The pilot's counts (`n_gt_frames`, `n_vi_frames`, and
