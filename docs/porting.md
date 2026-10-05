@@ -213,10 +213,6 @@ while the evaluator is built and reviewed is worked out in `docs/workstreams.md`
      pilot evaluator, at zero tolerance, on the 38 scored conditions.
    Record its sha with every score; do not freeze it (decision 2). Pilot
    mode stays in it until just before the freeze (decision 11).
-   The first `pip install -e .` of this repository happens here. Compare the
-   packages it resolves with `environment.packages` in the determinism
-   measurement's JSON, so that a mismatch is known before step 5 rather than
-   found there.
 3. **Re-score.** CPU only. Score every condition's existing predictions with
    the evaluator. `condition_inventory` must report no mixed ruler and no
    missing condition.
@@ -238,9 +234,15 @@ while the evaluator is built and reviewed is worked out in `docs/workstreams.md`
    `repo_migration_determinism.md`; and the 14 CholecSeg8k clips whose gap
    frames the workbench's extractor placed 1 to 3 s late (open question 8),
    which the ported extractor converts or refuses, and which are then
-   re-extracted and re-run. If the package comparison in step 2 found a
-   difference, measure determinism again first. The 315 clips also get DA3
-   and `glb_centroid`: the demo's reference grid stays DA3.
+   re-extracted and re-run. The 315 clips also get DA3 and `glb_centroid`:
+   the demo's reference grid stays DA3.
+   This step compares files, not scores, so it does not wait on steps 1 to
+   4; it may run beside them. What it waits on is the machine the
+   workbench's stages run on. There, first compare the packages this
+   repository's install resolves with `environment.packages` in the
+   determinism measurement's JSON; if they differ, measure determinism
+   again before any stage is compared. What re-runs produce is scored in
+   step 3, after the evaluator's check.
 6. **Prepare the release.**
    - An English README, `docs/data_contract.md`, the `atlas120k_meta/` README
      and `CITATION.cff`.

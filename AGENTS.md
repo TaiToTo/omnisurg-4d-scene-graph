@@ -95,7 +95,8 @@ The port follows `docs/porting.md`: what moves, which version of it was
 already reviewed and where, the order of the steps, and what must hold before
 the next one. Read it before porting anything. The order is load-bearing: the
 evaluator is checked against the pilot scores before anything is re-scored,
-and nothing touches a GPU before that. Nothing is frozen during the port.
+and a pipeline stage is done only when its output equals the workbench's,
+byte for byte. Nothing is frozen during the port.
 
 What is permanent is on this page: the freeze rule, the verdict rule, the
 layout, and the conventions below.
