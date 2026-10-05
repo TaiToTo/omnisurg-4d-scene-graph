@@ -1,8 +1,10 @@
 """The geometry and the evaluator agree on which depth values count.
 
-The evaluator imports no other package, so it keeps its own `DEPTH_MIN`.
-This test is what makes the two copies safe: a pixel the geometry treats as
-having no depth is one the evaluator refuses, and the reverse.
+The evaluator imports no module of this repository that `eval_code_sha` does
+not hash, so it cannot import the geometry's `DEPTH_MIN` and keeps its own.
+This test is what makes the two copies safe: on a depth value the geometry
+rejects, the evaluator refuses the frame, and one the geometry accepts, the
+evaluator accepts too.
 """
 import numpy as np
 import pytest
@@ -17,7 +19,7 @@ def test_the_two_thresholds_are_equal():
 
 
 @pytest.mark.parametrize("dtype", [np.float32, np.float64])
-@pytest.mark.parametrize("value", [0.0, 5e-7, 1e-6, 2e-6, 1.0, np.nan, np.inf, -np.inf, -1.0])
+@pytest.mark.parametrize("value", [0.0, 5e-7, 1e-6, 2e-6, 1.0, 1e30, np.nan, np.inf, -np.inf, -1.0])
 def test_a_depth_the_geometry_rejects_is_one_the_evaluator_refuses(value, dtype):
     depth = np.full((2, 2), value, dtype=dtype)
     if valid_depth_mask(depth).all():

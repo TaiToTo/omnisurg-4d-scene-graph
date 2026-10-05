@@ -1,8 +1,8 @@
 """Which depth values count as a measurement: finite and above `DEPTH_MIN`.
 
-The one definition for the geometry. The evaluator keeps an equal
-`DEPTH_MIN` of its own, since it imports no other package, and
-`tests/test_depth_min_agrees.py` keeps the two in step. numpy only.
+The one definition for the geometry. The evaluator has an equal
+`DEPTH_MIN` of its own, and `tests/test_depth_min_agrees.py` fails if the
+two differ. numpy only.
 """
 
 import numpy as np

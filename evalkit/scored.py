@@ -45,8 +45,9 @@ import numpy as np
 
 from evalkit.classes import ClassTable, ClassType
 
-# The pilot evaluator's test of a depth value: finite and above this. The
-# geometry keeps an equal copy, since the evaluator imports no other package.
+# The pilot evaluator's test of a depth value: finite and above this.
+# `surgical_core.geometry.valid` has an equal copy, and
+# `tests/test_depth_min_agrees.py` fails if the two differ.
 DEPTH_MIN = 1e-6
 
 
