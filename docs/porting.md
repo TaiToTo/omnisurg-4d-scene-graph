@@ -430,15 +430,19 @@ Every command takes those paths as arguments.
     run per frame with no seed. The workbench's ATLAS-120k pipeline script
     runs the default too. `seed_info.json` records the seed frame but not the
     rule, so the two cannot be told apart from the output. The proposal, to
-    settle before the tracking stage is ported: every tracked condition of the
-    final experiment seeds at one frame, the window's centre, defined once,
-    and propagates both ways from it, as every pilot condition did. The ported
-    stage carries no choice from GT, and `op_normal`, `op_edge` and
+    settle before the tracking stage is ported: every tracked condition the
+    paper reports is measured under two propagation rules, each defined once:
+    forward from the window's first frame, the causal setting, and both ways
+    from its centre, the offline setting every pilot condition used. The
+    ported stage carries no choice from GT, and `op_normal`, `op_edge` and
     `ch_normal` are dropped: their centred versions exist. The conditions
     seeded from GT take their frame from `track_metrics.pick_seed_frame`, the
     GT frame nearest (N − 1)/2, which on a window of even length can be one
     frame from the operating point's centre; if they are compared with the
-    others frame for frame, they take the same definition and are run again.
-    The output records the rule, and a pull request of its own makes the tools
-    refuse a comparison of conditions seeded by different rules, as they
-    refuse different shas.
+    others frame for frame, they take the same definitions and are run again.
+    The tracking stage records its rule with its output, the evaluator writes
+    it into every score, and a pull request of its own makes the tools refuse
+    a comparison or a table that mixes two rules, as they refuse two shas. A
+    condition with no tracker has no rule and may sit beside either, since
+    propagation against per-frame segmentation is itself a comparison the
+    paper makes.
