@@ -8,9 +8,11 @@ has a crop rectangle and a depth fingerprint, and none of the files carries a
 path from the machine they were made on.
 """
 
+import itertools
 import json
 import re
 import shutil
+from collections import defaultdict
 from pathlib import Path
 
 import pytest
@@ -28,6 +30,20 @@ CJK = re.compile(r"[぀-ヿ一-鿿！-｠]")
 EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+")
 
 CLIP_NAME = re.compile(r"[a-z_]+__[A-Za-z0-9_-]{11}__gt_\d{4}")
+
+# The pairs of clips of one video whose native frame ranges in the release
+# share frames, with how many they share. Only two videos have any. A new
+# pair fails the test until someone has looked at it.
+OVERLAPS = {
+    ("cholecystectomy/_-aytJndMV4", "clip_0005", "clip_0006"): 150,
+    ("cholecystectomy/_-aytJndMV4", "clip_0006", "clip_0007"): 27,
+    ("cholecystectomy/_-aytJndMV4", "clip_0007", "clip_0008"): 5,
+    ("cholecystectomy/_-aytJndMV4", "clip_0008", "clip_0009"): 49,
+    ("cholecystectomy/_-aytJndMV4", "clip_0009", "clip_0010"): 69,
+    ("cholecystectomy/_-aytJndMV4", "clip_0010", "clip_0011"): 141,
+    ("hemicolectomy/5YDMlxTl0k8", "clip_0016", "clip_0017"): 122,
+    ("hemicolectomy/5YDMlxTl0k8", "clip_0016", "clip_0018"): 59,
+}
 
 
 def _clips(meta: Path) -> list[str]:
@@ -54,6 +70,37 @@ def _check_depth_fingerprints(meta: Path) -> None:
         assert entry["shape"][0] == entry["n_frames"], clip
         assert re.fullmatch(r"[0-9a-f]{64}", entry["depth_sha256"]), clip
         assert re.fullmatch(r"[0-9a-f]{64}", entry["intrinsics_sha256"]), clip
+
+
+def _release_ranges(meta: Path) -> dict[tuple[str, str], tuple[int, int]]:
+    """Each clip of the release, `(procedure/video, clip_NNNN)`, to its first and last native frame."""
+    videos = json.loads(meta.joinpath("videos", "videos.json").read_text())
+    return {(f"{v['procedure']}/{v['video']}", c["clip"]): tuple(c["native_range"])
+            for v in videos["videos"] for c in v["clips"]}
+
+
+def _overlaps(ranges: dict[tuple[str, str], tuple[int, int]]) -> dict[tuple[str, str, str], int]:
+    """Every pair of clips of one video whose ranges share a frame, to the number of frames they share."""
+    by_video = defaultdict(list)
+    for (video, clip), r in ranges.items():
+        by_video[video].append((clip, r))
+    out = {}
+    for video, clips in by_video.items():
+        for (a, ra), (b, rb) in itertools.combinations(sorted(clips), 2):
+            shared = min(ra[1], rb[1]) - max(ra[0], rb[0]) + 1
+            if shared > 0:
+                out[(video, a, b)] = shared
+    return out
+
+
+def _check_population_shares_no_frame(meta: Path) -> None:
+    # A clip of the population is a run of frames inside one clip of the
+    # release, so two whose release ranges are apart share no frame.
+    ranges = _release_ranges(meta)
+    keys = [tuple(_key(clip).rsplit("/", 1)) for clip in _clips(meta)]
+    missing = [k for k in keys if k not in ranges]
+    assert not missing, f"population clips with no range in videos/videos.json: {missing}"
+    assert not _overlaps({k: ranges[k] for k in keys})
 
 
 def _check_crop_rectangles(meta: Path) -> None:
@@ -163,3 +210,24 @@ def test_the_checks_fail_on_a_planted_clip_without_metadata(tmp_path):
         _check_crop_rectangles(fake)
     with pytest.raises(AssertionError):
         _check_depth_fingerprints(fake)
+
+
+def test_the_release_s_overlapping_clips_are_the_known_ones():
+    assert _overlaps(_release_ranges(META)) == OVERLAPS
+
+
+def test_no_two_clips_of_the_population_share_a_frame():
+    _check_population_shares_no_frame(META)
+
+
+def test_an_overlap_is_counted_and_a_population_clip_that_shares_frames_is_caught(tmp_path):
+    """A nested clip shares its own length, not the distance to the other's end."""
+    assert _overlaps({("p/v", "clip_0001"): (0, 99), ("p/v", "clip_0002"): (10, 19),
+                      ("p/v", "clip_0003"): (99, 120), ("p/w", "clip_0001"): (0, 99)}) == {
+        ("p/v", "clip_0001", "clip_0002"): 10, ("p/v", "clip_0001", "clip_0003"): 1}
+    fake = tmp_path / "atlas120k_meta"
+    shutil.copytree(META, fake)
+    with open(fake / "clips.txt", "a", encoding="utf-8") as f:
+        f.write("cholecystectomy___-aytJndMV4__gt_0006\n")
+    with pytest.raises(AssertionError):
+        _check_population_shares_no_frame(fake)

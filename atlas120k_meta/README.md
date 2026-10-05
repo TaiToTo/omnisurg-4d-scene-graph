@@ -24,6 +24,15 @@ run on its output. Five names of the 315 are not among the 438, and in
 `hemicolectomy/5YDMlxTl0k8` its clip numbers from `clip_0049` on are one
 below the clip's own, because that extraction numbered outputs by position.
 
+Some clips of the release overlap. `videos/videos.json` records each clip's
+first and last native frame, and in two videos clips share frames. In
+`cholecystectomy/_-aytJndMV4`, six pairs of adjacent clips share 441 frames.
+In `hemicolectomy/5YDMlxTl0k8`, one clip contains two others. No two clips
+of the population share a frame: each is a run of frames inside one clip of
+the release, and no two of them come from clips that overlap.
+`tests/test_atlas120k_meta.py` pins the overlapping pairs and checks the
+population against them.
+
 ## Files
 
 | file | what it is | from the workbench |
