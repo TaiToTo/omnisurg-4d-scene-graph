@@ -180,10 +180,10 @@ From the take list in `repo_migration_plan.md`:
   - Crop rectangles: `experiment/crop_necessity/verdicts/verdicts_latest.json`.
   - Cut marks: `experiment/crop_necessity/marks/*.jsonl`.
   - The 315-clip population: `ipcai2027_experiment/frozen/atlas97_clips.txt`.
-    TODO: in one video, cholecystectomy `_-aytJndMV4`, adjacent clips of the
-    release share 441 frames. The population holds two of its clips, which
-    share none, but nothing checks it: the population's reader should refuse
-    two clips that share a frame.
+    Clips of the release overlap in two videos. `tests/test_atlas120k_meta.py`
+    pins the overlaps and checks that no two clips of the population share a
+    frame. The population's reader, when it is ported, refuses two clips of
+    one video that share a frame.
   - The depth manifest: `ipcai2027_experiment/frozen/atlas97_depth_manifest.json`.
   - The 100-video manifest and audit:
     `ipcai2027_experiment/task22_atlas100/out/{manifest,audit}/`.
