@@ -133,7 +133,7 @@ copy to read the RGB clips, and the ported copies read `evalkit.classes`.
 | `surgical_core/geometry/` | `depth_sam_tracking_experiment/geometry.py` | `extract/04-kmerge` (#5) | English only. Shared by the pipeline and the toolkit. |
 | `condition_inventory.py` | `ipcai2027_experiment/scripts/condition_inventory.py` | `extract/05-inventory` (#4) | It reads `eval_code_sha`, `eval_code_tag` and `eval_version` from score JSONs. "One ruler" is now what `docs/evaluation.md` calls comparable: sha, dataset, class set, view and mode all equal. |
 | `check_env.py` | `ipcai2027_experiment/atlas97/scripts/check_env97.py` | `extract/05-inventory` (#4) | Not carried (decision 4). |
-| `reeval_diff.py` | — (written in the earlier repository) | `extract/06-rescore` (#6) | Becomes the check against the pilot evaluator, run in the workbench. Today it insists the sha equals the pilot's and diffs `eval_code_sha` with everything else; the check is the other way round: the shas differ by construction, only the keys the two evaluators share are compared, and those must be equal. |
+| `reeval_diff.py` | — (written in the earlier repository) | `extract/06-rescore` (#6) | Becomes the check against the pilot evaluator, run in the workbench, as `evalkit/tools/pilot_check.py`. Today it insists the sha equals the pilot's and diffs `eval_code_sha` with everything else; the check is the other way round: the shas differ by construction, only the keys the two evaluators share are compared, and those must be equal. |
 
 Tests come with the file they test:
 
