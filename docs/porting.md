@@ -237,25 +237,30 @@ while the evaluator is built and reviewed is worked out in `docs/workstreams.md`
    re-extracted and re-run. The 315 clips also get DA3 and `glb_centroid`:
    the demo's reference grid stays DA3.
    This step compares files, not scores, so it does not wait on steps 1 to
-   4; it may run beside them. What it waits on is the machine the
-   workbench's stages run on. There, first compare the packages this
-   repository's install resolves with `environment.packages` in the
-   determinism measurement's JSON; if they differ, measure determinism
-   again before any stage is compared. What re-runs produce is scored in
-   step 3, after the evaluator's check.
+   4; it may run beside them. The port is reviewed anywhere, and checked
+   first on CPU where the workbench is, with a stand-in for the model. The
+   check with the model runs on the machine the workbench's stages run on,
+   both sides in one environment, so that a difference is the code's. If
+   that environment's packages no longer equal `environment.packages` in the
+   determinism measurement's JSON, the workbench's stage runs twice first,
+   to measure determinism again. What does not match the workbench's output
+   is scored as in step 3, and after the evaluator's check.
 6. **Prepare the release.**
    - An English README, `docs/data_contract.md`, the `atlas120k_meta/` README
      and `CITATION.cff`.
    - Before anything is public, a check of HTL's anonymity rules, since AE-CAI
      is under double-blind revision.
-   - Done when a third party can clone, install and get a green `pytest`.
+   - Done when a third party can clone, install and get a green `pytest`,
+     and, on a machine with a CUDA GPU, install the pipeline with the
+     README's steps and run each ported stage on a clip.
 
 The data these steps read stays in the workbench:
 
 - `outputs/atlas97` and `outputs/cholec_gt`, which the paper reads;
 - `outputs/atlas`, the 13-video tree the demo reads, which holds the clips
   the determinism measurement used (`adrenalectomy__16GPCUPkXYQ__gt_0004` and
-  `tile_0007`) and is where step 5 compares stages;
+  `adrenalectomy__16GPCUPkXYQ__tile_0007`) and is where step 5 compares
+  stages, with one CholecSeg8k clip from `outputs/cholec_gt`;
 - the determinism measurement's JSON (`measure_determinism.py --json-out`);
 - the predictions under `ipcai2027_experiment/atlas97/out/`;
 - the pilot's score JSONs.
@@ -278,7 +283,9 @@ Every command takes those paths as arguments.
 2. **The skill-classification code and the other 18 viewer pages.** The plan
    leaves both behind. The paper's figures come from some of those pages.
 3. **Whether step 5 has to finish before submission.** Step 3 already gives
-   the numbers, and the determinism result says step 5 cannot change them.
+   the numbers. A stage that passes step 5's byte check cannot change them;
+   the 14 clips re-extracted under open question 8 can, and so can depth made
+   again under "Depth made by two versions of the depth stage".
 4. **Pilot mode's own rules.** Five places where pilot mode must not read
    the evaluator's tables or helpers, each noted where it was found and
    collected here so the pilot-mode driver settles them in one go:
@@ -382,3 +389,47 @@ Every command takes those paths as arguments.
     that. The evaluator keeps the count behind every key
     (`ClipScores.n_frames`) but has not fixed how a JSON spells it; when the
     pilot-mode driver does, `SHARED` takes the counts too.
+13. **The edge ring as a process-wide flag.**
+    `surgical_core.geometry.normals.EDGE_MASK_RING` decides whether the
+    contour around the image border and around invalid depth is zeroed in the
+    edge map the segmenter is prompted with. It is a module global, set for a
+    whole process: the tracking stage, `geom_blend.py` and `d4d_seed.py` read
+    it, and each writes it into its own provenance record. Whether a setting
+    passed per run, and recorded with the output in one form, replaces the
+    flag is decided before the tracking stage is ported.
+14. **Depth made by two versions of the depth stage.** On the development
+    machine's copy of the workbench, 7 of the 9 CholecSeg8k clips (VID01 and
+    VID12) carry depth written by a branch of the depth stage that never
+    reached the workbench's `main`: their `results.npz` holds a `ray_map` and
+    their manifests `backproject_mode: "ray"`. That branch passed DA3
+    `ref_view_strategy="middle"`; the stage on `main`, which step 5 ports,
+    passes nothing, and DA3's default is `saddle_balanced`. The reference view
+    sets the frame the poses are given in, so the two need not give the same
+    depth or poses. The 2 VID25 clips, extracted again later, carry neither,
+    as `main`'s stage writes them. So a stage that passes the byte check
+    reproduces `main`'s stage, not necessarily the depth a prediction read,
+    and a clip run again (the 14 of open question 8 among them) may get depth
+    unlike its neighbours'. To settle on G: which version made the depth each
+    scored condition read (a `ray_map` in `results.npz` says it); then whether
+    the ported stage follows `main`, and the depth so made is made again with
+    every condition on it, or the branch's setting becomes the stage's.
+15. **The seed frame chosen from GT.** With `--seed_auto`, the tracking stage
+    seeds on the frame nearest the window's centre among those whose GT masks
+    call at most `--seed_inst_thresh` of it instrument (0.005 by default), or,
+    when there is none, on the frame with the least. It reads each frame's
+    mask file through the workbench's class tables, by the file's presence
+    rather than the GT flag, and counts a frame with no mask as free of
+    instruments, so on CholecSeg8k the choice also follows which frames were
+    annotated. It was added to keep an instrument in the seed frame from
+    splitting one surface into two tracks. With `--seed_inst_thresh 1.0` every
+    frame counts as free and the seed is the window's centre, whatever the GT
+    says: that is the operating point. The workbench's audit of the scored
+    commands found the default, and so a seed frame chosen from GT, in three
+    conditions only: `op_normal` and `op_edge` on ATLAS-120k and `ch_normal`
+    on CholecSeg8k; the others seed at the centre, seed from GT on purpose, or
+    run per frame with no seed. The workbench's ATLAS-120k pipeline script
+    runs the default too. `seed_info.json` records the seed frame but not the
+    rule, so the two cannot be told apart from the output. Decide before the
+    tracking stage is ported: whether the ported stage carries the choice from
+    GT at all, or seeds at the centre alone; how the three conditions are
+    reported, if they are; and that the output records the rule.
