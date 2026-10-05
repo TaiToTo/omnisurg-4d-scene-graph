@@ -31,7 +31,7 @@ def _smooth_depth_with_hole():
 def test_ring_is_the_only_difference():
     """With the ring removed, the trustworthy pixels are bitwise the same."""
     d, k = _smooth_depth_with_hole()
-    m = np.isfinite(d) & (d > 1e-6)
+    m = geometry.valid_depth_mask(d)
     inside = geo.edge_reliable_mask(m)
     for parts in ("both", "normal", "depth"):
         old = geo.geom_edge_map(d, k, parts=parts, mask_ring=False)
@@ -54,7 +54,7 @@ def test_ring_covers_image_border_and_hole_rim():
     """The ring is 2 pixels, matched to the crease term: 2 at the border and
     2 around invalid pixels."""
     d, k = _smooth_depth_with_hole()
-    m = np.isfinite(d) & (d > 1e-6)
+    m = geometry.valid_depth_mask(d)
     r = geo.edge_reliable_mask(m)
     assert not r[:2, :].any() and not r[-2:, :].any()
     assert not r[:, :2].any() and not r[:, -2:].any()
@@ -67,7 +67,7 @@ def test_dense_depth_masks_only_the_border():
     h, w = 40, 50
     yy, xx = np.mgrid[0:h, 0:w]
     d = 0.30 + 0.0005 * xx
-    r = geo.edge_reliable_mask(np.isfinite(d) & (d > 1e-6))
+    r = geo.edge_reliable_mask(geometry.valid_depth_mask(d))
     assert r[2:-2, 2:-2].all()
     assert r.sum() == (h - 4) * (w - 4)
 
