@@ -1,19 +1,57 @@
-"""The viewer's label table shows what the evaluator's class table defines.
+"""The viewer's label table, built from plain data, from the evaluator's class tables, and from instances.
 
 A GT label table is derived from `evalkit.classes`, so the viewer cannot
 drift from the evaluator on a name or a colour; what is tested is the
 derivation (which types are background, that a colourless foreground class
-is refused) and the instance side (stable colours, cross-frame renumbering,
-the background id never coloured).
+is refused), the table a video with no class table builds, that the base
+of the viewer does not need the evaluator, and the instance side (stable
+colours, cross-frame renumbering, the background id never coloured).
 """
+
+import subprocess
+import sys
 
 import numpy as np
 import pytest
 
 from evalkit.classes import ClassType, load_table
-from surgical_core.viewer.labels import (
-    LabelTable, cholec_gt_table, instance_table, label_table_of, remap_to_instances)
+from surgical_core.viewer.gt_tables import cholec_gt_table, label_table_of
+from surgical_core.viewer.labels import LabelTable, instance_table, label_table, remap_to_instances
 from surgical_core.viewer.palette import BACKGROUND_COLOR, INSTANCE_PALETTE, instance_color
+
+
+def loads_evalkit(module: str) -> bool:
+    """Whether importing `module` in a fresh interpreter imports `evalkit` too."""
+    code = f"import sys, {module}; print('evalkit' in sys.modules)"
+    out = subprocess.run([sys.executable, "-c", code], check=True, capture_output=True, text=True)
+    return out.stdout.strip() == "True"
+
+
+def test_the_viewer_does_not_need_the_evaluator():
+    assert not loads_evalkit("surgical_core.viewer")
+    assert not loads_evalkit("surgical_core.viewer.labels")
+
+
+def test_the_check_sees_the_evaluator_where_it_is_imported():
+    assert loads_evalkit("surgical_core.viewer.gt_tables")
+
+
+def test_a_video_with_no_class_table_gets_a_label_table():
+    table = label_table([(1, "liver", (200, 80, 60)), (2, "tool", (0, 120, 255))], background_ids={0})
+    assert table.name(1) == "liver" and table.color(2) == [0.0, 120 / 255, 1.0]
+    assert table.is_background(0) and table.present_ids(np.array([[0, 1], [2, 2]])) == [1, 2]
+
+
+@pytest.mark.parametrize("labels, background, match", [
+    ([(1, "a", (0, 0, 0)), (1, "b", (1, 1, 1))], (), "twice"),
+    ([(0, "a", (0, 0, 0))], {0}, "as a label and as background"),
+    ([(1, "a", (0, 0))], (), "three integers"),
+    ([(1, "a", (0, 0, 256))], (), "three integers"),
+    ([(1, "a", (0.5, 0.5, 0.5))], (), "three integers"),
+])
+def test_a_label_given_twice_or_with_a_colour_that_is_not_rgb_is_refused(labels, background, match):
+    with pytest.raises(ValueError, match=match):
+        label_table(labels, background)
 
 
 def test_cholecseg8k_table_follows_the_class_table():
