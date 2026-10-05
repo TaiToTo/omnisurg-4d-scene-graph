@@ -495,6 +495,9 @@ pilot evaluator's numbers.
   changes, and is listed.
 - A score made in pilot mode is marked as such and never enters a comparison
   with a normal one.
+- Pilot mode exists for this check alone. It is removed from the evaluator
+  once the check has passed and before the evaluator is frozen, so the
+  frozen evaluator has one mode.
 
 ## Why the pilot evaluator was replaced
 
