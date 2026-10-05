@@ -17,6 +17,7 @@ from scipy.fft import dctn, idctn
 
 from surgical_core.geometry.normals import (
     burn_geom_edge, camera_normals, geom_edge_map, normal_edge_map, normal_map)
+from surgical_core.geometry.valid import valid_depth_mask
 
 
 def global_depth01(depth_all, lo_p=1, hi_p=99):
@@ -26,8 +27,9 @@ def global_depth01(depth_all, lo_p=1, hi_p=99):
     # nearest colour, so in the segmenter input they look like a near valid
     # surface (NaN goes to black). The valid mask removes them downstream, so
     # the harm is small; blacken them here if that changes.
-    finite = depth_all[np.isfinite(depth_all) & (depth_all > 1e-6)]
+    finite = depth_all[valid_depth_mask(depth_all)]
     lo, hi = np.percentile(finite, lo_p), np.percentile(finite, hi_p)
+    # The 1e-6 keeps the division finite on a clip of one depth. It is not a depth test.
     return np.clip((depth_all - lo) / (hi - lo + 1e-6), 0, 1)
 
 
@@ -163,6 +165,7 @@ def color_retinex(rgb, t_lum=0.3, t_chrom=0.05):
     sy = np.where((np.abs(gy) > t_lum) | (cy > t_chrom), 0.0, gy)
     log_s = _poisson_dct(sx, sy)
     shading = np.exp(log_s - log_s.max())
+    # The 1e-6 keeps the division finite where the shading is 0. It is not a depth test.
     return img / (shading[..., None] + 1e-6), shading
 
 

@@ -46,7 +46,7 @@ import numpy as np
 from evalkit.classes import ClassTable, ClassType
 
 # The pilot evaluator's test of a depth value: finite and above this. The
-# only place the threshold lives.
+# geometry keeps an equal copy, since the evaluator imports no other package.
 DEPTH_MIN = 1e-6
 
 
