@@ -24,18 +24,24 @@ run on its output. Five names of the 315 are not among the 438, and in
 `hemicolectomy/5YDMlxTl0k8` its clip numbers from `clip_0049` on are one
 below the clip's own, because that extraction numbered outputs by position.
 
-Some clips of the release overlap. For each clip, `videos/videos.json`
-records `native_range`, its first and last frame as the clip index numbers
-them, and `n_native`, how many frames it holds. Seven clips skip frames
-inside their range, so two clips can share fewer frames than their ranges
-have in common. In `cholecystectomy/_-aytJndMV4`, six pairs of adjacent
-clips share 441 frames; the population holds `clip_0005` and `clip_0010`,
-and `clip_0006` and `clip_0011` are the two duplicates, which thin to the
-same frames as those. In `hemicolectomy/5YDMlxTl0k8`, the range of
-`clip_0016` spans `clip_0017` and `clip_0018`, but the clip holds every
-frame of `clip_0018` and none of `clip_0017`. No two clips of the population
-share a frame: each is a run of frames inside one clip of the release, and
-no two of them come from clips whose ranges intersect.
+Some clips of the release overlap:
+
+- **What the inventory records.** For each clip, `videos/videos.json` gives
+  `native_range`, its first and last frame as the clip index numbers them,
+  and `n_native`, how many frames it holds.
+- **A range is not a run.** Seven clips, all in the two videos below, skip
+  frames inside their range, so two clips can share fewer frames than their
+  ranges have in common.
+- **`cholecystectomy/_-aytJndMV4`.** Six pairs of adjacent clips share 441
+  frames. The population holds `clip_0005` and `clip_0010`; `clip_0006` and
+  `clip_0011` thin to the same frames as these and are the two duplicates.
+- **`hemicolectomy/5YDMlxTl0k8`.** The range of `clip_0016` spans
+  `clip_0017` and `clip_0018`, but the clip holds every frame of `clip_0018`
+  and none of `clip_0017`. None of the three has a mask.
+- **The population.** No two of its clips share a frame: each is a run of
+  frames inside one clip of the release, and no two come from clips whose
+  ranges intersect.
+
 `tests/test_atlas120k_meta.py` pins the clips that skip frames and the pairs
 whose ranges intersect, and checks the population against them.
 
