@@ -113,14 +113,17 @@ frame plays which.
   `time_IoU` is computed on the GT frames alone, and a GT frame without its
   mask or without a prediction stops the clip.
 - A **seed frame** is one on which a condition's tracker was given its first
-  masks. The paper's conditions are seeded from the pipeline's own masks,
-  SAM's automatic masks on the normal image, so a seed frame that is a GT
-  frame is scored like any other. A condition seeded from GT masks would be
+  masks. The paper's conditions are seeded unsupervised, from the
+  pipeline's own masks: SAM's automatic masks on the normal image, with no
+  annotation. So a seed frame that is a GT frame is scored like any other.
+  A condition seeded from GT masks would be
   scored, on that frame, against the very masks it was given; whether such a
   condition enters a table at all is not decided (`docs/porting.md`,
   "Conditions seeded from GT").
 - A **tracked frame** is one the condition wrote a prediction for. Every GT
   frame must be one, and `time_IoU` is pooled over all of them.
+
+![A clip of ten frames in four rows. The raw frames. The GT, on six of them: those are the GT frames, shaded through every row, and the only frames scored. A track seeded from the GT on frame 0: its seed frame holds the GT itself, so on that frame it is scored against the masks it was given. A track seeded unsupervised, from the pipeline's own masks, on frame 0. In both tracks every later frame is a tracked frame, its prediction drawn hatched](figures/frame_roles.png)
 
 A mask file is not what makes a GT frame. The pipeline writes masks that are
 not annotation into the same `seg_masks/` directory under the same names: for
