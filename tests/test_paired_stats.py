@@ -186,7 +186,7 @@ def evaluator_scores(tag: str, shift: float, seed: int, views=("all",)) -> dict:
     return dict(tag=tag, eval_code_sha="a" * 64, dataset="atlas", pilot=False, class_set="original",
                 views=list(views), clips=clips,
                 input_shas={c: {"gt_masks": "g" * 64, "depth": "d" * 64, "predictions": f"p{c}"} for c in clips},
-                versions={"python": "3.12.0", "numpy": "2.0.0"}, per_clip=rows)
+                versions={"python": "3.12.0", "numpy": "2.0.0"}, propagation="both_ways_from_centre", per_clip=rows)
 
 
 # What the workbench's paired_stats wrote on exactly these two JSONs
@@ -315,6 +315,32 @@ def test_the_command_prints_a_shrunken_population_with_its_videos(tmp_path):
     assert "(2 clips / 1 videos)" in run.stdout and "videos resampled none" in run.stdout
     run = _run(tmp_path, "--pairs", "base:cond")
     assert "SQ   [10/14 clips, 6/7 videos]" in run.stdout
+
+
+def test_the_command_refuses_a_run_whose_pairs_hold_two_rules(tmp_path):
+    # Each pair passes through the per-frame condition; the run's one JSON would hold both rules.
+    for tag, rule in (("pf", "per_frame"), ("both", "both_ways_from_centre"), ("fwd", "forward_from_first")):
+        j = evaluator_scores(tag, 0.0, 5)
+        j["propagation"] = rule
+        (tmp_path / f"{tag}.json").write_text(json.dumps(j))
+    out = tmp_path / "paired.json"
+    run = _run(tmp_path, "--pairs", "pf:both,pf:fwd", "--out", str(out))
+    assert run.returncode != 0 and "one table per rule" in run.stderr and "Traceback" not in run.stderr
+    assert not out.exists()
+    run = _run(tmp_path, "--pairs", "pf:both", "--out", str(out))
+    assert run.returncode == 0, run.stderr
+    j = json.loads(out.read_text())
+    assert j["propagation"] == "both_ways_from_centre"
+    assert j["pairs"]["pf:both"]["propagation"] == "both_ways_from_centre"
+
+
+def test_the_command_writes_no_rule_on_pilot_jsons(tmp_path):
+    for tag, shift, seed in (("base", 0.0, 5), ("cond", 0.03, 6)):
+        (tmp_path / f"{tag}.json").write_text(json.dumps(pilot_scores(tag, shift, seed)))
+    out = tmp_path / "paired.json"
+    assert _run(tmp_path, "--pairs", "base:cond", "--out", str(out)).returncode == 0
+    j = json.loads(out.read_text())
+    assert list(j) == ["n_boot", "seed", "seed_scheme", "pairs"] and "propagation" not in j["pairs"]["base:cond"]
 
 
 @pytest.mark.parametrize("pairs, said", [

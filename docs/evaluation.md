@@ -422,15 +422,26 @@ uses it.
 - the name of the directory the predictions were read from, as
   `track_dir_name`, which is how `condition_inventory` matches a score to
   its labels; a score that does not say what it scored cannot be inventoried
+- the propagation rule the predictions were made under, as `propagation`,
+  read from the provenance the pipeline writes beside the labels and never
+  given on the command line
 - the Python, numpy, OpenCV and Pillow versions
 
-The pilot evaluator's JSONs recorded neither the input shas nor the versions.
+The pilot evaluator's JSONs recorded neither the input shas, the propagation
+rule nor the versions.
 
 Two scores are comparable only when their `eval_code_sha`, dataset, class set,
-view and mode match, they cover the same clips, and they read the same GT masks
-and depth maps. `compare_eval` refuses any other pair, and reports a difference
-in versions. The same `eval_code_sha` is not enough on its own: pilot mode and
-the normal mode share it, and so do the views.
+view and mode match, they cover the same clips, they read the same GT masks
+and depth maps, and their predictions were propagated under one rule or one
+of them frame by frame. The two rules never meet in one number: a difference
+between them would pass for a difference between the methods. A condition
+segmented frame by frame may sit beside either, since propagation against
+per-frame segmentation is itself a comparison the paper makes; so pairs that
+each pass can still put both rules in one table, and the conditions of one
+table must hold one rule besides `per_frame` between them. `compare_eval`
+refuses any other pair, `paired_stats` any other table, and both report a
+difference in versions. The same `eval_code_sha` is not enough on its own:
+pilot mode and the normal mode share it, and so do the views.
 
 The check against the pilot evaluator, below, is not a comparison under this
 rule: the two shas differ by construction. It is a verification, run by its
@@ -443,14 +454,21 @@ pilot evaluator's numbers.
   clip, under `per_clip`. A *key* is one column of the rows: the evaluator
   writes `metric/view` (`F1_50/geometric`) and `time_IoU` once per clip; a
   *pilot JSON*, one the pilot evaluator wrote, is told apart by holding none
-  of the class set, views, mode, input shas and versions
+  of the class set, views, mode, input shas, versions and propagation rule
   (`scores.EVALUATOR_FIELDS`) and keeps the pilot evaluator's spellings
   (`inst_F1_50`, `inst_F1_50_tissue`, with the domain after an underscore).
   A JSON this evaluator writes in pilot mode is not a pilot JSON.
 - A *ruler* is what a score was measured with, as `scores.Ruler` holds it:
   `eval_code_sha`, dataset, mode, class set, views, and for a pilot JSON its
   domain. Two scores are *comparable* when they share a ruler, cover the
-  same clips and read the same GT masks and depth maps, the rule above.
+  same clips, read the same GT masks and depth maps, and were propagated
+  under one rule or one of them frame by frame, the rule above.
+- A *propagation rule* is how a condition's tracker carried its regions
+  through the clip: the frame it was seeded on and the way it went from
+  there. The paper's conditions use two: `both_ways_from_centre`, seeded on
+  the clip's centre frame and carried both ways, and `forward_from_first`,
+  seeded on its first frame and carried forward. A condition with no
+  tracker, segmented frame by frame, has the rule `per_frame`.
 - A *tag* is a condition's name on disk: the directory under each clip that
   holds its labels, and separately the name of its score JSON; the score
   names the label directory it read in `track_dir_name`.

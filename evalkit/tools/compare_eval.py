@@ -116,8 +116,9 @@ def compare(a: dict, b: dict, allow_subset: bool = False, allow_legacy_code: boo
         it), `metrics` (key to `base`, `cond`, `delta`, `n_clips`, over
         the clips both define; a key that no clip has in both JSONs is
         left out, including one only a single JSON holds),
-        `versions_differ` when the check reports it, and `key` and `sign`
-        (its direction, +1 when higher is better and -1 when lower).
+        `propagation` and `versions_differ` when the check reports them,
+        and `key` and `sign` (its direction, +1 when higher is better and
+        -1 when lower).
 
     Raises:
         ValueError: The two are not comparable, the key is not one to
@@ -150,8 +151,9 @@ def compare(a: dict, b: dict, allow_subset: bool = False, allow_legacy_code: boo
     # The summary, from the check, the means and the wins.
     out = dict(n_clips=len(clips), population=chk["population"], eval_code=chk["eval_code"],
                clips=clips, wins=wins, metrics=deltas)
-    if "versions_differ" in chk:
-        out["versions_differ"] = chk["versions_differ"]
+    for k in ("propagation", "versions_differ"):
+        if k in chk:
+            out[k] = chk[k]
     out["key"], out["sign"] = key, sign
     return out
 
@@ -230,8 +232,9 @@ def main() -> None:
     ia, ib = rows_of(a), rows_of(b)
 
     # The table: every key's aligned means, its difference and its direction.
+    rule = f", propagation={res['propagation']}" if "propagation" in res else ""
     print(f"=== {args.cond} vs {args.base} ({len(clips)} clips, "
-          f"population={res['population']}, eval_code={res['eval_code']}) ===")
+          f"population={res['population']}, eval_code={res['eval_code']}{rule}) ===")
     if "versions_differ" in res:
         print(f"note: library versions differ: {res['versions_differ']}")
     metrics = metrics_of(a)
