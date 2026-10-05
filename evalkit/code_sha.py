@@ -73,6 +73,7 @@ HASHED_MODULES = (
     "code_sha.py",
     "frame.py",
     "inst_bf.py",
+    "keys.py",
     "objects.py",
     "pilot.py",
     "scored.py",

@@ -227,18 +227,18 @@ What the scores cannot see is counted instead, as `unlabelled_share` below.
 
 ## Metrics
 
-| what it measures | key | same key in the pilot evaluator | pilot keys it replaces |
-|---|---|---|---|
-| objects found | `F1_50` | `inst_F1_50` | the recognition quality of PQ (panoptic quality) |
-| how well found objects fit | `SQ` | `SQ` | `PQ`, `inst_F1_avg`, `inst_F1_75` |
-| how well found objects' contours fit | `inst_BF` | `inst_BF` | — |
-| class map, by area | `mIoU` | `GT_mIoU` | `GT_mDice` |
-| class map, by contour | `boundary_F` | `boundary_F` | `boundary_P`, `boundary_R`, tolerances 1 / 3 / 5 |
-| boundaries found before any class is assigned | `boundary_R_raw` | `boundary_R_raw` | `boundary_P_raw`, its tolerances |
-| splitting | `VI_split` | `VI_split` | `overseg_mean` |
-| merging | `VI_merge` | `VI_merge` | `underseg_error` |
-| consistency over time, reference only | `time_IoU` | `time_IoU` | — |
-| how much of the regions lies on unlabelled tissue, reference only | `unlabelled_share` | — | — |
+| what it measures | key | better | same key in the pilot evaluator | pilot keys it replaces |
+|---|---|---|---|---|
+| objects found | `F1_50` | higher | `inst_F1_50` | the recognition quality of PQ (panoptic quality) |
+| how well found objects fit | `SQ` | higher | `SQ` | `PQ`, `inst_F1_avg`, `inst_F1_75` |
+| how well found objects' contours fit | `inst_BF` | higher | `inst_BF` | — |
+| class map, by area | `mIoU` | higher | `GT_mIoU` | `GT_mDice` |
+| class map, by contour | `boundary_F` | higher | `boundary_F` | `boundary_P`, `boundary_R`, tolerances 1 / 3 / 5 |
+| boundaries found before any class is assigned | `boundary_R_raw` | higher | `boundary_R_raw` | `boundary_P_raw`, its tolerances |
+| splitting | `VI_split` | lower | `VI_split` | `overseg_mean` |
+| merging | `VI_merge` | lower | `VI_merge` | `underseg_error` |
+| consistency over time | `time_IoU` | reference only | `time_IoU` | — |
+| how much of the regions lies on unlabelled tissue | `unlabelled_share` | reference only | — | — |
 
 ### What each key is, per frame
 
@@ -456,7 +456,8 @@ pilot evaluator's numbers.
   names the label directory it read in `track_dir_name`.
 - In a comparison, *base* is the condition compared against and *cond* the
   one compared; a difference is `cond − base`. A key's *direction* is the
-  way it is better: higher, lower, or neither for a reference value. The
+  way it is better: higher, lower, or neither for a reference value, as the
+  `better` column of the metrics table gives it. The
   *population* is the clips the two are compared on, `identical` when both
   hold the same clips and `intersection` when compared on the common ones;
   per key it shrinks to the clips on which both define it. The *wins* on a
