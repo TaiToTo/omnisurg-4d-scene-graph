@@ -1,10 +1,9 @@
 """The keys of a score JSON: which metrics there are, how a key is spelled, and which way is better.
 
-The metrics and their order are those of the table in `docs/evaluation.md`,
-"Metrics". Each per-frame metric is written once per view, as
-`metric_key(metric, view)`, and each clip-level metric once per clip, under
-its own name. Every module that writes or reads these keys takes them from
-here, so the evaluator and the tools cannot spell them differently.
+The metrics, their order and which way each is better are those of the
+table in `docs/evaluation.md`, "Metrics". Each per-frame metric is written
+once per view, as `metric_key(metric, view)`, and each clip-level metric
+once per clip, under its own name.
 """
 from __future__ import annotations
 
@@ -18,10 +17,8 @@ FRAME_METRICS = ("F1_50", "SQ", "inst_BF", "mIoU", "boundary_F", "boundary_R_raw
 # The metrics that are one value per clip, written once, under no view.
 CLIP_METRICS = ("time_IoU",)
 
-# Which way is better: +1 larger, -1 smaller, 0 a reference value that is
-# reported and never marked. The variation of information counts bits of
-# disagreement, so less is better. `time_IoU` and `unlabelled_share` are
-# reference values in the specification.
+# The table's `better` column: +1 higher, -1 lower, 0 a reference value that
+# is reported and never marked.
 SIGNS: Mapping[str, int] = MappingProxyType({
     "F1_50": +1, "SQ": +1, "inst_BF": +1, "mIoU": +1, "boundary_F": +1,
     "boundary_R_raw": +1, "VI_split": -1, "VI_merge": -1,

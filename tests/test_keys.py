@@ -1,8 +1,9 @@
 """The keys of `evalkit.keys` against the specification, the frame driver and the tools.
 
 The metrics table of `docs/evaluation.md` is read, not copied, so a metric
-added to one and not the other fails here. The frame driver's keys and the
-keys the tools expect are compared on a scored frame, in both directions.
+added to one and not the other, or a direction changed in one, fails here.
+The frame driver's keys and the keys the tools expect are compared on a
+scored frame, in both directions.
 """
 import dataclasses
 import typing
@@ -20,40 +21,58 @@ from evalkit.tools.scores import EVALUATOR_FIELDS, metric_key, metric_keys
 SPEC = Path(__file__).resolve().parent.parent / "docs" / "evaluation.md"
 HEADING = "## Metrics"
 
+# The words of the table's `better` column, as the signs of `SIGNS`.
+BETTER = {"higher": +1, "lower": -1, "reference only": 0}
 
-def spec_table(text: str) -> list[tuple[str, bool]]:
-    """The keys of the table under `HEADING`, in its order, each with whether its row says "reference only".
+
+def spec_table(text: str) -> list[tuple[str, int]]:
+    """The keys of the table under `HEADING`, in its order, each with the sign its `better` column gives.
 
     Raises:
-        ValueError: The page has no such heading, or no table under it.
+        ValueError: The page has no such heading or no table under it; the
+            table has no `key` or no `better` column; or a `better` cell is
+            not one of `BETTER`.
     """
     lines = text.split("\n")
-    rows = []
+    if HEADING not in lines:
+        raise ValueError(f"no heading {HEADING!r}")
+    table = []
     for line in lines[lines.index(HEADING) + 1:]:
         if line.startswith("#"):
             break
-        cells = [c.strip() for c in line.strip().strip("|").split("|")]
-        if len(cells) > 1 and cells[1].startswith("`"):
-            rows.append((cells[1].strip("`"), "reference only" in cells[0]))
-    if not rows:
+        if line.startswith("|"):
+            table.append([c.strip() for c in line.strip().strip("|").split("|")])
+    if len(table) < 3:
         raise ValueError(f"no metrics table under {HEADING!r}")
-    return rows
+    header, rows = table[0], table[2:]
+    if "key" not in header or "better" not in header:
+        raise ValueError(f"the metrics table has no `key` or no `better` column: {header}")
+    key_at, better_at = header.index("key"), header.index("better")
+    out = []
+    for cells in rows:
+        key, better = cells[key_at].strip("`"), cells[better_at]
+        if better not in BETTER:
+            raise ValueError(f"{key}: the table says better is {better!r}, not one of {list(BETTER)}")
+        out.append((key, BETTER[better]))
+    return out
 
 
-def disagreements(rows: list[tuple[str, bool]]) -> list[str]:
+def disagreements(
+    rows: list[tuple[str, int]], frame_metrics=FRAME_METRICS, clip_metrics=CLIP_METRICS, signs=SIGNS,
+) -> list[str]:
     """Where `evalkit.keys` and the specification's table differ; empty when they agree."""
     spec = [key for key, _ in rows]
-    ours = list(FRAME_METRICS) + list(CLIP_METRICS)
+    ours = list(frame_metrics) + list(clip_metrics)
     out = []
     if sorted(spec) != sorted(ours):
         out.append(f"the table names {sorted(spec)}, evalkit.keys {sorted(ours)}")
-    if [key for key in spec if key in FRAME_METRICS] != list(FRAME_METRICS):
-        out.append(f"the per-frame metrics are in another order than the table's: {list(FRAME_METRICS)}")
-    if set(SIGNS) != set(ours):
-        out.append(f"SIGNS covers {sorted(SIGNS)}, not every metric")
-    for key, reference in rows:
-        if key in SIGNS and (SIGNS[key] == 0) != reference:
-            out.append(f"{key}: the table says reference only = {reference}, its sign is {SIGNS[key]}")
+    if [key for key in spec if key in frame_metrics] != list(frame_metrics):
+        out.append(f"the per-frame metrics are in another order than the table's: {list(frame_metrics)}")
+    if set(signs) != set(ours):
+        out.append(f"SIGNS covers {sorted(signs)}, not every metric")
+    for key, sign in rows:
+        if key in signs and signs[key] != sign:
+            out.append(f"{key}: the table says {sign:+d}, SIGNS {signs[key]:+d}")
     return out
 
 
@@ -68,21 +87,33 @@ def test_the_keys_are_the_specification_s_table():
     assert not disagreements(spec_table(SPEC.read_text(encoding="utf-8")))
 
 
-def test_a_missing_row_a_swapped_row_and_a_lost_reference_mark_are_reported():
+def test_a_missing_row_a_swapped_row_and_a_flipped_direction_are_reported():
     rows = spec_table(SPEC.read_text(encoding="utf-8"))
     without_sq = [r for r in rows if r[0] != "SQ"]
     assert any("the table names" in d for d in disagreements(without_sq))
     swapped = [rows[1], rows[0], *rows[2:]]
     assert any("another order" in d for d in disagreements(swapped))
-    unmarked = [(key, False) for key, _ in rows]
+    flipped = [(key, -sign if key == "mIoU" else sign) for key, sign in rows]
+    assert any(d.startswith("mIoU:") for d in disagreements(flipped))
+    unmarked = [(key, +1 if key == "time_IoU" else sign) for key, sign in rows]
     assert any(d.startswith("time_IoU:") for d in disagreements(unmarked))
 
 
-def test_a_page_without_the_table_is_refused():
-    with pytest.raises(ValueError):
+def test_a_metric_without_a_direction_is_reported():
+    rows = spec_table(SPEC.read_text(encoding="utf-8"))
+    signs = {key: sign for key, sign in SIGNS.items() if key != "time_IoU"}
+    assert any("SIGNS covers" in d for d in disagreements(rows, signs=signs))
+
+
+def test_a_page_without_a_readable_table_is_refused():
+    with pytest.raises(ValueError, match="no heading"):
         spec_table("# evaluation\n\nno table here\n")
     with pytest.raises(ValueError, match="no metrics table"):
         spec_table(f"{HEADING}\n\ntext, and no table\n\n## next\n")
+    with pytest.raises(ValueError, match="no `better` column"):
+        spec_table(f"{HEADING}\n\n| key | pilot |\n|---|---|\n| `SQ` | `SQ` |\n")
+    with pytest.raises(ValueError, match="not one of"):
+        spec_table(f"{HEADING}\n\n| key | better |\n|---|---|\n| `SQ` | larger |\n")
 
 
 def test_every_metric_field_of_a_view_is_read_by_one_key():
