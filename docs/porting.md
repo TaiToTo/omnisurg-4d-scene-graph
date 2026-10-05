@@ -429,7 +429,16 @@ Every command takes those paths as arguments.
     on CholecSeg8k; the others seed at the centre, seed from GT on purpose, or
     run per frame with no seed. The workbench's ATLAS-120k pipeline script
     runs the default too. `seed_info.json` records the seed frame but not the
-    rule, so the two cannot be told apart from the output. Decide before the
-    tracking stage is ported: whether the ported stage carries the choice from
-    GT at all, or seeds at the centre alone; how the three conditions are
-    reported, if they are; and that the output records the rule.
+    rule, so the two cannot be told apart from the output. The proposal, to
+    settle before the tracking stage is ported: every tracked condition of the
+    final experiment seeds at one frame, the window's centre, defined once,
+    and propagates both ways from it, as every pilot condition did. The ported
+    stage carries no choice from GT, and `op_normal`, `op_edge` and
+    `ch_normal` are dropped: their centred versions exist. The conditions
+    seeded from GT take their frame from `track_metrics.pick_seed_frame`, the
+    GT frame nearest (N − 1)/2, which on a window of even length can be one
+    frame from the operating point's centre; if they are compared with the
+    others frame for frame, they take the same definition and are run again.
+    The output records the rule, and a pull request of its own makes the tools
+    refuse a comparison of conditions seeded by different rules, as they
+    refuse different shas.
