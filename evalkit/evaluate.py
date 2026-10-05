@@ -11,7 +11,7 @@ written: a population is scored whole or not at all.
 Usage:
     python -m evalkit.evaluate --dataset cholecseg8k --clips clips.txt \\
         --data-root <dir of clips> --tracks-root <dir of predictions> \\
-        --tag <condition> --out <condition>.json [--propagation <rule>]
+        --tag <condition> --out <condition>.json [--propagation <rule>] [--pilot]
 """
 from __future__ import annotations
 
@@ -33,6 +33,8 @@ from evalkit.code_sha import eval_code_sha, hashed_files
 from evalkit.frame import score_frame
 from evalkit.inputs import ClipInputs, read_clip
 from evalkit.keys import CLIP_METRICS, FRAME_METRICS, metric_key
+from evalkit.pilot import PILOT_DOMAINS
+from evalkit.pilot_clip import score_pilot_clip
 from evalkit.scored import valid_depth
 from evalkit.time_iou import time_iou
 
@@ -43,6 +45,10 @@ PROPAGATION_RULES = ("both_ways_from_centre", "forward_from_first", "per_frame")
 
 # The record a tracker or the per-frame stage writes beside a condition's labels.
 SEED_INFO = "seed_info.json"
+
+# What a pilot-mode JSON records for a condition that holds no rule. Pilot mode scores every condition the
+# pilot evaluator scored, those seeded from GT among them, and its JSONs never enter a comparison.
+NO_RULE = "neither"
 
 
 def check_table(table: ClassTable) -> None:
@@ -137,7 +143,8 @@ def rule_of_seed_info(info: dict) -> str | None:
     return None
 
 
-def condition_rule(tracks_root: str | Path, tag: str, clips: Sequence[str], stated: str | None = None) -> str:
+def condition_rule(tracks_root: str | Path, tag: str, clips: Sequence[str], stated: str | None = None,
+                   *, pilot: bool = False) -> str:
     """Return the condition's propagation rule, as each clip's `seed_info.json` records it or as stated.
 
     Args:
@@ -145,6 +152,7 @@ def condition_rule(tracks_root: str | Path, tag: str, clips: Sequence[str], stat
         tag: The condition's directory name under each clip.
         clips: The population.
         stated: The rule the caller states, for a condition whose labels carry no `seed_info.json`.
+        pilot: Pilot mode, which records `NO_RULE` where normal mode refuses for want of a rule.
 
     Raises:
         ValueError: A clip's record holds no rule; two clips hold two rules; the stated rule is not one or
@@ -158,6 +166,8 @@ def condition_rule(tracks_root: str | Path, tag: str, clips: Sequence[str], stat
         if path.is_file():
             rule = rule_of_seed_info(json.loads(path.read_text(encoding="utf-8")))
             if rule is None:
+                if pilot:
+                    return NO_RULE
                 raise ValueError(f"{clip}: {tag}'s {SEED_INFO} holds no propagation rule; a seed off the "
                                  "centre and off the first frame is neither rule")
             found[clip] = rule
@@ -165,17 +175,23 @@ def condition_rule(tracks_root: str | Path, tag: str, clips: Sequence[str], stat
     if len(rules) > 1:
         raise ValueError(f"{tag}: the clips and the statement give {sorted(rules)}; a condition has one rule")
     if not rules:
+        if pilot:
+            return NO_RULE
         raise ValueError(f"{tag}: no clip has a {SEED_INFO}, so state the rule with --propagation")
     return rules.pop()
 
 
 def score_condition(dataset: str, class_set: str | None, clips: Sequence[str],
                     data_root: str | Path, tracks_root: str | Path, tag: str,
-                    propagation: str | None = None) -> dict:
+                    propagation: str | None = None, *, pilot: bool = False) -> dict:
     """Score one condition on every clip, and return its score JSON as a dict.
+
+    In pilot mode each clip is read and scored by the pilot evaluator's rules
+    (`evalkit.pilot_clip`), in its four domains, for the check against it.
 
     Args:
         propagation: The condition's propagation rule, for labels that carry no `seed_info.json`.
+        pilot: Score by the pilot evaluator's rules.
 
     Raises:
         ValueError, KeyError, FileNotFoundError: The condition's propagation rule is unknown
@@ -184,16 +200,21 @@ def score_condition(dataset: str, class_set: str | None, clips: Sequence[str],
     """
     table = load_table(dataset, class_set)
     check_table(table)
-    rule = condition_rule(tracks_root, tag, clips, propagation)
+    rule = condition_rule(tracks_root, tag, clips, propagation, pilot=pilot)
     sha = eval_code_sha()
     rows, shas = [], {}
     for clip in clips:
+        if pilot:
+            row, shas[clip] = score_pilot_clip(data_root, tracks_root, tag, clip, table.dataset)
+            rows.append(row)
+            continue
         inputs = read_clip(data_root, tracks_root, tag, clip, table)
         rows.append(clip_row(clip, score_clip(inputs, table)))
         shas[clip] = dict(inputs.shas)
     return {
         "eval_code_sha": sha, "dataset": table.dataset, "class_set": table.class_set,
-        "views": list(VIEWS), "pilot": False, "track_dir_name": tag, "clips": list(clips),
+        "views": list(PILOT_DOMAINS if pilot else VIEWS), "pilot": pilot, "track_dir_name": tag,
+        "clips": list(clips),
         "input_shas": shas, "versions": versions(), "propagation": rule, "per_clip": rows,
     }
 
@@ -218,10 +239,14 @@ def main(argv: Sequence[str] | None = None) -> None:
     ap.add_argument("--out", required=True, help="the score JSON to write")
     ap.add_argument("--propagation", choices=PROPAGATION_RULES, default=None,
                     help="the condition's propagation rule, for labels that carry no seed_info.json")
+    ap.add_argument("--pilot", action="store_true",
+                    help="score by the pilot evaluator's rules, for the check against it")
     args = ap.parse_args(argv)
     clips = read_population(args.clips)
+    if args.pilot and args.class_set not in (None, "original"):
+        raise ValueError("pilot mode scores the original ids, as the pilot evaluator did")
     summary = score_condition(args.dataset, args.class_set, clips, args.data_root, args.tracks_root, args.tag,
-                              args.propagation)
+                              args.propagation, pilot=args.pilot)
     write_scores(summary, args.out)
     print(f"{args.tag}: {len(clips)} clips scored, {args.out}")
 

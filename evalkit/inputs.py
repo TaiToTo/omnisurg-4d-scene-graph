@@ -74,9 +74,10 @@ class ClipInputs:
     shas: Mapping[str, str]
 
 
-def _sha_of_files(paths: list[Path]) -> str:
-    # Each file's name and content, each preceded by its length, so that a
-    # renamed file and a moved boundary between two files both change the sha.
+def sha_of_files(paths: list[Path]) -> str:
+    """The sha256 of the files' names and contents, in the order given."""
+    # Each part preceded by its length, so that a renamed file and a moved
+    # boundary between two files both change the sha.
     h = hashlib.sha256()
     for p in paths:
         for part in (p.name.encode("utf-8"), p.read_bytes()):
@@ -240,11 +241,11 @@ def read_clip(data_root: str | Path, tracks_root: str | Path, tag: str, clip: st
         regions[i] = _resized(r.astype(np.int32), shape)
 
     shas = {
-        "gt_masks": _sha_of_files([mask_paths[i] for i in sorted(mask_paths)]),
+        "gt_masks": sha_of_files([mask_paths[i] for i in sorted(mask_paths)]),
         "depth": depth_sha(depth),
         "crop": _sha_of_json(manifest[crops[0]]),
         "frames": _sha_of_json([[i, numbers[i]] for i in order]),
-        "predictions": _sha_of_files([label_paths[i] for i in sorted(label_paths)]),
+        "predictions": sha_of_files([label_paths[i] for i in sorted(label_paths)]),
     }
     return ClipInputs(
         clip=clip, order=tuple(order), numbers=MappingProxyType(numbers), depth=depth,

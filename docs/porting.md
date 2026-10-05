@@ -83,12 +83,13 @@ Where they and this document differ, this document holds.
 11. **Pilot mode is removed before the freeze.** Pilot mode stays in the
     evaluator until the check against the pilot evaluator has passed, so
     that the check runs through the entry point that produces the paper's
-    numbers. The *pilot-mode driver* in this document is that entry point
-    run in pilot mode, not a script of its own. Once the check has passed,
-    everything only pilot mode uses is removed: `evalkit/pilot.py`, the
-    entry point's pilot path, and the `pilot` arguments of
-    `evalkit/scored.py`. The normal-mode tests must still pass, and then the
-    evaluator is frozen. Moving pilot mode out of `evalkit/` was the
+    numbers. Pilot mode is `python -m evalkit.evaluate --pilot`, which
+    scores each clip through `evalkit/pilot_clip.py`; it is not a script of
+    its own. Once the check has passed, everything only pilot mode uses is
+    removed: `evalkit/pilot.py`, `evalkit/pilot_clip.py`, the entry point's
+    `--pilot`, and the `pilot` arguments of `evalkit/scored.py` and
+    `evalkit/inst_bf.py`. The normal-mode tests must still pass, and then
+    the evaluator is frozen. Moving pilot mode out of `evalkit/` was the
     alternative. It could then be deleted at any time, but the check would
     reach a driver of its own and never the entry point.
 12. **Two propagation rules, and no seed chosen from GT.** Every tracked
@@ -312,42 +313,7 @@ Every command takes those paths as arguments.
    the 14 clips re-extracted under "CholecSeg8k clips whose frames run out
    of order" can, and so can depth made again under "Depth made by two
    versions of the depth stage".
-4. **Pilot mode's own rules.** Six places where pilot mode must not read
-   the evaluator's tables or helpers, each noted where it was found and
-   collected here so the pilot-mode driver settles them in one go:
-   - ATLAS-120k typing: the pilot evaluator knew one type, Tools/camera;
-     the `original` set types every id. Pilot mode needs a typing of its own
-     (`evalkit/classes.py`).
-   - `mIoU`: `ClassScores.miou` sums IoUs in class id order; the pilot took
-     `np.mean` over a dict in set order. The last bit differs on about a
-     quarter of frames, and zero tolerance is the promise, so the driver
-     averages `ious` the pilot's way (`evalkit/classmap.py`).
-   - `time_IoU`: the pilot ordered frames by `sorted()` of the `label_*.npy`
-     names, lexicographic, not numeric unless zero-padded; the driver orders
-     them that way in pilot mode, and writes the one per-clip value under
-     every view (`evalkit/time_iou.py`).
-   - `EXTRA_IGNORE`: the pilot removed those ids too, from the command line,
-     recorded in each score as `extra_ignore`. Every score in the workbench
-     that records it has it empty, but those are the workshop's; confirm on
-     the 38 conditions' JSONs before pilot mode assumes an empty set
-     (`evalkit/vi.py`).
-   - The clip means: `summarize_clip` averages with `sum() / len()`, takes a
-     mean only over the frames a key is defined on and leaves None where
-     there is none; the pilot took `np.mean`, wrote 0 where no frame defined
-     a key (None for `SQ` and `inst_BF`, and for the instance keys outside
-     the `full` domain, as `docs/evaluation.md` says), and rounded the
-     summary to four decimals. The last bit of the two means differs on
-     about 40 % of random clips, so the pilot-mode driver aggregates the
-     pilot's way and does not call `summarize_clip` (`evalkit/clip.py`).
-   - Which frames are GT frames: the pilot scored every frame that had both
-     a prediction and a mask file, read no manifest, and ordered by file
-     name. Its data root held the annotated masks only: its scores of the
-     CholecSeg8k clips count exactly the anchor frames. So pilot mode takes
-     the GT frames from the manifest's flags, as `evalkit/inputs.py` does
-     (`docs/evaluation.md`, "Which frames"). On a copy that also holds the
-     viewer's masks, reading every mask file would score frames the pilot
-     never did.
-5. **Boundary dilation before the freeze.** `evalkit/boundary.py` dilates
+4. **Boundary dilation before the freeze.** `evalkit/boundary.py` dilates
    with `cv2.dilate`; a numpy shift-or over the (2·tol + 1)² offsets agrees
    on every mask tried, borders included. The question is whether a hashed
    file should depend on a library's behaviour at all while OpenCV is
@@ -356,12 +322,12 @@ Every command takes those paths as arguments.
    the order `cv2.connectedComponents` labels them, and the pairing's tie
    rule reads those numbers. That never reaches the frozen files, since
    pilot mode is removed before the freeze (decision 11).
-6. **The benchmark mapping against its source.** The ATLAS-120k mapping to
+5. **The benchmark mapping against its source.** The ATLAS-120k mapping to
    the benchmark's 30 classes was typed from the document and checked by
    hand against ATLAS-bench's `datasets/class_mapping.py` at commit
    e286a584, all 47 ids agreeing. A script that takes that file's path and
    repeats the check would make it reproducible.
-7. **CholecSeg8k's Region line.** The white line between regions is 1 px
+6. **CholecSeg8k's Region line.** The white line between regions is 1 px
    wide; in the masks 87 % of its pixels are the image's outer 1 px (gone
    with the crop) and the rest sits mostly in video43 and video52. Left
    `ignored`, an edge against it is no boundary, so those videos lose much of
@@ -371,7 +337,7 @@ Every command takes those paths as arguments.
    filled count recorded, or whether it stays ignored with the loss
    documented. Either way the pilot evaluator read it as background and
    counted an edge against it as a boundary, a normal-mode difference to list.
-8. **CholecSeg8k clips whose frames run out of order.** In videos where
+7. **CholecSeg8k clips whose frames run out of order.** In videos where
    CholecSeg8k numbers frames at about 30 fps, the workbench's extractor
    (`scripts/extract_cholec_track.py`) resolves the true 25 fps frame for the
    frames that carry a mask and leaves the gap frames it decodes from the
@@ -390,7 +356,7 @@ Every command takes those paths as arguments.
    where the GT is 457 × 456, on frames the manifest says have none: 8 and
    19 frames. The pilot's scores of these clips count the annotated frames
    only, so its data root did not hold those masks.
-9. **The evaluator map against `evalkit/frame.py`.** Two things to carry
+8. **The evaluator map against `evalkit/frame.py`.** Two things to carry
    into the next redraw of `docs/figures/evaluator_map.png`, neither wrong
    today. The map gives step 2, one frame in one view, no module, and
    names `frame` at step 3 only; in the code both are in `frame.py`, as
@@ -402,7 +368,7 @@ Every command takes those paths as arguments.
    step 3 box, "or skipped whole, and counted", would close that in the
    figure. `evalkit/README.md` is the
    short version and need not say either.
-10. **The fewest videos for an interval.** `paired_stats.boot_ci` refuses a
+9. **The fewest videos for an interval.** `paired_stats.boot_ci` refuses a
     population of one video, where every resample is the same video and
     the interval is a point. Two is the floor that removes that failure,
     not a statistical one: with n videos the chance that a resample draws
@@ -413,15 +379,7 @@ Every command takes those paths as arguments.
     above two, and where, is a decision about the paper's populations, not
     the code's; until it is made, a subset's interval is read for its sign
     only, as `--drop-video` says.
-11. **The frame counts in the check against the pilot evaluator.**
-    `pilot_check` compares the clip values as the pilot rounded them, four
-    decimals, and a mean over a clip's frames can absorb one frame left out
-    or added. The pilot's counts (`n_gt_frames`, `n_vi_frames`, and
-    `n_inst_frames`, `n_SQ_frames`, `n_BF_frames` per domain) would catch
-    that. The normal-mode JSON writes the count behind every key, as
-    `n_frames` by key in each row; when pilot mode writes the pilot's
-    counts, `SHARED` takes them too.
-12. **The edge ring as a process-wide flag.**
+10. **The edge ring as a process-wide flag.**
     `surgical_core.geometry.normals.EDGE_MASK_RING` decides whether the
     contour around the image border and around invalid depth is zeroed in the
     edge map the segmenter is prompted with. It is a module global, set for a
@@ -430,7 +388,7 @@ Every command takes those paths as arguments.
     it into its own provenance record. Whether a setting passed per run, and
     recorded with the output in one form, replaces the flag is decided before
     either stage is ported.
-13. **Depth made by two versions of the depth stage.** On the development
+11. **Depth made by two versions of the depth stage.** On the development
     machine's copy of the workbench, 7 of the 9 CholecSeg8k clips (VID01 and
     VID12) carry depth written by a branch of the depth stage that never
     reached the workbench's `main`: their `results.npz` holds a `ray_map` and
@@ -450,7 +408,7 @@ Every command takes those paths as arguments.
     whether the ported stage follows `main`, and the depth so made is made
     again with every condition on it, or the branch's setting becomes the
     stage's.
-14. **The seed frame chosen from GT.** With `--seed_auto`, the tracking stage
+12. **The seed frame chosen from GT.** With `--seed_auto`, the tracking stage
     seeds on the frame nearest the window's centre among those whose GT masks
     call at most `--seed_inst_thresh` of it instrument (0.005 by default), or,
     when there is none, on the frame with the least. It reads each frame's
@@ -476,7 +434,7 @@ Every command takes those paths as arguments.
     stay, under which rule a score records them, and whether their seed keeps
     the `MIN_AREA` cut that "No minimum object size, anywhere" removes
     everywhere else.
-15. **Two orders of the world transform.** `cam_to_world` computes
+13. **Two orders of the world transform.** `cam_to_world` computes
     `(p - t) @ R`; the workbench's back-projection computes
     `(R.T @ (p.T - t)).T`. On the development machine the two give the same
     bits only where the BLAS runs the same kernel: under numpy 2.5.3 on
@@ -489,7 +447,7 @@ Every command takes those paths as arguments.
     surface in the tracking stage's byte check. If it does there, the choice
     is between restoring the workbench's order and accepting a documented
     non-bit-equality — made then, not found later.
-16. **Whether the geometry path has to be fast.** The depth stage
+14. **Whether the geometry path has to be fast.** The depth stage
     back-projects each frame once when a clip is exported, with
     `backproject_depth`, `cam_to_world` and `world_to_gltf`, and writes the
     points to a GLB file. Nothing waits on it there, so its cost is a batch

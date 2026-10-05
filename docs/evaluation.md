@@ -504,7 +504,8 @@ pilot evaluator's numbers.
     objects, and regions of at least that size as predicted objects;
   - the pixels whose depth is not finite or not above `DEPTH_MIN` masked
     out and counted, where normal mode refuses the frame;
-  - frames in file order for `time_IoU`;
+  - frames in file order for `time_IoU`, and as GT frames every frame with
+    a prediction whose mask file exists, the manifest unread;
   - the pilot evaluator's values in place of undefined ones, zeros where it
     wrote zeros and None where it wrote None: a frame with no class enters
     the `mIoU` mean as 0; a clip on which no frame has a GT object in a
@@ -515,7 +516,8 @@ pilot evaluator's numbers.
     `time_IoU` pools nothing writes 0 for it.
 - On the 38 conditions already scored, pilot mode must reproduce every key it
   shares with the pilot evaluator — the metrics table names them, and their
-  per-domain variants — at zero tolerance: the values written must be equal.
+  per-domain variants — at zero tolerance: the values written must be equal,
+  and so must the number of frames behind each.
   Ties are broken as the pilot evaluator breaks them. The check runs where the
   pilot evaluator and its scores are, and takes their paths as arguments.
 - Every difference in the normal mode then comes from a rule this document

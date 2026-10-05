@@ -23,6 +23,9 @@ def pilot_json(clips=CLIPS, sha=PILOT_EVAL_CODE_SHA):
             r[f"inst_F1_50{s}"] = 0.6 if d == "full" else None
             r[f"SQ{s}"] = None if d != "full" else 0.7
             r[f"inst_BF{s}"] = 0.0 if d == "full" else None
+            r[f"n_inst_frames{s}"] = 3 if d == "full" else 0
+            r[f"n_SQ_frames{s}"] = r[f"n_BF_frames{s}"] = 2 if d == "full" else 0
+        r.update(n_gt_frames=3, n_vi_frames=3)
         rows.append(r)
     return dict(eval_code_sha=sha, eval_code_tag="t", eval_version=2, dataset="cholec",
                 tissue_ignore=[5], clips=list(clips), per_clip=rows)
@@ -40,6 +43,7 @@ def ours_json(clips=CLIPS, pilot=True, views=PILOT_DOMAINS):
             r[metric_key("F1_50", d)] = 0.6 if d == "full" else None
             r[metric_key("SQ", d)] = None if d != "full" else 0.7
             r[metric_key("inst_BF", d)] = 0.0 if d == "full" else None
+        r["n_frames"] = {ok: pilot_json()["per_clip"][0][pk] for pk, ok in PC.COUNTS}
         rows.append(r)
     return dict(eval_code_sha="a" * 64, dataset="cholecseg8k", pilot=pilot, class_set="original",
                 views=list(views), clips=list(clips), input_shas={c: {} for c in clips}, versions={},
@@ -213,3 +217,27 @@ def test_the_command_names_the_tag_and_the_path_of_a_json_it_cannot_read(tmp_pat
     r = subprocess.run(cmd, capture_output=True, text=True, cwd=REPO)
     assert r.returncode != 0 and "Traceback" not in r.stderr
     assert r.stderr.startswith(f"a: the pilot evaluator's JSON {pd / 'a.json'} cannot be read")
+
+
+def test_the_counts_pair_each_shared_key_with_the_frames_behind_it():
+    assert ("n_inst_frames_tissue", "F1_50/tissue") in PC.COUNTS and ("n_gt_frames", "mIoU/full") in PC.COUNTS
+    assert ("n_vi_frames", "VI_merge/labeled") in PC.COUNTS
+    assert {ok for _, ok in PC.COUNTS} == {ok for _, ok in PC.SHARED} - {"time_IoU"}
+
+
+def test_a_frame_left_out_is_a_difference_even_where_the_mean_hides_it():
+    ours = ours_json()
+    ours["per_clip"][0]["n_frames"]["mIoU/full"] = 2
+    diffs = PC.diff_shared(pilot_json(), ours)
+    assert diffs == [f"{CLIPS[0]}.n_frames[mIoU/full]: 2 != pilot n_gt_frames=3"]
+
+
+def test_a_count_the_evaluator_lacks_is_a_difference_and_one_the_pilot_lacks_is_refused():
+    ours = ours_json()
+    del ours["per_clip"][1]["n_frames"]["SQ/labeled"]
+    assert PC.diff_shared(pilot_json(), ours) == [f"{CLIPS[1]}.n_frames[SQ/labeled]: missing; the pilot wrote n_SQ_frames_labeled=0"]
+    pilot = pilot_json()
+    del pilot["per_clip"][0]["n_vi_frames"]
+    with pytest.raises(ValueError, match="lacks the count n_vi_frames"):
+        PC.diff_shared(pilot, ours_json())
+
