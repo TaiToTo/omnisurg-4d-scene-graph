@@ -54,18 +54,22 @@ say, in the form a session starting cold needs.
   `opencv-python`, `Pillow`). A module that needs more is either split so that
   the part the toolkit uses does not, or the dependency is added as an
   optional extra in the same pull request, with the reason in the file.
-- **Run the tests from a venv**, not the system interpreter:
+- **Run the tests from a venv**, not the system interpreter, with both
+  extras. Without them the tests of `surgical_core.geometry.render` and of
+  the tools' statistics and chart are skipped, and the run still looks green.
 
   ```bash
   python3 -m venv .venv && . .venv/bin/activate
-  pip install -e . pytest
+  pip install -e ".[render,tools]" pytest
   pytest
   ```
 
 ## Not now: blocked on a decision or on the GPU
 
-These import the evaluator, read its scores or depend on a decision not yet
-made. Starting them early means porting them twice.
+`track_metrics` and `kmerge` wait on a decision not yet made; started before
+it, they would be ported twice. The pipeline, the wrappers and the viewer wait
+on the order of `docs/porting.md`: nothing touches a GPU before the evaluator
+is checked against the pilot evaluator.
 
 | piece | waits for |
 |---|---|
@@ -110,7 +114,7 @@ and name the rule in `docs/evaluation.md` that separates them: that makes the
 "Why the pilot evaluator was replaced" list visible on pictures. Keep the
 cartoon for the overview and the small scenes for the per-metric appendix, as
 the pilot page does. Decide, in the pull request, whether the page is
-committed or built in CI; `docs/porting.md` leaves this open.
+committed or built in CI.
 
 **Done when.** The page regenerates from the two helpers with one command,
 its numbers equal the tests' pinned values, both modes appear where they
@@ -136,10 +140,11 @@ refuses to keep it in once it is short.
 **Order.** The modules under `evalkit/` that `code_sha.HASHED_MODULES`
 names go first, before the evaluator is frozen: after the freeze not a byte
 of them changes, docstrings included. The function docstrings of a hashed
-module are read in the same commit as its header, and the same kinds of
-sentences leave them. `evalkit/pilot.py` is not shortened: it is removed
-before the freeze (decision 11 in `docs/porting.md`), and leaves
-`STILL_LONG` then. A few modules per pull request, each pull request one
+module are read in the same commit as its header: history, a second
+definition and a long reason leave them too, and go where `docs/review.md`
+sends them. `evalkit/pilot.py` is not shortened: it is removed before the
+freeze ("Pilot mode is removed before the freeze" in `docs/porting.md`), and
+leaves `STILL_LONG` then. A few modules per pull request, each pull request one
 area (`evalkit/`, `evalkit/tools/`, `surgical_core/`, `tests/`).
 
 **Done when.** `STILL_LONG` is empty and the suite passes; the list and the
