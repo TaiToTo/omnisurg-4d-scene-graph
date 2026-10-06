@@ -21,13 +21,13 @@ class StandIn:
 
     model_id = "stand-in"
 
-    def __init__(self, shape=(6, 8), zero_frame=None):
-        self.shape, self.zero_frame = shape, zero_frame
+    def __init__(self, shape=(6, 8), zero_frame=None, n_out=None):
+        self.shape, self.zero_frame, self.n_out = shape, zero_frame, n_out
         self.seen = []
 
     def reconstruct(self, image_paths):
         self.seen = [p.name for p in image_paths]
-        n, (h, w) = len(image_paths), self.shape
+        n, (h, w) = len(image_paths) if self.n_out is None else self.n_out, self.shape
         depth = np.stack([np.full((h, w), 1.0 + i) + np.linspace(0, 1, w) for i in range(n)]).astype(np.float32)
         if self.zero_frame is not None:
             depth[self.zero_frame] = 0.0
@@ -112,3 +112,11 @@ def test_a_clip_without_manifest_or_images_is_refused(tmp_path):
     (clip / "frame_manifest.json").unlink()
     with pytest.raises(FileNotFoundError, match="frame_manifest.json"):
         run_depth(clip, StandIn(), process_res=504)
+
+
+@pytest.mark.parametrize("n_out", [2, 4])
+def test_a_model_that_returns_another_number_of_frames_is_refused(tmp_path, n_out):
+    clip = make_clip(tmp_path)
+    with pytest.raises(ValueError, match=f"returned {n_out} of 3 frames"):
+        run_depth(clip, StandIn(n_out=n_out), process_res=504)
+    assert not (clip / "depth_raw").exists(), "refused before anything is written"
