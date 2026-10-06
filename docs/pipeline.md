@@ -70,3 +70,39 @@ pip install "numpy<2" addict einops evo huggingface_hub imageio moviepy==1.0.3 o
 These packages are the ones that loading and running DA3 imports. The rest
 of its list (`open3d`, a web server, `e3nn`) serves parts of DA3 that the
 stage does not run.
+
+## The Pi3X stage
+
+```bash
+python -m pipeline.pi3x --input-dir /path/to/clips --clips <clip> [--device auto] [--gpu 0]
+```
+
+The stage reconstructs a clip with Pi3X (`recon3d_wrapper.pi3x`), a second
+model beside DA3. Pi3X predicts each frame's points and camera pose
+together. The stage resizes each frame to at most 255,000 pixels, with sides
+that are multiples of 14. It writes its files beside DA3's, each name
+carrying the suffix `__pi3x`, and leaves DA3's files alone:
+
+- `exports/mini_npz/results__pi3x.npz`: the same four arrays as DA3's
+  bundle.
+- `depth_vis/NNNN__pi3x.jpg`: the depth images, coloured as DA3's are, so
+  that the two can be set side by side.
+- `pc_vis/frame_NNNN__pi3x.glb`: one point cloud per frame. The stage first
+  removes this source's clouds from an earlier run.
+- `geometry_sources.pi3x` in the manifest. Each frame gets its cloud's
+  centroid, its number of points and the camera's axes, under
+  `frames[i].geometry_sources.pi3x`. The run gets its settings, its runtime
+  and the round-trip check.
+
+The round-trip check back-projects the stage's depth through its own poses
+and compares the points with the ones Pi3X predicted. It also places the
+points under the inverted reading of the poses. The right reading must win
+by at least ten times, and its error at the 99.9th percentile must stay
+under 3 % of the median depth. The stage refuses a clip that fails the
+check, because a wrong pose convention places every later point cloud
+wrong without any error.
+
+The manifest's frames are matched to the images by `seq_idx`. The stage
+refuses a clip whose manifest lists other frames than `input_images/`.
+
+Pi3X runs on a CPU only in principle; a clip takes too long to be useful.

@@ -1,0 +1,286 @@
+"""Run the Pi3X stage: reconstruct each clip with Pi3X, as a second geometry source beside DA3's.
+
+The stage writes `exports/mini_npz/results__pi3x.npz`, `depth_vis/NNNN__pi3x.jpg`
+and `pc_vis/frame_NNNN__pi3x.glb` into the clip, and leaves DA3's files alone.
+It adds `geometry_sources.pi3x` to the manifest: per frame the point cloud's
+centroid, size and camera axes, and for the run its settings, runtime and
+round-trip check. The round-trip check back-projects the stage's own depth
+through its own poses and compares the points with the ones Pi3X predicted.
+An inverted pose convention fails it. The stage refuses a clip that fails it.
+
+Usage:
+    python -m pipeline.pi3x --input-dir /path/to/clips [--clips <clip> ...] [--device auto] [--gpu 0]
+"""
+
+import argparse
+import json
+import time
+from pathlib import Path
+
+import cv2
+import numpy as np
+from PIL import Image
+
+from recon3d_wrapper import Reconstruction, Reconstructor
+from recon3d_wrapper.pi3x import DEFAULT_PIXEL_LIMIT, Pi3X
+from surgical_core.geometry.camera import backproject_depth, cam_to_world, world_to_gltf
+from surgical_core.geometry.valid import valid_depth_mask
+from surgical_core.viewer.camera_axes import camera_axes_in_gltf
+from surgical_core.viewer.depth_vis import depth_to_colormap
+from surgical_core.viewer.glb import write_point_cloud_glb
+
+# The name this geometry source writes under, in file names and in the manifest.
+SOURCE = "pi3x"
+
+# How many times the inverted pose reading's error must exceed the stage's own. The right reading wins by 100 to
+# 300 times on every clip measured, so 10 leaves an order of magnitude of slack.
+ROUNDTRIP_MIN_RATIO = 10.0
+
+# The largest round-trip error allowed at the 99.9th percentile, relative to the median depth. Pi3X's rays are
+# not quite a pinhole: the fit leaves p99.9 up to 1.1e-2. An inverted pose lands near 1 to 3.
+DEFAULT_ROUNDTRIP_TOL = 3e-2
+
+
+def verify_roundtrip(rec: Reconstruction, n_sample: int = 20000, seed: int = 0) -> dict:
+    """Compare the world points that depth and poses give with the ones Pi3X predicted.
+
+    The error is taken as a percentile, not a maximum: the maximum grows with the number of frames even when the
+    geometry is equally good. The control places the same points under the inverted reading of the pose and is
+    reduced the same way, so that the ratio of the two speaks only of the convention.
+
+    Args:
+        rec: a reconstruction with `points`.
+        n_sample: the points sampled per frame.
+        seed: the sampling seed.
+
+    Returns:
+        The median depth, the error at p50, p99.9 and its maximum, the control at p99.9, all relative to the
+        median depth, and the frames checked.
+
+    Raises:
+        ValueError: no world points, or no pixel with usable depth.
+    """
+    if rec.points is None:
+        raise ValueError("the reconstruction has no world points to check the poses against")
+    rng = np.random.default_rng(seed)
+    valid_all = valid_depth_mask(rec.depth)
+    if not valid_all.any():
+        raise ValueError("no pixel has usable depth; nothing to verify")
+    depth_med = float(np.median(rec.depth[valid_all]))
+    err, err_inverted = [], []
+    for i in range(len(rec.depth)):
+        if not valid_all[i].any():
+            continue
+        idx = np.flatnonzero(valid_all[i].reshape(-1))
+        if len(idx) > n_sample:
+            idx = rng.choice(idx, n_sample, replace=False)
+        R, t = rec.extrinsics[i][:3, :3], rec.extrinsics[i][:3, 3]
+        # Compared in the world's frame, where Pi3X's points are. The glTF flip changes no distance.
+        ref = rec.points[i].reshape(-1, 3)[idx]
+        cam = backproject_depth(rec.depth[i], rec.intrinsics[i])[idx]
+        err.append(np.linalg.norm(cam_to_world(cam, R, t) - ref, axis=-1))
+        # The control reads [R|t] as camera to world: world = R @ cam + t.
+        err_inverted.append(np.linalg.norm(cam @ R.T + t - ref, axis=-1))
+    pooled = np.concatenate(err) / depth_med
+    pooled_inverted = np.concatenate(err_inverted) / depth_med
+    return {
+        "median_depth": depth_med,
+        "p50_rel": float(np.percentile(pooled, 50)),
+        "p999_rel": float(np.percentile(pooled, 99.9)),
+        "max_rel": float(pooled.max()),
+        "p999_rel_if_pose_inverted": float(np.percentile(pooled_inverted, 99.9)),
+        "frames_checked": len(err),
+    }
+
+
+def update_manifest(clip_dir: Path, source: str, per_frame: dict[int, dict], n_input: int, provenance: dict) -> None:
+    """Merge a geometry source's per-frame records and its run record into the clip's manifest.
+
+    A frame's records go under `frames[i].geometry_sources[source]`, one level below DA3's keys. Written at the
+    frame's top level, they would overwrite DA3's centroid and move every DA3 point cloud. Frames are matched by
+    `seq_idx`, which holds only while `input_images/` and the manifest list the same frames.
+
+    Args:
+        clip_dir: the clip.
+        source: the geometry source's name.
+        per_frame: the records, by position in `input_images/`.
+        n_input: the number of frames in `input_images/`.
+        provenance: the run's record, stored at `geometry_sources[source]`.
+
+    Raises:
+        FileNotFoundError: the clip has no manifest.
+        ValueError: a frame without `seq_idx`, or a manifest that lists other frames than `input_images/`. A
+            merge would then pair each frame's record with a neighbour's point cloud, and nothing later notices.
+    """
+    manifest_path = clip_dir / "frame_manifest.json"
+    if not manifest_path.is_file():
+        raise FileNotFoundError(f"{clip_dir} has no frame_manifest.json")
+    manifest = json.loads(manifest_path.read_text())
+    frames_in = manifest.get("frames", [])
+    if any("seq_idx" not in fr for fr in frames_in):
+        raise ValueError(f"{manifest_path}: some frames have no seq_idx")
+    existing = {fr["seq_idx"]: fr for fr in frames_in}
+    # The count catches a frame lost from input_images/ as well as one gained; the keys alone catch only a gain.
+    if frames_in and n_input != len(existing):
+        raise ValueError(f"{manifest_path}: input_images/ holds {n_input} frame(s) but the manifest lists "
+                         f"{len(existing)}; the two describe different frame lists")
+    unknown = sorted(set(per_frame) - set(existing))
+    if frames_in and unknown:
+        raise ValueError(f"{manifest_path}: reconstructed seq_idx {unknown[:5]} are absent from the manifest; "
+                         "input_images/ and frame_manifest.json describe different frame lists")
+    for seq_idx, meta in per_frame.items():
+        existing.setdefault(seq_idx, {"seq_idx": seq_idx}).setdefault("geometry_sources", {})[source] = meta
+    manifest["frames"] = [existing[k] for k in sorted(existing)]
+    manifest["n_frames"] = len(manifest["frames"])
+    manifest.setdefault("geometry_sources", {})[source] = provenance
+    manifest_path.write_text(json.dumps(manifest, indent=2))
+
+
+def run_pi3x(clip_dir: Path, model: Reconstructor, pixel_limit: int, conf_thre: float = 0.0,
+             roundtrip_tol: float = DEFAULT_ROUNDTRIP_TOL, max_points: int = 0) -> None:
+    """Run the stage on one clip.
+
+    Args:
+        clip_dir: the clip.
+        model: the reconstruction model. It must return world points.
+        pixel_limit: the pixel budget the model was built with. The manifest records it.
+        conf_thre: drop pixels at or below this confidence from the point clouds. 0 keeps every pixel with usable
+            depth, as the DA3 stage does, so that the two sources differ in geometry and not in masking.
+        roundtrip_tol: the largest round-trip error allowed at p99.9, relative to the median depth.
+        max_points: the most points a cloud keeps, sampled with a fixed seed; 0 keeps all.
+
+    Raises:
+        FileNotFoundError: no image or no manifest.
+        ValueError: the model returned another number of frames, the round-trip check failed, an image could not
+            be read, no frame gave a point cloud, or `update_manifest` refused the merge.
+    """
+    # Read the clip's images, then reconstruct them.
+    image_paths = sorted((clip_dir / "input_images").glob("*.png"))
+    if not image_paths:
+        raise FileNotFoundError(f"{clip_dir} has no input_images/*.png")
+    n_input = len(image_paths)
+    print(f"  {n_input} frames, model={model.model_id}, pixel_limit={pixel_limit}")
+    t0 = time.perf_counter()
+    rec = model.reconstruct(image_paths)
+    runtime = time.perf_counter() - t0
+    n_frames, H, W = rec.depth.shape
+    if n_frames != n_input:
+        raise ValueError(f"{clip_dir.name}: the model returned {n_frames} of {n_input} frames")
+    print(f"  inference {runtime:.1f}s, depth ({n_frames}, {H}, {W})")
+
+    # Refuse a clip whose poses fail the round trip. A wrong pose convention places every point cloud, graph
+    # node and camera wrong, and nothing later detects it. The ratio to the inverted reading is the sharp test;
+    # the absolute tolerance is a backstop.
+    check = verify_roundtrip(rec)
+    ratio = check["p999_rel_if_pose_inverted"] / max(check["p999_rel"], 1e-12)
+    print(f"  round trip: p50 {check['p50_rel']:.2e}, p99.9 {check['p999_rel']:.2e}, inverted {ratio:.0f}x worse")
+    if ratio < ROUNDTRIP_MIN_RATIO:
+        raise ValueError(f"{clip_dir.name}: the inverted pose reading is nearly as good ({ratio:.1f}x, need "
+                         f"{ROUNDTRIP_MIN_RATIO}x); c2w_to_extrinsics is likely inverted")
+    if check["p999_rel"] > roundtrip_tol:
+        raise ValueError(f"{clip_dir.name}: round-trip p99.9 {check['p999_rel']:.3e} exceeds {roundtrip_tol:.1e}")
+
+    # Write the bundle and the depth images, each under the source's suffix.
+    exports = clip_dir / "exports" / "mini_npz"
+    exports.mkdir(parents=True, exist_ok=True)
+    np.savez(str(exports / f"results__{SOURCE}.npz"), depth=rec.depth.astype(np.float32),
+             conf=rec.conf.astype(np.float32), extrinsics=rec.extrinsics.astype(np.float32),
+             intrinsics=rec.intrinsics.astype(np.float32))
+    depth_vis = clip_dir / "depth_vis"
+    depth_vis.mkdir(exist_ok=True)
+    for i in range(n_frames):
+        Image.fromarray(depth_to_colormap(rec.depth[i])).save(str(depth_vis / f"{i:04d}__{SOURCE}.jpg"))
+
+    # Remove this source's point clouds from an earlier run. The viewer finds a frame's cloud by its file name,
+    # so a leftover would be drawn under this run's centroid.
+    pc_vis = clip_dir / "pc_vis"
+    pc_vis.mkdir(exist_ok=True)
+    for stale in pc_vis.glob(f"frame_*__{SOURCE}.glb"):
+        stale.unlink()
+
+    # Write a point cloud per frame, and record its centroid, its size and the camera's axes.
+    rng = np.random.default_rng(0)
+    per_frame: dict[int, dict] = {}
+    n_verts = []
+    for i, img_path in enumerate(image_paths):
+        R, t = rec.extrinsics[i][:3, :3], rec.extrinsics[i][:3, 3]
+        img_bgr = cv2.imread(str(img_path))
+        if img_bgr is None:
+            raise ValueError(f"{clip_dir.name}: cannot read frame {img_path}")
+        colors = cv2.cvtColor(cv2.resize(img_bgr, (W, H), interpolation=cv2.INTER_LINEAR),
+                              cv2.COLOR_BGR2RGB).reshape(-1, 3)
+        gltf_pts = world_to_gltf(cam_to_world(backproject_depth(rec.depth[i], rec.intrinsics[i]), R, t))
+        keep = valid_depth_mask(rec.depth[i].reshape(-1))
+        if conf_thre > 0:
+            keep &= rec.conf[i].reshape(-1) > conf_thre
+        gltf_pts, cols = gltf_pts[keep], colors[keep]
+        if len(gltf_pts) == 0:
+            # A frame can hold no usable depth. The viewer shows no cloud for it; the other frames stand.
+            print(f"  frame {i:04d}: no usable depth, no point cloud")
+            continue
+        if max_points and len(gltf_pts) > max_points:
+            sel = rng.choice(len(gltf_pts), max_points, replace=False)
+            gltf_pts, cols = gltf_pts[sel], cols[sel]
+        centroid = write_point_cloud_glb(pc_vis / f"frame_{i:04d}__{SOURCE}.glb", gltf_pts, cols, recenter=True)
+        per_frame[i] = {"glb_centroid": centroid.tolist(), "n_vertices": int(len(gltf_pts)),
+                        **camera_axes_in_gltf(R, t)}
+        n_verts.append(len(gltf_pts))
+    if not per_frame:
+        raise ValueError(f"{clip_dir.name}: no frame gave a point cloud")
+
+    # Record the run in the manifest. The summaries cover the pixels the point clouds hold.
+    # `vo` and `vo_fixed_scale` keep the workbench's record of its chunked mode, which this stage does not run.
+    valid = valid_depth_mask(rec.depth)
+    depth_valid, conf_valid = rec.depth[valid], rec.conf[valid]
+    update_manifest(clip_dir, SOURCE, per_frame, n_input, {
+        "model": model.model_id,
+        "vo": False,
+        "vo_fixed_scale": None,
+        "pixel_limit": pixel_limit,
+        "conf_thre": conf_thre,
+        "resolution": [int(W), int(H)],
+        "n_frames": len(per_frame),
+        "median_vertices": int(np.median(n_verts)),
+        "runtime_sec": round(runtime, 2),
+        "conf_coverage": {str(th): float((conf_valid > th).mean()) for th in (0.1, 0.2, 0.3, 0.5)},
+        "depth_range": [float(depth_valid.min()), float(depth_valid.max())],
+        "roundtrip": check,
+    })
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--input-dir", required=True, help="The directory that holds the clips.")
+    ap.add_argument("--clips", nargs="*", help="Clip directories under --input-dir. Default: every clip there.")
+    ap.add_argument("--device", default="auto", help="auto, cuda or cpu. auto takes CUDA when there is one.")
+    ap.add_argument("--gpu", type=int, default=0, help="The index of the GPU to use.")
+    ap.add_argument("--pixel-limit", type=int, default=DEFAULT_PIXEL_LIMIT,
+                    help="The most pixels a frame keeps after resizing.")
+    ap.add_argument("--conf-thre", type=float, default=0.0,
+                    help="Drop pixels at or below this confidence from the point clouds. 0 keeps them all.")
+    ap.add_argument("--max-points", type=int, default=0, help="The most points per cloud. 0 keeps all.")
+    ap.add_argument("--roundtrip-tol", type=float, default=DEFAULT_ROUNDTRIP_TOL,
+                    help="The largest round-trip error at p99.9, relative to the median depth.")
+    args = ap.parse_args()
+    root = Path(args.input_dir)
+    if not root.is_dir():
+        raise SystemExit(f"no such directory: {root}")
+    clips = ([root / c for c in args.clips] if args.clips
+             else sorted(d for d in root.iterdir() if (d / "frame_manifest.json").is_file()))
+    model = Pi3X(device=args.device, gpu=args.gpu, pixel_limit=args.pixel_limit)
+    print(f"{model.model_id} on {model.device}, {len(clips)} clip(s)")
+    # Run every clip, even after one fails. The run lists each failure and exits non-zero.
+    failed = []
+    for clip_dir in clips:
+        print(clip_dir.name)
+        try:
+            run_pi3x(clip_dir, model, args.pixel_limit, args.conf_thre, args.roundtrip_tol, args.max_points)
+        except (OSError, ValueError) as e:
+            print(f"  failed: {e}")
+            failed.append(clip_dir.name)
+    if failed:
+        raise SystemExit(f"{len(failed)} of {len(clips)} clip(s) failed: {', '.join(failed)}")
+
+
+if __name__ == "__main__":
+    main()

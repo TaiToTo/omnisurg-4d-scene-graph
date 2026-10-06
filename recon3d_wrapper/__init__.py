@@ -23,6 +23,8 @@ class Reconstruction:
         conf: (N, H, W) confidence.
         intrinsics: (N, 3, 3).
         extrinsics: (N, 3, 4), world to camera.
+        points: (N, H, W, 3) world points, from a model that predicts them directly, as Pi3X does; None
+            otherwise. A stage checks the pose convention against them.
 
     Raises:
         ValueError: the shapes do not describe one sequence of N frames.
@@ -32,11 +34,14 @@ class Reconstruction:
     conf: np.ndarray
     intrinsics: np.ndarray
     extrinsics: np.ndarray
+    points: np.ndarray | None = None
 
     def __post_init__(self) -> None:
         n = len(self.depth)
         expected = {"depth": (n, *self.depth.shape[1:]), "conf": self.depth.shape, "intrinsics": (n, 3, 3),
                     "extrinsics": (n, 3, 4)}
+        if self.points is not None:
+            expected["points"] = (*self.depth.shape, 3)
         wrong = [f"{k} {getattr(self, k).shape}, not {v}" for k, v in expected.items() if getattr(self, k).shape != v]
         if self.depth.ndim != 3 or wrong:
             raise ValueError(f"not one sequence of frames: depth {self.depth.shape}; " + "; ".join(wrong))

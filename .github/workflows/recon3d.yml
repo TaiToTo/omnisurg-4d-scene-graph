@@ -17,6 +17,8 @@ on:
       - surgical_core/**
       - tests/test_depth_stage.py
       - tests/test_recon3d_wrapper.py
+      - tests/test_pi3x_backend.py
+      - tests/test_pi3x_stage.py
       - .github/workflows/recon3d.yml
 
 # Nothing here writes to the repository.
@@ -41,9 +43,9 @@ jobs:
       # The README's step, word for word.
       - run: pip install -e ".[recon3d]"
 
-      # Import the backend, the upstream model and the stage. A package can
+      # Import the backends, the upstream models and the stages. A package can
       # install and still fail to import; no weights are loaded here.
-      - run: python -c "import recon3d_wrapper.da3, depth_anything_3.api, pipeline.depth, trimesh, matplotlib"
+      - run: python -c "import recon3d_wrapper.da3, recon3d_wrapper.pi3x, depth_anything_3.api, pi3.models.pi3x, pipeline.depth, pipeline.pi3x, trimesh, matplotlib"
 
       - run: pip install pytest
       - run: pytest
