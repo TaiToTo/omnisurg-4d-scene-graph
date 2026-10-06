@@ -84,7 +84,7 @@ stage does not run.
 ## The Pi3X stage
 
 ```bash
-python -m pipeline.pi3x --input-dir /path/to/clips --clips <clip> [--device auto] [--gpu 0]
+python -m pipeline.pi3x --input-dir /path/to/clips --clips <clip> [--device auto] [--gpu N] [--overwrite]
 ```
 
 The stage reconstructs a clip with Pi3X (`recon3d_wrapper.pi3x`), a second
@@ -115,5 +115,10 @@ wrong without any error.
 The manifest's frames are matched to the images by `seq_idx`. The stage
 refuses a clip whose manifest lists other frames than `input_images/`. It
 checks this before the model runs, so a refused clip is left as it was.
+
+The stage also refuses a clip that already holds its output, and says what
+is there. `--overwrite` replaces that output: the stage removes its own files
+and manifest records, never DA3's, and writes them again. A frame that gets
+no point cloud then keeps none from an earlier run.
 
 Pi3X runs on a CPU only in principle; a clip takes too long to be useful.

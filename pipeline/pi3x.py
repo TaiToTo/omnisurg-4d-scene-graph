@@ -7,13 +7,16 @@ centroid, size and camera axes, and for the run its settings, runtime and
 round-trip check. The round-trip check back-projects the stage's own depth
 through its own poses and compares the points with the ones Pi3X predicted.
 An inverted pose convention fails it. The stage refuses a clip that fails it.
+A clip that already holds the stage's output is refused unless `--overwrite`
+is given, which removes that output first.
 
 Usage:
-    python -m pipeline.pi3x --input-dir /path/to/clips [--clips <clip> ...] [--device auto] [--gpu 0]
+    python -m pipeline.pi3x --input-dir /path/to/clips [--clips <clip> ...] [--device auto] [--gpu N] [--overwrite]
 """
 
 import argparse
 import json
+import re
 import time
 from collections.abc import Iterable
 from pathlib import Path
@@ -32,6 +35,11 @@ from surgical_core.viewer.glb import write_point_cloud_glb
 
 # The name this geometry source writes under, in file names and in the manifest.
 SOURCE = "pi3x"
+
+# The stage's own files in a clip, by the directory or file that holds them. The DA3 stage writes into the same
+# directories without a suffix, so the stage names its files, never a directory.
+OWN_FILES = {"depth_vis": rf"\d+__{SOURCE}\.jpg", "pc_vis": rf"frame_\d+__{SOURCE}\.glb"}
+BUNDLE = f"exports/mini_npz/results__{SOURCE}.npz"
 
 # How many times the inverted pose reading's error must exceed the stage's own. The right reading wins by 100 to
 # 300 times on every clip measured, so 10 leaves an order of magnitude of slack.
@@ -158,8 +166,63 @@ def update_manifest(clip_dir: Path, source: str, per_frame: dict[int, dict], n_i
     (clip_dir / "frame_manifest.json").write_text(json.dumps(manifest, indent=2))
 
 
+def own_files(clip_dir: Path) -> dict[str, list[Path]]:
+    """Return the stage's own files in the clip, under the directory or file that holds them."""
+    found = {}
+    for sub, pattern in OWN_FILES.items():
+        d = clip_dir / sub
+        found[sub] = sorted(p for p in d.iterdir() if re.fullmatch(pattern, p.name)) if d.is_dir() else []
+    found[BUNDLE] = [clip_dir / BUNDLE] if (clip_dir / BUNDLE).is_file() else []
+    return found
+
+
+def existing_output(clip_dir: Path, manifest: dict) -> list[str]:
+    """List what this stage, in any version, already wrote into the clip.
+
+    Each entry names a directory with its count of the stage's files, the bundle with its keys, or the manifest's
+    records. The run's record is listed with its `vo`: true marks the workbench's chunked mode, which this stage
+    does not run.
+    """
+    held = []
+    for name, files in own_files(clip_dir).items():
+        if not files:
+            continue
+        if name == BUNDLE:
+            with np.load(files[0]) as z:
+                held.append(f"{name} with keys {z.files}")
+        else:
+            held.append(f"{name} ({len(files)} file{'s' if len(files) > 1 else ''})")
+    record = manifest.get("geometry_sources", {}).get(SOURCE)
+    if record is not None:
+        held.append(f"geometry_sources.{SOURCE} with keys {list(record)} and vo={record.get('vo')}")
+    n = sum(SOURCE in fr.get("geometry_sources", {}) for fr in manifest.get("frames", []))
+    if n:
+        held.append(f"geometry_sources.{SOURCE} on {n} frame{'s' if n > 1 else ''}")
+    return held
+
+
+def remove_output(clip_dir: Path) -> None:
+    """Remove the stage's own files and manifest records from the clip, so that a run writes every one it then holds.
+
+    A frame that gets no point cloud in the new run would otherwise keep the earlier run's cloud and record, and
+    the viewer would draw them. Another source's files and records stay.
+    """
+    for files in own_files(clip_dir).values():
+        for path in files:
+            path.unlink()
+    manifest_path = clip_dir / "frame_manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    for entry in [manifest, *manifest.get("frames", [])]:
+        sources = entry.get("geometry_sources")
+        if sources is not None:
+            sources.pop(SOURCE, None)
+            if not sources:
+                del entry["geometry_sources"]
+    manifest_path.write_text(json.dumps(manifest, indent=2))
+
+
 def run_pi3x(clip_dir: Path, model: Reconstructor, pixel_limit: int, conf_thre: float = 0.0,
-             roundtrip_tol: float = DEFAULT_ROUNDTRIP_TOL, max_points: int = 0) -> None:
+             roundtrip_tol: float = DEFAULT_ROUNDTRIP_TOL, max_points: int = 0, overwrite: bool = False) -> None:
     """Run the stage on one clip.
 
     Args:
@@ -170,11 +233,14 @@ def run_pi3x(clip_dir: Path, model: Reconstructor, pixel_limit: int, conf_thre: 
             depth, as the DA3 stage does, so that the two sources differ in geometry and not in masking.
         roundtrip_tol: the largest round-trip error allowed at p99.9, relative to the median depth.
         max_points: the most points a cloud keeps, sampled with a fixed seed; 0 keeps all.
+        overwrite: replace the stage's output when the clip already holds it. The output is removed only after
+            the model has run and the round-trip check has passed, so a run that fails leaves the clip as it was.
 
     Raises:
         FileNotFoundError: no image or no manifest.
-        ValueError: the manifest lists other frames than `input_images/`, the model returned another number of
-            frames, the round-trip check failed, an image could not be read, or no frame gave a point cloud.
+        ValueError: the manifest lists other frames than `input_images/`, the clip already holds the stage's
+            output and `overwrite` is false, the model returned another number of frames, the round-trip check
+            failed, an image could not be read, or no frame gave a point cloud.
     """
     # Find the clip's images and check its manifest before the model runs, so that a refused clip costs no
     # inference and is left as it was.
@@ -182,7 +248,13 @@ def run_pi3x(clip_dir: Path, model: Reconstructor, pixel_limit: int, conf_thre: 
     if not image_paths:
         raise FileNotFoundError(f"{clip_dir} has no input_images/*.png")
     n_input = len(image_paths)
-    read_manifest(clip_dir, n_input, range(n_input))
+    manifest = read_manifest(clip_dir, n_input, range(n_input))
+
+    # Refuse a clip that already holds the stage's output, unless the caller asked to replace it.
+    held = existing_output(clip_dir, manifest)
+    if held and not overwrite:
+        raise ValueError(f"{clip_dir.name} already holds the Pi3X stage's output ({'; '.join(held)}); "
+                         "pass --overwrite to replace it")
 
     # Reconstruct the images.
     print(f"  {n_input} frames, model={model.model_id}, pixel_limit={pixel_limit}")
@@ -206,6 +278,10 @@ def run_pi3x(clip_dir: Path, model: Reconstructor, pixel_limit: int, conf_thre: 
     if check["p999_rel"] > roundtrip_tol:
         raise ValueError(f"{clip_dir.name}: round-trip p99.9 {check['p999_rel']:.3e} exceeds {roundtrip_tol:.1e}")
 
+    # Remove the earlier output, now that the model has run and its poses passed.
+    if held:
+        remove_output(clip_dir)
+
     # Write the bundle and the depth images, each under the source's suffix.
     exports = clip_dir / "exports" / "mini_npz"
     exports.mkdir(parents=True, exist_ok=True)
@@ -217,14 +293,9 @@ def run_pi3x(clip_dir: Path, model: Reconstructor, pixel_limit: int, conf_thre: 
     for i in range(n_frames):
         Image.fromarray(depth_to_colormap(rec.depth[i])).save(str(depth_vis / f"{i:04d}__{SOURCE}.jpg"))
 
-    # Remove this source's point clouds from an earlier run. The viewer finds a frame's cloud by its file name,
-    # so a leftover would be drawn under this run's centroid.
+    # Write a point cloud per frame, and record its centroid, its size and the camera's axes.
     pc_vis = clip_dir / "pc_vis"
     pc_vis.mkdir(exist_ok=True)
-    for stale in pc_vis.glob(f"frame_*__{SOURCE}.glb"):
-        stale.unlink()
-
-    # Write a point cloud per frame, and record its centroid, its size and the camera's axes.
     rng = np.random.default_rng(0)
     per_frame: dict[int, dict] = {}
     n_verts = []
@@ -279,7 +350,8 @@ def main() -> None:
     ap.add_argument("--input-dir", required=True, help="The directory that holds the clips.")
     ap.add_argument("--clips", nargs="*", help="Clip directories under --input-dir. Default: every clip there.")
     ap.add_argument("--device", default="auto", help="auto, cuda or cpu. auto takes CUDA when there is one.")
-    ap.add_argument("--gpu", type=int, default=0, help="The index of the GPU to use.")
+    ap.add_argument("--gpu", type=int, default=None,
+                    help="The index of the GPU to use. Default: what CUDA_VISIBLE_DEVICES says, or the first GPU.")
     ap.add_argument("--pixel-limit", type=int, default=DEFAULT_PIXEL_LIMIT,
                     help="The most pixels a frame keeps after resizing.")
     ap.add_argument("--conf-thre", type=float, default=0.0,
@@ -287,22 +359,32 @@ def main() -> None:
     ap.add_argument("--max-points", type=int, default=0, help="The most points per cloud. 0 keeps all.")
     ap.add_argument("--roundtrip-tol", type=float, default=DEFAULT_ROUNDTRIP_TOL,
                     help="The largest round-trip error at p99.9, relative to the median depth.")
+    ap.add_argument("--overwrite", action="store_true",
+                    help="Replace the stage's output in a clip that already holds it.")
     args = ap.parse_args()
+    # Find the clips before the model loads: its weights take 5.1 GB, and a mistyped clip name should fail first.
     root = Path(args.input_dir)
     if not root.is_dir():
         raise SystemExit(f"no such directory: {root}")
     clips = ([root / c for c in args.clips] if args.clips
              else sorted(d for d in root.iterdir() if (d / "frame_manifest.json").is_file()))
+    missing = [c.name for c in clips if not (c / "frame_manifest.json").is_file()]
+    if missing:
+        raise SystemExit(f"no clip (a directory with frame_manifest.json) at: {', '.join(missing)}")
+    if not clips:
+        raise SystemExit(f"no clip under {root}")
     model = Pi3X(device=args.device, gpu=args.gpu, pixel_limit=args.pixel_limit)
     print(f"{model.model_id} on {model.device}, {len(clips)} clip(s)")
-    # Run every clip, even after one fails. The run lists each failure and exits non-zero.
+    # Run every clip, even after one fails. Any error, the GPU running out of memory among them, counts as the
+    # failure of that clip alone. The run lists each failure and exits non-zero.
     failed = []
     for clip_dir in clips:
         print(clip_dir.name)
         try:
-            run_pi3x(clip_dir, model, args.pixel_limit, args.conf_thre, args.roundtrip_tol, args.max_points)
-        except (OSError, ValueError) as e:
-            print(f"  failed: {e}")
+            run_pi3x(clip_dir, model, args.pixel_limit, args.conf_thre, args.roundtrip_tol, args.max_points,
+                     overwrite=args.overwrite)
+        except Exception as e:
+            print(f"  failed: {type(e).__name__}: {e}")
             failed.append(clip_dir.name)
     if failed:
         raise SystemExit(f"{len(failed)} of {len(clips)} clip(s) failed: {', '.join(failed)}")

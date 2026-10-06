@@ -140,17 +140,20 @@ class StandIn:
 
     model_id = "stand-in"
 
-    def __init__(self, invert=False):
-        self.invert = invert
+    def __init__(self, invert=False, zero_frame=None):
+        self.invert, self.zero_frame = invert, zero_frame
         self.calls = 0
 
     def reconstruct(self, image_paths):
         self.calls += 1
         rec, poses = pinhole(n=len(image_paths))
+        if self.zero_frame is not None:
+            rec.depth[self.zero_frame] = 0.0
         return inverted(rec, poses) if self.invert else rec
 
 
-def _clip(tmp_path, n=3):
+def _clip(tmp_path, n=3, earlier_run=False):
+    """Make a clip with DA3's cloud of frame 0, and with what an earlier run of this stage left, if asked."""
     c = tmp_path / "clip"
     (c / "input_images").mkdir(parents=True)
     for i in range(n):
@@ -158,8 +161,13 @@ def _clip(tmp_path, n=3):
     (c / "frame_manifest.json").write_text(json.dumps(
         {"n_frames": n, "frames": [{"seq_idx": i, "glb_centroid": [0.0, 0.0, 0.0]} for i in range(n)]}, indent=2))
     (c / "pc_vis").mkdir()
-    (c / "pc_vis" / "frame_0007__pi3x.glb").write_bytes(b"stale")
     (c / "pc_vis" / "frame_0000.glb").write_bytes(b"da3")
+    if earlier_run:
+        (c / "pc_vis" / "frame_0007__pi3x.glb").write_bytes(b"stale")
+        m = json.loads((c / "frame_manifest.json").read_text())
+        m["geometry_sources"] = {"pi3x": {"model": "pi3x", "vo": True}}
+        m["frames"][1]["geometry_sources"] = {"pi3x": {"glb_centroid": [9.0, 9.0, 9.0]}}
+        (c / "frame_manifest.json").write_text(json.dumps(m, indent=2))
     return c
 
 
@@ -171,7 +179,7 @@ def test_a_run_writes_the_source_files_and_the_manifest_records(tmp_path):
     assert (clip / "exports" / "mini_npz" / "results__pi3x.npz").is_file()
     assert sorted(p.name for p in (clip / "depth_vis").iterdir()) == [f"{i:04d}__pi3x.jpg" for i in range(3)]
     assert sorted(p.name for p in (clip / "pc_vis").iterdir()) == ["frame_0000.glb"] + [
-        f"frame_{i:04d}__pi3x.glb" for i in range(3)], "a stale cloud of this source goes, DA3's stays"
+        f"frame_{i:04d}__pi3x.glb" for i in range(3)], "DA3's cloud stays"
     m = json.loads((clip / "frame_manifest.json").read_text())
     assert list(m["geometry_sources"]["pi3x"]) == [
         "model", "vo", "vo_fixed_scale", "pixel_limit", "conf_thre", "resolution", "n_frames", "median_vertices",
@@ -182,10 +190,45 @@ def test_a_run_writes_the_source_files_and_the_manifest_records(tmp_path):
 
 
 def test_a_run_with_inverted_poses_is_refused_before_anything_is_written(tmp_path):
-    clip = _clip(tmp_path)
+    clip = _clip(tmp_path, earlier_run=True)
+    before = (clip / "frame_manifest.json").read_text()
     with pytest.raises(ValueError, match="inverted"):
-        run_pi3x(clip, StandIn(invert=True), pixel_limit=255_000)
+        run_pi3x(clip, StandIn(invert=True), pixel_limit=255_000, overwrite=True)
     assert not (clip / "exports").exists()
+    assert (clip / "pc_vis" / "frame_0007__pi3x.glb").read_bytes() == b"stale", "the earlier run's output stays"
+    assert (clip / "frame_manifest.json").read_text() == before
+
+
+def test_a_clip_that_holds_this_stages_output_is_refused_before_the_model_runs(tmp_path):
+    clip = _clip(tmp_path, earlier_run=True)
+    model = StandIn()
+    with pytest.raises(ValueError, match=r"already holds .*pc_vis \(1 file\).*vo=True.*on 1 frame"):
+        run_pi3x(clip, model, pixel_limit=255_000)
+    assert model.calls == 0
+    assert (clip / "pc_vis" / "frame_0007__pi3x.glb").read_bytes() == b"stale"
+
+
+def test_a_clip_that_holds_only_da3s_output_is_not_refused(tmp_path):
+    pytest.importorskip("matplotlib")
+    pytest.importorskip("trimesh")
+    clip = _clip(tmp_path)
+    (clip / "depth_vis").mkdir()
+    (clip / "depth_vis" / "0000.jpg").write_bytes(b"da3")
+    run_pi3x(clip, StandIn(), pixel_limit=255_000)
+    assert (clip / "depth_vis" / "0000.jpg").read_bytes() == b"da3"
+    assert (clip / "pc_vis" / "frame_0000.glb").read_bytes() == b"da3"
+
+
+def test_overwrite_removes_the_earlier_runs_clouds_and_records(tmp_path):
+    pytest.importorskip("matplotlib")
+    pytest.importorskip("trimesh")
+    clip = _clip(tmp_path, earlier_run=True)
+    run_pi3x(clip, StandIn(zero_frame=1), pixel_limit=255_000, overwrite=True)
+    assert sorted(p.name for p in (clip / "pc_vis").iterdir()) == [
+        "frame_0000.glb", "frame_0000__pi3x.glb", "frame_0002__pi3x.glb"], "DA3's cloud stays, the stale one goes"
+    m = json.loads((clip / "frame_manifest.json").read_text())
+    assert m["geometry_sources"]["pi3x"]["vo"] is False
+    assert "geometry_sources" not in m["frames"][1], "a frame with no cloud this run keeps no record of the last"
 
 
 @pytest.mark.parametrize("fault", ["no manifest", "a frame gained"])
