@@ -483,3 +483,31 @@ Every command takes those paths as arguments.
     surface in the tracking stage's byte check. If it does there, the choice
     is between restoring the workbench's order and accepting a documented
     non-bit-equality — made then, not found later.
+17. **Whether the geometry path has to be fast.** The depth stage
+    back-projects each frame once when a clip is exported, with
+    `backproject_depth`, `cam_to_world` and `world_to_gltf`, and writes the
+    points to a GLB file. Nothing waits on it there, so its cost is a batch
+    cost today. The viewer reads the GLB files the export wrote and
+    recomputes nothing. A viewer that recomputed geometry while the user
+    moves would need the path faster than it is. The three functions
+    together take 40 to 65 ms on a 1080p frame across runs on one machine,
+    numpy only. The shape checks are not the cost. Each compares one tuple
+    per array, and the four on the path through `backproject` take 0.4 µs
+    together. The per-pixel work is the cost, and the world transform
+    carries most of it. The points come out float64 whatever the dtype of
+    the depth map and the intrinsics. The pixel grid is built with an
+    integer `arange`, and numpy promotes int64 with float32 to float64. One
+    such array of points holds about 50 MB at 1080p. On float32 points the
+    world transform measured 2.5 times faster. `backproject_depth` and
+    `backproject` rebuild the pixel grid on every call, although a clip's
+    resolution is fixed. That rebuild is a few per cent of the time. Two
+    more costs sit on the label transfer path of the tracking stage, not on
+    the export. `backproject` back-projects every frame it is given, and
+    `project_labels_region` votes region by region in a Python loop. None
+    of this is worth changing while the port lasts. float32 changes the
+    output, and the pipeline port asks each stage to match the workbench
+    byte for byte. The byte check reads the GLB files too. Decide once the
+    stages match, and decide with it whether a viewer ever recomputes
+    geometry or only reads what the export wrote. The functions are in
+    `surgical_core/geometry/camera.py` and
+    `surgical_core/geometry/project.py`.
