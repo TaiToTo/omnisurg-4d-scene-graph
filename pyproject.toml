@@ -28,11 +28,13 @@ authors = [{ name = "Yasuto Tamura" }]
 dependencies = ["numpy", "opencv-python", "Pillow"]
 
 [project.optional-dependencies]
-# What the pipeline's segmenter inputs need and the evaluator does not: the
-# depth colormap (matplotlib) and the Poisson integration in Retinex (scipy).
-# `surgical_core.geometry.render` is the only importer. Kept out of the base
-# install so that the toolkit still installs on a machine with neither.
-render = ["scipy", "matplotlib"]
+# What the pipeline's images and point clouds need and the evaluator does
+# not: the depth colormaps (matplotlib), the Poisson integration in Retinex
+# (scipy) and the GLB writer (trimesh), imported by
+# `surgical_core.geometry.render`, `surgical_core.viewer.depth_vis` and
+# `surgical_core.viewer.glb`. Kept out of the base install so that the
+# toolkit still installs on a machine with none of them.
+render = ["scipy", "matplotlib", "trimesh"]
 # What the tools under `evalkit/tools` need and the evaluator does not: the
 # Wilcoxon test that `paired_stats` reports beside the bootstrap (scipy) and
 # the per-clip chart `compare_eval` draws on request (matplotlib). The tools
