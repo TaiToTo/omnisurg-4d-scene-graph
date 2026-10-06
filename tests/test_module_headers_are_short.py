@@ -41,8 +41,6 @@ STILL_LONG = frozenset({
     "evalkit/tools/scores.py",
     "evalkit/unlabelled.py",
     "evalkit/vi.py",
-    "surgical_core/atlas120k/clip_rects.py",
-    "surgical_core/atlas120k/frame_ratio.py",
     "surgical_core/geometry/__init__.py",
     "tests/scenes.py",
     "tests/test_no_personal_email.py",
