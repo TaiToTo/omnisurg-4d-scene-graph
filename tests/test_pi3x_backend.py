@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from recon3d_wrapper.pi3x import PATCH, Pi3X, c2w_to_extrinsics, load_images, target_size
+from recon3d_wrapper.pi3x import PATCH, Pi3X, autocast_dtype, c2w_to_extrinsics, load_images, target_size
 from surgical_core.geometry.camera import cam_to_world
 
 
@@ -92,3 +92,13 @@ def test_a_gpu_chosen_after_torch_is_imported_is_refused(monkeypatch):
     monkeypatch.setitem(sys.modules, "torch", object())
     with pytest.raises(RuntimeError, match="already imported"):
         Pi3X(gpu=0)
+
+
+def test_the_cpu_runs_float32_and_cuda_the_workbenchs_reduced_precision():
+    # On the CPU, bfloat16 fails in upstream's camera head: "lu_cpu" is not implemented for BFloat16.
+    assert autocast_dtype("cpu") is None
+    assert autocast_dtype("cuda", (8, 0)) == "bfloat16"
+    assert autocast_dtype("cuda", (7, 5)) == "float16"
+    for device, capability in (("mps", None), ("cuda", None)):
+        with pytest.raises(ValueError, match="no precision"):
+            autocast_dtype(device, capability)

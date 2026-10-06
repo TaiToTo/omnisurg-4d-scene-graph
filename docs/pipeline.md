@@ -123,4 +123,6 @@ is there. `--overwrite` replaces that output: the stage removes its own files
 and manifest records, never DA3's, and writes them again. A frame that gets
 no point cloud then keeps none from an earlier run.
 
-Pi3X runs on a CPU only in principle; a clip takes too long to be useful.
+Pi3X also runs on a CPU, in float32. On a laptop with 16 GB of memory, two
+frames take about 15 seconds and four about 30, each in under 7.5 GB. Eight
+frames do not fit, and the machine swaps.

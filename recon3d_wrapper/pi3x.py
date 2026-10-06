@@ -8,6 +8,7 @@ upstream `pi3` package and on torch, the `recon3d` extra. It imports them
 only when a model is built, so importing the module needs neither.
 """
 
+import contextlib
 import math
 import os
 import sys
@@ -91,6 +92,26 @@ def load_images(image_paths: Sequence[Path], pixel_limit: int = DEFAULT_PIXEL_LI
     return out
 
 
+def autocast_dtype(device: str, capability: tuple[int, int] | None = None) -> str | None:
+    """Return the reduced precision Pi3X runs in on `device`, or None to run in float32.
+
+    CUDA runs bfloat16 from compute capability 8 and float16 below, as the workbench did. The CPU runs
+    float32: upstream's camera head takes a determinant, and the CPU has no bfloat16 kernel for it.
+
+    Args:
+        device: "cpu" or "cuda".
+        capability: the GPU's compute capability, for "cuda".
+
+    Raises:
+        ValueError: another device, or "cuda" without a capability.
+    """
+    if device == "cpu":
+        return None
+    if device != "cuda" or capability is None:
+        raise ValueError(f"no precision for device {device!r} with capability {capability!r}")
+    return "bfloat16" if capability[0] >= 8 else "float16"
+
+
 class Pi3X:
     """Load Pi3X once onto a device.
 
@@ -131,13 +152,9 @@ class Pi3X:
 
         imgs = torch.from_numpy(load_images(image_paths, self.pixel_limit)).permute(0, 3, 1, 2).contiguous()
         imgs = imgs.to(self.device)
-        # Run in bfloat16 where the hardware has it: on the CPU and on CUDA from compute capability 8.
-        # Older GPUs run float16; CPU autocast refuses float16 on several torch versions.
-        if self.device == "cuda" and torch.cuda.get_device_capability()[0] < 8:
-            dtype = torch.float16
-        else:
-            dtype = torch.bfloat16
-        with torch.no_grad(), torch.amp.autocast(torch.device(self.device).type, dtype=dtype):
+        dtype = autocast_dtype(self.device, torch.cuda.get_device_capability() if self.device == "cuda" else None)
+        precision = torch.amp.autocast("cuda", dtype=getattr(torch, dtype)) if dtype else contextlib.nullcontext()
+        with torch.no_grad(), precision:
             res = self.model(imgs[None])
 
         # Depth is the local points' z; the intrinsics are fitted to the local rays.
