@@ -1,21 +1,13 @@
-"""Small synthetic frames whose metric values can be worked out by hand.
+"""Draw small synthetic frames whose metric values can be worked out by hand.
 
-The evaluator's hand-derived tests are computed on these scenes: each one is
-a ground truth and a prediction with one controlled fault, and the areas are
-round numbers, so the value of every metric on it can be derived on paper and
-pinned. A metric guide, if one is built here, draws these same frames rather
-than frames of its own, so that its pictures and the tests cannot drift apart.
-
-This module holds the frames only. What each metric must give on them is
-derived under the evaluator's rules, in the tests that come with the metrics;
-the pilot evaluator's values are pinned by its own tests, in pilot mode.
-
-Every scene is 60 x 100 px. That keeps the arithmetic readable while every
-region stays above the pilot evaluator's 300 px cut, which it needs to
-reproduce the pilot numbers; the one exception is `sliver`, whose region is
-made to sit on either side of that cut. GT class 1 fills the left half and
-class 2 the right half unless a scene says otherwise. Predicted regions are
-ids 0, 1, 2, ..., and -1 is "no region".
+Each scene is a ground truth and a prediction with one controlled fault. Its
+areas are round numbers, so the value of every metric on it can be derived on
+paper and pinned. The evaluator's hand-derived tests are computed on these
+scenes, and a metric guide draws the same frames, so the two cannot drift
+apart. Every scene is 60 x 100 px, and every region stays above the pilot
+evaluator's 300 px cut, except in `sliver`, which sits on either side of it.
+GT class 1 fills the left half and class 2 the right half unless a scene says
+otherwise. Predicted regions are ids 0, 1, 2, ..., and -1 is "no region".
 """
 from dataclasses import dataclass, field
 
