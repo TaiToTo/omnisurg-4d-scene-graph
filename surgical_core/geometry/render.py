@@ -2,7 +2,7 @@
 
 A segmenter input is a base image (RGB, colormapped depth, normals, Retinex
 reflectance or flat grey) with the geometry added in one of two ways: the
-geometric edges burnt in as dark lines (`burn_geom_edge`), or the surface
+geometric edges drawn in as dark lines (`darken_at_edges`), or the surface
 tilt applied as shading (`relight_rgb`). `sam_input_image` builds any mode in
 `SAM_INPUT_MODES`.
 
@@ -15,8 +15,7 @@ import matplotlib
 import numpy as np
 from scipy.fft import dctn, idctn
 
-from surgical_core.geometry.normals import (
-    burn_geom_edge, camera_normals, geom_edge_map, normal_edge_map, normal_map)
+from surgical_core.geometry.normals import EDGE_GAIN, camera_normals, darken_at_edges, normal_edge_map, normal_map
 from surgical_core.geometry.valid import valid_depth_mask
 
 
@@ -65,12 +64,12 @@ def pseudo_normal_from_rgb(rgb, scale=8.0, smooth=True):
     return np.clip((n * 0.5 + 0.5) * 255, 0, 255).astype(np.uint8)
 
 
-def relight_rgb(rgb, depth, K, light=(0.45, -0.45, 0.77), ambient=0.45):
+def relight_rgb(rgb, depth, K, light=(0.45, -0.45, 0.77), ambient=0.45, normals=None):
     """Keep the colours and re-shade the image from the geometry.
 
     `n . l` for an oblique light, then `ambient + (1 - ambient) * n . l`
     multiplied into the RGB. The same factor on all three channels leaves hue
-    and saturation untouched; only the shading changes. Where `burn_geom_edge`
+    and saturation untouched; only the shading changes. Where `darken_at_edges`
     adds boundaries discretely, this adds surface tilt continuously, and the
     result still looks like a photograph, which matters because the
     segmenter was trained on photographs and degrades on inputs that are not.
@@ -82,12 +81,13 @@ def relight_rgb(rgb, depth, K, light=(0.45, -0.45, 0.77), ambient=0.45):
         light: light direction in camera space. The default is above and in
             front, oblique; a frontal light shows no creases.
         ambient: floor of the shading, 0 to 1. 1 is no effect, 0 black shadows.
+        normals: `camera_normals(depth, K)`, when the caller has it already.
 
     Returns:
         (H, W, 3) uint8. Invalid pixels keep their RGB, so the effect is only
         the shading.
     """
-    n, m = camera_normals(depth, K)
+    n, m = camera_normals(depth, K) if normals is None else normals
     l = np.asarray(light, np.float32)
     l /= np.linalg.norm(l)
     lam = np.clip(np.sum(np.nan_to_num(n) * l, -1), 0, 1)
@@ -176,61 +176,76 @@ def _to_u8(x, p=99.0):
     return np.clip(x / (hi + 1e-8) * 255.0, 0, 255).astype(np.uint8)
 
 
-def _compose(base, depth, K, edge=None, shade=False, edge_gain=1.0):
+def _compose(base, depth, K, edge=None, shade=False, edge_gain=EDGE_GAIN, normals=None):
     """Apply geometric shading, then geometric dark lines, to a base image;
     either can be left out.
 
     Only multiplications, so hue and saturation are kept. That property was
-    common to every composition that worked, and is made the rule here.
+    common to every composition that worked, and is made the rule here. The
+    normals are computed once and shared by the shading and the lines.
 
     Args:
         base: (H, W, 3) uint8.
         depth: (H, W) depth.
         K: (3, 3) intrinsics.
-        edge: `None`, `"both"`, `"normal"` or `"depth"`: which edges to burn.
+        edge: `None`, `"both"`, `"normal"` or `"depth"`: which edges to darken.
         shade: apply `relight_rgb`.
         edge_gain: how dark the edge line is.
+        normals: `camera_normals(depth, K)`, when the caller has it already.
 
     Returns:
         (H, W, 3) uint8.
     """
+    if normals is None and (shade or edge is not None):
+        normals = camera_normals(depth, K)
     img = base
     if shade:
-        img = relight_rgb(img, depth, K)
+        img = relight_rgb(img, depth, K, normals=normals)
     if edge is not None:
-        e = geom_edge_map(depth, K, parts=edge)
-        img = np.clip(img.astype(np.float32) * (1.0 - edge_gain * e)[..., None], 0, 255) \
-                .astype(np.uint8)
+        img = darken_at_edges(img, depth, K, edge_gain, parts=edge, normals=normals)
     return img
 
 
 # The input modes made by composition: base image x how the geometry is
-# added. The older names below keep their own code paths; only combinations
-# are added here. `base` is how the base is made, `edge` which dark lines,
-# `shade` whether to relight.
+# added. `base` is how the base is made, `edge` which dark lines, `shade`
+# whether to relight.
 _COMBOS = {
+    # The names of the conditions measured first. Each is a composition too.
+    "rgb":             ("rgb",    None,     False),
+    "depth":           ("depth",  None,     False),
+    "normal":          ("normal", None,     False),
+    "rgb_edge":        ("rgb",    "both",   False),
+    "depth_edge":      ("depth",  "both",   False),
+    "edge_only":       ("gray",   "both",   False),
+    "rgb_shade":       ("rgb",    None,     True),
+    "rgb_refl":        ("refl",   None,     False),
+    "refl_shade":      ("refl",   None,     True),
     # RGB as base
-    "rgb_edge_shade":  ("rgb",  "both",   True),
-    "rgb_nedge":       ("rgb",  "normal", False),
-    "rgb_dedge":       ("rgb",  "depth",  False),
+    "rgb_edge_shade":  ("rgb",    "both",   True),
+    "rgb_nedge":       ("rgb",    "normal", False),
+    "rgb_dedge":       ("rgb",    "depth",  False),
     # Retinex reflectance as base
-    "refl_edge":       ("refl", "both",   False),
-    "refl_edge_shade": ("refl", "both",   True),
+    "refl_edge":       ("refl",   "both",   False),
+    "refl_edge_shade": ("refl",   "both",   True),
     # geometry as base
-    "normal_shade":    ("normal", None,   True),
-    "depth_shade":     ("depth",  None,   True),
+    "normal_shade":    ("normal", None,     True),
+    "depth_shade":     ("depth",  None,     True),
     # no base: the control
-    "shade_only":      ("gray", None,     True),
+    "shade_only":      ("gray",   None,     True),
 }
 
+# The modes with code of their own in `sam_input_image`. `normal_edge` smooths the normal image before it
+# darkens the edges; `rgb_normal` and `rgb_shading` add no geometry to a base.
+_OWN_MODES = ("normal_edge", "rgb_normal", "rgb_shading")
 
-def _base_image(kind, depth, K, gray01, rgb):
+
+def _base_image(kind, depth, K, gray01, rgb, normals=None):
     if kind == "rgb":
         return rgb
     if kind == "refl":
         return _to_u8(color_retinex(rgb)[0])
     if kind == "normal":
-        return normal_map(depth, K)
+        return normal_map(depth, K, normals=normals)
     if kind == "depth":
         return depth_to_colormapped(gray01)
     return np.full((*depth.shape, 3), 200, np.uint8)          # gray
@@ -240,11 +255,7 @@ def _base_image(kind, depth, K, gray01, rgb):
 # the choices: when callers each kept their own literal list, one of them was
 # extended and the other was not, and a whole propagation stage failed on
 # every clip after the per-frame stage had passed.
-SAM_INPUT_MODES = ("depth", "normal", "normal_edge", "rgb",
-                   "rgb_edge", "depth_edge", "edge_only",
-                   "rgb_normal", "rgb_shade",
-                   "rgb_refl", "rgb_shading", "refl_shade",
-                   *sorted(_COMBOS))
+SAM_INPUT_MODES = (*_COMBOS, *_OWN_MODES)
 
 # The inputs the tracker can propagate on: a subset of `SAM_INPUT_MODES`. Kept
 # here, not in each caller, for the same reason as above: the propagation
@@ -255,36 +266,39 @@ assert set(TRACK_BASE_MODES) <= set(SAM_INPUT_MODES), \
     "TRACK_BASE_MODES names an input that is not in SAM_INPUT_MODES"
 
 
-def uses_geom_edge(mode):
-    """Whether `sam_input_image(mode, ...)` burns geometric edges in.
+def darkens_at_edges(mode):
+    """Whether `sam_input_image(mode, ...)` darkens the geometric edges.
 
     For the provenance record: `edge_ring_masked` describes how the edges
-    were made, so writing True or False for an input that burns no edges
+    were made, so writing True or False for an input that shows no edges
     (`rgb`, `normal`, `depth`) would read as "made with that setting". For
     those inputs the record writes `None`, and this is how it tells.
 
     Args:
         mode: one of `SAM_INPUT_MODES`.
+
+    Raises:
+        ValueError: `mode` is not one of `SAM_INPUT_MODES`.
     """
     if mode in _COMBOS:
-        return bool(_COMBOS[mode][1])
-    return mode in ("normal_edge", "rgb_edge", "depth_edge", "edge_only")
+        return _COMBOS[mode][1] is not None
+    if mode in _OWN_MODES:
+        return mode == "normal_edge"
+    raise ValueError(f"unknown input mode {mode!r}; one of {SAM_INPUT_MODES}")
 
 
-def sam_input_image(mode, depth, K, gray01, rgb, edge_gain=0.85, smooth=True):
+def sam_input_image(mode, depth, K, gray01, rgb, edge_gain=EDGE_GAIN, smooth=True):
     """The 3-channel image the segmenter is prompted with, per input mode.
 
     Args:
-        mode: `"depth"` (colormapped depth), `"normal"`, `"normal_edge"`
-            (normals with the geometric edges burnt in), `"rgb"`, `"rgb_edge"`
-            and `"depth_edge"` (the same edges burnt into RGB or depth),
-            `"edge_only"` (flat grey with only the edges: the control for the
-            base's contribution), `"rgb_normal"` (the normal map faked from
-            brightness: the control that uses no geometry), `"rgb_shade"`
-            (RGB relit from the geometry), `"rgb_refl"` and `"rgb_shading"`
-            (the Retinex reflectance and shading), `"refl_shade"`
-            (reflectance relit from the geometry), or a name in `_COMBOS`.
-            Anything else raises: there is no default mode.
+        mode: a name in `_COMBOS`, a base image (`rgb`, colormapped `depth`,
+            `normal`, Retinex reflectance `refl`, or flat grey) with the
+            geometric edges darkened, with shading from the geometry, with
+            both or with neither; `"normal_edge"` (the normals, smoothed,
+            with the edges darkened); `"rgb_normal"` (the normal map faked
+            from brightness: the control that uses no geometry); or
+            `"rgb_shading"` (the Retinex shading). Anything else raises:
+            there is no default mode.
         depth: (H, W) depth.
         K: (3, 3) intrinsics.
         gray01: (H, W) depth normalised by `global_depth01`, for the depth modes.
@@ -300,35 +314,17 @@ def sam_input_image(mode, depth, K, gray01, rgb, edge_gain=0.85, smooth=True):
     """
     if mode in _COMBOS:
         kind, edge, shade = _COMBOS[mode]
-        return _compose(_base_image(kind, depth, K, gray01, rgb), depth, K,
-                        edge=edge, shade=shade, edge_gain=edge_gain)
-    if mode == "normal":
-        return normal_map(depth, K)
+        # A normal base needs the normals too, so they are computed here once and shared with `_compose`.
+        normals = camera_normals(depth, K) if kind == "normal" else None
+        return _compose(_base_image(kind, depth, K, gray01, rgb, normals), depth, K,
+                        edge=edge, shade=shade, edge_gain=edge_gain, normals=normals)
     if mode == "normal_edge":
         return normal_edge_map(depth, K, edge_gain=edge_gain, smooth=smooth)
-    if mode == "rgb":
-        return rgb
-    if mode == "rgb_edge":
-        return burn_geom_edge(rgb, depth, K, edge_gain=edge_gain)
-    if mode == "depth_edge":
-        return burn_geom_edge(depth_to_colormapped(gray01), depth, K, edge_gain=edge_gain)
-    if mode == "rgb_refl":
-        return _to_u8(color_retinex(rgb)[0])
+    if mode == "rgb_normal":
+        return pseudo_normal_from_rgb(rgb)
     if mode == "rgb_shading":
         sh = color_retinex(rgb)[1]
         return np.repeat(_to_u8(sh)[..., None], 3, axis=2)
-    if mode == "refl_shade":
-        refl = _to_u8(color_retinex(rgb)[0])
-        return relight_rgb(refl, depth, K)
-    if mode == "rgb_normal":
-        return pseudo_normal_from_rgb(rgb)
-    if mode == "rgb_shade":
-        return relight_rgb(rgb, depth, K)
-    if mode == "edge_only":
-        base = np.full((*depth.shape, 3), 200, np.uint8)
-        return burn_geom_edge(base, depth, K, edge_gain=edge_gain)
-    if mode == "depth":
-        return depth_to_colormapped(gray01)
     # Matched by name like every other mode, never as a default: a misspelt
     # mode in a config would otherwise run the depth condition under another
     # name, and nothing downstream could tell.

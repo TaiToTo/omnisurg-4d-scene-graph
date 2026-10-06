@@ -9,6 +9,10 @@ import numpy as np
 
 from surgical_core.geometry.valid import valid_depth_mask
 
+# How dark a geometric edge is drawn, 0 to 1: a pixel is multiplied by 1 - EDGE_GAIN * edge. Every function that
+# darkens edges takes this as its default, so that a caller who leaves the gain out gets the same line everywhere.
+EDGE_GAIN = 0.85
+
 
 def camera_normals(depth, K):
     """Unit normals in camera space, and the mask of pixels that have one.
@@ -41,7 +45,7 @@ def camera_normals(depth, K):
     return n, m
 
 
-def normal_map(depth, K):
+def normal_map(depth, K, normals=None):
     """The normals as an RGB image, (H, W, 3) uint8, black where invalid.
 
     Bulges and creases show as colour changes, so a segmenter prompted with
@@ -50,8 +54,9 @@ def normal_map(depth, K):
     Args:
         depth: (H, W) depth. 0 and NaN are invalid.
         K: (3, 3) intrinsics at the depth's resolution.
+        normals: `camera_normals(depth, K)`, when the caller has it already.
     """
-    n, m = camera_normals(depth, K)
+    n, m = camera_normals(depth, K) if normals is None else normals
     img = (n * 0.5 + 0.5) * 255
     img[~m] = 0
     return np.nan_to_num(img).astype(np.uint8)
@@ -109,11 +114,11 @@ def edge_reliable_mask(m):
 
 
 def geom_edge_map(depth, K, normal_thresh=0.3, depth_thresh=0.04, parts="both",
-                  mask_ring=None):
+                  mask_ring=None, normals=None):
     """Geometric edge strength in [0, 1] from normal discontinuity and depth steps.
 
     Large at real geometric boundaries (organ creases, occlusion steps), small
-    on smooth surfaces. Burnt into a segmenter input as a dark line, it pulls
+    on smooth surfaces. Drawn into a segmenter input as a dark line, it pulls
     the segmentation onto those boundaries.
 
     Args:
@@ -129,6 +134,7 @@ def geom_edge_map(depth, K, normal_thresh=0.3, depth_thresh=0.04, parts="both",
             around invalid pixels. `None` follows `EDGE_MASK_RING`. Reproduce
             old labels by setting `normals.EDGE_MASK_RING`, not this
             argument: the provenance record reads the flag.
+        normals: `camera_normals(depth, K)`, when the caller has it already.
 
     Returns:
         (H, W) float edge strength, 0 where invalid.
@@ -142,7 +148,7 @@ def geom_edge_map(depth, K, normal_thresh=0.3, depth_thresh=0.04, parts="both",
         with `parts="depth"` the outer 2 pixels of real steps are lost too.
         That is the conservative side, so the two are kept equal.
     """
-    n, m = camera_normals(depth, K)
+    n, m = camera_normals(depth, K) if normals is None else normals
     H, W = depth.shape
     nf = np.nan_to_num(n)
     # Normal discontinuity: 1 - cos to the right and lower neighbour, large at
@@ -170,8 +176,8 @@ def geom_edge_map(depth, K, normal_thresh=0.3, depth_thresh=0.04, parts="both",
     return edge
 
 
-def normal_edge_map(depth, K, edge_gain=0.85, smooth=True):
-    """The normal image with the geometric edges burnt in as dark lines.
+def normal_edge_map(depth, K, edge_gain=EDGE_GAIN, smooth=True, normals=None):
+    """The normal image with the geometric edges drawn in as dark lines.
 
     Smoothing removes the speckle that depth noise puts into the normals,
     which otherwise splits regions into slivers, and the dark lines pull the
@@ -182,39 +188,43 @@ def normal_edge_map(depth, K, edge_gain=0.85, smooth=True):
         K: (3, 3) intrinsics.
         edge_gain: how dark the edge line is, 0 to 1; 1 makes it nearly black.
         smooth: bilateral-filter the normal image first.
+        normals: `camera_normals(depth, K)`, when the caller has it already.
 
     Returns:
         (H, W, 3) uint8, black where invalid.
     """
-    n, m = camera_normals(depth, K)
+    n, m = camera_normals(depth, K) if normals is None else normals
     base = ((np.nan_to_num(n) * 0.5 + 0.5) * 255).astype(np.uint8)
     base[~m] = 0
     if smooth:
         base = cv2.bilateralFilter(base, d=5, sigmaColor=40, sigmaSpace=5)
-    edge = geom_edge_map(depth, K)
-    img = base.astype(np.float32) * (1.0 - edge_gain * edge)[..., None]
+    img = darken_at_edges(base, depth, K, edge_gain, normals=(n, m))
     img[~m] = 0
-    return np.clip(img, 0, 255).astype(np.uint8)
+    return img
 
 
-def burn_geom_edge(base, depth, K, edge_gain=0.85):
-    """Burn the same geometric edges into any 3-channel image.
+def darken_at_edges(base, depth, K, edge_gain=EDGE_GAIN, parts="both", normals=None):
+    """Darken any 3-channel image where the geometric edges are.
 
-    The edge comes from `geom_edge_map`, from depth and intrinsics alone, so
-    it is identical whatever `base` is, and the difference between an input
-    and its `_edge` variant is exactly the dark line. Invalid pixels are left
-    to `base` (black in a normal image, untouched in RGB); zeroing them here
-    would mix "edges added" with "invalid pixels removed".
+    Each pixel is multiplied by `1 - edge_gain * edge`. Every input that shows
+    edges as dark lines is made here, so the lines are the same whatever the
+    base. The edge comes from `geom_edge_map`, from depth and intrinsics alone,
+    so the difference between an input and its `_edge` variant is exactly the
+    dark line. Invalid pixels are left to `base` (black in a normal image,
+    untouched in RGB); zeroing them here would mix "edges added" with "invalid
+    pixels removed".
 
     Args:
         base: (H, W, 3) uint8.
         depth: (H, W) depth.
         K: (3, 3) intrinsics.
         edge_gain: how dark the edge line is, 0 to 1.
+        parts: which edges, as `geom_edge_map` takes it.
+        normals: `camera_normals(depth, K)`, when the caller has it already.
 
     Returns:
         (H, W, 3) uint8.
     """
-    edge = geom_edge_map(depth, K)
+    edge = geom_edge_map(depth, K, parts=parts, normals=normals)
     img = base.astype(np.float32) * (1.0 - edge_gain * edge)[..., None]
     return np.clip(img, 0, 255).astype(np.uint8)

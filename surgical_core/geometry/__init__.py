@@ -13,8 +13,9 @@ the day one of them is fixed, return different geometry under the same name.
 
 The package is split by dependency:
 
-- `normals`: normals from depth, the geometric edge maps and the edge-burnt
-  normal image. numpy and OpenCV only. This is what the toolkit needs.
+- `normals`: normals from depth, the geometric edge maps and the normal
+  image with its edges darkened. numpy and OpenCV only. This is what the
+  toolkit needs.
 - `camera`: pixels to camera, world and the viewer's glTF space, the
   transforms the depth stages write their point clouds with. numpy only.
 - `project`: back-projection, projection, label transfer and label warping
@@ -35,7 +36,7 @@ when it was not. They live in `surgical_core.geometry.normals` only.
 """
 
 from surgical_core.geometry.normals import (  # noqa: F401
-    burn_geom_edge, camera_normals, edge_reliable_mask, geom_edge_map, normal_edge_map,
+    camera_normals, darken_at_edges, edge_reliable_mask, geom_edge_map, normal_edge_map,
     normal_map)
 from surgical_core.geometry.project import (  # noqa: F401
     backproject, project_labels, project_labels_region, project_world_to_frame, warp_labels)
