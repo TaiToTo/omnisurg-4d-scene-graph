@@ -174,27 +174,41 @@ def test_a_run_that_fails_after_overwrite_was_asked_leaves_the_earlier_output(tm
     assert sorted(p.relative_to(clip) for p in clip.rglob("*") if p.is_file()) == before
 
 
-def plant_pi3x(clip, n=3):
-    """Write what the Pi3X stage leaves beside the DA3 stage's files: the same directories, a `__pi3x` suffix."""
-    for sub, name in (("depth_vis", "{:04d}__pi3x.jpg"), ("pc_vis", "frame_{:04d}__pi3x.glb")):
-        (clip / sub).mkdir(exist_ok=True)
-        for i in range(n):
-            (clip / sub / name.format(i)).write_bytes(f"pi3x {sub} {i}".encode())
-    (clip / "exports" / "mini_npz").mkdir(parents=True, exist_ok=True)
-    (clip / "exports" / "mini_npz" / "results__pi3x.npz").write_bytes(b"pi3x bundle")
+OTHERS = ("depth_vis/{:04d}__pi3x.jpg", "pc_vis/frame_{:04d}__pi3x.glb", "pc_vis/seg_frame_{:04d}__sam3d.glb",
+          "pc_vis/graph_frame_{:04d}.json", "pc_vis/hierarchy_index.json", "exports/mini_npz/results__pi3x.npz")
+
+
+def plant_others(clip, n=3):
+    """Write what the other depth source and the later stages leave beside the DA3 stage's files, in the same
+    directories: under a `__<source>` suffix, and under names of their own with no suffix."""
+    for i in range(n):
+        for rel in OTHERS:
+            path = clip / rel.format(i)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(f"{rel} {i}".encode())
     manifest = json.loads((clip / "frame_manifest.json").read_text())
     manifest["geometry_sources"] = {"pi3x": {"model": "pi3x"}}
     (clip / "frame_manifest.json").write_text(json.dumps(manifest))
-    return sorted((p.relative_to(clip), p.read_bytes()) for p in clip.rglob("*__pi3x*"))
+    return others_in(clip)
 
 
-def test_a_clip_that_holds_only_another_source_is_not_refused_and_that_source_stays(tmp_path):
+def others_in(clip):
+    own = {"depth_raw", "frame_manifest.json", "crop_info.json", "input_images"}
+    return sorted((p.relative_to(clip), p.read_bytes()) for p in clip.rglob("*")
+                  if p.is_file() and p.parts[len(clip.parts)] not in own
+                  and not (p.parent.name == "depth_vis" and p.stem.isdigit())
+                  and not (p.parent.name == "pc_vis" and p.name.startswith("frame_") and p.stem[6:].isdigit())
+                  and p.name != "results.npz")
+
+
+def test_a_clip_that_holds_only_other_stages_files_is_not_refused_and_they_stay(tmp_path):
     pytest.importorskip("matplotlib")
     clip = make_clip(tmp_path)
-    pi3x = plant_pi3x(clip)
+    others = plant_others(clip)
+    assert len(others) == 14
     assert existing_output(clip, json.loads((clip / "frame_manifest.json").read_text())) == []
     run_depth(clip, StandIn(), process_res=504, write_glb=False)
-    assert sorted((p.relative_to(clip), p.read_bytes()) for p in clip.rglob("*__pi3x*")) == pi3x
+    assert others_in(clip) == others
     manifest = json.loads((clip / "frame_manifest.json").read_text())
     assert manifest["geometry_sources"] == {"pi3x": {"model": "pi3x"}} and "depth_info" in manifest
 
@@ -205,11 +219,11 @@ def test_overwrite_removes_only_the_stage_s_own_files(tmp_path):
     run_depth(clip, StandIn(), process_res=504, write_glb=False)
     (clip / "pc_vis").mkdir()
     (clip / "pc_vis" / "frame_0000.glb").write_bytes(b"da3 cloud")
-    pi3x = plant_pi3x(clip)
+    others = plant_others(clip)
     assert existing_output(clip, json.loads((clip / "frame_manifest.json").read_text())) == [
         "depth_raw (3 files)", "depth_vis (3 files)", "pc_vis (1 file)",
         "exports/mini_npz/results.npz with keys ['depth', 'conf', 'extrinsics', 'intrinsics']",
         "depth_info with keys ['model', 'process_res', 'depth_shape', 'depth_range', 'conf_range', 'border_inpaint']"]
     run_depth(clip, StandIn(), process_res=504, write_glb=False, overwrite=True)
-    assert sorted((p.relative_to(clip), p.read_bytes()) for p in clip.rglob("*__pi3x*")) == pi3x
+    assert others_in(clip) == others
     assert not (clip / "pc_vis" / "frame_0000.glb").exists()
