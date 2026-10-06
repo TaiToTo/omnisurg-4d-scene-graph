@@ -100,45 +100,39 @@ was replaced, then the class tables.
   the population files, never a count in a name. Scores are made per clip;
   the bootstrap that decides a star resamples videos, so the clips of one
   video are never treated as independent.
+- **Frame manifest.** The pipeline's extraction writes `frame_manifest.json`
+  into each clip. It lists the clip's frames, each with its time and its GT
+  flags, and holds the clip's crop rectangle. The evaluator reads the crop,
+  the order in time and the GT frames from it.
 
 ### Which frames
 
-A clip's frames play three roles, and the clip's manifest,
-`frame_manifest.json`, which the pipeline writes with the frames, says which
-frame plays which.
+A clip's frames play three roles, and the frame manifest says which frame
+plays which.
 
-- A **GT frame** holds the dataset's annotation. Its manifest entry has the
-  dataset's GT flag set (`has_seg_mask` for CholecSeg8k, `has_gt` for
-  ATLAS-120k), `is_anchor` true, and no `seg_provenance`. Every metric but
-  `time_IoU` is computed on the GT frames alone, and a GT frame without its
-  mask or without a prediction stops the clip.
+- A **GT frame** holds the dataset's annotation. The frame manifest gives it
+  the dataset's GT flag (`has_seg_mask` for CholecSeg8k, `has_gt` for
+  ATLAS-120k), `is_anchor` true and no `seg_provenance`. Every metric but
+  `time_IoU` is computed on the GT frames alone.
 - A **seed frame** is one on which a condition's tracker was given its first
-  masks. The paper's conditions are seeded unsupervised, from the
-  pipeline's own masks: SAM's automatic masks on the normal image, with no
-  annotation. So a seed frame that is a GT frame is scored like any other.
-  A condition seeded from GT masks would be
-  scored, on that frame, against the very masks it was given; whether such a
-  condition enters a table at all is not decided (`docs/porting.md`,
-  "Conditions seeded from GT").
+  masks. It is scored like any other frame. The paper's conditions are
+  seeded unsupervised, from the pipeline's own masks, so no seed holds the
+  GT. Whether a condition seeded from GT enters a table is open
+  (`docs/porting.md`, "Conditions seeded from GT").
 - A **tracked frame** is one the condition wrote a prediction for. Every GT
   frame must be one, and `time_IoU` is pooled over all of them.
 
-![A clip of ten frames in four rows. The raw frames. The GT, on six of them: those are the GT frames, shaded through every row, and the only frames scored. A track seeded from the GT on frame 0: its seed frame holds the GT itself, so on that frame it is scored against the masks it was given. A track seeded unsupervised, from the pipeline's own masks, on frame 0. In both tracks every later frame is a tracked frame, its prediction drawn hatched](figures/frame_roles.png)
+![Ten frames of a clip in four rows: the raw frames, the GT on six of them, a track seeded from the GT and a track seeded unsupervised. The GT frames are shaded through every row, and the predictions are hatched.](figures/frame_roles.png)
 
-A mask file is not what makes a GT frame. The pipeline writes masks that are
-not annotation into the same `seg_masks/` directory under the same names: for
-the viewer, the GT of CholecSeg8k's annotated frames is carried to the frames
-between them with SAM 3, at the depth map's shape, and the manifest marks
-those frames `is_anchor` false with `seg_provenance` `sam3_gt_propagated`.
-They are not GT: scoring a SAM 3 pipeline against them would score SAM 3
-against itself. Nor is `is_anchor` alone enough: in a clip without annotation
-the extractor marks the first frame as the anchor the tracker is seeded on.
-So the evaluator reads the flags and checks the files against them, never
-the other way round. A mask on a frame the manifest gives no mask, a mask with
-no provenance on a frame that is not a GT frame, and a frame the manifest
-gives a mask without one each stop the clip. ATLAS-120k's own annotation was
-propagated too, by its annotators with Cutie and corrected by hand; that is
-the dataset's GT (see "ATLAS-120k: ids, classes and colours").
+The evaluator takes the GT frames from the flags, never from the mask files.
+The GT flag alone is not enough. The pipeline also writes the viewer's SAM 3
+masks into `seg_masks/` under the GT's names, on frames with the GT flag and
+`seg_provenance` `sam3_gt_propagated`. Scoring SAM 3 against them would score
+it against itself. `is_anchor` alone is not enough either: in a clip without
+annotation, the first frame is the anchor the tracker is seeded on. A clip
+stops when a frame has a mask file without the GT flag or the GT flag
+without a mask file, when a mask with no `seg_provenance` lies on a frame
+that is not a GT frame, or when a GT frame has no prediction.
 
 ### Objects
 
@@ -533,13 +527,10 @@ pilot evaluator's numbers.
     hit to average; a frame whose GT boundary is empty scores 0 on the
     boundary metrics rather than being left out; and a clip on which
     `time_IoU` pools nothing writes 0 for it.
-- Pilot mode scores the GT frames as "Which frames" defines them. The pilot
-  evaluator read no manifest and scored every frame whose mask file existed;
-  on the data it scored, those were the GT frames: its score JSONs for the
-  nine CholecSeg8k clips, ten conditions each, cover exactly the annotated
-  frames. Reading the flags reproduces those scores on any copy of the data,
-  with or without the viewer's masks beside the GT; reading the files would
-  not.
+- Pilot mode takes the GT frames from the frame manifest too. The pilot
+  evaluator took every frame with a mask file ("Silent drops"), and on the
+  data it scored those were exactly the GT frames. So the flags reproduce its
+  scores on any copy of the data, with the viewer's masks or without them.
 - On the 38 conditions already scored, pilot mode must reproduce every key it
   shares with the pilot evaluator — the metrics table names them, and their
   per-domain variants — at zero tolerance: the values written must be equal.
@@ -645,10 +636,9 @@ portrait ATLAS-120k clips (73 GT frames) are 476 px wide and 504 px high.
 **CholecSeg8k: 9 clips, 167 GT frames**
 
 These are the nine clips on the machine the measurements were made on, a part
-of the CholecSeg8k population the paper scores. The clips hold 270 mask
-files; 103 of them are the viewer's SAM 3 masks on frames without annotation
-(see "Which frames"), not GT, and are left out. The rows show the kind and
-rough size of each effect, not the population's numbers.
+of the CholecSeg8k population the paper scores. The viewer's SAM 3 masks on
+103 more frames are not GT and are left out (see "Which frames"). The rows
+show the kind and rough size of each effect, not the population's numbers.
 
 | | |
 |---|---|
