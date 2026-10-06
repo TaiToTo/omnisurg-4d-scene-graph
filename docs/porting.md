@@ -511,12 +511,12 @@ Every command takes those paths as arguments.
     geometry or only reads what the export wrote. The functions are in
     `surgical_core/geometry/camera.py` and
     `surgical_core/geometry/project.py`.
-18. **Conditions seeded from GT.** `docs/evaluation.md` ("Which frames")
-    scores a seed frame like any other, because the paper's conditions are
-    seeded from the pipeline's own masks. Which of the 38 conditions were
-    seeded from GT instead, and whether such a condition is scored on its
-    seed frame or enters a table at all, is settled before step 3, on the
-    machine that holds the predictions. The `seed_source` that each
+18. **Conditions seeded from GT.** A seed frame is scored like any other
+    frame, because the paper's conditions are seeded from the pipeline's own
+    masks. Which of the 38 conditions were seeded from GT instead, and
+    whether such a condition is scored on its seed frame or enters a table
+    at all, is settled before step 3, on the machine that holds the
+    predictions. The `seed_source` that each
     condition's `seed_info.json` records says where its seed came from;
     where it does not tell, the command that made the condition does.
     The workshop's oracle row, GT instrument masks painted onto a

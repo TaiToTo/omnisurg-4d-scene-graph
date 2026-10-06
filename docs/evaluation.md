@@ -100,39 +100,22 @@ was replaced, then the class tables.
   the population files, never a count in a name. Scores are made per clip;
   the bootstrap that decides a star resamples videos, so the clips of one
   video are never treated as independent.
-- **Frame manifest.** The pipeline's extraction writes `frame_manifest.json`
-  into each clip. It lists the clip's frames, each with its time and its GT
-  flags, and holds the clip's crop rectangle. The evaluator reads the crop,
-  the order in time and the GT frames from it.
+- **Frame manifest.** The pipeline writes `frame_manifest.json` into each
+  clip. It lists the clip's frames with their times and GT flags, and holds
+  the crop rectangle.
 
 ### Which frames
 
-A clip's frames play three roles, and the frame manifest says which frame
-plays which.
-
-- A **GT frame** holds the dataset's annotation. The frame manifest gives it
-  the dataset's GT flag (`has_seg_mask` for CholecSeg8k, `has_gt` for
-  ATLAS-120k), `is_anchor` true and no `seg_provenance`. Every metric but
-  `time_IoU` is computed on the GT frames alone.
-- A **seed frame** is one on which a condition's tracker was given its first
-  masks. It is scored like any other frame. The paper's conditions are
-  seeded unsupervised, from the pipeline's own masks, so no seed holds the
-  GT. Whether a condition seeded from GT enters a table is open
-  (`docs/porting.md`, "Conditions seeded from GT").
-- A **tracked frame** is one the condition wrote a prediction for. Every GT
-  frame must be one, and `time_IoU` is pooled over all of them.
+The frame manifest says which frames are GT frames, and the mask files do
+not. A GT frame has the dataset's GT flag (`has_seg_mask` for CholecSeg8k,
+`has_gt` for ATLAS-120k), `is_anchor` true and no `seg_provenance`. The mask
+files cannot decide: the pipeline also writes the viewer's SAM 3 masks into
+`seg_masks/` under the GT's names, and they are not GT. A clip is refused
+when a mask file has no GT flag, when a GT flag has no mask file, when a
+flagged frame is neither a GT frame nor marked by `seg_provenance`, or when
+a GT frame has no prediction.
 
 ![Ten frames of a clip in four rows: the raw frames, the GT on six of them, a track seeded from the GT and a track seeded unsupervised. The GT frames are shaded through every row, and the predictions are hatched.](figures/frame_roles.png)
-
-The evaluator takes the GT frames from the flags, never from the mask files.
-The GT flag alone is not enough. The pipeline also writes the viewer's SAM 3
-masks into `seg_masks/` under the GT's names, on frames with the GT flag and
-`seg_provenance` `sam3_gt_propagated`. Scoring SAM 3 against them would score
-it against itself. `is_anchor` alone is not enough either: in a clip without
-annotation, the first frame is the anchor the tracker is seeded on. A clip
-stops when a frame has a mask file without the GT flag or the GT flag
-without a mask file, when a mask with no `seg_provenance` lies on a frame
-that is not a GT frame, or when a GT frame has no prediction.
 
 ### Objects
 
@@ -527,10 +510,8 @@ pilot evaluator's numbers.
     hit to average; a frame whose GT boundary is empty scores 0 on the
     boundary metrics rather than being left out; and a clip on which
     `time_IoU` pools nothing writes 0 for it.
-- Pilot mode takes the GT frames from the frame manifest too. The pilot
-  evaluator took every frame with a mask file ("Silent drops"), and on the
-  data it scored those were exactly the GT frames. So the flags reproduce its
-  scores on any copy of the data, with the viewer's masks or without them.
+- Pilot mode takes the GT frames from the frame manifest too. On the data
+  the pilot evaluator scored, its mask files were exactly these frames.
 - On the 38 conditions already scored, pilot mode must reproduce every key it
   shares with the pilot evaluator — the metrics table names them, and their
   per-domain variants — at zero tolerance: the values written must be equal.
@@ -612,9 +593,8 @@ likely that some key reaches a star by chance.
   taken at the evaluation resolution, so what 300 px means depends on it.
 - A comment in the pilot evaluator says a fragment counts towards `overseg` if
   it covers "5 % or 200 px" of a class; the code requires both.
-- A frame is a GT frame when a mask file exists for it. A mask written for
-  another purpose under the GT's name, as the viewer's SAM 3 masks are, is
-  scored as GT without a word.
+- A frame is a GT frame when a mask file exists for it, so the viewer's SAM 3
+  masks would be scored as GT without a word.
 
 ### What the pilot evaluator's handling changes, measured on the GT
 
