@@ -45,11 +45,13 @@ tools = ["scipy", "matplotlib"]
 # pins numpy below 2, and no numpy below 2 supports a Python newer than 3.12,
 # so this extra installs on Python 3.12 only. DA3 is named by its repository
 # for now. It gets pinned to the commit the GPU machine ran, once that commit
-# is read from the machine's install.
+# is read from the machine's install. DA3 imports `addict` without declaring
+# it, so the extra declares it.
 recon3d = [
     "omnisurg-4d-scene-graph[render]",
     "torch",
     "depth-anything-3 @ git+https://github.com/ByteDance-Seed/Depth-Anything-3.git",
+    "addict",
 ]
 
 [project.urls]
