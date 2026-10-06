@@ -12,7 +12,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from pipeline.depth import check_cropped, run_depth
+from pipeline.depth import check_cropped, existing_output, run_depth
 from recon3d_wrapper import Reconstruction
 
 
@@ -158,7 +158,7 @@ def test_overwrite_removes_the_earlier_run_so_that_no_stale_frame_stays(tmp_path
     run_depth(clip, StandIn(), process_res=504, write_glb=False, overwrite=True)
     assert [p.name for p in (clip / "depth_raw").iterdir()] == ["depth_000000.npy"]
     assert [p.name for p in (clip / "depth_vis").iterdir()] == ["0000.jpg"]
-    assert not (clip / "pc_vis").exists()
+    assert list((clip / "pc_vis").iterdir()) == []
     with np.load(clip / "exports" / "mini_npz" / "results.npz") as z:
         assert z["depth"].shape == (1, 6, 8)
     assert json.loads((clip / "frame_manifest.json").read_text())["depth_info"]["depth_shape"] == [1, 6, 8]
@@ -172,3 +172,44 @@ def test_a_run_that_fails_after_overwrite_was_asked_leaves_the_earlier_output(tm
     with pytest.raises(ValueError, match="returned 2 frames"):
         run_depth(clip, StandIn(returns=2), process_res=504, write_glb=False, overwrite=True)
     assert sorted(p.relative_to(clip) for p in clip.rglob("*") if p.is_file()) == before
+
+
+def plant_pi3x(clip, n=3):
+    """Write what the Pi3X stage leaves beside the DA3 stage's files: the same directories, a `__pi3x` suffix."""
+    for sub, name in (("depth_vis", "{:04d}__pi3x.jpg"), ("pc_vis", "frame_{:04d}__pi3x.glb")):
+        (clip / sub).mkdir(exist_ok=True)
+        for i in range(n):
+            (clip / sub / name.format(i)).write_bytes(f"pi3x {sub} {i}".encode())
+    (clip / "exports" / "mini_npz").mkdir(parents=True, exist_ok=True)
+    (clip / "exports" / "mini_npz" / "results__pi3x.npz").write_bytes(b"pi3x bundle")
+    manifest = json.loads((clip / "frame_manifest.json").read_text())
+    manifest["geometry_sources"] = {"pi3x": {"model": "pi3x"}}
+    (clip / "frame_manifest.json").write_text(json.dumps(manifest))
+    return sorted((p.relative_to(clip), p.read_bytes()) for p in clip.rglob("*__pi3x*"))
+
+
+def test_a_clip_that_holds_only_another_source_is_not_refused_and_that_source_stays(tmp_path):
+    pytest.importorskip("matplotlib")
+    clip = make_clip(tmp_path)
+    pi3x = plant_pi3x(clip)
+    assert existing_output(clip, json.loads((clip / "frame_manifest.json").read_text())) == []
+    run_depth(clip, StandIn(), process_res=504, write_glb=False)
+    assert sorted((p.relative_to(clip), p.read_bytes()) for p in clip.rglob("*__pi3x*")) == pi3x
+    manifest = json.loads((clip / "frame_manifest.json").read_text())
+    assert manifest["geometry_sources"] == {"pi3x": {"model": "pi3x"}} and "depth_info" in manifest
+
+
+def test_overwrite_removes_only_the_stage_s_own_files(tmp_path):
+    pytest.importorskip("matplotlib")
+    clip = make_clip(tmp_path)
+    run_depth(clip, StandIn(), process_res=504, write_glb=False)
+    (clip / "pc_vis").mkdir()
+    (clip / "pc_vis" / "frame_0000.glb").write_bytes(b"da3 cloud")
+    pi3x = plant_pi3x(clip)
+    assert existing_output(clip, json.loads((clip / "frame_manifest.json").read_text())) == [
+        "depth_raw (3 files)", "depth_vis (3 files)", "pc_vis (1 file)",
+        "exports/mini_npz/results.npz with keys ['depth', 'conf', 'extrinsics', 'intrinsics']",
+        "depth_info with keys ['model', 'process_res', 'depth_shape', 'depth_range', 'conf_range', 'border_inpaint']"]
+    run_depth(clip, StandIn(), process_res=504, write_glb=False, overwrite=True)
+    assert sorted((p.relative_to(clip), p.read_bytes()) for p in clip.rglob("*__pi3x*")) == pi3x
+    assert not (clip / "pc_vis" / "frame_0000.glb").exists()
