@@ -37,8 +37,9 @@ DEFAULT_DATASET = "cholec_gt"
 # letterbox and records it in the manifest's `crop`.
 UNCROPPED_DATASETS = frozenset({"atlas120k"})
 
-# The stage's own files in a clip, by the directory or file that holds them. Other depth sources write beside
-# them under a `__<source>` suffix (`depth_vis/NNNN__pi3x.jpg`), so the stage names its files, never a directory.
+# The stage's own files in a clip, by the directory or file that holds them. The later stages and other depth
+# sources write beside them, under a `__<source>` suffix (`depth_vis/NNNN__pi3x.jpg`) or another name
+# (`pc_vis/graph_frame_NNNN.json`), so the stage names its files exactly, never a directory.
 OWN_FILES = {"depth_raw": r"depth_\d+\.npy", "depth_vis": r"\d+\.jpg", "pc_vis": r"frame_\d+\.glb"}
 BUNDLE = "exports/mini_npz/results.npz"
 
@@ -92,7 +93,7 @@ def remove_output(clip_dir: Path) -> None:
     """Remove the stage's own files from the clip, so that a run writes every such file the clip then holds.
 
     A run on fewer frames would otherwise leave the earlier run's files for the frames it no longer writes, and
-    the later stages count a clip's frames by the files in `depth_raw/`. Another source's files stay.
+    the later stages count a clip's frames by the files in `depth_raw/`. Every other file stays.
     """
     for files in own_files(clip_dir).values():
         for path in files:
