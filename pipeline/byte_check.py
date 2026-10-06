@@ -69,7 +69,8 @@ def _file(module):
         path = getattr(module, "__file__", None)
     except Exception:
         return None
-    return path if isinstance(path, str) else None
+    # A relative path names no file: torch's `torch.ops` and `torch.classes` carry one.
+    return path if isinstance(path, str) and os.path.isabs(path) else None
 
 
 def _record(out=os.environ.get("BYTE_CHECK_RECORD_DIR"), names=os.environ.get("BYTE_CHECK_PACKAGES", "")):

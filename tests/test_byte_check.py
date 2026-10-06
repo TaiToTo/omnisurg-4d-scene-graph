@@ -146,6 +146,15 @@ def test_a_run_that_imports_from_the_other_repository_is_refused(tmp_path):
         run_check(tmp_path, a, b)
 
 
+def test_a_module_whose_file_is_a_relative_path_is_not_taken_for_a_file(tmp_path, monkeypatch):
+    # torch.ops has `__file__ == "_ops.py"`; read from wherever the check runs, it would land in the other repository.
+    a = make_repo(tmp_path / "a", prelude='import types\nsys.modules["torch_ops"] = types.ModuleType("torch_ops")\n'
+                                          'sys.modules["torch_ops"].__file__ = "helper.py"')
+    b = make_repo(tmp_path / "b")
+    monkeypatch.chdir(b)
+    assert run_check(tmp_path, a, b)["result"]["identical"]
+
+
 def test_a_run_that_does_not_import_a_watched_package_is_refused(tmp_path):
     with pytest.raises(ValueError, match="absent_package was not imported"):
         run_check(tmp_path, make_repo(tmp_path / "a"), watched=("surgical_core", "absent_package"))
