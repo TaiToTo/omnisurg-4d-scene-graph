@@ -60,7 +60,7 @@ def run_depth(clip_dir: Path, model: Reconstructor, process_res: int, write_glb:
 
     Raises:
         FileNotFoundError: the clip has no manifest or no image.
-        ValueError: `check_cropped` refuses the clip.
+        ValueError: `check_cropped` refuses the clip, or the model returned another number of frames.
     """
     # Read the clip's manifest and images, and refuse an uncropped endoscope clip.
     manifest_path = clip_dir / "frame_manifest.json"
@@ -77,6 +77,8 @@ def run_depth(clip_dir: Path, model: Reconstructor, process_res: int, write_glb:
     # Estimate depth and poses for every frame, in one call.
     rec = model.reconstruct(image_paths)
     depth, conf = rec.depth, rec.conf
+    if len(depth) != n_frames:
+        raise ValueError(f"{clip_dir.name}: the model returned {len(depth)} of {n_frames} frames")
     H, W = depth.shape[1], depth.shape[2]
     print(f"  depth shape ({n_frames}, {H}, {W})")
 
