@@ -43,11 +43,12 @@ tools = ["scipy", "matplotlib"]
 [project.urls]
 Homepage = "https://github.com/TaiToTo/omnisurg-4d-scene-graph"
 
-# `surgical_core` and `evalkit` are importable libraries; tools import the
-# evaluator as `evalkit.<module>`. The other top-level directories hold
-# scripts and model wrappers, which are run, not installed.
+# What the install provides: the libraries `surgical_core` and `evalkit`, and
+# `pipeline`, whose stages run as `python -m pipeline.<stage>`. Installed
+# rather than run from the clone, so that nothing edits `sys.path` to find
+# the others, and a stage runs the same from any directory.
 [tool.setuptools.packages.find]
-include = ["surgical_core*", "evalkit*"]
+include = ["surgical_core*", "evalkit*", "pipeline*"]
 
 # The class tables are data the evaluator reads and hashes, so an install
 # without them would score nothing.
