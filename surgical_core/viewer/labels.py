@@ -81,9 +81,13 @@ def label_table(
         if i in entries or i in background:
             where = "twice" if i in entries else "as a label and as background"
             raise ValueError(f"id {i} ({name}) is given {where}")
-        rgb = tuple(colour)
+        not_rgb = f"id {i} ({name}): a colour is three integers in 0 to 255, got {colour!r}"
+        try:
+            rgb = tuple(colour)
+        except TypeError:
+            raise ValueError(not_rgb) from None
         if len(rgb) != 3 or not all(isinstance(c, (int, np.integer)) and 0 <= c <= 255 for c in rgb):
-            raise ValueError(f"id {i} ({name}): a colour is three integers in 0 to 255, got {colour!r}")
+            raise ValueError(not_rgb)
         entries[i] = LabelEntry(name, [c / 255.0 for c in rgb])
     return LabelTable(entries=entries, background_ids=background)
 

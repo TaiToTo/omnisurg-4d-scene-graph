@@ -46,8 +46,10 @@ def test_a_video_with_no_class_table_gets_a_label_table():
     ([(1, "a", (0, 0, 0)), (1, "b", (1, 1, 1))], (), "twice"),
     ([(0, "a", (0, 0, 0))], {0}, "as a label and as background"),
     ([(1, "a", (0, 0))], (), "three integers"),
+    ([(1, "a", (-1, 0, 0))], (), "three integers"),
     ([(1, "a", (0, 0, 256))], (), "three integers"),
     ([(1, "a", (0.5, 0.5, 0.5))], (), "three integers"),
+    ([(1, "a", None)], (), "three integers"),
 ])
 def test_a_label_given_twice_or_with_a_colour_that_is_not_rgb_is_refused(labels, background, match):
     with pytest.raises(ValueError, match=match):
