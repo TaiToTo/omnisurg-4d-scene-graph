@@ -4,7 +4,9 @@ A change to how the inputs are composed that moves one pixel of one mode
 changes a measured condition, and nothing else would notice. The shas in
 `render_outputs.sha256.json` were recorded from the code on `main` before the
 composition was refactored. Each mode runs at both edge gains the conditions
-used, with and without smoothing, on one synthetic frame.
+used, with and without smoothing, on one synthetic frame. `rgb_normal` is
+pinned per CPU architecture, as `platform.machine()` names it: OpenCV's
+bilateral filter on float32 gives other last bits on ARM and on x86.
 
 Usage:
     python -m tests.test_render_outputs_are_pinned > tests/render_outputs.sha256.json
@@ -12,6 +14,7 @@ Usage:
 
 import hashlib
 import json
+import platform
 from pathlib import Path
 
 import numpy as np
@@ -60,15 +63,29 @@ def render_case(kwargs):
                                   smooth=kwargs["smooth"])
 
 
+def record():
+    """Return the shas this machine renders. A case pinned per architecture keeps the other architectures' shas."""
+    old = json.loads(PINNED.read_text()) if PINNED.is_file() else {}
+    new = {}
+    for key, kwargs in cases():
+        got = sha(render_case(kwargs))
+        new[key] = {**old[key], platform.machine(): got} if isinstance(old.get(key), dict) else got
+    return new
+
+
 def test_every_case_is_pinned_and_nothing_else():
     assert sorted(json.loads(PINNED.read_text())) == sorted(key for key, _ in cases())
 
 
 @pytest.mark.parametrize("key, kwargs", cases(), ids=[key for key, _ in cases()])
 def test_the_mode_renders_the_pinned_bytes(key, kwargs):
+    pinned = json.loads(PINNED.read_text())[key]
+    if isinstance(pinned, dict):
+        assert platform.machine() in pinned, f"{key} has no sha for {platform.machine()}, only for {sorted(pinned)}"
+        pinned = pinned[platform.machine()]
     got = sha(render_case(kwargs))
-    assert got == json.loads(PINNED.read_text())[key], f"{key} rendered {got}"
+    assert got == pinned, f"{key} rendered {got}"
 
 
 if __name__ == "__main__":
-    print(json.dumps({key: sha(render_case(kwargs)) for key, kwargs in cases()}, indent=2))
+    print(json.dumps(record(), indent=2, sort_keys=True))
