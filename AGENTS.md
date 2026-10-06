@@ -116,6 +116,9 @@ against.
 - **No TODO in code.** A wrong path raises on its input; an open decision is
   written under "Open questions", in `docs/porting.md` while the port lasts
   and in the area's specification after.
+- **Say what a thing does first, in a plain sentence.** Start with the
+  subject and the verb; one idea per sentence; the reason follows in its
+  own sentence.
 - **A module's header is short**: what the module does, in at most twelve
   lines, then how to run it. No history, no glossary, no defence of choices.
 - **A term is defined once**, in its area's specification or in the one
