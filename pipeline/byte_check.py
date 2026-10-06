@@ -2,13 +2,13 @@
 
 A ported pipeline stage is done when its output equals the workbench's, and
 this is the check. Each run gets a working copy of the clip, its inputs
-linked in and its manifest stripped of what the stages write; whatever it
+copied in and its manifest stripped of what the stages write; whatever it
 writes there is compared with the other run's. A JSON file that differs only
 in `runtime_sec` is counted apart, never as equal. Given one command, it runs
 it twice and measures determinism. It refuses a pair it cannot vouch for: a
 run that imported a watched package from outside its own repository, or any
 module from the other run's, a repository with uncommitted changes, two runs
-whose packages differ, and a run that changed one of its linked inputs.
+whose packages differ, and a run that changed one of its inputs.
 
 Usage:
     python -m pipeline.byte_check --root /path/to/clips --clip <clip> \\
@@ -156,18 +156,18 @@ def gpus() -> list[str] | None:
     return sorted(set(out.stdout.strip().splitlines())) if out.returncode == 0 else None
 
 
-def _link_files(src_dir: Path, dst_dir: Path, names: list[str]) -> None:
+def _copy_files(src_dir: Path, dst_dir: Path, names: list[str]) -> None:
     dst_dir.mkdir(parents=True)
     for name in names:
-        (dst_dir / name).symlink_to((src_dir / name).resolve())
+        shutil.copyfile(src_dir / name, dst_dir / name)
 
 
 def prepare_clip(src_clip: Path, dst_clip: Path, needs: tuple[str, ...] = (), frames: int | None = None) -> None:
     """Make a working copy of a clip's inputs, holding nothing a stage writes.
 
-    The images, the masks and `needs`, the files of an earlier stage the stage reads, are linked one by one, so
-    whatever the stage writes lands in the copy. With `frames`, only the first that many images, and as many of
-    the manifest's frames, are kept.
+    The images, the masks and `needs`, the files of an earlier stage the stage reads, are copied, never linked.
+    A stage that writes through a link would overwrite the clip's own files, and on G the clips are the paper's
+    data. With `frames`, only the first that many images, and as many of the manifest's frames, are kept.
 
     Raises:
         FileNotFoundError: `src_clip` has no `input_images/` or manifest, or lacks one of `needs`.
@@ -182,17 +182,20 @@ def prepare_clip(src_clip: Path, dst_clip: Path, needs: tuple[str, ...] = (), fr
         if not 1 <= frames <= len(names):
             raise ValueError(f"{src_clip.name} has {len(names)} images; its first {frames} cannot be kept")
         names = names[:frames]
-    # The inputs, linked file by file.
-    _link_files(images, dst_clip / "input_images", names)
+    # The inputs, copied file by file.
+    _copy_files(images, dst_clip / "input_images", names)
     masks = src_clip / "seg_masks"
     if masks.is_dir():
-        _link_files(masks, dst_clip / "seg_masks", sorted(p.name for p in masks.iterdir() if p.is_file()))
+        _copy_files(masks, dst_clip / "seg_masks", sorted(p.name for p in masks.iterdir() if p.is_file()))
     for rel in needs:
         src = src_clip / rel
         if not src.exists():
             raise FileNotFoundError(f"{src_clip} has no {rel}, which the stage reads; run the earlier stage on it first")
         (dst_clip / rel).parent.mkdir(parents=True, exist_ok=True)
-        (dst_clip / rel).symlink_to(src.resolve())
+        if src.is_dir():
+            shutil.copytree(src, dst_clip / rel)
+        else:
+            shutil.copyfile(src, dst_clip / rel)
     # The manifest, without what the stages write, and cut to the frames kept.
     m = json.loads(manifest.read_text())
     for k in MANIFEST_RUN_KEYS:
@@ -205,37 +208,18 @@ def prepare_clip(src_clip: Path, dst_clip: Path, needs: tuple[str, ...] = (), fr
     (dst_clip / "frame_manifest.json").write_text(json.dumps(m, ensure_ascii=False, indent=2))
 
 
-def linked_inputs(work_root: Path) -> dict[str, str | None]:
-    """The sha256 of every file a working copy links in, by its path under `work_root`; None for a broken link."""
-    out: dict[str, str | None] = {}
-    for dirpath, dirnames, filenames in os.walk(work_root):
-        d = Path(dirpath)
-        for name in sorted(dirnames + filenames):
-            p = d / name
-            if not p.is_symlink():
-                continue
-            rel, target = str(p.relative_to(work_root)), p.resolve()
-            if target.is_dir():
-                out.update({f"{rel}/{q.relative_to(target)}": sha256_of(q) for q in sorted(target.rglob("*")) if q.is_file()})
-            else:
-                out[rel] = sha256_of(target) if target.is_file() else None
-    return out
-
-
 def collect(work_root: Path) -> dict[str, Path]:
-    """Every file a run wrote under `work_root`, by its path there; links, and what is under them, are the inputs.
+    """Every file under `work_root`, by its path there.
 
     The tree is swept rather than matched against a list, so a file a stage starts writing reaches the comparison
-    without anyone naming it.
+    without anyone naming it. What the run wrote is told apart by hashing the tree before and after the run.
     """
     found = {}
     for dirpath, dirnames, filenames in os.walk(work_root):
+        dirnames.sort()
         d = Path(dirpath)
-        dirnames[:] = sorted(n for n in dirnames if not (d / n).is_symlink())
         for name in sorted(filenames):
-            p = d / name
-            if not p.is_symlink():
-                found[str(p.relative_to(work_root))] = p
+            found[str((d / name).relative_to(work_root))] = d / name
     return found
 
 
@@ -423,20 +407,26 @@ def check(root: Path, clip: str, a: Side, b: Side | None, work: Path, needs: tup
     hook.parent.mkdir(parents=True)
     hook.write_text(_HOOK)
     # Each run, on its own working copy, held to its inputs and its own code.
+    manifest_rel = str(Path(clip) / "frame_manifest.json")
     files, envs, seconds = {}, {}, {}
     for name, side, other in (("a", a, b), ("b", b, a)):
         run_root, log = work / f"run_{name}", work / f"run_{name}.log"
         prepare_clip(root / clip, run_root / clip, tuple(needs), frames)
-        before, inputs = collect(run_root), linked_inputs(run_root)
+        # Everything present before the run is an input, apart from the manifest the stage rewrites.
+        before = {rel: sha256_of(p) for rel, p in collect(run_root).items()}
         seconds[name] = run(side, run_root, clip, hook.parent, work / f"records_{name}", log)
-        files[name] = collect(run_root)
-        delta = compare(before, files[name])
-        if not (delta["only_b"] or delta["n_differ"] or delta["n_volatile_only"]):
-            raise RuntimeError(f"run {name} wrote nothing under {run_root}; see {log}")
-        after = linked_inputs(run_root)
-        changed = sorted(k for k in set(inputs) | set(after) if inputs.get(k) != after.get(k))
+        after = collect(run_root)
+        after_sha = {rel: sha256_of(p) for rel, p in after.items()}
+        # The inputs first: a run that overwrote one and wrote nothing else is a broken stage, not an idle one.
+        changed = sorted(rel for rel in before if rel != manifest_rel and after_sha.get(rel) != before[rel])
         if changed:
-            raise ValueError(f"run {name} changed {len(changed)} of its linked inputs, the clip's own files: {changed[:5]}")
+            raise ValueError(f"run {name} changed {len(changed)} of its inputs, copies of the clip's own files: "
+                             f"{changed[:5]}")
+        files[name] = {rel: p for rel, p in after.items() if rel not in before or rel == manifest_rel}
+        wrote = [rel for rel in files[name] if after_sha[rel] != before.get(rel)]
+        if not wrote:
+            tail = "\n".join(log.read_text().splitlines()[-25:])
+            raise RuntimeError(f"run {name} wrote nothing under {run_root}; the last lines of its log:\n{tail}")
         records = [json.loads(p.read_text()) for p in sorted((work / f"records_{name}").glob("*.json"))]
         envs[name] = environment(records)
         check_imports(records, side.repo, other.repo, watched, hook)

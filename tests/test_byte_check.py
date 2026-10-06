@@ -173,16 +173,36 @@ def test_a_repository_with_uncommitted_changes_is_refused(tmp_path):
         run_check(tmp_path, repo)
 
 
-def test_a_run_that_writes_into_its_linked_inputs_is_refused(tmp_path):
+def test_a_run_that_writes_into_its_inputs_is_refused_and_the_clip_is_untouched(tmp_path):
     repo = make_repo(tmp_path / "a", epilogue='open(images[0], "ab").write(b"x")')
-    with pytest.raises(ValueError, match="linked inputs"):
+    with pytest.raises(ValueError, match="its inputs"):
         run_check(tmp_path, repo)
+    # The working copy took the damage; the clip's own file did not.
+    assert (tmp_path / "clips" / "clip_0001" / "input_images" / "000000.png").read_bytes() == bytes([0]) * 8
+
+
+def test_a_run_that_only_overwrites_an_input_is_refused_for_that_and_not_as_idle(tmp_path):
+    # The overwrite must be named, not hidden behind "wrote nothing".
+    repo = make_repo(tmp_path / "a", prelude='import surgical_core\n'
+                                             'c = Path(sys.argv[1]) / sys.argv[2]\n'
+                                             '(c / "input_images" / "000000.png").write_bytes(b"CLOBBERED")\n'
+                                             'sys.exit(0)')
+    with pytest.raises(ValueError, match="its inputs"):
+        run_check(tmp_path, repo)
+    assert (tmp_path / "clips" / "clip_0001" / "input_images" / "000000.png").read_bytes() == bytes([0]) * 8
 
 
 def test_a_run_that_writes_nothing_is_refused(tmp_path):
     repo = make_repo(tmp_path / "a", prelude="import surgical_core\nsys.exit(0)")
     with pytest.raises(RuntimeError, match="wrote nothing"):
         run_check(tmp_path, repo)
+
+
+def test_a_stage_that_writes_only_into_the_manifest_is_not_taken_for_idle(tmp_path):
+    # The manifest exists before the run, so only its hash can show it was written.
+    repo = make_repo(tmp_path / "a", epilogue='import shutil\nshutil.rmtree(c / "depth_raw")')
+    r = run_check(tmp_path, repo)["result"]
+    assert r["identical"] and r["n_shared"] == 1
 
 
 def test_a_command_that_fails_is_reported_with_its_log(tmp_path):
@@ -210,7 +230,7 @@ def test_processes_of_one_run_with_different_packages_are_refused():
 # ------------------------------------------------------------- the working copy
 
 
-def test_the_working_copy_holds_no_output_and_links_its_inputs(tmp_path):
+def test_the_working_copy_holds_no_output_and_copies_its_inputs(tmp_path):
     src = make_clip(tmp_path / "clips")
     (src / "depth_raw").mkdir()
     (src / "depth_raw" / "depth_000000.npy").write_bytes(b"x")
@@ -220,11 +240,23 @@ def test_the_working_copy_holds_no_output_and_links_its_inputs(tmp_path):
     assert not (dst / "depth_raw").exists()
     m = json.loads((dst / "frame_manifest.json").read_text())
     assert "depth_info" not in m and set(m["frames"][0]) == {"native_frame"}
-    assert all(p.is_symlink() for p in (dst / "input_images").iterdir())
-    assert set(bc.linked_inputs(tmp_path / "work")) == {
+    # Copies, not links: a stage that writes through a link would overwrite the clip's own files.
+    assert not any(p.is_symlink() for p in (dst / "input_images").iterdir())
+    assert set(bc.collect(tmp_path / "work")) == {
         "clip_0001/input_images/000000.png", "clip_0001/input_images/000001.png",
-        "clip_0001/input_images/000002.png", "clip_0001/seg_masks/000000_class.png"}
-    assert set(bc.collect(tmp_path / "work")) == {"clip_0001/frame_manifest.json"}
+        "clip_0001/input_images/000002.png", "clip_0001/seg_masks/000000_class.png",
+        "clip_0001/frame_manifest.json"}
+
+
+def test_a_needed_directory_is_copied_so_a_stage_writing_beside_it_stays_in_the_copy(tmp_path):
+    src = make_clip(tmp_path / "clips")
+    (src / "exports" / "mini_npz").mkdir(parents=True)
+    (src / "exports" / "mini_npz" / "results.npz").write_bytes(b"npz")
+    dst = tmp_path / "work" / "clip_0001"
+    bc.prepare_clip(src, dst, needs=("exports/mini_npz",))
+    assert not (dst / "exports" / "mini_npz").is_symlink()
+    (dst / "exports" / "mini_npz" / "new.bin").write_bytes(b"x")
+    assert not (src / "exports" / "mini_npz" / "new.bin").exists()
 
 
 def test_the_working_copy_keeps_the_first_frames_only(tmp_path):
@@ -257,7 +289,6 @@ def test_collect_finds_a_file_no_list_names_and_one_beside_the_clip(tmp_path):
     (root / "_track" / "clip_0001" / "label_000000.npy").write_bytes(b"l")
     found = bc.collect(root)
     assert {"clip_0001/surprise/new.bin", "_track/clip_0001/label_000000.npy"} <= set(found)
-    assert not [k for k in found if "input_images" in k or "seg_masks" in k]
 
 
 # ------------------------------------------------------------- the comparison
