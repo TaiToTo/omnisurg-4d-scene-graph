@@ -6,14 +6,17 @@ The stage writes `depth_raw/depth_NNNNNN.npy`, `depth_vis/NNNN.jpg`,
 `depth_info` to the manifest. The bundle `results.npz` holds depth,
 confidence, intrinsics and world-to-camera extrinsics. A CholecSeg8k clip
 must already be cut to the endoscope's view; the stage refuses one that has
-no `crop_info.json`.
+no `crop_info.json`. A clip that already holds the stage's output is refused
+unless `--overwrite` is given, which removes that output first.
 
 Usage:
-    python -m pipeline.depth --input-dir /path/to/clips [--clips <clip> ...] [--device auto] [--gpu 0] [--no-glb]
+    python -m pipeline.depth --input-dir /path/to/clips [--clips <clip> ...] [--device auto] [--gpu N]
+                             [--process-res 504] [--overwrite] [--no-glb]
 """
 
 import argparse
 import json
+import shutil
 from pathlib import Path
 
 import cv2
@@ -34,6 +37,9 @@ DEFAULT_DATASET = "cholec_gt"
 # letterbox and records it in the manifest's `crop`.
 UNCROPPED_DATASETS = frozenset({"atlas120k"})
 
+# The files the stage writes into a clip, besides `depth_info` in the manifest.
+STAGE_FILES = ("depth_raw", "depth_vis", "pc_vis", "exports/mini_npz/results.npz")
+
 
 def check_cropped(clip_dir: Path, manifest: dict) -> None:
     """Refuse an endoscope clip that was not cut to the endoscope's view.
@@ -49,7 +55,42 @@ def check_cropped(clip_dir: Path, manifest: dict) -> None:
                          "view; the depth stage takes cropped clips only")
 
 
-def run_depth(clip_dir: Path, model: Reconstructor, process_res: int, write_glb: bool = True) -> None:
+def existing_output(clip_dir: Path, manifest: dict) -> list[str]:
+    """List what the depth stage, in any version, already wrote into the clip.
+
+    Each entry names a file and, for the bundle and `depth_info`, its keys. The keys tell which version of the
+    stage wrote them: a `ray_map` in the bundle marks a branch of the workbench's stage that this one does not
+    reproduce.
+    """
+    held = []
+    for rel in STAGE_FILES:
+        path = clip_dir / rel
+        if path.is_file() and path.suffix == ".npz":
+            with np.load(path) as z:
+                held.append(f"{rel} with keys {z.files}")
+        elif path.exists():
+            held.append(rel)
+    if "depth_info" in manifest:
+        held.append(f"depth_info with keys {list(manifest['depth_info'])}")
+    return held
+
+
+def remove_output(clip_dir: Path) -> None:
+    """Remove the stage's files from the clip, so that a run writes every file the clip then holds.
+
+    A run on fewer frames would otherwise leave the earlier run's files for the frames it no longer writes, and
+    the later stages count a clip's frames by the files in `depth_raw/`.
+    """
+    for rel in STAGE_FILES:
+        path = clip_dir / rel
+        if path.is_dir():
+            shutil.rmtree(path)
+        elif path.is_file():
+            path.unlink()
+
+
+def run_depth(clip_dir: Path, model: Reconstructor, process_res: int, write_glb: bool = True,
+              overwrite: bool = False) -> None:
     """Run the stage on one clip.
 
     Args:
@@ -57,10 +98,13 @@ def run_depth(clip_dir: Path, model: Reconstructor, process_res: int, write_glb:
         model: the reconstruction model. It is loaded once for every clip.
         process_res: the resolution the model was built with. `depth_info` records it.
         write_glb: write the point clouds. Only the viewer reads them, and they take about 20 MB a frame.
+        overwrite: replace the stage's output when the clip already holds it. The output is removed only after
+            the model has run, so a run that fails leaves the clip as it was.
 
     Raises:
         FileNotFoundError: the clip has no manifest or no image.
-        ValueError: `check_cropped` refuses the clip, or the model returned another number of frames.
+        ValueError: `check_cropped` refuses the clip, the clip already holds the stage's output and `overwrite`
+            is false, or the model returns a number of frames other than the number of images.
     """
     # Read the clip's manifest and images, and refuse an uncropped endoscope clip.
     manifest_path = clip_dir / "frame_manifest.json"
@@ -72,15 +116,25 @@ def run_depth(clip_dir: Path, model: Reconstructor, process_res: int, write_glb:
     if not image_paths:
         raise FileNotFoundError(f"{clip_dir} has no input_images/*.png")
     n_frames = len(image_paths)
+
+    # Refuse a clip that already holds the stage's output, unless the caller asked to replace it.
+    held = existing_output(clip_dir, manifest)
+    if held and not overwrite:
+        raise ValueError(f"{clip_dir.name} already holds the depth stage's output ({'; '.join(held)}); "
+                         "pass --overwrite to replace it")
     print(f"  {n_frames} frames, process_res={process_res}")
 
-    # Estimate depth and poses for every frame, in one call.
+    # Estimate depth and poses for every frame, in one call, and refuse a result that is not one per image.
     rec = model.reconstruct(image_paths)
     depth, conf = rec.depth, rec.conf
     if len(depth) != n_frames:
-        raise ValueError(f"{clip_dir.name}: the model returned {len(depth)} of {n_frames} frames")
+        raise ValueError(f"{clip_dir.name}: the model returned {len(depth)} frames for {n_frames} images")
     H, W = depth.shape[1], depth.shape[2]
-    print(f"  depth shape ({n_frames}, {H}, {W})")
+    print(f"  depth shape {depth.shape}")
+
+    # Remove the earlier output, now that the model has run.
+    if held:
+        remove_output(clip_dir)
 
     # Write the raw depth and its images.
     (clip_dir / "depth_raw").mkdir(exist_ok=True)
@@ -116,7 +170,7 @@ def run_depth(clip_dir: Path, model: Reconstructor, process_res: int, write_glb:
     manifest["depth_info"] = {
         "model": model.model_id,
         "process_res": process_res,
-        "depth_shape": [n_frames, H, W],
+        "depth_shape": [int(s) for s in depth.shape],
         "depth_range": [float(np.nanmin(depth)), float(np.nanmax(depth))],
         "conf_range": [float(np.nanmin(conf)), float(np.nanmax(conf))],
         "border_inpaint": False,
@@ -130,26 +184,37 @@ def main() -> None:
     ap.add_argument("--input-dir", required=True, help="The directory that holds the clips.")
     ap.add_argument("--clips", nargs="*", help="Clip directories under --input-dir. Default: every clip there.")
     ap.add_argument("--device", default="auto", help="auto, cuda or cpu. auto takes CUDA when there is one.")
-    ap.add_argument("--gpu", type=int, default=0, help="The index of the GPU to use.")
+    ap.add_argument("--gpu", type=int, default=None,
+                    help="The index of the GPU to use. Default: what CUDA_VISIBLE_DEVICES says, or the first GPU.")
     ap.add_argument("--process-res", type=int, default=DEFAULT_PROCESS_RES,
                     help="The longest side each frame is resized to.")
+    ap.add_argument("--overwrite", action="store_true",
+                    help="Replace the stage's output in a clip that already holds it.")
     ap.add_argument("--no-glb", action="store_true", help="Skip the point clouds. Only the viewer reads them.")
     args = ap.parse_args()
+    # Find the clips before the model loads: its weights take 1.4 GB, and a mistyped clip name should fail first.
     root = Path(args.input_dir)
     if not root.is_dir():
         raise SystemExit(f"no such directory: {root}")
     clips = ([root / c for c in args.clips] if args.clips
              else sorted(d for d in root.iterdir() if (d / "frame_manifest.json").is_file()))
+    missing = [c.name for c in clips if not (c / "frame_manifest.json").is_file()]
+    if missing:
+        raise SystemExit(f"no clip (a directory with frame_manifest.json) at: {', '.join(missing)}")
+    if not clips:
+        raise SystemExit(f"no clip under {root}")
     model = DA3(device=args.device, gpu=args.gpu, process_res=args.process_res)
     print(f"{model.model_id} on {model.device}, {len(clips)} clip(s)")
-    # Run every clip, even after one fails. The run lists each failure and exits non-zero.
+    # Run every clip, even after one fails. Any error, the GPU running out of memory among them, counts as the
+    # failure of that clip alone; on a run of 40 clips the rest would otherwise stay undone. The run lists each
+    # failure and exits non-zero.
     failed = []
     for clip_dir in clips:
         print(clip_dir.name)
         try:
-            run_depth(clip_dir, model, args.process_res, write_glb=not args.no_glb)
-        except (OSError, ValueError) as e:
-            print(f"  failed: {e}")
+            run_depth(clip_dir, model, args.process_res, write_glb=not args.no_glb, overwrite=args.overwrite)
+        except Exception as e:
+            print(f"  failed: {type(e).__name__}: {e}")
             failed.append(clip_dir.name)
     if failed:
         raise SystemExit(f"{len(failed)} of {len(clips)} clip(s) failed: {', '.join(failed)}")

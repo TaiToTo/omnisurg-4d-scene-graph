@@ -15,7 +15,9 @@ pip install -e .
 
 The pipeline needs a Linux machine with an NVIDIA GPU and its driver, and
 Python 3.12. Python 3.12 is the newest Python it supports, because Depth
-Anything 3 requires `numpy` below 2.
+Anything 3 requires `numpy` below 2; on a newer Python the install fails
+while resolving packages, without saying so. A machine without a GPU can run
+the depth stage slowly; `docs/pipeline.md` gives the steps.
 
 ```bash
 git clone https://github.com/TaiToTo/omnisurg-4d-scene-graph.git

@@ -27,7 +27,7 @@ class Reconstruction:
             otherwise. A stage checks the pose convention against them.
 
     Raises:
-        ValueError: the shapes do not describe one sequence of N frames.
+        ValueError: the shapes do not describe one sequence of N frames, N above 0.
     """
 
     depth: np.ndarray
@@ -37,14 +37,16 @@ class Reconstruction:
     points: np.ndarray | None = None
 
     def __post_init__(self) -> None:
+        # The depth sets N, so its shape is checked first and the others are checked against it.
+        if self.depth.ndim != 3 or len(self.depth) == 0:
+            raise ValueError(f"not one sequence of frames: depth {self.depth.shape}, not (N, H, W) with N above 0")
         n = len(self.depth)
-        expected = {"depth": (n, *self.depth.shape[1:]), "conf": self.depth.shape, "intrinsics": (n, 3, 3),
-                    "extrinsics": (n, 3, 4)}
+        expected = {"conf": self.depth.shape, "intrinsics": (n, 3, 3), "extrinsics": (n, 3, 4)}
         if self.points is not None:
             expected["points"] = (*self.depth.shape, 3)
         wrong = [f"{k} {getattr(self, k).shape}, not {v}" for k, v in expected.items() if getattr(self, k).shape != v]
-        if self.depth.ndim != 3 or wrong:
-            raise ValueError(f"not one sequence of frames: depth {self.depth.shape}; " + "; ".join(wrong))
+        if wrong:
+            raise ValueError(f"not one sequence of {n} frames: " + "; ".join(wrong))
 
 
 class Reconstructor(Protocol):
