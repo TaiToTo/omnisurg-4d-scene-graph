@@ -91,6 +91,21 @@ Where they and this document differ, this document holds.
     evaluator is frozen. Moving pilot mode out of `evalkit/` was the
     alternative. It could then be deleted at any time, but the check would
     reach a driver of its own and never the entry point.
+12. **Two propagation rules, and no seed chosen from GT.** Every tracked
+    condition the paper reports is measured under the two propagation rules
+    `docs/evaluation.md` defines: `forward_from_first`, the causal setting,
+    and `both_ways_from_centre`, the offline setting every pilot condition
+    used. The ported tracking stage carries no choice of seed frame from GT.
+    So `op_normal` and `op_edge` on ATLAS-120k and `ch_normal` on
+    CholecSeg8k, the three scored conditions the workbench's audit found
+    seeding by `--seed_auto` at its default, which reads the GT masks, are
+    dropped: their centred versions exist. The workbench's ATLAS-120k
+    pipeline script runs that default too, and its port does not. The
+    tracking stage records its rule with its output, the evaluator writes it
+    into every score, and the tools refuse a comparison or a table that
+    mixes two rules, as they refuse two shas. A condition with no tracker
+    has no rule and may sit beside either, since propagation against
+    per-frame segmentation is itself a comparison the paper makes.
 
 ## What moves
 
@@ -171,6 +186,13 @@ From the take list in `repo_migration_plan.md`:
     `loaders.py`, `depth_source.py`, `viz_common.py`, `sam_env.py`.
   - `ipcai2027_experiment/scripts/`: `run_per_frame_seg.py`, `geom_blend.py`.
   - `pi3_wrapper/scripts/run_pi3_depth.py`.
+  - `crop_cholec_frames.py` cuts each CholecSeg8k video to a rectangle
+    inside the endoscope's view. Ported, it reads the rectangle as data, the
+    one each clip of that video records in `crop_info.json`, as the
+    ATLAS-120k crop rectangles below are data; the circle fit in
+    `preprocess` that found it comes along only to find a new video's. The
+    depth stage then neither detects nor fills a border
+    (`docs/workstreams.md`, "No endoscope border in the depth stage").
 - **Wrappers.** `da3_surgery_wrapper/` and `pi3_wrapper/` become
   `recon3d_wrapper/`, and `sam3_wrapper/` moves as it is.
 - **Rest of `surgical_core`.** `pointcloud`, `preprocess`, the ten modules of
@@ -213,10 +235,6 @@ while the evaluator is built and reviewed is worked out in `docs/workstreams.md`
      pilot evaluator, at zero tolerance, on the 38 scored conditions.
    Record its sha with every score; do not freeze it (decision 2). Pilot
    mode stays in it until just before the freeze (decision 11).
-   The first `pip install -e .` of this repository happens here. Compare the
-   packages it resolves with `environment.packages` in the determinism
-   measurement's JSON, so that a mismatch is known before step 5 rather than
-   found there.
 3. **Re-score.** CPU only. Score every condition's existing predictions with
    the evaluator. `condition_inventory` must report no mixed ruler and no
    missing condition.
@@ -236,24 +254,38 @@ while the evaluator is built and reviewed is worked out in `docs/workstreams.md`
 5. **Port the pipeline, one stage at a time.** Each stage's output must match
    the workbench byte for byte. Two exceptions: Pi3X's `runtime_sec`, per
    `repo_migration_determinism.md`; and the 14 CholecSeg8k clips whose gap
-   frames the workbench's extractor placed 1 to 3 s late (open question 8),
-   which the ported extractor converts or refuses, and which are then
-   re-extracted and re-run. If the package comparison in step 2 found a
-   difference, measure determinism again first. The 315 clips also get DA3
-   and `glb_centroid`: the demo's reference grid stays DA3.
+   frames the workbench's extractor placed 1 to 3 s late ("CholecSeg8k
+   clips whose frames run out of order"), which the ported extractor
+   converts or refuses, and which are then re-extracted and re-run. The 315
+   clips also get DA3 and `glb_centroid`: the demo's reference grid stays
+   DA3.
+   This step compares files, not scores, so it does not wait on steps 1 to
+   4; it may run beside them. The port is reviewed anywhere. The DA3 stage
+   is checked first on the development machine's CPU with the real model;
+   every stage is checked on the machine the workbench's stages run on, on
+   its GPU. Each time both sides run in one environment, so that a
+   difference is the code's. If the GPU machine's packages no longer equal
+   `environment.packages` in the determinism measurement's JSON, the
+   workbench's stage runs twice first, to measure determinism again.
+   Predictions made again from output that is not the workbench's, the
+   exceptions above, are scored as in step 3, after the evaluator's check
+   against the pilot evaluator.
 6. **Prepare the release.**
    - An English README, `docs/data_contract.md`, the `atlas120k_meta/` README
      and `CITATION.cff`.
    - Before anything is public, a check of HTL's anonymity rules, since AE-CAI
      is under double-blind revision.
-   - Done when a third party can clone, install and get a green `pytest`.
+   - Done when a third party can clone, install and get a green `pytest`,
+     and, on a machine with a CUDA GPU, install the pipeline with the
+     README's steps and run each ported stage on a clip.
 
 The data these steps read stays in the workbench:
 
 - `outputs/atlas97` and `outputs/cholec_gt`, which the paper reads;
 - `outputs/atlas`, the 13-video tree the demo reads, which holds the clips
   the determinism measurement used (`adrenalectomy__16GPCUPkXYQ__gt_0004` and
-  `tile_0007`) and is where step 5 compares stages;
+  `adrenalectomy__16GPCUPkXYQ__tile_0007`) and is where step 5 compares
+  stages, with one CholecSeg8k clip from `outputs/cholec_gt`;
 - the determinism measurement's JSON (`measure_determinism.py --json-out`);
 - the predictions under `ipcai2027_experiment/atlas97/out/`;
 - the pilot's score JSONs.
@@ -276,7 +308,10 @@ Every command takes those paths as arguments.
 2. **The skill-classification code and the other 18 viewer pages.** The plan
    leaves both behind. The paper's figures come from some of those pages.
 3. **Whether step 5 has to finish before submission.** Step 3 already gives
-   the numbers, and the determinism result says step 5 cannot change them.
+   the numbers. A stage that passes step 5's byte check cannot change them;
+   the 14 clips re-extracted under "CholecSeg8k clips whose frames run out
+   of order" can, and so can depth made again under "Depth made by two
+   versions of the depth stage".
 4. **Pilot mode's own rules.** Five places where pilot mode must not read
    the evaluator's tables or helpers, each noted where it was found and
    collected here so the pilot-mode driver settles them in one go:
@@ -380,3 +415,58 @@ Every command takes those paths as arguments.
     that. The evaluator keeps the count behind every key
     (`ClipScores.n_frames`) but has not fixed how a JSON spells it; when the
     pilot-mode driver does, `SHARED` takes the counts too.
+13. **The edge ring as a process-wide flag.**
+    `surgical_core.geometry.normals.EDGE_MASK_RING` decides whether the
+    contour around the image border and around invalid depth is zeroed in the
+    edge map the segmenter is prompted with. It is a module global, set for a
+    whole process: the tracking stage, `geom_blend.py` (and through it the
+    per-frame segmentation stage) and `d4d_seed.py` read it, and each writes
+    it into its own provenance record. Whether a setting passed per run, and
+    recorded with the output in one form, replaces the flag is decided before
+    either stage is ported.
+14. **Depth made by two versions of the depth stage.** On the development
+    machine's copy of the workbench, 7 of the 9 CholecSeg8k clips (VID01 and
+    VID12) carry depth written by a branch of the depth stage that never
+    reached the workbench's `main`: their `results.npz` holds a `ray_map` and
+    their manifests `backproject_mode: "ray"`. That branch passed DA3
+    `ref_view_strategy="middle"`; the stage on `main`, which step 5 ports,
+    passes nothing, and DA3's default is `saddle_balanced`. The reference view
+    sets the frame the poses are given in, so the two need not give the same
+    depth or poses. The 2 VID25 clips, extracted again later, carry neither,
+    as `main`'s stage writes them. So a stage that passes the byte check
+    reproduces `main`'s stage, not necessarily the depth a prediction read,
+    and a clip run again (the 14 under "CholecSeg8k clips whose frames run
+    out of order" among them) may get depth unlike its neighbours'. To settle
+    on G: which version made the depth each scored condition read, on
+    ATLAS-120k too. A `ray_map` in `results.npz` marks the branch; for a clip
+    without one, a run of `main`'s stage compared with the stored files says
+    whether `main`'s stage, in G's environment, makes them again. Then
+    whether the ported stage follows `main`, and the depth so made is made
+    again with every condition on it, or the branch's setting becomes the
+    stage's.
+15. **The seed frame chosen from GT.** With `--seed_auto`, the tracking stage
+    seeds on the frame nearest the window's centre among those whose GT masks
+    call at most `--seed_inst_thresh` of it instrument (0.005 by default), or,
+    when there is none, on the frame with the least. It reads each frame's
+    mask file through the workbench's class tables, by the file's presence
+    rather than the GT flag, and counts a frame with no mask as free of
+    instruments. It was added to keep an instrument in the seed frame from
+    splitting one surface into two tracks. With `--seed_inst_thresh 1.0`, the
+    operating point, every frame counts as free and the seed is the centre of
+    the strided frame list, frame N // 2 at stride 1, whatever the GT says;
+    the ported stage keeps that centre and nothing else of the choice ("Two
+    propagation rules, and no seed chosen from GT"). `seed_info.json` records
+    the seed frame but not the rule. What stays open is the conditions
+    seeded from GT masks (`--seed_source gt`). They seed on
+    `track_metrics.pick_seed_frame`, the frame nearest (N − 1)/2 among those
+    with a mask file, and take the seed's regions from
+    `track_metrics.gt_instances`, which drops a component under `MIN_AREA`.
+    That frame can lie several frames from the centre: on the nine 30-frame
+    CholecSeg8k clips of the development machine, counting the annotated
+    frames only, it is frame 10, 14 or 16 where the operating point seeds at
+    15, and it moves with the mask files present. Such a condition cannot
+    seed on the centre when the centre has no GT, so it holds neither rule.
+    Decide, before the tracking stage is ported, whether these conditions
+    stay, under which rule a score records them, and whether their seed keeps
+    the `MIN_AREA` cut that "No minimum object size, anywhere" removes
+    everywhere else.
