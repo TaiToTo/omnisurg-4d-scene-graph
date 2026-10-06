@@ -1,0 +1,62 @@
+"""Run Depth Anything 3 behind the `Reconstructor` interface.
+
+The model loads once and then reconstructs any number of sequences. The
+module depends on the upstream `depth_anything_3` package and on torch, the
+`recon3d` extra. It imports them only when a model is built, so importing
+the module needs neither.
+"""
+
+import os
+import sys
+from collections.abc import Sequence
+from pathlib import Path
+
+import numpy as np
+
+from recon3d_wrapper import Reconstruction
+
+DEFAULT_MODEL_ID = "depth-anything/DA3-LARGE"
+
+# The longest side each frame is resized to. 504 is DA3's training resolution and a multiple of its 14-pixel patch.
+DEFAULT_PROCESS_RES = 504
+
+
+class DA3:
+    """Load DA3 once onto a device.
+
+    Args:
+        model_id: the Hugging Face model id. The weights download on first use.
+        device: "auto", "cpu" or "cuda". "auto" takes CUDA when there is one.
+        gpu: the index of the GPU to use, set through `CUDA_VISIBLE_DEVICES`.
+        process_res: the longest side each frame is resized to before inference.
+
+    Raises:
+        RuntimeError: `gpu` is given after torch was imported. `CUDA_VISIBLE_DEVICES` would then have no effect.
+    """
+
+    def __init__(self, model_id: str = DEFAULT_MODEL_ID, device: str = "auto", gpu: int | None = None,
+                 process_res: int = DEFAULT_PROCESS_RES) -> None:
+        if gpu is not None:
+            if "torch" in sys.modules:
+                raise RuntimeError("torch is already imported, so CUDA_VISIBLE_DEVICES cannot select the GPU")
+            os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
+        # Imported here, not at the top: CUDA_VISIBLE_DEVICES takes effect only before torch's first import.
+        import torch
+        from depth_anything_3.api import DepthAnything3
+
+        if device == "auto":
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.model_id = model_id
+        self.device = device
+        self.process_res = process_res
+        self.model = DepthAnything3.from_pretrained(model_id).to(device)
+
+    def reconstruct(self, image_paths: Sequence[Path]) -> Reconstruction:
+        """Return depth and poses for the frames, in the order given."""
+        pred = self.model.inference([str(p) for p in image_paths], process_res=self.process_res)
+        # DA3 may return (N, 4, 4) extrinsics. The interface holds the (N, 3, 4) world-to-camera part.
+        extrinsics = np.asarray(pred.extrinsics)
+        if extrinsics.shape[-2] == 4:
+            extrinsics = extrinsics[:, :3, :]
+        return Reconstruction(depth=np.asarray(pred.depth), conf=np.asarray(pred.conf),
+                              intrinsics=np.asarray(pred.intrinsics), extrinsics=extrinsics)
