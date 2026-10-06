@@ -103,6 +103,7 @@ check, because a wrong pose convention places every later point cloud
 wrong without any error.
 
 The manifest's frames are matched to the images by `seq_idx`. The stage
-refuses a clip whose manifest lists other frames than `input_images/`.
+refuses a clip whose manifest lists other frames than `input_images/`. It
+checks this before the model runs, so a refused clip is left as it was.
 
 Pi3X runs on a CPU only in principle; a clip takes too long to be useful.

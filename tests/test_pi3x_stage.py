@@ -142,8 +142,10 @@ class StandIn:
 
     def __init__(self, invert=False):
         self.invert = invert
+        self.calls = 0
 
     def reconstruct(self, image_paths):
+        self.calls += 1
         rec, poses = pinhole(n=len(image_paths))
         return inverted(rec, poses) if self.invert else rec
 
@@ -184,3 +186,17 @@ def test_a_run_with_inverted_poses_is_refused_before_anything_is_written(tmp_pat
     with pytest.raises(ValueError, match="inverted"):
         run_pi3x(clip, StandIn(invert=True), pixel_limit=255_000)
     assert not (clip / "exports").exists()
+
+
+@pytest.mark.parametrize("fault", ["no manifest", "a frame gained"])
+def test_a_clip_whose_manifest_does_not_fit_is_refused_before_the_model_runs(tmp_path, fault):
+    clip = _clip(tmp_path)
+    if fault == "no manifest":
+        (clip / "frame_manifest.json").unlink()
+    else:
+        Image.fromarray(np.zeros((12, 16, 3), np.uint8)).save(clip / "input_images" / "000003.png")
+    model = StandIn()
+    with pytest.raises((FileNotFoundError, ValueError), match="frame_manifest.json|different frame lists"):
+        run_pi3x(clip, model, pixel_limit=255_000)
+    assert model.calls == 0
+    assert not (clip / "exports").exists() and not (clip / "depth_vis").exists()

@@ -15,6 +15,7 @@ Usage:
 import argparse
 import json
 import time
+from collections.abc import Iterable
 from pathlib import Path
 
 import cv2
@@ -93,19 +94,19 @@ def verify_roundtrip(rec: Reconstruction, n_sample: int = 20000, seed: int = 0) 
     }
 
 
-def update_manifest(clip_dir: Path, source: str, per_frame: dict[int, dict], n_input: int, provenance: dict) -> None:
-    """Merge a geometry source's per-frame records and its run record into the clip's manifest.
+def read_manifest(clip_dir: Path, n_input: int, seq_idxs: Iterable[int]) -> dict:
+    """Read the clip's manifest, and refuse one that lists other frames than `input_images/`.
 
-    A frame's records go under `frames[i].geometry_sources[source]`, one level below DA3's keys. Written at the
-    frame's top level, they would overwrite DA3's centroid and move every DA3 point cloud. Frames are matched by
-    `seq_idx`, which holds only while `input_images/` and the manifest list the same frames.
+    Frames are matched by `seq_idx`, which holds only while `input_images/` and the manifest list the same
+    frames. A manifest that lists no frames passes; the merge adds them.
 
     Args:
         clip_dir: the clip.
-        source: the geometry source's name.
-        per_frame: the records, by position in `input_images/`.
         n_input: the number of frames in `input_images/`.
-        provenance: the run's record, stored at `geometry_sources[source]`.
+        seq_idxs: the positions in `input_images/` whose records are to be merged.
+
+    Returns:
+        The manifest.
 
     Raises:
         FileNotFoundError: the clip has no manifest.
@@ -119,21 +120,42 @@ def update_manifest(clip_dir: Path, source: str, per_frame: dict[int, dict], n_i
     frames_in = manifest.get("frames", [])
     if any("seq_idx" not in fr for fr in frames_in):
         raise ValueError(f"{manifest_path}: some frames have no seq_idx")
-    existing = {fr["seq_idx"]: fr for fr in frames_in}
+    listed = {fr["seq_idx"] for fr in frames_in}
     # The count catches a frame lost from input_images/ as well as one gained; the keys alone catch only a gain.
-    if frames_in and n_input != len(existing):
+    if frames_in and n_input != len(listed):
         raise ValueError(f"{manifest_path}: input_images/ holds {n_input} frame(s) but the manifest lists "
-                         f"{len(existing)}; the two describe different frame lists")
-    unknown = sorted(set(per_frame) - set(existing))
+                         f"{len(listed)}; the two describe different frame lists")
+    unknown = sorted(set(seq_idxs) - listed)
     if frames_in and unknown:
         raise ValueError(f"{manifest_path}: reconstructed seq_idx {unknown[:5]} are absent from the manifest; "
                          "input_images/ and frame_manifest.json describe different frame lists")
+    return manifest
+
+
+def update_manifest(clip_dir: Path, source: str, per_frame: dict[int, dict], n_input: int, provenance: dict) -> None:
+    """Merge a geometry source's per-frame records and its run record into the clip's manifest.
+
+    A frame's records go under `frames[i].geometry_sources[source]`, one level below DA3's keys. Written at the
+    frame's top level, they would overwrite DA3's centroid and move every DA3 point cloud.
+
+    Args:
+        clip_dir: the clip.
+        source: the geometry source's name.
+        per_frame: the records, by position in `input_images/`.
+        n_input: the number of frames in `input_images/`.
+        provenance: the run's record, stored at `geometry_sources[source]`.
+
+    Raises:
+        FileNotFoundError, ValueError: `read_manifest` refused the manifest.
+    """
+    manifest = read_manifest(clip_dir, n_input, per_frame)
+    existing = {fr["seq_idx"]: fr for fr in manifest.get("frames", [])}
     for seq_idx, meta in per_frame.items():
         existing.setdefault(seq_idx, {"seq_idx": seq_idx}).setdefault("geometry_sources", {})[source] = meta
     manifest["frames"] = [existing[k] for k in sorted(existing)]
     manifest["n_frames"] = len(manifest["frames"])
     manifest.setdefault("geometry_sources", {})[source] = provenance
-    manifest_path.write_text(json.dumps(manifest, indent=2))
+    (clip_dir / "frame_manifest.json").write_text(json.dumps(manifest, indent=2))
 
 
 def run_pi3x(clip_dir: Path, model: Reconstructor, pixel_limit: int, conf_thre: float = 0.0,
@@ -151,14 +173,18 @@ def run_pi3x(clip_dir: Path, model: Reconstructor, pixel_limit: int, conf_thre: 
 
     Raises:
         FileNotFoundError: no image or no manifest.
-        ValueError: the model returned another number of frames, the round-trip check failed, an image could not
-            be read, no frame gave a point cloud, or `update_manifest` refused the merge.
+        ValueError: the manifest lists other frames than `input_images/`, the model returned another number of
+            frames, the round-trip check failed, an image could not be read, or no frame gave a point cloud.
     """
-    # Read the clip's images, then reconstruct them.
+    # Find the clip's images and check its manifest before the model runs, so that a refused clip costs no
+    # inference and is left as it was.
     image_paths = sorted((clip_dir / "input_images").glob("*.png"))
     if not image_paths:
         raise FileNotFoundError(f"{clip_dir} has no input_images/*.png")
     n_input = len(image_paths)
+    read_manifest(clip_dir, n_input, range(n_input))
+
+    # Reconstruct the images.
     print(f"  {n_input} frames, model={model.model_id}, pixel_limit={pixel_limit}")
     t0 = time.perf_counter()
     rec = model.reconstruct(image_paths)
