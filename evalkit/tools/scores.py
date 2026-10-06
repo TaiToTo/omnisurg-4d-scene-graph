@@ -16,9 +16,8 @@ JSON also carries its run-time domain — `tissue_ignore` for the run,
 `extra_ignore` clip by clip — which decided what its `tissue` metrics
 removed; two pilot JSONs must agree on that too.
 
-The key layout is fixed here and nowhere else. The evaluator writes one
-key per metric per view, `metric_key(metric, view)`, and `time_IoU` once
-per clip. A pilot JSON keeps the pilot evaluator's own spellings
+The evaluator's keys are laid out by `evalkit.keys`, and the tools take
+them from here. A pilot JSON keeps the pilot evaluator's own spellings
 (`inst_F1_50`, `GT_mIoU`, ...), and each tool lists the ones it reports.
 """
 from __future__ import annotations
@@ -28,6 +27,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
+
+from evalkit.keys import CLIP_METRICS, FRAME_METRICS, SIGNS, metric_key, split_key
 
 # The pilot evaluator's sha. Its JSONs are the ones with none of the fields
 # below, and this is the value their `eval_code_sha` holds.
@@ -39,22 +40,6 @@ EVALUATOR_FIELDS = ("class_set", "views", "pilot", "input_shas", "versions")
 
 # The pilot evaluator's four domains, which its JSONs score in place of views.
 PILOT_DOMAINS = ("full", "labeled", "tissue", "labeled_tissue")
-
-# The per-frame metrics of `docs/evaluation.md`, one key per view, in the
-# table's order; and the one metric that is one value per clip.
-FRAME_METRICS = ("F1_50", "SQ", "inst_BF", "mIoU", "boundary_F", "boundary_R_raw",
-                 "VI_split", "VI_merge", "unlabelled_share")
-CLIP_METRICS = ("time_IoU",)
-
-# Which way is better: +1 larger, -1 smaller, 0 a reference value that is
-# reported and never marked. The variation of information counts bits of
-# disagreement, so less is better; `time_IoU` and `unlabelled_share` are
-# reference values by the specification and get no mark either way.
-SIGNS: Mapping[str, int] = MappingProxyType({
-    "F1_50": +1, "SQ": +1, "inst_BF": +1, "mIoU": +1, "boundary_F": +1,
-    "boundary_R_raw": +1, "VI_split": -1, "VI_merge": -1,
-    "unlabelled_share": 0, "time_IoU": 0,
-})
 
 # The pilot evaluator's own keys, in the table's order, with which way each
 # is better. `underseg_error` and `overseg_mean` count error, so less is
@@ -70,17 +55,6 @@ PILOT_SIGNS: Mapping[str, int] = MappingProxyType({
 # The entry of `input_shas` that is the condition's own. Every other entry
 # names an input two comparable scores must have read alike.
 PREDICTION_INPUT = "predictions"
-
-
-def metric_key(metric: str, view: str) -> str:
-    """The per-clip key of one metric in one view, as the evaluator writes it."""
-    return f"{metric}/{view}"
-
-
-def split_key(key: str) -> tuple[str, str | None]:
-    """A key back into its metric and its view; the view is None for a clip-level key or a pilot key."""
-    metric, sep, view = key.partition("/")
-    return (metric, view) if sep else (key, None)
 
 
 def sign_of(key: str) -> int:

@@ -32,24 +32,16 @@ from evalkit.boundary import boundary_pixels, boundary_score
 from evalkit.classes import VIEWS, ClassTable
 from evalkit.classmap import class_map, class_scores
 from evalkit.inst_bf import instance_boundary_f
+from evalkit.keys import FRAME_METRICS
 from evalkit.objects import gt_objects, instance_scores, predicted_objects
 from evalkit.scored import PixelCounts, frame_is_excluded, scored_pixels, valid_depth
 from evalkit.unlabelled import unlabelled_share
 from evalkit.vi import variation_of_information
 
-# The specification's key for each per-frame metric, to the field that holds it. The
-# one place the two spellings meet; the JSON is written through it.
-KEYS: Mapping[str, str] = MappingProxyType({
-    "F1_50": "f1_50",
-    "SQ": "sq",
-    "inst_BF": "inst_bf",
-    "mIoU": "miou",
-    "boundary_F": "boundary_f",
-    "boundary_R_raw": "boundary_r_raw",
-    "VI_split": "vi_split",
-    "VI_merge": "vi_merge",
-    "unlabelled_share": "unlabelled_share",
-})
+# The specification's key for each per-frame metric, to the field of `ViewScores`
+# that holds it, in the specification's order. Each field is its key in lower
+# case. The JSON is written through this mapping.
+KEYS: Mapping[str, str] = MappingProxyType({key: key.lower() for key in FRAME_METRICS})
 
 
 @dataclass(frozen=True)

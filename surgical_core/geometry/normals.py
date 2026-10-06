@@ -7,6 +7,8 @@ on a machine with no data and no model weights.
 import cv2
 import numpy as np
 
+from surgical_core.geometry.valid import valid_depth_mask
+
 
 def camera_normals(depth, K):
     """Unit normals in camera space, and the mask of pixels that have one.
@@ -27,7 +29,7 @@ def camera_normals(depth, K):
     H, W = depth.shape
     fx, fy, cx, cy = K[0, 0], K[1, 1], K[0, 2], K[1, 2]
     ys, xs = np.mgrid[0:H, 0:W]
-    m = np.isfinite(depth) & (depth > 1e-6)
+    m = valid_depth_mask(depth)
     z = np.where(m, depth, np.nan)
     P = np.stack([(xs - cx) * z / fx, (ys - cy) * z / fy, z], -1)
     dx = np.zeros_like(P)
@@ -157,6 +159,7 @@ def geom_edge_map(depth, K, normal_thresh=0.3, depth_thresh=0.04, parts="both",
     # where the normal breaks down.
     d = np.where(m, depth, np.nan)
     g = np.hypot(np.gradient(np.nan_to_num(d), axis=1), np.gradient(np.nan_to_num(d), axis=0))
+    # The 1e-6 keeps the division finite where the depth is 0. It is not a depth test.
     ed = np.clip(np.nan_to_num(g) / (np.nan_to_num(d) * depth_thresh + 1e-6), 0, 1)
     edge = {"normal": en, "depth": ed}.get(parts, np.maximum(en, ed))
     edge = np.array(edge, dtype=float)

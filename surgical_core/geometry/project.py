@@ -5,6 +5,8 @@ Extrinsics are world-to-camera (w2c) throughout. numpy only.
 
 import numpy as np
 
+from surgical_core.geometry.valid import DEPTH_MIN, valid_depth_mask
+
 
 def backproject(depth, K, ext_w2c):
     """Depth to world points.
@@ -32,7 +34,7 @@ def backproject(depth, K, ext_w2c):
     H, W = depth.shape
     fx, fy, cx, cy = K[0, 0], K[1, 1], K[0, 2], K[1, 2]
     ys, xs = np.mgrid[0:H, 0:W]
-    m = np.isfinite(depth) & (depth > 1e-6)
+    m = valid_depth_mask(depth)
     z = depth[m]
     X = (xs[m] - cx) * z / fx
     Y = (ys[m] - cy) * z / fy
@@ -118,7 +120,7 @@ def warp_labels(L_src, depth_src, K_src, ext_src, K_dst, ext_dst):
     lab = L_src[ys, xs]
     u, v, Z = project_world_to_frame(Pw, K_dst, ext_dst)
     ui, vi = np.round(u).astype(int), np.round(v).astype(int)
-    ok = (Z > 1e-6) & (ui >= 0) & (ui < W) & (vi >= 0) & (vi < H)
+    ok = (Z > DEPTH_MIN) & (ui >= 0) & (ui < W) & (vi >= 0) & (vi < H)
     ui, vi, Z, lab = ui[ok], vi[ok], Z[ok], lab[ok]
     # One explicit winner per pixel: the nearest point. Sorting by pixel and
     # then by depth puts it first in its pixel's run. Writing every point
