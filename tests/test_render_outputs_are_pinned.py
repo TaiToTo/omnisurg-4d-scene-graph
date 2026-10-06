@@ -66,7 +66,8 @@ def test_every_case_is_pinned_and_nothing_else():
 
 @pytest.mark.parametrize("key, kwargs", cases(), ids=[key for key, _ in cases()])
 def test_the_mode_renders_the_pinned_bytes(key, kwargs):
-    assert sha(render_case(kwargs)) == json.loads(PINNED.read_text())[key]
+    got = sha(render_case(kwargs))
+    assert got == json.loads(PINNED.read_text())[key], f"{key} rendered {got}"
 
 
 if __name__ == "__main__":
