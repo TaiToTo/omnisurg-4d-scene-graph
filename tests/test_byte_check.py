@@ -337,6 +337,25 @@ def test_the_working_copy_keeps_the_first_frames_only(tmp_path):
     assert [f["native_frame"] for f in json.loads((dst / "frame_manifest.json").read_text())["frames"]] == [0, 1]
 
 
+def test_a_hidden_file_is_not_a_frame(tmp_path):
+    # `.DS_Store` sorts before the images; counted as a frame, it would push a real frame out of the cut.
+    src = make_clip(tmp_path / "clips", n=3)
+    (src / "input_images" / ".DS_Store").write_bytes(b"junk")
+    dst = tmp_path / "work" / "clip_0001"
+    bc.prepare_clip(src, dst, frames=2)
+    assert sorted(p.name for p in (dst / "input_images").iterdir()) == ["000000.png", "000001.png"]
+
+
+def test_frames_cuts_n_frames_with_the_frames_it_counts(tmp_path):
+    # A fail-closed stage counts the frames; a stale total would make it refuse the cut copy.
+    src = make_clip(tmp_path / "clips", n=5)
+    m = json.loads((src / "frame_manifest.json").read_text())
+    m["n_frames"] = 5
+    (src / "frame_manifest.json").write_text(json.dumps(m, indent=2))
+    bc.prepare_clip(src, tmp_path / "work" / "clip_0001", frames=2)
+    assert json.loads((tmp_path / "work" / "clip_0001" / "frame_manifest.json").read_text())["n_frames"] == 2
+
+
 @pytest.mark.parametrize("frames", [0, 6])
 def test_frames_the_clip_does_not_have_are_refused(tmp_path, frames):
     src = make_clip(tmp_path / "clips", n=5)
@@ -480,3 +499,16 @@ def test_the_command_line_writes_its_report_and_exits_zero_on_equal_runs(tmp_pat
     assert "IDENTICAL" in proc.stdout
     assert json.loads(out.read_text())["result"]["identical"]
     assert [p.name for p in tmp_path.iterdir() if p.name.startswith("byte_check_")] == [], "the scratch is removed"
+
+
+def test_the_command_line_tells_a_difference_from_a_refusal_by_exit_code(tmp_path):
+    repo = make_repo(tmp_path / "a", epilogue='(c / "noise.bin").write_bytes(os.urandom(8))')
+    make_clip(tmp_path / "clips")
+    base = [sys.executable, "-m", "pipeline.byte_check", "--root", str(tmp_path / "clips"), "--clip", "clip_0001",
+            "--work", str(tmp_path), "--a-repo", str(repo), "--a-cmd", CMD]
+    differs = subprocess.run(base, capture_output=True, text=True)
+    assert differs.returncode == 1, differs.stderr
+    (repo / "helper.py").write_text("changed = True\n")
+    refused = subprocess.run(base, capture_output=True, text=True)
+    assert refused.returncode == 2
+    assert "refused" in refused.stderr

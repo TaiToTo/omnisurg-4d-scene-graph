@@ -4,12 +4,12 @@ A ported pipeline stage is done when its output equals the workbench's, and
 this is the check. Each run gets a working copy of the clip, its inputs
 copied in and its manifest stripped of what the stages write; whatever it
 writes there is compared with the other run's. A JSON file that differs only
-in `runtime_sec` is counted apart, never as equal. Given one command, it runs
-it twice and measures determinism. It refuses a pair it cannot vouch for: a
-run that imported a watched package from a file its repository's commit does
-not track, or any module from a file the other run's repository tracks, a
-repository with uncommitted changes, two runs whose Python, BLAS or
-distributions differ, and a run that changed one of its inputs.
+in `runtime_sec` is counted apart. Given one command, it runs it twice and
+measures determinism. It refuses a pair it cannot vouch for: a watched
+package from a file its run's repository's commit does not track, a module
+from a file the other run's repository tracks, uncommitted changes, a run
+with no record of its imports, two runs whose Python, BLAS or distributions
+differ, and a changed input. Runs that differ exit 1; a refusal exits 2.
 
 Usage:
     python -m pipeline.byte_check --root /path/to/clips --clip <clip> \\
@@ -27,6 +27,7 @@ import re
 import shlex
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 from dataclasses import dataclass, field
@@ -236,7 +237,8 @@ def prepare_clip(src_clip: Path, dst_clip: Path, needs: tuple[str, ...] = (), fr
     manifest = src_clip / "frame_manifest.json"
     if not images.is_dir() or not manifest.is_file():
         raise FileNotFoundError(f"{src_clip} is not a clip: it needs input_images/ and frame_manifest.json")
-    names = sorted(p.name for p in images.iterdir() if p.is_file())
+    # A hidden file is no frame: Finder drops `.DS_Store` beside the images, and it sorts first.
+    names = sorted(p.name for p in images.iterdir() if p.is_file() and not p.name.startswith("."))
     if frames is not None:
         if not 1 <= frames <= len(names):
             raise ValueError(f"{src_clip.name} has {len(names)} images; its first {frames} cannot be kept")
@@ -245,7 +247,8 @@ def prepare_clip(src_clip: Path, dst_clip: Path, needs: tuple[str, ...] = (), fr
     _copy_files(images, dst_clip / "input_images", names)
     masks = src_clip / "seg_masks"
     if masks.is_dir():
-        _copy_files(masks, dst_clip / "seg_masks", sorted(p.name for p in masks.iterdir() if p.is_file()))
+        _copy_files(masks, dst_clip / "seg_masks",
+                    sorted(p.name for p in masks.iterdir() if p.is_file() and not p.name.startswith(".")))
     for rel in needs:
         src = src_clip / rel
         if not src.exists():
@@ -264,6 +267,9 @@ def prepare_clip(src_clip: Path, dst_clip: Path, needs: tuple[str, ...] = (), fr
             entry.pop(k, None)
     if frames is not None and isinstance(m.get("frames"), list):
         m["frames"] = m["frames"][:frames]
+        # A fail-closed stage counts the frames; a stale total would make it refuse the cut copy.
+        if "n_frames" in m:
+            m["n_frames"] = len(m["frames"])
     (dst_clip / "frame_manifest.json").write_text(json.dumps(m, ensure_ascii=False, indent=2))
 
 
@@ -558,7 +564,9 @@ def main() -> None:
         report = check(Path(args.root), args.clip, a, b, work, tuple(args.needs), args.frames,
                        tuple(Path(p) for p in args.weights))
     except (ValueError, RuntimeError, FileNotFoundError) as e:
-        raise SystemExit(f"refused: {e}" if isinstance(e, ValueError) else str(e))
+        # Exit 2 for a pair the check refused or could not run; exit 1 below for runs that differ.
+        print(f"refused: {e}" if isinstance(e, ValueError) else str(e), file=sys.stderr)
+        raise SystemExit(2)
     finally:
         if args.keep:
             print(f"kept {work}")
