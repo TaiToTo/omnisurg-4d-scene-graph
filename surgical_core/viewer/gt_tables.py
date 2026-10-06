@@ -4,12 +4,13 @@ The one module of the viewer that imports `evalkit`. A video with no dataset
 class table builds its table with `labels.label_table` and does not need it.
 """
 
-from evalkit.classes import ClassTable, ClassType, load_table
+from evalkit.classes import ClassTable, ClassType, VIEWS, load_table
 from surgical_core.viewer.labels import LabelTable, label_table
 
-# The types that are not objects: drawn as background and left out of the
-# legend and the graph. The same three the evaluator removes from every view.
-_NOT_AN_OBJECT = frozenset({ClassType.IGNORED, ClassType.BACKGROUND, ClassType.EXCLUDED})
+# The types no view scores: drawn as background and left out of the legend
+# and the graph. Derived from the evaluator's own views, so a type it never
+# scores becomes background here without a second list to keep in step.
+_NOT_AN_OBJECT = frozenset(ClassType) - VIEWS["all"]
 
 
 def label_table_of(table: ClassTable) -> LabelTable:
