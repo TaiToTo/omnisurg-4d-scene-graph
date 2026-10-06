@@ -8,8 +8,8 @@ in `runtime_sec` is counted apart, never as equal. Given one command, it runs
 it twice and measures determinism. It refuses a pair it cannot vouch for: a
 run that imported a watched package from a file its repository's commit does
 not track, or any module from a file the other run's repository tracks, a
-repository with uncommitted changes, two runs whose packages differ, and a
-run that changed one of its inputs.
+repository with uncommitted changes, two runs whose Python, BLAS or
+distributions differ, and a run that changed one of its inputs.
 
 Usage:
     python -m pipeline.byte_check --root /path/to/clips --clip <clip> \\
@@ -42,10 +42,6 @@ MANIFEST_FRAME_KEYS = ("glb_centroid", "camera_pos_glb", "camera_forward_glb", "
 # JSON fields that record how long a run took, not what it produced.
 VOLATILE_KEYS = ("runtime_sec",)
 
-# The distributions whose versions can change what a stage writes. Each run records them, and two runs must agree.
-TRACKED_PACKAGES = ("torch", "numpy", "transformers", "depth-anything-3", "pi3", "segment-anything", "trimesh",
-                    "opencv-python", "Pillow", "matplotlib")
-
 # A volatile field alone on its line with a scalar value, as `json.dumps(..., indent=2)` writes it. Matching the text
 # rather than the parsed tree keeps the rest of the comparison about bytes: key order, `14` against `14.0`, indentation.
 _KEYS = "|".join(VOLATILE_KEYS)
@@ -53,14 +49,15 @@ VOLATILE_LINE_RE = re.compile(r'^\s*"(' + _KEYS + r')"\s*:\s*[^{\[]+?,?\s*$')
 VOLATILE_KEY_RE = re.compile(r'"(' + _KEYS + r')"\s*:')
 
 RECORD_DIR_ENV = "BYTE_CHECK_RECORD_DIR"
-PACKAGES_ENV = "BYTE_CHECK_PACKAGES"
 
 # Put first on a run's PYTHONPATH as `sitecustomize`, this writes at exit, one file per process, every module the
-# process imported and the packages it ran with. A process that exits without running it leaves no record.
+# process imported and the distributions behind those modules. A process that exits without running it leaves no
+# record.
 _HOOK = '''\
 import atexit
 import json
 import os
+import subprocess
 import sys
 from importlib import metadata
 
@@ -74,22 +71,64 @@ def _file(module):
     return path if isinstance(path, str) and os.path.isabs(path) else None
 
 
-def _record(out=os.environ.get("BYTE_CHECK_RECORD_DIR"), names=os.environ.get("BYTE_CHECK_PACKAGES", "")):
+def _commit(dist):
+    # A wheel carries no source and names no commit. A VCS install names its commit. An install from a
+    # directory is read from that directory's git, `+dirty` when the directory differs from its commit.
+    text = dist.read_text("direct_url.json")
+    if not text:
+        return None
+    direct = json.loads(text)
+    if "vcs_info" in direct:
+        return direct["vcs_info"].get("commit_id")
+    url = direct.get("url", "")
+    if not url.startswith("file://"):
+        return None
+    try:
+        head = subprocess.run(["git", "-C", url[len("file://"):], "rev-parse", "HEAD"],
+                              capture_output=True, text=True)
+        if head.returncode != 0:
+            return None
+        dirty = subprocess.run(["git", "-C", url[len("file://"):], "status", "--porcelain",
+                                "--untracked-files=no"], capture_output=True, text=True)
+        return head.stdout.strip() + ("+dirty" if dirty.stdout.strip() else "")
+    except OSError:
+        return None
+
+
+def _blas():
+    # The same numpy version writes different last bits on different BLAS implementations.
+    numpy = sys.modules.get("numpy")
+    if numpy is None:
+        return None
+    try:
+        blas = numpy.show_config(mode="dicts")["Build Dependencies"]["blas"]
+        return f'{blas.get("name")} {blas.get("version")}'
+    except Exception:
+        return "unknown"
+
+
+def _record(out=os.environ.get("BYTE_CHECK_RECORD_DIR")):
     if not out:
         return
-    packages, commits = {}, {}
-    for name in filter(None, names.split(",")):
-        try:
-            dist = metadata.distribution(name)
-        except metadata.PackageNotFoundError:
-            packages[name] = commits[name] = None
-            continue
-        packages[name] = dist.version
-        direct = dist.read_text("direct_url.json")
-        commits[name] = json.loads(direct).get("vcs_info", {}).get("commit_id") if direct else None
+    # The distributions are looked up from what was imported, never from a fixed list, so a package the list
+    # would miss is still recorded -- `opencv-python-headless` as much as `opencv-python`.
+    owners = metadata.packages_distributions()
+    distributions = {}
+    for top in sorted({name.split(".")[0] for name in sys.modules}):
+        entries = []
+        for owner in sorted(set(owners.get(top, []))):
+            try:
+                dist = metadata.distribution(owner)
+            except metadata.PackageNotFoundError:
+                entries.append({"name": owner, "version": None, "commit": None})
+                continue
+            entries.append({"name": owner, "version": dist.version, "commit": _commit(dist)})
+        if entries:
+            distributions[top] = entries
     modules = {n: _file(m) for n, m in list(sys.modules.items()) if _file(m)}
     with open(os.path.join(out, f"{os.getpid()}.json"), "w") as f:
-        json.dump({"python": sys.version.split()[0], "packages": packages, "commits": commits, "modules": modules}, f)
+        json.dump({"python": sys.version.split()[0], "blas": _blas(), "distributions": distributions,
+                   "modules": modules}, f)
 
 
 atexit.register(_record)
@@ -320,13 +359,16 @@ def compare(a_files: dict[str, Path], b_files: dict[str, Path]) -> dict:
             "differ": differ, "volatile_only": volatile_only, "max_abs": max_abs, "max_rel": max_rel}
 
 
-def check_imports(records: list[dict], own_repo: Path, other_repo: Path, watched: tuple[str, ...]) -> None:
+def check_imports(records: list[dict], own_repo: Path, other_repo: Path, watched: tuple[str, ...]) -> frozenset[str]:
     """Refuse a run whose watched packages are missing or did not come from files its own repository's commit
     tracks, or any of whose modules came from a file the other run's repository tracks.
 
     Tracked is the test, never the directory. An untracked file, or a stale install under the repository's
     own `.venv`, lies inside the directory yet belongs to no commit; a shared venv inside the other
     repository belongs to no commit of the other repository.
+
+    Returns:
+        The top-level names of the modules that came from the run's own tracked files.
 
     Raises:
         ValueError: naming each such module and the file it came from.
@@ -349,10 +391,14 @@ def check_imports(records: list[dict], own_repo: Path, other_repo: Path, watched
                  for p in sorted(ps) if p in other_tracked]
     if problems:
         raise ValueError("the run did not run its own repository's code:\n  " + "\n  ".join(problems))
+    return frozenset(n.split(".")[0] for n, ps in files.items() if ps and ps <= own_tracked)
 
 
 def environment(records: list[dict]) -> dict:
-    """The Python and the packages one run ran with, which all of its processes must share.
+    """The Python, BLAS and distributions one run ran with, merged across its processes.
+
+    A process that never imported a module says nothing about its distribution, so the processes'
+    distributions are merged rather than matched whole.
 
     Raises:
         ValueError: no record, or processes of the run that disagree.
@@ -360,22 +406,36 @@ def environment(records: list[dict]) -> dict:
     if not records:
         raise ValueError("the run left no record of its imports: it ran without the hook (python -I or -S, or a "
                          "command that replaces PYTHONPATH), or exited without running it")
-    envs = {json.dumps({k: r[k] for k in ("python", "packages", "commits")}, sort_keys=True) for r in records}
-    if len(envs) != 1:
-        raise ValueError(f"the processes of one run ran with different packages: {sorted(envs)}")
-    return json.loads(envs.pop())
+    pythons = sorted({r["python"] for r in records})
+    if len(pythons) != 1:
+        raise ValueError(f"the processes of one run ran different Pythons: {pythons}")
+    blas = sorted({r["blas"] for r in records if r["blas"] is not None})
+    if len(blas) > 1:
+        raise ValueError(f"the processes of one run ran numpy on different BLAS: {blas}")
+    distributions: dict = {}
+    for r in records:
+        for top, entries in r["distributions"].items():
+            if distributions.setdefault(top, entries) != entries:
+                raise ValueError(f"the processes of one run took {top} from different distributions: "
+                                 f"{distributions[top]} against {entries}")
+    return {"python": pythons[0], "blas": blas[0] if blas else None, "distributions": distributions}
 
 
-def check_same_environment(env_a: dict, env_b: dict) -> None:
-    """Refuse two runs whose Python, packages or model commits differ: their bytes would not be the code's alone.
+def check_same_environment(env_a: dict, env_b: dict, own: frozenset[str] = frozenset()) -> None:
+    """Refuse two runs whose Python, BLAS or distributions differ: their bytes would not be the code's alone.
+
+    `own` names the top-level modules that came from the runs' own repositories. The two sides' own code
+    differs by design, and its difference is the byte comparison's to judge, so it is no ground for refusal.
 
     Raises:
         ValueError: naming each difference.
     """
     diffs = [f"python: {env_a['python']} against {env_b['python']}"] if env_a["python"] != env_b["python"] else []
-    for part in ("packages", "commits"):
-        a, b = env_a[part], env_b[part]
-        diffs += [f"{part} {k}: {a.get(k)} against {b.get(k)}" for k in sorted(set(a) | set(b)) if a.get(k) != b.get(k)]
+    if env_a["blas"] != env_b["blas"]:
+        diffs.append(f"numpy BLAS: {env_a['blas']} against {env_b['blas']}")
+    a, b = env_a["distributions"], env_b["distributions"]
+    diffs += [f"{k}: {a.get(k)} against {b.get(k)}" for k in sorted(set(a) | set(b))
+              if k not in own and a.get(k) != b.get(k)]
     if diffs:
         raise ValueError("the two runs ran in different environments:\n  " + "\n  ".join(diffs))
 
@@ -392,7 +452,6 @@ def run(side: Side, work_root: Path, clip: str, hook_dir: Path, record_dir: Path
     env = {**os.environ, **side.env}
     env["PYTHONPATH"] = os.pathsep.join(p for p in (str(hook_dir), env.get("PYTHONPATH", "")) if p)
     env[RECORD_DIR_ENV] = str(record_dir)
-    env[PACKAGES_ENV] = ",".join(TRACKED_PACKAGES)
     record_dir.mkdir(parents=True)
     t0 = time.time()
     with open(log, "w") as f:
@@ -408,7 +467,7 @@ def check(root: Path, clip: str, a: Side, b: Side | None, work: Path, needs: tup
     """Run both sides on working copies of `clip` under `work`, and compare what they wrote; `a` twice without `b`.
 
     Returns:
-        The report: the repositories' commits, the machine, the runs' environment, and the comparison.
+        The report: the repositories' commits, the machine, the runs' environments, and the comparison.
 
     Raises:
         ValueError: a pair the check cannot vouch for, as the module docstring lists.
@@ -428,7 +487,7 @@ def check(root: Path, clip: str, a: Side, b: Side | None, work: Path, needs: tup
     hook.write_text(_HOOK)
     # Each run, on its own working copy, held to its inputs and its own code.
     manifest_rel = str(Path(clip) / "frame_manifest.json")
-    files, envs, seconds = {}, {}, {}
+    files, envs, seconds, own = {}, {}, {}, {}
     for name, side, other in (("a", a, b), ("b", b, a)):
         run_root, log = work / f"run_{name}", work / f"run_{name}.log"
         prepare_clip(root / clip, run_root / clip, tuple(needs), frames)
@@ -449,13 +508,13 @@ def check(root: Path, clip: str, a: Side, b: Side | None, work: Path, needs: tup
             raise RuntimeError(f"run {name} wrote nothing under {run_root}; the last lines of its log:\n{tail}")
         records = [json.loads(p.read_text()) for p in sorted((work / f"records_{name}").glob("*.json"))]
         envs[name] = environment(records)
-        check_imports(records, side.repo, other.repo, side.watch)
+        own[name] = check_imports(records, side.repo, other.repo, side.watch)
     # The two runs' environments, then their files.
-    check_same_environment(envs["a"], envs["b"])
+    check_same_environment(envs["a"], envs["b"], own["a"] | own["b"])
     result = compare(files["a"], files["b"])
     result["identical"] = not (result["n_differ"] or result["only_a"] or result["only_b"])
     return {"clip": clip, "root": str(root), "frames": frames, "commands": {"a": a.cmd, "b": b.cmd}, "repos": repos,
-            "seconds": seconds, "environment": envs["a"], "gpus": gpus(),
+            "seconds": seconds, "environment": envs, "gpus": gpus(),
             "weights": {str(p): fingerprint(p) for p in weights}, "result": result}
 
 

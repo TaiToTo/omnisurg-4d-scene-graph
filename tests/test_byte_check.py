@@ -254,19 +254,47 @@ def test_a_command_that_fails_is_reported_with_its_log(tmp_path):
 
 
 def test_runs_with_different_packages_are_refused():
-    env = {"python": "3.12.3", "packages": {"numpy": "1.26.4", "torch": "2.10.0"}, "commits": {"pi3": "abc"}}
+    env = {"python": "3.12.3", "blas": "openblas 0.3.27",
+           "distributions": {"numpy": [{"name": "numpy", "version": "1.26.4", "commit": None}],
+                             "pi3": [{"name": "pi3", "version": "0.1", "commit": "abc"}]}}
     bc.check_same_environment(env, json.loads(json.dumps(env)))
-    for change in ({"packages": {"numpy": "2.0.0", "torch": "2.10.0"}}, {"commits": {"pi3": "def"}},
-                   {"python": "3.12.4"}):
+    for change in ({"python": "3.12.4"}, {"blas": "accelerate 2.0"},
+                   {"distributions": {**env["distributions"],
+                                      "pi3": [{"name": "pi3", "version": "0.1", "commit": "def"}]}}):
         with pytest.raises(ValueError, match="different environments"):
             bc.check_same_environment(env, {**env, **change})
 
 
+def test_the_runs_own_code_is_no_environment_difference():
+    # The two sides' own packages differ by design; their difference is the byte comparison's to judge.
+    env = {"python": "3.12.3", "blas": None,
+           "distributions": {"surgical_core": [{"name": "omnisurg", "version": "0.1", "commit": "abc"}]}}
+    other = json.loads(json.dumps(env))
+    other["distributions"]["surgical_core"][0]["commit"] = "def"
+    bc.check_same_environment(env, other, own=frozenset({"surgical_core"}))
+    with pytest.raises(ValueError, match="different environments"):
+        bc.check_same_environment(env, other)
+
+
+def test_runs_that_import_different_distributions_are_refused(tmp_path):
+    # pytest is installed for the tests themselves, so one side importing it is a real difference, and no
+    # fixed list of package names would have it.
+    a = make_repo(tmp_path / "a")
+    b = make_repo(tmp_path / "b", prelude="import pytest  # noqa: F401")
+    with pytest.raises(ValueError, match="different environments"):
+        run_check(tmp_path, a, b)
+
+
 def test_processes_of_one_run_with_different_packages_are_refused():
-    rec = {"python": "3.12.3", "packages": {"numpy": "1.26.4"}, "commits": {}, "modules": {}}
-    assert bc.environment([rec, dict(rec)])["packages"] == {"numpy": "1.26.4"}
-    with pytest.raises(ValueError, match="different packages"):
-        bc.environment([rec, {**rec, "packages": {"numpy": "2.0.0"}}])
+    rec = {"python": "3.12.3", "blas": None,
+           "distributions": {"numpy": [{"name": "numpy", "version": "1.26.4", "commit": None}]}, "modules": {}}
+    quiet = {"python": "3.12.3", "blas": None, "distributions": {}, "modules": {}}
+    # A process that imported nothing says nothing about the run's distributions; the records merge.
+    assert bc.environment([rec, quiet])["distributions"]["numpy"][0]["version"] == "1.26.4"
+    changed = json.loads(json.dumps(rec))
+    changed["distributions"]["numpy"][0]["version"] = "2.0.0"
+    with pytest.raises(ValueError, match="different distributions"):
+        bc.environment([rec, changed])
 
 
 # ------------------------------------------------------------- the working copy
