@@ -1,30 +1,13 @@
-"""`VI_split` and `VI_merge`: the two halves of the variation of information.
+"""Compute `VI_split` and `VI_merge`, the two halves of the variation of information.
 
-Over the scored pixels, with X the region id and Y the GT class of a pixel,
-`VI_split` = H(X | Y) and `VI_merge` = H(Y | X), in bits. The first is zero
-when every GT class is covered by one region and grows as classes are cut
-into pieces; the second is zero when every region lies in one class and
-grows as regions run across classes. Both are taken over pixels, so a
-sliver cut off a class costs little, and a class halved costs one bit on
-that class's pixels, weighted by their share of the frame.
+Over the scored pixels, with X a pixel's region id and Y its GT class,
+`VI_split` = H(X | Y) and `VI_merge` = H(Y | X), in bits. `VI_split` grows
+as a class is cut into pieces. `VI_merge` grows as a region runs across
+classes. The pixels with no region count together as one region. Pilot mode
+passes the pilot evaluator's mask, and uses the function as it stands.
 
-The pixels with no region count together as one region: leaving them out
-would let a prediction improve `VI_merge` by abandoning the pixels it is
-unsure of. The pilot evaluator counted them the same way and left out
-background by id; here background is already gone from the scored pixels,
-so the function is shared by both modes as it stands. Pilot mode passes the
-pilot's own mask: the valid pixels whose GT is not background, which is not
-its `full` domain (`docs/evaluation.md`, "Checked against the pilot
-evaluator").
-
-The pilot evaluator also removed the ids in its `EXTRA_IGNORE`, set from
-the command line and written to each score as `extra_ignore`. Every score
-file in the workbench that records it has it empty, but those are the
-workshop's; pilot mode assumes an empty set only once the 38 conditions'
-JSONs have been checked (an open question of the port).
-
-`docs/figures/vi.png` shows this on a drawn scene, with the numbers the module
-gives for it.
+`docs/figures/vi.png` shows this on a drawn scene, with the numbers the
+module gives for it.
 """
 from __future__ import annotations
 
@@ -57,7 +40,7 @@ def _entropy_bits(p: np.ndarray) -> float:
 def variation_of_information(
     gt: np.ndarray, regions: np.ndarray, scored: np.ndarray,
 ) -> VIScores | None:
-    """`VI_split` and `VI_merge` of one frame.
+    """Compute `VI_split` and `VI_merge` of one frame.
 
     Args:
         gt: An (H, W) integer map of GT class ids, non-negative on every
@@ -86,6 +69,8 @@ def variation_of_information(
             f"`gt`, `regions` and the bool `scored` mask must share one shape, got "
             f"{gt.shape}, {regions.shape} and {scored.dtype} {scored.shape}"
         )
+    # The pixels with no region (-1) count together as one region. Left out, they would let a prediction lower
+    # `VI_merge` by dropping the pixels it is unsure of.
     x = regions[scored]
     y = gt[scored]
     if x.size == 0:
