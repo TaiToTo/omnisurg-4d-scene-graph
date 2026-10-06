@@ -1,9 +1,10 @@
 """Instance colours for viewer overlays, for class-agnostic segmentation.
 
-The fixed colour of a semantic class comes from its dataset's class table
-(`evalkit.classes`). This palette is for the other case: instance ids that
-carry no meaning of their own, which is what tracking produces, and only
-need to be told apart at a glance.
+The fixed colour of a semantic class comes with its label table, whether
+built from plain data (`labels`) or from a dataset's class table
+(`gt_tables`). This palette is for the other case: instance ids that carry
+no meaning of their own, which is what tracking produces, and only need to
+be told apart at a glance.
 """
 
 import numpy as np

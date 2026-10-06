@@ -1,12 +1,12 @@
-"""The viewer's data model, shared by the exporter and the evaluation toolkit.
+"""The viewer's data model, shared by the exporter and the graph builders.
 
 Only the label table and the palette it draws from are re-exported here. The
 viewer's other modules (the point-cloud, graph and hierarchy frames) pull in
 the pipeline's dependencies, and importing them from this package
 initialiser would make every import of `surgical_core.viewer` need them. They
 are imported by their full path when they are ported. So is `gt_tables`,
-which reads the evaluator's class tables: the viewer does not need the
-evaluator.
+which reads the evaluator's class tables: importing this package does not
+import the evaluator.
 """
 
 from surgical_core.viewer.labels import (
