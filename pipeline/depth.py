@@ -16,7 +16,7 @@ Usage:
 
 import argparse
 import json
-import shutil
+import re
 from pathlib import Path
 
 import cv2
@@ -37,8 +37,10 @@ DEFAULT_DATASET = "cholec_gt"
 # letterbox and records it in the manifest's `crop`.
 UNCROPPED_DATASETS = frozenset({"atlas120k"})
 
-# The files the stage writes into a clip, besides `depth_info` in the manifest.
-STAGE_FILES = ("depth_raw", "depth_vis", "pc_vis", "exports/mini_npz/results.npz")
+# The stage's own files in a clip, by the directory or file that holds them. Other depth sources write beside
+# them under a `__<source>` suffix (`depth_vis/NNNN__pi3x.jpg`), so the stage names its files, never a directory.
+OWN_FILES = {"depth_raw": r"depth_\d+\.npy", "depth_vis": r"\d+\.jpg", "pc_vis": r"frame_\d+\.glb"}
+BUNDLE = "exports/mini_npz/results.npz"
 
 
 def check_cropped(clip_dir: Path, manifest: dict) -> None:
@@ -55,37 +57,45 @@ def check_cropped(clip_dir: Path, manifest: dict) -> None:
                          "view; the depth stage takes cropped clips only")
 
 
+def own_files(clip_dir: Path) -> dict[str, list[Path]]:
+    """Return the stage's own files in the clip, under the directory or file that holds them."""
+    found = {}
+    for sub, pattern in OWN_FILES.items():
+        d = clip_dir / sub
+        found[sub] = sorted(p for p in d.iterdir() if re.fullmatch(pattern, p.name)) if d.is_dir() else []
+    found[BUNDLE] = [clip_dir / BUNDLE] if (clip_dir / BUNDLE).is_file() else []
+    return found
+
+
 def existing_output(clip_dir: Path, manifest: dict) -> list[str]:
     """List what the depth stage, in any version, already wrote into the clip.
 
-    Each entry names a file and, for the bundle and `depth_info`, its keys. The keys tell which version of the
-    stage wrote them: a `ray_map` in the bundle marks a branch of the workbench's stage that this one does not
-    reproduce.
+    Each entry names a directory with its count of the stage's files, or the bundle and `depth_info` with their
+    keys. The keys tell which version of the stage wrote them: a `ray_map` in the bundle marks a branch of the
+    workbench's stage that this one does not reproduce.
     """
     held = []
-    for rel in STAGE_FILES:
-        path = clip_dir / rel
-        if path.is_file() and path.suffix == ".npz":
-            with np.load(path) as z:
-                held.append(f"{rel} with keys {z.files}")
-        elif path.exists():
-            held.append(rel)
+    for name, files in own_files(clip_dir).items():
+        if not files:
+            continue
+        if name == BUNDLE:
+            with np.load(files[0]) as z:
+                held.append(f"{name} with keys {z.files}")
+        else:
+            held.append(f"{name} ({len(files)} file{'s' if len(files) > 1 else ''})")
     if "depth_info" in manifest:
         held.append(f"depth_info with keys {list(manifest['depth_info'])}")
     return held
 
 
 def remove_output(clip_dir: Path) -> None:
-    """Remove the stage's files from the clip, so that a run writes every file the clip then holds.
+    """Remove the stage's own files from the clip, so that a run writes every such file the clip then holds.
 
     A run on fewer frames would otherwise leave the earlier run's files for the frames it no longer writes, and
-    the later stages count a clip's frames by the files in `depth_raw/`.
+    the later stages count a clip's frames by the files in `depth_raw/`. Another source's files stay.
     """
-    for rel in STAGE_FILES:
-        path = clip_dir / rel
-        if path.is_dir():
-            shutil.rmtree(path)
-        elif path.is_file():
+    for files in own_files(clip_dir).values():
+        for path in files:
             path.unlink()
 
 

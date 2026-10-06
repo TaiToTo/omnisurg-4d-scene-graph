@@ -53,10 +53,11 @@ clip:
 The stage refuses a CholecSeg8k clip that has no `crop_info.json`. Its frames
 would still hold the black border around the endoscope's view, and the model
 would see it. It refuses a clip that already holds the stage's output, and
-says what is there. `--overwrite` replaces that output: the stage removes the
-files above and writes them again, so a run on fewer frames leaves no file
-of a frame it no longer writes. The later stages count a clip's frames by the
-files in `depth_raw/`. The stage also refuses a model result that is not one
+says what is there. `--overwrite` replaces that output: the stage removes its
+own files, the ones named above, and writes them again, so a run on fewer
+frames leaves no file of a frame it no longer writes. The later stages count
+a clip's frames by the files in `depth_raw/`. Files that another depth
+source wrote beside them, under a `__<source>` suffix, stay. The stage also refuses a model result that is not one
 frame per image, before it writes anything.
 
 `--gpu N` selects a GPU through `CUDA_VISIBLE_DEVICES`. Without it, the
