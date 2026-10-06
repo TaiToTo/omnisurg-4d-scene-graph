@@ -100,6 +100,22 @@ was replaced, then the class tables.
   the population files, never a count in a name. Scores are made per clip;
   the bootstrap that decides a star resamples videos, so the clips of one
   video are never treated as independent.
+- **Frame manifest.** The pipeline writes `frame_manifest.json` into each
+  clip. It lists the clip's frames with their times and GT flags, and holds
+  the crop rectangle.
+
+### Which frames
+
+The frame manifest says which frames are GT frames, and the mask files do
+not. A GT frame has the dataset's GT flag (`has_seg_mask` for CholecSeg8k,
+`has_gt` for ATLAS-120k), `is_anchor` true and no `seg_provenance`. The mask
+files cannot decide: the pipeline also writes the viewer's SAM 3 masks into
+`seg_masks/` under the GT's names, and they are not GT. A clip is refused
+when a mask file has no GT flag, when a GT flag has no mask file, when a
+flagged frame is neither a GT frame nor marked by `seg_provenance`, or when
+a GT frame has no prediction.
+
+![Ten frames of a clip in four rows: the raw frames, the GT on six of them, a track seeded from the GT and a track seeded unsupervised. The GT frames are shaded through every row, and the predictions are hatched.](figures/frame_roles.png)
 
 ### Objects
 
@@ -494,6 +510,8 @@ pilot evaluator's numbers.
     hit to average; a frame whose GT boundary is empty scores 0 on the
     boundary metrics rather than being left out; and a clip on which
     `time_IoU` pools nothing writes 0 for it.
+- Pilot mode takes the GT frames from the frame manifest too. On the data
+  the pilot evaluator scored, its mask files were exactly these frames.
 - On the 38 conditions already scored, pilot mode must reproduce every key it
   shares with the pilot evaluator — the metrics table names them, and their
   per-domain variants — at zero tolerance: the values written must be equal.
@@ -575,6 +593,8 @@ likely that some key reaches a star by chance.
   taken at the evaluation resolution, so what 300 px means depends on it.
 - A comment in the pilot evaluator says a fragment counts towards `overseg` if
   it covers "5 % or 200 px" of a class; the code requires both.
+- A frame is a GT frame when a mask file exists for it, so the viewer's SAM 3
+  masks would be scored as GT without a word.
 
 ### What the pilot evaluator's handling changes, measured on the GT
 
@@ -593,18 +613,19 @@ portrait ATLAS-120k clips (73 GT frames) are 476 px wide and 504 px high.
 | `Tools/camera` connected components ≥ 300 px, per frame with tools | 1 in 2,256 frames, 2 in 3,869, 3 or more in 1,395, none in 15. How many are touching instruments merged into one cannot be told from the GT. |
 | 300 px cut | drops 14.2 % of GT components, 0.05 % of foreground pixels. A class vanishes from a frame's instance evaluation in 1.2 % of (frame, class) pairs; the worst is Catheter, 19 of 64. |
 
-**CholecSeg8k: 9 clips, 270 GT frames**
+**CholecSeg8k: 9 clips, 167 GT frames**
 
 These are the nine clips on the machine the measurements were made on, a part
-of the CholecSeg8k population the paper scores. The rows show the kind and
-rough size of each effect, not the population's numbers.
+of the CholecSeg8k population the paper scores. The viewer's SAM 3 masks on
+103 more frames are not GT and are left out (see "Which frames"). The rows
+show the kind and rough size of each effect, not the population's numbers.
 
 | | |
 |---|---|
-| Hepatic Vein | in 20 frames (7.4 %) of 3 clips, all read as background: 11 GT objects of 300 px or more never scored. |
-| colours outside the table | 0.053 % of pixels, all silently background: (0, 50, 128), which is Hepatic Vein, on 28,054 px, and (255, 255, 255) on 3,978 px |
-| 300 px cut | drops 48.3 % of GT components, but 2,320 of the 2,832 dropped are under 10 px (slivers from resizing and annotation), so only 0.08 % of foreground pixels. A class vanishes from a frame in 2.4 % of (frame, class) pairs; the worst is Gastrointestinal Tract, 30 of 170. |
-| Black Background | the pipeline crops each clip to the rectangle around the endoscope's circle, which keeps its corners: 2.2 % of pixels, 7.8 % in one clip. They have valid depth, so the pilot evaluator scores them as background. |
+| Hepatic Vein | in 20 frames (12.0 %) of 3 clips, all read as background: 11 GT objects of 300 px or more never scored. |
+| colours outside the table | 0.088 % of pixels, all silently background: (0, 50, 128), which is Hepatic Vein, on 28,054 px, and (255, 255, 255) on 3,978 px |
+| 300 px cut | drops 17.9 % of GT components, but 180 of the 416 dropped are under 10 px (slivers from resizing and annotation), so only 0.07 % of foreground pixels. A class vanishes from a frame in 1.1 % of (frame, class) pairs; the worst is Gastrointestinal Tract, 4 of 98. |
+| Black Background | the pipeline crops each clip to the rectangle around the endoscope's circle, which keeps its corners: 0.1 % of pixels, 0.2 % in one clip. They have valid depth, so the pilot evaluator scores them as background. |
 
 **Which colour is which CholecSeg8k class.** All 8,080 frames of the original
 dataset were checked against the dataset's watershed masks, which carry a class
