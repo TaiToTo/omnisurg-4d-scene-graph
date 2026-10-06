@@ -48,11 +48,14 @@ def _git(repo: Path, *args: str) -> None:
                     "-c", "commit.gpgsign=false", *args], check=True, capture_output=True)
 
 
-def make_repo(path: Path, prelude: str = "", runtime: str = "1.0", epilogue: str = "") -> Path:
+def make_repo(path: Path, prelude: str = "", runtime: str = "1.0", epilogue: str = "",
+              files: dict[str, str] | None = None) -> Path:
     """A git repository at `path` holding a `surgical_core` package and the toy stage, committed."""
     (path / "surgical_core").mkdir(parents=True)
     (path / "surgical_core" / "__init__.py").write_text("")
     (path / "helper.py").write_text("")
+    for name, text in (files or {}).items():
+        (path / name).write_text(text)
     (path / "stage.py").write_text(STAGE.replace("PRELUDE", prelude).replace("RUNTIME", runtime)
                                    .replace("EPILOGUE", epilogue))
     _git(path, "init", "-q")
@@ -75,13 +78,15 @@ def make_clip(root: Path, name: str = "clip_0001", n: int = 3) -> Path:
     return c
 
 
-def run_check(tmp_path: Path, a: Path, b: Path | None = None, **kw) -> dict:
+def run_check(tmp_path: Path, a: Path, b: Path | None = None, a_watch: tuple = ("surgical_core",),
+              b_watch: tuple = ("surgical_core",), **kw) -> dict:
     clips = tmp_path / "clips"
     if not clips.exists():
         make_clip(clips)
     work = tmp_path / "work"
     work.mkdir(exist_ok=True)
-    return bc.check(clips, "clip_0001", bc.Side(a, CMD), bc.Side(b, CMD) if b else None,
+    return bc.check(clips, "clip_0001", bc.Side(a, CMD, watch=a_watch),
+                    bc.Side(b, CMD, watch=b_watch) if b else None,
                     Path(os.path.realpath(work)) / f"w{len(list(work.iterdir()))}", **kw)
 
 
@@ -135,15 +140,52 @@ def test_a_run_that_imports_surgical_core_from_a_third_copy_is_refused(tmp_path)
     (third / "surgical_core").mkdir(parents=True)
     (third / "surgical_core" / "__init__.py").write_text("")
     repo = make_repo(tmp_path / "a", prelude=f"sys.path.insert(0, {str(third)!r})")
-    with pytest.raises(ValueError, match="outside"):
+    with pytest.raises(ValueError, match="does not track"):
         run_check(tmp_path, repo, make_repo(tmp_path / "b"))
+
+
+def test_a_watched_module_from_an_untracked_file_is_refused(tmp_path):
+    # The port's newest module is exactly the file most likely to be uncommitted, and an untracked file
+    # leaves the repository clean.
+    repo = make_repo(tmp_path / "a", prelude="import surgical_core.extra  # noqa: F401")
+    (repo / "surgical_core" / "extra.py").write_text("")
+    with pytest.raises(ValueError, match="does not track"):
+        run_check(tmp_path, repo)
+
+
+def test_a_stale_install_inside_the_repository_is_refused(tmp_path):
+    # A `.venv` lies inside the repository's directory, but its files belong to no commit.
+    repo = make_repo(tmp_path / "a", prelude='sys.path.insert(0, os.path.join(os.getcwd(), ".venv"))')
+    (repo / ".venv" / "surgical_core").mkdir(parents=True)
+    (repo / ".venv" / "surgical_core" / "__init__.py").write_text("")
+    with pytest.raises(ValueError, match="does not track"):
+        run_check(tmp_path, repo)
 
 
 def test_a_run_that_imports_from_the_other_repository_is_refused(tmp_path):
     a = make_repo(tmp_path / "a")
     b = make_repo(tmp_path / "b", prelude=f"sys.path.insert(0, {str(a)!r})\nimport helper  # noqa: F401\nsys.path.pop(0)")
-    with pytest.raises(ValueError, match="inside the other run's repository"):
+    with pytest.raises(ValueError, match="the other run's repository tracks"):
         run_check(tmp_path, a, b)
+
+
+def test_a_shared_venv_inside_the_other_repository_is_not_refused(tmp_path):
+    # Only the files the other repository tracks are its code; an untracked `.venv` under it is the machine's.
+    b = make_repo(tmp_path / "b")
+    (b / ".venv").mkdir()
+    (b / ".venv" / "shared_dep.py").write_text("")
+    a = make_repo(tmp_path / "a", prelude=f'sys.path.insert(0, {str(b / ".venv")!r})\n'
+                                          'import shared_dep  # noqa: F401')
+    assert run_check(tmp_path, a, b)["result"]["identical"]
+
+
+def test_each_side_watches_its_own_packages(tmp_path):
+    # The workbench imports its wrapper and the port never does, so the wrapper is watched on one side only.
+    a = make_repo(tmp_path / "a", prelude="import wrapper  # noqa: F401", files={"wrapper.py": ""})
+    b = make_repo(tmp_path / "b")
+    assert run_check(tmp_path, a, b, a_watch=("surgical_core", "wrapper"))["result"]["identical"]
+    with pytest.raises(ValueError, match="wrapper was not imported"):
+        run_check(tmp_path, a, b, a_watch=("surgical_core", "wrapper"), b_watch=("surgical_core", "wrapper"))
 
 
 def test_a_module_whose_file_is_a_relative_path_is_not_taken_for_a_file(tmp_path, monkeypatch):
@@ -157,7 +199,7 @@ def test_a_module_whose_file_is_a_relative_path_is_not_taken_for_a_file(tmp_path
 
 def test_a_run_that_does_not_import_a_watched_package_is_refused(tmp_path):
     with pytest.raises(ValueError, match="absent_package was not imported"):
-        run_check(tmp_path, make_repo(tmp_path / "a"), watched=("surgical_core", "absent_package"))
+        run_check(tmp_path, make_repo(tmp_path / "a"), a_watch=("surgical_core", "absent_package"))
 
 
 def test_a_run_that_leaves_no_record_of_its_imports_is_refused(tmp_path):

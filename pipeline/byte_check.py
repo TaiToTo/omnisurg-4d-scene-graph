@@ -6,9 +6,10 @@ copied in and its manifest stripped of what the stages write; whatever it
 writes there is compared with the other run's. A JSON file that differs only
 in `runtime_sec` is counted apart, never as equal. Given one command, it runs
 it twice and measures determinism. It refuses a pair it cannot vouch for: a
-run that imported a watched package from outside its own repository, or any
-module from the other run's, a repository with uncommitted changes, two runs
-whose packages differ, and a run that changed one of its inputs.
+run that imported a watched package from a file its repository's commit does
+not track, or any module from a file the other run's repository tracks, a
+repository with uncommitted changes, two runs whose packages differ, and a
+run that changed one of its inputs.
 
 Usage:
     python -m pipeline.byte_check --root /path/to/clips --clip <clip> \\
@@ -97,11 +98,17 @@ atexit.register(_record)
 
 @dataclass(frozen=True)
 class Side:
-    """One of the two runs: the repository its command belongs to and runs in, the command, and its added environment."""
+    """One of the two runs: the repository its command belongs to and runs in, the command, its added
+    environment, and the packages it must import from its own repository.
+
+    The watch is per side. The workbench imports its wrapper packages and the port never does, so one shared
+    list would refuse whichever side does not import it.
+    """
 
     repo: Path
     cmd: str
     env: dict = field(default_factory=dict)
+    watch: tuple[str, ...] = ("surgical_core",)
 
 
 def sha256_of(path: Path) -> str:
@@ -141,6 +148,19 @@ def git_state(repo: Path) -> dict:
         return out.stdout.strip()
 
     return {"commit": git("rev-parse", "HEAD"), "dirty": bool(git("status", "--porcelain", "--untracked-files=no"))}
+
+
+def tracked_files(repo: Path) -> frozenset[str]:
+    """The real paths of every file the commit at `repo` tracks.
+
+    Raises:
+        ValueError: `repo` is not a git repository.
+    """
+    out = subprocess.run(["git", "-C", str(repo), "ls-files", "-z"], capture_output=True, text=True)
+    if out.returncode != 0:
+        raise ValueError(f"{repo} is not a git repository: {out.stderr.strip()}")
+    root = os.path.realpath(repo)
+    return frozenset(os.path.realpath(os.path.join(root, p)) for p in out.stdout.split("\0") if p)
 
 
 def gpus() -> list[str] | None:
@@ -300,18 +320,20 @@ def compare(a_files: dict[str, Path], b_files: dict[str, Path]) -> dict:
             "differ": differ, "volatile_only": volatile_only, "max_abs": max_abs, "max_rel": max_rel}
 
 
-def _inside(path: str, root: str) -> bool:
-    return path == root or path.startswith(root + os.sep)
+def check_imports(records: list[dict], own_repo: Path, other_repo: Path, watched: tuple[str, ...]) -> None:
+    """Refuse a run whose watched packages are missing or did not come from files its own repository's commit
+    tracks, or any of whose modules came from a file the other run's repository tracks.
 
-
-def check_imports(records: list[dict], own_repo: Path, other_repo: Path, watched: tuple[str, ...], hook: Path) -> None:
-    """Refuse a run whose watched packages are missing or came from outside its own repository, or any of whose
-    modules came from inside the other run's repository.
+    Tracked is the test, never the directory. An untracked file, or a stale install under the repository's
+    own `.venv`, lies inside the directory yet belongs to no commit; a shared venv inside the other
+    repository belongs to no commit of the other repository.
 
     Raises:
         ValueError: naming each such module and the file it came from.
     """
-    own, other, hook_file = (os.path.realpath(p) for p in (own_repo, other_repo, hook))
+    own_tracked = tracked_files(own_repo)
+    same = os.path.realpath(own_repo) == os.path.realpath(other_repo)
+    other_tracked = frozenset() if same else tracked_files(other_repo) - own_tracked
     files: dict[str, set[str]] = {}
     for rec in records:
         for name, path in rec["modules"].items():
@@ -321,11 +343,10 @@ def check_imports(records: list[dict], own_repo: Path, other_repo: Path, watched
         mods = {n: ps for n, ps in files.items() if n == pkg or n.startswith(pkg + ".")}
         if pkg not in mods:
             problems.append(f"{pkg} was not imported")
-        problems += [f"{n} from {p}, outside {own}" for n, ps in sorted(mods.items()) for p in sorted(ps)
-                     if not _inside(p, own)]
-    if other != own:
-        problems += [f"{n} from {p}, inside the other run's repository" for n, ps in sorted(files.items())
-                     for p in sorted(ps) if _inside(p, other) and p != hook_file]
+        problems += [f"{n} from {p}, a file the commit at {own_repo} does not track"
+                     for n, ps in sorted(mods.items()) for p in sorted(ps) if p not in own_tracked]
+    problems += [f"{n} from {p}, a file the other run's repository tracks" for n, ps in sorted(files.items())
+                 for p in sorted(ps) if p in other_tracked]
     if problems:
         raise ValueError("the run did not run its own repository's code:\n  " + "\n  ".join(problems))
 
@@ -383,8 +404,7 @@ def run(side: Side, work_root: Path, clip: str, hook_dir: Path, record_dir: Path
 
 
 def check(root: Path, clip: str, a: Side, b: Side | None, work: Path, needs: tuple[str, ...] = (),
-          frames: int | None = None, watched: tuple[str, ...] = ("surgical_core",),
-          weights: tuple[Path, ...] = ()) -> dict:
+          frames: int | None = None, weights: tuple[Path, ...] = ()) -> dict:
     """Run both sides on working copies of `clip` under `work`, and compare what they wrote; `a` twice without `b`.
 
     Returns:
@@ -429,7 +449,7 @@ def check(root: Path, clip: str, a: Side, b: Side | None, work: Path, needs: tup
             raise RuntimeError(f"run {name} wrote nothing under {run_root}; the last lines of its log:\n{tail}")
         records = [json.loads(p.read_text()) for p in sorted((work / f"records_{name}").glob("*.json"))]
         envs[name] = environment(records)
-        check_imports(records, side.repo, other.repo, watched, hook)
+        check_imports(records, side.repo, other.repo, side.watch)
     # The two runs' environments, then their files.
     check_same_environment(envs["a"], envs["b"])
     result = compare(files["a"], files["b"])
@@ -461,7 +481,9 @@ def main() -> None:
     ap.add_argument("--b-env", nargs="*", default=[], metavar="KEY=VALUE", help="Added to the second command's environment.")
     ap.add_argument("--frames", type=int, help="Keep only the clip's first FRAMES frames, for a check on CPU.")
     ap.add_argument("--needs", nargs="*", default=[], help="An earlier stage's files the stage reads, under the clip.")
-    ap.add_argument("--watch", nargs="*", default=["surgical_core"], help="Packages each run must import from its own repository.")
+    ap.add_argument("--a-watch", nargs="*", default=["surgical_core"],
+                    help="Packages the first command must import from its own repository.")
+    ap.add_argument("--b-watch", nargs="*", default=["surgical_core"], help="As --a-watch, for the second command.")
     ap.add_argument("--weights", nargs="*", default=[], help="Weights files or directories, recorded with the result.")
     ap.add_argument("--work", help="Where to make the scratch directory; by default the system's temporary directory.")
     ap.add_argument("--keep", action="store_true", help="Keep the working copies and the logs.")
@@ -469,12 +491,12 @@ def main() -> None:
     args = ap.parse_args()
     if bool(args.b_cmd) != bool(args.b_repo):
         ap.error("--b-cmd and --b-repo go together")
-    a = Side(Path(args.a_repo).resolve(), args.a_cmd, _env(args.a_env))
-    b = Side(Path(args.b_repo).resolve(), args.b_cmd, _env(args.b_env)) if args.b_cmd else None
+    a = Side(Path(args.a_repo).resolve(), args.a_cmd, _env(args.a_env), tuple(args.a_watch))
+    b = Side(Path(args.b_repo).resolve(), args.b_cmd, _env(args.b_env), tuple(args.b_watch)) if args.b_cmd else None
     # A scratch directory this run made, since it is deleted at the end: --work says where, never what to delete.
     work = Path(tempfile.mkdtemp(prefix="byte_check_", dir=args.work))
     try:
-        report = check(Path(args.root), args.clip, a, b, work, tuple(args.needs), args.frames, tuple(args.watch),
+        report = check(Path(args.root), args.clip, a, b, work, tuple(args.needs), args.frames,
                        tuple(Path(p) for p in args.weights))
     except (ValueError, RuntimeError, FileNotFoundError) as e:
         raise SystemExit(f"refused: {e}" if isinstance(e, ValueError) else str(e))
