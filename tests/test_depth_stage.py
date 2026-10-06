@@ -17,17 +17,20 @@ from recon3d_wrapper import Reconstruction
 
 
 class StandIn:
-    """Return a fixed depth ramp at (H, W), confidence 1, and a camera that moves along x."""
+    """Return a fixed depth ramp at (H, W), confidence 1, and a camera that moves along x.
+
+    `returns` makes it answer with that many frames, whatever the number of images.
+    """
 
     model_id = "stand-in"
 
-    def __init__(self, shape=(6, 8), zero_frame=None, n_out=None):
-        self.shape, self.zero_frame, self.n_out = shape, zero_frame, n_out
+    def __init__(self, shape=(6, 8), zero_frame=None, returns=None):
+        self.shape, self.zero_frame, self.returns = shape, zero_frame, returns
         self.seen = []
 
     def reconstruct(self, image_paths):
         self.seen = [p.name for p in image_paths]
-        n, (h, w) = len(image_paths) if self.n_out is None else self.n_out, self.shape
+        n, (h, w) = (self.returns if self.returns is not None else len(image_paths)), self.shape
         depth = np.stack([np.full((h, w), 1.0 + i) + np.linspace(0, 1, w) for i in range(n)]).astype(np.float32)
         if self.zero_frame is not None:
             depth[self.zero_frame] = 0.0
@@ -114,9 +117,58 @@ def test_a_clip_without_manifest_or_images_is_refused(tmp_path):
         run_depth(clip, StandIn(), process_res=504)
 
 
-@pytest.mark.parametrize("n_out", [2, 4])
-def test_a_model_that_returns_another_number_of_frames_is_refused(tmp_path, n_out):
+@pytest.mark.parametrize("returns", [2, 4])
+def test_a_model_that_returns_other_than_one_frame_per_image_is_refused_before_anything_is_written(tmp_path, returns):
+    clip = make_clip(tmp_path, n=3)
+    with pytest.raises(ValueError, match=f"returned {returns} frames for 3 images"):
+        run_depth(clip, StandIn(returns=returns), process_res=504, write_glb=False)
+    assert not (clip / "depth_raw").exists()
+    assert "depth_info" not in json.loads((clip / "frame_manifest.json").read_text())
+
+
+def test_a_clip_that_already_holds_the_output_is_refused_and_the_message_names_what_is_there(tmp_path):
+    pytest.importorskip("matplotlib")
     clip = make_clip(tmp_path)
-    with pytest.raises(ValueError, match=f"returned {n_out} of 3 frames"):
-        run_depth(clip, StandIn(n_out=n_out), process_res=504)
-    assert not (clip / "depth_raw").exists(), "refused before anything is written"
+    run_depth(clip, StandIn(), process_res=504, write_glb=False)
+    before = sorted(p.relative_to(clip) for p in clip.rglob("*") if p.is_file())
+    with pytest.raises(ValueError, match="already holds .*depth_raw.*results.npz with keys .*depth_info with keys"):
+        run_depth(clip, StandIn(), process_res=504, write_glb=False)
+    assert sorted(p.relative_to(clip) for p in clip.rglob("*") if p.is_file()) == before
+
+
+def test_another_version_of_the_stage_left_its_mark_and_the_refusal_shows_it(tmp_path):
+    clip = make_clip(tmp_path)
+    manifest = json.loads((clip / "frame_manifest.json").read_text())
+    manifest["depth_info"] = {"model": "x", "backproject_mode": "ray", "ray_map_available": True}
+    (clip / "frame_manifest.json").write_text(json.dumps(manifest))
+    (clip / "exports" / "mini_npz").mkdir(parents=True)
+    np.savez(clip / "exports" / "mini_npz" / "results.npz", depth=np.ones((3, 6, 8)), ray_map=np.ones((3, 6, 8, 3)))
+    with pytest.raises(ValueError, match="'ray_map'.*'backproject_mode'"):
+        run_depth(clip, StandIn(), process_res=504, write_glb=False)
+
+
+def test_overwrite_removes_the_earlier_run_so_that_no_stale_frame_stays(tmp_path):
+    pytest.importorskip("matplotlib")
+    clip = make_clip(tmp_path, n=3)
+    run_depth(clip, StandIn(), process_res=504, write_glb=False)
+    (clip / "pc_vis").mkdir()
+    (clip / "pc_vis" / "frame_0002.glb").write_bytes(b"stale")
+    (clip / "input_images" / "000002.png").unlink()
+    (clip / "input_images" / "000001.png").unlink()
+    run_depth(clip, StandIn(), process_res=504, write_glb=False, overwrite=True)
+    assert [p.name for p in (clip / "depth_raw").iterdir()] == ["depth_000000.npy"]
+    assert [p.name for p in (clip / "depth_vis").iterdir()] == ["0000.jpg"]
+    assert not (clip / "pc_vis").exists()
+    with np.load(clip / "exports" / "mini_npz" / "results.npz") as z:
+        assert z["depth"].shape == (1, 6, 8)
+    assert json.loads((clip / "frame_manifest.json").read_text())["depth_info"]["depth_shape"] == [1, 6, 8]
+
+
+def test_a_run_that_fails_after_overwrite_was_asked_leaves_the_earlier_output(tmp_path):
+    pytest.importorskip("matplotlib")
+    clip = make_clip(tmp_path, n=3)
+    run_depth(clip, StandIn(), process_res=504, write_glb=False)
+    before = sorted(p.relative_to(clip) for p in clip.rglob("*") if p.is_file())
+    with pytest.raises(ValueError, match="returned 2 frames"):
+        run_depth(clip, StandIn(returns=2), process_res=504, write_glb=False, overwrite=True)
+    assert sorted(p.relative_to(clip) for p in clip.rglob("*") if p.is_file()) == before

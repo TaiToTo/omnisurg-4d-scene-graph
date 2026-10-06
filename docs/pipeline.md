@@ -28,12 +28,13 @@ A clip is a directory with these files:
 ## The depth stage
 
 ```bash
-python -m pipeline.depth --input-dir /path/to/clips --clips <clip> [--device auto] [--gpu 0] [--no-glb]
+python -m pipeline.depth --input-dir /path/to/clips --clips <clip> [--device auto] [--gpu N] [--process-res 504] [--overwrite] [--no-glb]
 ```
 
 The stage runs Depth Anything 3 (`recon3d_wrapper.da3`) on all frames of a
-clip in one call. It first resizes each frame to 504 pixels on its longest
-side. It writes these files into the clip:
+clip in one call. It first resizes each frame to `--process-res` pixels on
+its longest side, 504 unless told otherwise. It writes these files into the
+clip:
 
 - `depth_raw/depth_NNNNNN.npy`: one depth map per frame.
 - `depth_vis/NNNN.jpg`: each depth map as an image. Near is warm and far is
@@ -51,11 +52,20 @@ side. It writes these files into the clip:
 
 The stage refuses a CholecSeg8k clip that has no `crop_info.json`. Its frames
 would still hold the black border around the endoscope's view, and the model
-would see it.
+would see it. It refuses a clip that already holds the stage's output, and
+says what is there. `--overwrite` replaces that output: the stage removes the
+files above and writes them again, so a run on fewer frames leaves no file
+of a frame it no longer writes. The later stages count a clip's frames by the
+files in `depth_raw/`. The stage also refuses a model result that is not one
+frame per image, before it writes anything.
+
+`--gpu N` selects a GPU through `CUDA_VISIBLE_DEVICES`. Without it, the
+stage leaves that variable as it is, so a GPU chosen outside stays chosen.
 
 ### Without a CUDA GPU
 
-The stage also runs on a CPU, slowly. On a laptop, four frames take about a
+The stage also runs on a CPU, slowly. The steps here are not run in CI; the
+one-command install above is. On a laptop, four frames take about a
 minute and 6 GB of memory, and both grow faster than the number of frames.
 DA3 lists `xformers` as a dependency, and `xformers` installs only next to
 CUDA. DA3-LARGE does not use it. On a machine without CUDA, install DA3

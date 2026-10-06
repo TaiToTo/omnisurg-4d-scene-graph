@@ -21,13 +21,32 @@ DEFAULT_MODEL_ID = "depth-anything/DA3-LARGE"
 DEFAULT_PROCESS_RES = 504
 
 
+def world_to_camera(extrinsics: np.ndarray) -> np.ndarray:
+    """Return the (N, 3, 4) world-to-camera part of the extrinsics DA3 returns.
+
+    The version the extra installs returns (N, 3, 4); other versions return (N, 4, 4) homogeneous matrices, whose
+    last row is (0, 0, 0, 1) and carries nothing. The interface holds the (N, 3, 4) part of either.
+
+    Raises:
+        ValueError: the matrices are neither (N, 4, 4) with that last row nor (N, 3, 4).
+    """
+    extrinsics = np.asarray(extrinsics)
+    if extrinsics.ndim == 3 and extrinsics.shape[1:] == (3, 4):
+        return extrinsics
+    if extrinsics.ndim != 3 or extrinsics.shape[1:] != (4, 4):
+        raise ValueError(f"extrinsics are {extrinsics.shape}, not (N, 4, 4) or (N, 3, 4)")
+    if not np.allclose(extrinsics[:, 3, :], [0.0, 0.0, 0.0, 1.0]):
+        raise ValueError("extrinsics are (N, 4, 4) but not homogeneous: the last row is not (0, 0, 0, 1)")
+    return extrinsics[:, :3, :]
+
+
 class DA3:
     """Load DA3 once onto a device.
 
     Args:
         model_id: the Hugging Face model id. The weights download on first use.
         device: "auto", "cpu" or "cuda". "auto" takes CUDA when there is one.
-        gpu: the index of the GPU to use, set through `CUDA_VISIBLE_DEVICES`.
+        gpu: the index of the GPU to use, set through `CUDA_VISIBLE_DEVICES`. None leaves the environment as it is.
         process_res: the longest side each frame is resized to before inference.
 
     Raises:
@@ -54,9 +73,5 @@ class DA3:
     def reconstruct(self, image_paths: Sequence[Path]) -> Reconstruction:
         """Return depth and poses for the frames, in the order given."""
         pred = self.model.inference([str(p) for p in image_paths], process_res=self.process_res)
-        # DA3 may return (N, 4, 4) extrinsics. The interface holds the (N, 3, 4) world-to-camera part.
-        extrinsics = np.asarray(pred.extrinsics)
-        if extrinsics.shape[-2] == 4:
-            extrinsics = extrinsics[:, :3, :]
         return Reconstruction(depth=np.asarray(pred.depth), conf=np.asarray(pred.conf),
-                              intrinsics=np.asarray(pred.intrinsics), extrinsics=extrinsics)
+                              intrinsics=np.asarray(pred.intrinsics), extrinsics=world_to_camera(pred.extrinsics))

@@ -483,3 +483,11 @@ Every command takes those paths as arguments.
     surface in the tracking stage's byte check. If it does there, the choice
     is between restoring the workbench's order and accepting a documented
     non-bit-equality — made then, not found later.
+17. **Which commit of Depth Anything 3 the `recon3d` extra pins.** The extra
+    names the repository at its head. The commit is the one G ran, read from
+    pip's record of the install there (`direct_url.json`), and is pinned
+    when it has been read.
+18. **G's constraints file.** `pip install -e ".[recon3d]" -c <file>` is to
+    give G's packages at their versions to another machine. The file is
+    written from G's environment and added beside `pyproject.toml` when it
+    has been read; until then the extra alone says what any machine needs.
