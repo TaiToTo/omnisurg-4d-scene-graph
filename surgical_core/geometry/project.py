@@ -5,7 +5,7 @@ Extrinsics are world-to-camera (w2c) throughout. numpy only.
 
 import numpy as np
 
-from surgical_core.geometry.camera import backproject_depth, cam_to_world
+from surgical_core.geometry.camera import _check_shape, backproject_depth, cam_to_world
 from surgical_core.geometry.valid import DEPTH_MIN, valid_depth_mask
 
 
@@ -24,9 +24,11 @@ def backproject(depth, K, ext_w2c):
         (H, W) valid mask, and the row and column of each point.
 
     Raises:
-        ValueError: `K` is not (3, 3), or `ext_w2c` not (3, 4): `cam_to_world`
-            refuses the (4, 3) rotation a (4, 4) one slices to.
+        ValueError: `K` is not (3, 3), or `ext_w2c` is not (3, 4). The slices
+            below would read a wider matrix without a word, dropping its last
+            columns, and give a (3, 3) one an IndexError instead of an answer.
     """
+    _check_shape("ext_w2c", ext_w2c, (3, 4))
     H, W = depth.shape
     ys, xs = np.mgrid[0:H, 0:W]
     m = valid_depth_mask(depth)

@@ -69,6 +69,8 @@ def test_the_glb_holds_the_cloud_centred_and_the_centroid_is_returned(tmp_path):
 @pytest.mark.parametrize("vertices, colors, match", [
     (np.zeros((5, 2)), np.zeros((5, 3), np.uint8), "vertices must be"),
     (np.zeros((0, 3)), np.zeros((0, 3), np.uint8), "empty"),
+    (np.array([[0.0, 0.0, 0.0], [np.nan, 1.0, 2.0]]), np.zeros((2, 3), np.uint8), "finite"),
+    (np.array([[0.0, 0.0, 0.0], [np.inf, 1.0, 2.0]]), np.zeros((2, 3), np.uint8), "finite"),
     (np.zeros((5, 3)), np.zeros((5, 2), np.uint8), "colors must be"),
     (np.zeros((5, 3)), np.zeros((5, 3), np.float32), "uint8"),
     (np.zeros((5, 3)), np.zeros((4, 3), np.uint8), "4 colors for 5 vertices"),
@@ -91,11 +93,21 @@ def test_an_identity_camera_looks_down_minus_z_with_y_up_in_gltf():
                     "camera_up_glb": [0.0, 1.0, -0.0]}
 
 
-def test_the_camera_sits_where_its_extrinsics_send_the_origin():
+def test_the_camera_sits_and_aims_where_its_extrinsics_say():
     rng = np.random.default_rng(4)
     R, _ = np.linalg.qr(rng.normal(size=(3, 3)))
     t = rng.normal(size=3)
     axes = camera_axes_in_gltf(R, t)
     pos = np.array(axes["camera_pos_glb"]) * [1, -1, -1]
+    fwd = np.array(axes["camera_forward_glb"]) * [1, -1, -1]
+    up = np.array(axes["camera_up_glb"]) * [1, -1, -1]
     assert np.allclose(R @ pos + t, 0.0)
-    assert np.isclose(np.dot(axes["camera_forward_glb"], axes["camera_up_glb"]), 0.0)
+    # Orthogonality survives a transposed rotation; sending each axis back through R does not.
+    assert np.allclose(R @ fwd, [0.0, 0.0, 1.0]), "forward is the camera's +Z"
+    assert np.allclose(R @ up, [0.0, -1.0, 0.0]), "up is the camera's -Y"
+
+
+@pytest.mark.parametrize("R, t", [(np.eye(4), np.zeros(3)), (np.eye(3), np.zeros((3, 1))), (np.eye(3), np.zeros(4))])
+def test_extrinsics_of_another_shape_are_refused(R, t):
+    with pytest.raises(ValueError, match="must have shape"):
+        camera_axes_in_gltf(R, t)

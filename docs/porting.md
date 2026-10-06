@@ -470,3 +470,16 @@ Every command takes those paths as arguments.
     stay, under which rule a score records them, and whether their seed keeps
     the `MIN_AREA` cut that "No minimum object size, anywhere" removes
     everywhere else.
+16. **Two orders of the world transform.** `cam_to_world` computes
+    `(p - t) @ R`; the workbench's back-projection computes
+    `(R.T @ (p.T - t)).T`. On the development machine the two give the same
+    bits only where the BLAS runs the same kernel: under numpy 2.5.3 on
+    Accelerate they differ in the last bit below about 1024 points (at the
+    tests' 9×11 frame, 20 of 288 elements) and agree above; under numpy
+    1.26.4 on OpenBLAS they agree at every size tried. The depth stages'
+    clouds are far above the line, so step 5's byte check on G does not
+    answer it; `project.backproject` carries the order into label transfer
+    and warping, which do see small point sets, so a difference would first
+    surface in the tracking stage's byte check. If it does there, the choice
+    is between restoring the workbench's order and accepting a documented
+    non-bit-equality — made then, not found later.

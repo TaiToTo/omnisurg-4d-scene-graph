@@ -12,7 +12,7 @@ import numpy as np
 GLTF_FLIP = np.array([1, -1, -1])
 
 
-def _check_matrix(name: str, a: np.ndarray, shape: tuple[int, ...]) -> None:
+def _check_shape(name: str, a: np.ndarray, shape: tuple[int, ...]) -> None:
     if np.shape(a) != shape:
         raise ValueError(f"{name} must have shape {shape}, got {np.shape(a)}")
 
@@ -32,7 +32,7 @@ def backproject_depth(depth: np.ndarray, K: np.ndarray) -> np.ndarray:
     Raises:
         ValueError: `K` is not (3, 3); a (4, 4) one would be read as fx and cx without a word.
     """
-    _check_matrix("K", K, (3, 3))
+    _check_shape("K", K, (3, 3))
     H, W = depth.shape
     u, v = np.meshgrid(np.arange(W), np.arange(H))
     z = depth
@@ -52,8 +52,8 @@ def cam_to_world(pts_cam: np.ndarray, R: np.ndarray, t: np.ndarray) -> np.ndarra
     Raises:
         ValueError: `R` or `t` has another shape.
     """
-    _check_matrix("R", R, (3, 3))
-    _check_matrix("t", t, (3,))
+    _check_shape("R", R, (3, 3))
+    _check_shape("t", t, (3,))
     return (np.asarray(pts_cam) - t) @ R
 
 

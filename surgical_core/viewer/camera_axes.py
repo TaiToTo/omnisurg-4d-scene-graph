@@ -6,7 +6,7 @@ side by side differ in their geometry and not in how the camera was placed.
 
 import numpy as np
 
-from surgical_core.geometry.camera import GLTF_FLIP
+from surgical_core.geometry.camera import GLTF_FLIP, _check_shape
 
 
 def camera_axes_in_gltf(R: np.ndarray, t: np.ndarray) -> dict:
@@ -21,7 +21,13 @@ def camera_axes_in_gltf(R: np.ndarray, t: np.ndarray) -> dict:
 
     Returns:
         `camera_pos_glb`, `camera_forward_glb` and `camera_up_glb`, each a list of three floats.
+
+    Raises:
+        ValueError: `R` or `t` has another shape. A (3, 1) `t` would broadcast
+            the position into a 3 x 3 nest the viewer cannot place.
     """
+    _check_shape("R", R, (3, 3))
+    _check_shape("t", t, (3,))
     # The camera sits where R @ p + t = 0; it looks along its +Z and its up is its -Y.
     cam_world = -R.T @ t
     fwd_world = R.T @ np.array([0.0, 0.0, 1.0])

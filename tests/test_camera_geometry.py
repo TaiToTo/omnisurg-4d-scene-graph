@@ -116,6 +116,8 @@ def test_project_backproject_is_the_camera_transforms_on_the_valid_pixels():
     assert np.allclose((Pw @ R.T + t)[:, 2], depth[ys, xs]), "each point back in the camera has its pixel's depth"
 
 
-def test_project_backproject_refuses_four_by_four_extrinsics():
-    with pytest.raises(ValueError, match="R must have shape"):
-        project.backproject(np.ones((4, 4)), _intrinsics(), np.eye(4))
+@pytest.mark.parametrize("ext", [np.eye(4), np.eye(3), np.hstack([np.eye(3), np.zeros((3, 2))])])
+def test_project_backproject_refuses_extrinsics_of_another_shape(ext):
+    # The (3, 5) case is the planted fault: its slices would silently drop the last column.
+    with pytest.raises(ValueError, match="ext_w2c must have shape"):
+        project.backproject(np.ones((4, 4)), _intrinsics(), ext)

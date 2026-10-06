@@ -23,8 +23,8 @@ def write_point_cloud_glb(path: str | Path, vertices_gltf: np.ndarray, colors_ui
         The (3,) centroid subtracted, zeros without `recenter`.
 
     Raises:
-        ValueError: points not (N, 3) or none, colours of another shape, count or dtype. Each of these writes a
-            file that opens and shows the wrong cloud: colours shifted, all black, or nothing.
+        ValueError: points not (N, 3), none or not finite, colours of another shape, count or dtype. Each of
+            these writes a file that opens and shows the wrong cloud: colours shifted, all black, or nothing.
     """
     import trimesh
 
@@ -34,6 +34,8 @@ def write_point_cloud_glb(path: str | Path, vertices_gltf: np.ndarray, colors_ui
         raise ValueError(f"vertices must be (N, 3), got {v.shape}")
     if len(v) == 0:
         raise ValueError("no vertices: the point cloud is empty")
+    if not np.isfinite(v).all():
+        raise ValueError("vertices must be finite: one NaN or infinity poisons the centroid, and with it every centred point")
     if c.ndim != 2 or c.shape[1] not in (3, 4):
         raise ValueError(f"colors must be (N, 3) or (N, 4), got {c.shape}")
     if c.dtype != np.uint8:
