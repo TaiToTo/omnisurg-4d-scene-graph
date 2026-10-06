@@ -61,11 +61,12 @@ them changes.
 ## Docstrings and comments
 
 - **Say what a thing does first, in a plain sentence.** Start with the
-  subject and the verb. Give one idea per sentence. State the fact first;
-  the reason follows in its own sentence. Hang at most one modifier on a
-  noun: a clause inside a clause makes the reader parse the sentence twice
-  before it says anything. An example, a module header rewritten under
-  this rule:
+  subject and the verb; a docstring's summary line starts with the verb
+  alone, since its subject is the code it heads. Give one idea per
+  sentence. State the fact first; the reason follows in its own sentence.
+  Hang at most one modifier on a noun: a clause inside a clause makes the
+  reader parse the sentence twice before it says anything. One module
+  header, rewritten under this rule, shows the difference:
 
   > Before: "A camera's position and axes in glTF's frame, as the
   > manifest's `camera_*_glb` keys the viewer places it by."
@@ -74,11 +75,12 @@ them changes.
   > frame. The manifest stores them as the `camera_*_glb` keys. The
   > viewer reads these keys to place the camera."
 
-  Both are three lines. The first has no verb of its own and two clauses
-  hanging off one noun; the second can be skimmed. Nothing is cut, only
-  moved: the second and third ideas each get their own sentence. No test
-  can read for this, so the reviewer does: the first sentence of every new
-  docstring, header and comment must say, by itself, what the code does.
+  The second is one line longer. The first has no verb of its own and two
+  clauses hanging off one noun; the second can be skimmed. Nothing is cut,
+  only moved: the second and third ideas each get their own sentence. No
+  test can read for this, so the reviewer does: the first sentence of
+  every new docstring and header must say, by itself, what the code does,
+  and the first sentence of a comment states the fact before the reason.
   Existing text is rewritten when a change touches it; for the modules
   `eval_code_sha` hashes that rewrite must land before the evaluator is
   frozen, as with their headers.
