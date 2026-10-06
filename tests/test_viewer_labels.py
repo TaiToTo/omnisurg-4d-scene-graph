@@ -23,7 +23,8 @@ from surgical_core.viewer.palette import BACKGROUND_COLOR, INSTANCE_PALETTE, ins
 def loads_evalkit(module: str) -> bool:
     """Whether importing `module` in a fresh interpreter imports `evalkit` too."""
     code = f"import sys, {module}; print('evalkit' in sys.modules)"
-    out = subprocess.run([sys.executable, "-c", code], check=True, capture_output=True, text=True)
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+    assert out.returncode == 0, f"importing {module} failed:\n{out.stderr}"
     return out.stdout.strip() == "True"
 
 
