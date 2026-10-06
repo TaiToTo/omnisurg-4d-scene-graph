@@ -119,6 +119,15 @@ def test_a_stage_that_writes_different_bytes_differs(tmp_path):
     assert r["differ"] == ["clip_0001/noise.bin"]
 
 
+def test_a_file_only_one_run_writes_breaks_identity(tmp_path):
+    # Every shared file equal, one file extra: the verdict itself must see the one-sided file.
+    a = make_repo(tmp_path / "a")
+    b = make_repo(tmp_path / "b", epilogue='(c / "extra.bin").write_bytes(b"x")')
+    r = run_check(tmp_path, a, b)["result"]
+    assert not r["identical"]
+    assert r["only_b"] == ["clip_0001/extra.bin"] and r["n_differ"] == 0
+
+
 def test_a_stage_that_writes_a_time_stamp_differs(tmp_path):
     # Only `runtime_sec` is forgiven; the workbench's tool also forgave `timestamp`, which no stage writes.
     repo = make_repo(tmp_path / "a", epilogue='m["timestamp"] = time.time_ns()\n'
@@ -435,6 +444,12 @@ def test_a_nan_neither_swallows_a_gap_nor_hides_when_it_moves(tmp_path):
     assert moved["n_differ"] == 1 and moved["max_abs"] == 0.0
 
 
+def test_a_moved_nan_gives_no_gap_at_all(tmp_path):
+    # The gap is computed where both are finite; with the NaN moved, a gap of 1.0 would be a guess.
+    fa, fb = _pair(tmp_path, np.array([np.nan, 1.0]), np.array([0.0, np.nan]))
+    assert bc.numeric_spread(fa["depth_000000.npy"], fb["depth_000000.npy"]) is None
+
+
 def test_a_zero_reference_gives_no_relative_gap(tmp_path):
     r = bc.compare(*_pair(tmp_path, np.array([0.0, 4.0]), np.array([0.5, 4.0])))
     assert r["max_abs"] == pytest.approx(0.5) and r["max_rel"] == 0.0
@@ -458,6 +473,9 @@ M = "frame_manifest.json"
     ('{\n  "runtime_sec": 1.71,\n  "n_frames": 14\n}', '{\n  "n_frames": 14\n}'),
     # Not one key per line, so nothing can be stripped without guessing.
     ('{"runtime_sec": 1.71, "n_frames": 14}', '{"runtime_sec": 2.04, "n_frames": 14}'),
+    # The runtime appears again under another key; stripping the top one and forgiving the file would guess.
+    ('{\n  "runtime_sec": 1.71,\n  "inner": {"runtime_sec": 1}\n}',
+     '{\n  "runtime_sec": 2.04,\n  "inner": {"runtime_sec": 1}\n}'),
 ])
 def test_a_manifest_change_beyond_the_runtime_is_a_difference(tmp_path, a, b):
     r = bc.compare(*_pair(tmp_path, a, b, M))
