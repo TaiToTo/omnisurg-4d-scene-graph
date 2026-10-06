@@ -57,6 +57,7 @@ def test_a_clip_without_a_depth_bundle_or_an_image_is_refused(tmp_path):
     (clip / "input_images" / "000002.png").unlink()
     with pytest.raises(FileNotFoundError, match="000002.png"):
         run_point_clouds(clip)
+    assert not (clip / "pc_vis").exists(), "refused before any cloud is written"
     (clip / "exports" / "mini_npz" / "results.npz").unlink()
     with pytest.raises(FileNotFoundError, match="depth stage"):
         run_point_clouds(clip)

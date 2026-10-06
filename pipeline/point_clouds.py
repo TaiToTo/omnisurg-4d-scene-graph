@@ -62,15 +62,18 @@ def run_point_clouds(clip_dir: Path) -> int:
         depth, K_all, E_all = npz["depth"], npz["intrinsics"], npz["extrinsics"]
     n_frames, H, W = depth.shape
 
+    # Find every frame's image before writing anything, so that a missing one leaves no half-written clip.
+    img_paths = [clip_dir / "input_images" / f"{i:06d}.png" for i in range(n_frames)]
+    missing = [p.name for p in img_paths if not p.is_file()]
+    if missing:
+        raise FileNotFoundError(f"{clip_dir.name}: the bundle has {n_frames} frames, but there is no {missing[:5]}")
+
     # Write a cloud per frame, coloured by the frame, and keep where it sits.
     pc_vis = clip_dir / "pc_vis"
     pc_vis.mkdir(exist_ok=True)
     per_frame: dict[int, dict] = {}
-    for i in range(n_frames):
+    for i, img_path in enumerate(img_paths):
         R, t = E_all[i][:3, :3], E_all[i][:3, 3]
-        img_path = clip_dir / "input_images" / f"{i:06d}.png"
-        if not img_path.is_file():
-            raise FileNotFoundError(f"{clip_dir.name}: the bundle has frame {i}, but there is no {img_path.name}")
         img_bgr = cv2.imread(str(img_path))
         if img_bgr is None:
             raise ValueError(f"{clip_dir.name}: cannot read {img_path}")
