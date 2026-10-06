@@ -75,15 +75,18 @@ say, in the form a session starting cold needs.
 
 ## Not now: blocked on a decision
 
-`track_metrics` and `kmerge` wait on a decision not yet made; started before
-it, they would be ported twice. The tracking stage and the per-frame
-segmentation stage wait on decisions too, and the stages after tracking wait
-on the tracking stage. The questions are named as `docs/porting.md` heads
-them.
+`kmerge` waits on a decision not yet made; started before it, it would be
+ported twice. `track_metrics` is decided: a tool outside the evaluator,
+whose values are reference values. It waits for the evaluator's reader of a
+clip's inputs, whose GT and depth loaders it takes in place of the pilot's.
+The tracking stage and the per-frame segmentation stage wait on decisions
+too, and the stages after tracking wait on the tracking stage. The questions
+are named as `docs/porting.md` heads them.
 
 | piece | waits for |
 |---|---|
-| `track_metrics`, `kmerge` | "Identity metrics and merge cost" |
+| `kmerge` | "The merge cost" |
+| `track_metrics` | the evaluator's reader of a clip's inputs, `evalkit/inputs.py` |
 | the tracking stage: `track_sam3.py`, `sam3_wrapper/` and their helpers | "The seed frame chosen from GT", "The edge ring as a process-wide flag", and `track_metrics`, whose seed helpers it imports |
 | the per-frame segmentation stage: `run_per_frame_seg.py`, `geom_blend.py` | "The edge ring as a process-wide flag" |
 | the export stages and the viewer | the tracking stage, whose output they read |
@@ -101,11 +104,8 @@ wait on the depth stages: its check links the workbench's stored
 with `--seed_auto` at the default threshold, which reads GT; its check runs
 both sides at the operating point's `--seed_inst_thresh 1.0` instead.
 
-"Identity metrics and merge cost" is not a branch. It is a decision, and
-`docs/evaluation.md` ("Consistency over time") lists what deciding it means.
-A session can prepare it by writing down, for each candidate, the GT-track
-definition it needs and how that coexists with the whole-class object; the
-decision itself is made by the author, in `docs/evaluation.md`.
+"The merge cost" is not a branch. It is a decision, and `docs/porting.md`
+says what deciding it means. The decision is made by the author.
 
 ## Now: workstreams that can start today
 
