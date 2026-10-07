@@ -323,9 +323,10 @@ Every command takes those paths as arguments.
      quarter of frames, and zero tolerance is the promise, so the driver
      averages `ious` the pilot's way (`evalkit/classmap.py`).
    - `time_IoU`: the pilot ordered frames by `sorted()` of the `label_*.npy`
-     names, lexicographic, not numeric unless zero-padded; the driver orders
-     them that way in pilot mode, and writes the one per-clip value under
-     every view (`evalkit/time_iou.py`).
+     names, which sorts them as text: `label_10` before `label_2`, unless
+     the numbers are zero-padded. The driver orders them that way in pilot
+     mode, and writes the one per-clip value under every view
+     (`evalkit/time_iou.py`).
    - `EXTRA_IGNORE`: the pilot removed those ids too, from the command line,
      recorded in each score as `extra_ignore`. Every score in the workbench
      that records it has it empty, but those are the workshop's; confirm on
