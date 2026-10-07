@@ -178,8 +178,9 @@ Tests come with the file they test:
 - `test_eval_identity.py` comes with `track_metrics`. Its part that pins the
   sha over the GT loaders changes with the evaluator.
 - `test_geom_edge_ring.py` comes with `geometry`.
-- `test_kmerge_per_clip.py` and `test_kmerge_root_resolution.py` come with
-  `kmerge`.
+- `test_kmerge_per_clip.py` and `test_kmerge_root_resolution.py` tested what
+  the port of `kmerge` leaves out: its averaging by clip, and the root it
+  read clips from. `tests/test_kmerge.py` tests the merge.
 - `test_condition_inventory_roots.py` comes with `condition_inventory`.
 
 All of these are in `$OMNISURG_SOURCE/depth_sam_tracking_experiment/tests/`.
