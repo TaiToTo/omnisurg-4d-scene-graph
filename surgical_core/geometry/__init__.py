@@ -22,8 +22,8 @@ The package is split by dependency:
 - `valid`: which depth values count, `DEPTH_MIN` and `valid_depth_mask`.
   numpy only.
 - `render`: the images the segmenter is prompted with (colormapped depth,
-  relighting, Retinex, the input-mode table). Needs scipy and matplotlib,
-  the `render` extra, so it is not imported here; import it by name.
+  the input-mode table). Needs matplotlib, the `render` extra, so it is not
+  imported here; import it by name.
 
 The functions of `normals`, `project` and `valid`, and `DEPTH_MIN`, are
 re-exported so that `from surgical_core import geometry` keeps working for
