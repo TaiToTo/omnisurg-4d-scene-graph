@@ -223,6 +223,10 @@ move; the rest is listed under "Not carried for now" below.
     `ipcai2027_experiment/scripts/claims_grid.py` and `arms_paired.py`,
     `ipcai2027_experiment/task15_granularity/scripts/claims_table.py` and
     `settle_inputs.py`, and `ipcai2027_experiment/task11_atlas13/scripts/check_provenance.py`.
+  - The camera trajectory on StereoMIS, from `ipcai2027_experiment/scripts/`:
+    `stereomis_io.py`, `run_20.sh`, `pose_metrics.py` and `pose_controls.py`.
+    `run_20.sh` runs the Pi3X stage with `--max-points 60000`, which thins
+    the point clouds only.
   - What the viewer reads, and no score does: `export_viewer_dataset.py`
     and `build_temporal_graph.py`, the only scripts that build the graphs;
     `export_instrument_mask.py`; `run_atlas_pipeline.sh`, which made the
@@ -257,10 +261,31 @@ move; the rest is listed under "Not carried for now" below.
 
 ### Not carried for now
 
-The paper's numbers do not use what this section lists. It is left out
-because the port is short of time, not thrown away. Each entry says where it
-lives in the workbench, so that a later pull request can port it. What had
-reached this repository before it was left out stays in its history.
+This section lists what the port leaves out for now: what the paper's
+numbers do not use, and experiments whose numbers the paper does not report
+until they are ported (decision 1). It is left out because the port is short
+of time, not thrown away. Each entry says where it lives in the workbench, so
+that a later pull request can port it. What had reached this repository
+before it was left out stays in its history.
+
+- **D4D** (`d4d_io.py`, `d4d_depth.py`, `d4d_predicate.py`, `d4d_verdict.py`,
+  `d4d_pose.py`, `d4d_seed.py`, `d4d_population.py`, `d4d_census.py`, in
+  `ipcai2027_experiment/scripts/`). It holds the 3D predicate of depth and
+  the camera trajectory against D4D's optical tracker, so those results
+  wait on it. Its data is on the GPU machine only. `d4d_seed.py` records the
+  sha256 of `track_sam3.py`'s source, which no longer matches once the
+  tracking stage is ported.
+- **LapEx** (`lapex_extract.py`, `lapex_kcurve.py`), the third population of
+  the granularity result. The author wants it in the paper if time allows.
+  Its score carries `eval_code_sha` `9cf136c7…`, not the pilot evaluator's,
+  so it is scored again with the evaluator once ported.
+- **View consistency** (`view_consistency.py`, `camera_motion.py`): whether
+  a boundary stays on the same place of the tissue when the camera moves.
+  No input beat RGB there, and every input's boundaries sat near the GT's.
+  These are the only callers of `project.backproject`.
+- **Blended inputs** of `geom_blend.py` (`Terms`, `blend`, `SPECS` and the
+  rest of the blend machinery), measured on CholecSeg8k and the earlier
+  13-video ATLAS-120k set, never on the 315 clips.
 
 - **Fourteen segmenter inputs and `rgb_refl`.** Of the twenty modes of
   `sam_input_image`, the paper's conditions ran `rgb`, `depth`, `normal`,
@@ -615,20 +640,3 @@ Every command takes those paths as arguments.
     whether a mask that is not annotation moves out of `seg_masks/` or takes
     a name of its own, so that the distinction is in the file and not only in
     the frame manifest.
-20. **Which further experiments the paper keeps.** Four sets of the
-    workbench's results are not in the plan above. Each is ported only if
-    the paper reports it:
-    - the camera trajectory on StereoMIS and the 3D predicate on D4D
-      (`stereomis_io.py`, `run_20.sh`, `pose_metrics.py`, `pose_controls.py`
-      and the `d4d_*.py` scripts, in `ipcai2027_experiment/scripts/`).
-      `d4d_seed.py` records the sha256 of `track_sam3.py`'s source, which no
-      longer matches once the tracking stage is ported;
-    - the view-consistency result (`view_consistency.py`,
-      `camera_motion.py`), the only callers of `project.backproject`;
-    - LapEx (`lapex_extract.py`, `lapex_kcurve.py`), which the granularity
-      result cites. Its score carries `eval_code_sha` `9cf136c7…`, not the
-      pilot evaluator's;
-    - the blended inputs of `geom_blend.py` (`Terms`, `blend`, `SPECS`),
-      measured on CholecSeg8k and the earlier 13-video ATLAS-120k set,
-      never on the 315 clips.
-    What the paper does not report is added to "Not carried for now".
