@@ -1,14 +1,15 @@
-"""One clip's inputs, read from the pipeline's directories: frames, GT masks, depth and predictions.
+"""Read one clip's inputs: its frames, GT masks, depth and predictions.
 
-Under `<data_root>/<clip>/`, `frame_manifest.json` lists the frames in the
-order the pipeline processed them and says which are GT frames
-(`docs/evaluation.md`, "Which frames"). Frame `i` has its depth in
-`exports/mini_npz/results.npz` as `depth[i]` and, on a GT frame, its mask,
-already cut to the endoscope's rectangle, in `seg_masks/<i:06d><suffix>`. Under
-`<tracks_root>/<clip>/<tag>/`, `label_<i>.npy` is the prediction for frame
-`i`. Masks and predictions of another shape are resized to the depth map's
-with nearest neighbour. Every input read is fingerprinted, so that a score
-says what it was computed from.
+The inputs sit in three places:
+- `<data_root>/<clip>/frame_manifest.json` lists the frames in the order
+  the pipeline processed them, and marks the GT frames (`docs/evaluation.md`,
+  "Which frames").
+- `<data_root>/<clip>/exports/mini_npz/results.npz` holds the depth, frame
+  `i` as `depth[i]`. `seg_masks/<i:06d><suffix>` beside it holds a GT
+  frame's mask, already cut to the endoscope's rectangle.
+- `<tracks_root>/<clip>/<tag>/label_<i>.npy` is the prediction for frame `i`.
+A mask or prediction of another shape is resized to the depth map's, with
+nearest neighbour. Every input is fingerprinted, so a score says what it read.
 """
 from __future__ import annotations
 
