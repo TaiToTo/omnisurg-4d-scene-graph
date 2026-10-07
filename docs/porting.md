@@ -522,3 +522,25 @@ Every command takes those paths as arguments.
     geometry or only reads what the export wrote. The functions are in
     `surgical_core/geometry/camera.py` and
     `surgical_core/geometry/project.py`.
+18. **Conditions seeded from GT.** A seed frame is scored like any other
+    frame, because the paper's conditions are seeded from the pipeline's own
+    masks. Which of the 38 conditions were seeded from GT instead, and
+    whether such a condition is scored on its seed frame or enters a table
+    at all, is settled before step 3, on the machine that holds the
+    predictions. The `seed_source` that each
+    condition's `seed_info.json` records says where its seed came from;
+    where it does not tell, the command that made the condition does.
+    The workshop's oracle row, GT instrument masks painted onto a
+    condition's labels, is one; the viewer's `gt_tracked` track, one GT
+    frame carried by SAM 3, is another candidate. What the tracking stage
+    does with such a seed is "The seed frame chosen from GT".
+19. **Masks that are not GT under the GT's name.** The viewer's step writes
+    SAM 3 masks into `seg_masks/` as `<i>_color_mask.png`, told apart from
+    the annotation only by the frame manifest's `is_anchor` and
+    `seg_provenance`, and the two VID25 clips still hold such masks from
+    before their re-extraction, on frames the frame manifest marks as having
+    none. The evaluator reads the flags and refuses the VID25 clips until
+    those files are removed. When the pipeline is ported (step 5), decide
+    whether a mask that is not annotation moves out of `seg_masks/` or takes
+    a name of its own, so that the distinction is in the file and not only in
+    the frame manifest.
