@@ -94,8 +94,10 @@ and clips enter a measurement is data, kept in the population file under
 The port follows `docs/porting.md`: what moves, which version of it was
 already reviewed and where, the order of the steps, and what must hold before
 the next one. Read it before porting anything. The order is load-bearing: the
-evaluator is checked against the pilot scores before anything is re-scored,
-and nothing touches a GPU before that. Nothing is frozen during the port.
+evaluator is checked against the pilot scores before anything is re-scored. A
+pipeline stage is done only when its output equals the workbench's, byte for
+byte, apart from the exceptions `docs/porting.md` names. Nothing is frozen
+during the port.
 
 What is permanent is on this page: the freeze rule, the verdict rule, the
 layout, and the conventions below.
@@ -114,6 +116,9 @@ against.
 - **No TODO in code.** A wrong path raises on its input; an open decision is
   written under "Open questions", in `docs/porting.md` while the port lasts
   and in the area's specification after.
+- **Say what a thing does first, in a plain sentence.** Start with the
+  subject and the verb; one idea per sentence; the reason follows in its
+  own sentence.
 - **A module's header is short**: what the module does, in at most twelve
   lines, then how to run it. No history, no glossary, no defence of choices.
 - **A term is defined once**, in its area's specification or in the one

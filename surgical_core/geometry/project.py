@@ -5,6 +5,7 @@ Extrinsics are world-to-camera (w2c) throughout. numpy only.
 
 import numpy as np
 
+from surgical_core.geometry.camera import _check_shape, backproject_depth, cam_to_world
 from surgical_core.geometry.valid import DEPTH_MIN, valid_depth_mask
 
 
@@ -21,27 +22,19 @@ def backproject(depth, K, ext_w2c):
     Returns:
         `(Pw, m, ys, xs)`: the (N, 3) world points of the valid pixels, the
         (H, W) valid mask, and the row and column of each point.
+
+    Raises:
+        ValueError: `K` is not (3, 3), or `ext_w2c` is not (3, 4). The slices
+            below would read a wider matrix without a word, dropping its last
+            columns, and give a (3, 3) one an IndexError instead of an answer.
     """
-    # The shapes are not validated at the entry. What a (4, 4) extrinsics
-    # matrix does is an accident of broadcasting, not a decision: the slice
-    # below gives a (4, 3) R and a 4-vector t, the subtraction cannot
-    # broadcast and this function raises; `project_world_to_frame` takes the
-    # same slice, gets a homogeneous row it never reads, and returns the right
-    # answer. Nothing is silent either way. What is silent is c2w extrinsics
-    # (see the package docstring). A shape check would turn the accident into
-    # a rule and refuse callers that pass (4, 4) to the projection today, so
-    # it is a change to make on purpose, not in a port.
+    _check_shape("ext_w2c", ext_w2c, (3, 4))
     H, W = depth.shape
-    fx, fy, cx, cy = K[0, 0], K[1, 1], K[0, 2], K[1, 2]
     ys, xs = np.mgrid[0:H, 0:W]
     m = valid_depth_mask(depth)
-    z = depth[m]
-    X = (xs[m] - cx) * z / fx
-    Y = (ys[m] - cy) * z / fy
-    Pc = np.stack([X, Y, z], 1)
     R, t = ext_w2c[:, :3], ext_w2c[:, 3]
     with np.errstate(all="ignore"):
-        Pw = (R.T @ (Pc.T - t[:, None])).T
+        Pw = cam_to_world(backproject_depth(depth, K)[m.reshape(-1)], R, t)
     return Pw, m, ys[m], xs[m]
 
 

@@ -1,23 +1,18 @@
 """`LabelTable`: label id to display name and colour, for GT classes and instances.
 
 The segmentation and graph builders depend on this table alone and do not
-know whether a label is a GT class or a tracked instance. A GT table is made
-from the dataset's class table in `evalkit.classes`, so that the viewer shows
-exactly the classes and colours the evaluator scores; an instance table is
-made from the ids a tracker produced.
+know whether a label is a GT class or a tracked instance. `label_table`
+builds one from plain data, so a video with no dataset class table needs
+nothing else. `gt_tables` builds one from the evaluator's class tables, and
+`instance_table` from the ids a tracker produced.
 """
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 
 import numpy as np
 
-from evalkit.classes import ClassTable, ClassType, load_table
 from surgical_core.viewer.palette import BACKGROUND_COLOR, instance_color
-
-# The types that are not objects: drawn as background and left out of the
-# legend and the graph. The same three the evaluator removes from every view.
-_NOT_AN_OBJECT = frozenset({ClassType.IGNORED, ClassType.BACKGROUND, ClassType.EXCLUDED})
 
 
 @dataclass(frozen=True)
@@ -65,36 +60,36 @@ class LabelTable:
         return [int(v) for v in np.unique(id_map) if int(v) not in self.background_ids]
 
 
-def label_table_of(table: ClassTable) -> LabelTable:
-    """The display table of a dataset's class table.
+def label_table(
+    labels: Iterable[tuple[int, str, Sequence[int]]], background_ids: Iterable[int] = (),
+) -> LabelTable:
+    """A table from plain data: one `(id, name, (r, g, b))` per foreground label.
 
-    Every class whose type is an object is a foreground entry with the
-    colour the class table gives it; the ignored, background and excluded
-    types become background ids.
+    Args:
+        labels: The foreground labels, each colour three integers in 0 to 255.
+        background_ids: The ids drawn as background and left out of the
+            legend and the graph.
 
     Raises:
-        ValueError: a foreground class has no colour. ATLAS-120k's benchmark
-            set has none, because a mask reaches it only through the mapping;
-            it cannot be drawn without choosing colours, and that choice is
-            not made silently here.
+        ValueError: An id is given twice, is both a label and background, or
+            has a colour that is not three integers in 0 to 255.
     """
+    background = {int(i) for i in background_ids}
     entries = {}
-    background = set()
-    for cid, e in table.entries.items():
-        if e.type in _NOT_AN_OBJECT:
-            background.add(int(cid))
-            continue
-        if e.colour is None:
-            raise ValueError(
-                f"{table.dataset}/{table.class_set}: class {cid} ({e.name}) has no colour, "
-                "so the set cannot be drawn")
-        entries[int(cid)] = LabelEntry(e.name, [c / 255.0 for c in e.colour])
+    for i, name, colour in labels:
+        i = int(i)
+        if i in entries or i in background:
+            where = "twice" if i in entries else "as a label and as background"
+            raise ValueError(f"id {i} ({name}) is given {where}")
+        not_rgb = f"id {i} ({name}): a colour is three integers in 0 to 255, got {colour!r}"
+        try:
+            rgb = tuple(colour)
+        except TypeError:
+            raise ValueError(not_rgb) from None
+        if len(rgb) != 3 or not all(isinstance(c, (int, np.integer)) and 0 <= c <= 255 for c in rgb):
+            raise ValueError(not_rgb)
+        entries[i] = LabelEntry(name, [c / 255.0 for c in rgb])
     return LabelTable(entries=entries, background_ids=background)
-
-
-def cholec_gt_table() -> LabelTable:
-    """The CholecSeg8k classes, as the evaluator's class table defines them."""
-    return label_table_of(load_table("cholecseg8k"))
 
 
 def instance_table(ids: Iterable[int]) -> LabelTable:
