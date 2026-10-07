@@ -61,17 +61,17 @@ was replaced, then the class tables.
 
 ## The evaluator at a glance
 
-The evaluator works in six steps. It reads a clip's inputs, scores each frame
-in three views, averages each key over the clip, writes one score file per
-condition, and compares two conditions.
+Scoring runs in six steps. The evaluator reads a clip's inputs, scores a
+frame in one view and then in all three, averages each key over the clip, and
+writes one score file per condition. The tools then compare two conditions.
 
-![The evaluator in six steps on a drawn scene: a clip's inputs; one frame, scored in three views; one clip, each key's mean over its frames; one condition, one score file; two conditions, the key that decides each question.](figures/evalkit_overview.png)
+![Scoring in six steps on a drawn scene: a clip's inputs; one frame, scored in each of three views (steps 2 and 3); one clip, each key's mean over its frames; one condition, one score file; two conditions, the key that decides each question.](figures/evalkit_overview.png)
 
 The second figure shows the same steps part by part. Each box names, in its
-corner, the module that holds the part, so a rule below can be found in the
-code. A module's docstring says what it returns.
+corner, the module or package that holds the part, so a rule below can be
+found in the code. A module's docstring says what it returns.
 
-![The evaluator part by part: a clip's inputs; scored pixels and the keys of one frame in one view; one frame in every view; one clip; one score file per condition; the tools that compare two conditions. Each box names its module.](figures/evaluator_map.png)
+![The evaluator part by part: a clip's inputs; scored pixels and the keys of one frame in one view; one frame in every view; one clip; one score file per condition; the tools that compare two conditions. Each box names its module or package.](figures/evaluator_map.png)
 
 ## How a frame is scored
 
@@ -118,12 +118,14 @@ code. A module's docstring says what it returns.
   clip. It lists the clip's frames with their times and GT flags, and holds
   the crop rectangle.
 
-A clip is a directory. Frame i is the i-th entry of the frame manifest, and
-every input of that frame sits at index i. For frame 7:
+A clip is a directory. Frame i is `frames[i]` of the frame manifest, counted
+from 0, and every input of that frame sits at index i. The index is the
+frame's place in the manifest, not in time; "Time" above says how the frames
+are ordered. For frame 7:
 
 | input | where | frame 7 |
 |---|---|---|
-| frame manifest | `frame_manifest.json`, in the clip | entry 7 of `frames`, whose `seq_idx` is 7 |
+| frame manifest | `frame_manifest.json`, in the clip | `frames[7]`, whose `seq_idx` is 7 |
 | depth | `exports/mini_npz/results.npz`, in the clip | `depth[7]` |
 | GT mask | `seg_masks/`, in the clip | `000007_color_mask.png` (CholecSeg8k), `000007_class.png` (ATLAS-120k) |
 | prediction | the condition's directory for the clip, which the tracking stage writes | `label_0007.npy` |
@@ -171,6 +173,12 @@ indexed by class id and predicted objects by region id, both ascending. That
 is the pilot evaluator's order, kept so that both modes share one rule. A pair
 with IoU ≥ `MATCH_IOU` is a *hit*. `F1_50`, `SQ` and `inst_BF` are taken over
 these objects.
+
+This figure and the ones below draw one scene and run the modules on it.
+Hatched pixels are not scored; "Views" says which. The pale patch next to the
+tool has no depth. Normal mode would refuse such a frame. The figures leave
+the patch out of the scored pixels, as pilot mode does, and score the rest by
+the normal rules.
 
 ![Objects on a drawn scene in the geometric view: two GT objects, one per class; three predicted objects, one per region; the pairs taken greedily by IoU, two hits, and F1_50 and SQ computed from them.](figures/objects.png)
 
@@ -233,8 +241,7 @@ that stops at its edge.
 ![One drawn scene in the three views: hatched pixels are not scored; the tool leaves the tissue view, and the tool and the blood leave the geometric view. A table counts each removed pixel once, by the first reason that removed it.](figures/scored_pixels.png)
 
 [`evalkit/scored.py`](../evalkit/scored.py) computes the numbers on this
-scene. It scores the scene in pilot mode, because the scene holds a patch
-without depth, and normal mode refuses such a frame.
+scene, in pilot mode.
 
 #### Why removed pixels are not filled in
 
@@ -309,12 +316,8 @@ What the scores cannot see is counted instead, as `unlabelled_share` below.
   the boundary F between the predicted object's contour and the GT object's,
   each marked by the boundary rule below over the scored pixels.
 
-The figure under "Objects" shows `F1_50` and `SQ`.
-
-![inst_BF on a drawn scene: the contour of each hit against its GT object's contour, within the tolerance, and inst_BF as the mean F over the hits. With the gallbladder unlabelled, the liver has no contour to recover, and the hit is left out and counted.](figures/inst_bf.png)
-
-[`evalkit/inst_bf.py`](../evalkit/inst_bf.py) computes the numbers on this
-scene.
+The figure under "Objects" shows `F1_50` and `SQ`. The figure of `inst_BF`
+comes after the boundary rule it uses, under "Boundaries".
 
 #### The class map, by area: `mIoU`
 
@@ -332,9 +335,10 @@ shows it.
   scored pixel with another label. An edge against a removed pixel (ignored,
   background, or a class the view leaves out) is not a boundary, so a region
   is neither rewarded nor penalised for where it ends against them. Both sides
-  of an edge are marked, so a boundary is 2 px wide, and the tolerance is a
-  square dilation by `BOUNDARY_TOL_PX`: one-sided, a boundary may be off by
-  `BOUNDARY_TOL_PX` + 1 px. A frame whose scored pixels are all one class has
+  of an edge are marked, so a boundary is 2 px wide. The tolerance is a
+  square dilation by `BOUNDARY_TOL_PX`. An edge shifted by `BOUNDARY_TOL_PX`
+  px scores 1, one shifted by `BOUNDARY_TOL_PX` + 1 px scores 1/2, and one
+  further off scores 0. A frame whose scored pixels are all one class has
   no GT boundary, which is common once a view has removed the rest (a frame
   showing only liver, in the geometric view); the boundary metrics are not
   defined on it, and it is counted. When only the prediction's boundary is
@@ -347,6 +351,13 @@ shows it.
 [`evalkit/boundary.py`](../evalkit/boundary.py) computes the numbers in both
 figures.
 
+`inst_BF` applies the same rule to the contour of each hit.
+
+![inst_BF on a drawn scene: the contour of each hit against its GT object's contour, within the tolerance, and inst_BF as the mean F over the hits. With the gallbladder unlabelled, the liver has no contour to recover, and the hit is left out and counted.](figures/inst_bf.png)
+
+[`evalkit/inst_bf.py`](../evalkit/inst_bf.py) computes the numbers on this
+scene.
+
 #### Splitting and merging: `VI_split`, `VI_merge`
 
 `VI_split` = H(regions | GT) and `VI_merge` = H(GT | regions), the two halves
@@ -354,7 +365,7 @@ of the variation of information, in bits, over the scored pixels. The pixels
 with no region count together as one region. On a frame with no scored pixel
 they are not defined, and the frame is counted.
 
-![VI on a drawn scene: cutting the gallbladder in two raises VI_split; merging liver and gallbladder into one region raises VI_merge. Below, the pixels of each region by GT class.](figures/vi.png)
+![VI on a drawn scene: cutting the gallbladder in two raises VI_split, and cutting the liver as well raises it further; merging liver and gallbladder into one region raises VI_merge. Below, the pixels of each region by GT class.](figures/vi.png)
 
 [`evalkit/vi.py`](../evalkit/vi.py) computes the numbers on this scene.
 
@@ -426,9 +437,6 @@ conditions, and judges each on its own key, on each dataset's own labels
 | Given no GT, how much of the labelled structure is already in the regions? | `F1_50` and `SQ` | geometric |
 
 ![The three questions on a drawn scene. Q1: a region picked out in one frame follows the gallbladder for two frames, then leaves it. Q2: the regions' boundaries against the GT's class boundaries, giving boundary_R_raw. Q3: regions matched to the GT's objects, giving F1_50 and SQ.](figures/three_questions.png)
-
-No key decides the first question yet, so its panel is an illustration. The
-numbers in the other two panels are what the modules compute on the scene.
 
 The second question is answered within each view, between conditions that
 differ in what the pipeline is given: the image, the depth, or both. The
