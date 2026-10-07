@@ -119,7 +119,14 @@ Where they and this document differ, this document holds.
     carried under that name, it keeps the workbench's definition, which was
     pre-registered there. A different denominator is a different metric,
     with a different name: in the workbench, moving the denominator once
-    flipped a result's sign.
+    flipped a result's sign. `kmerge` is ported as a tool too. It changes
+    predictions, not metrics: it merges a condition's regions down to K,
+    and the evaluator's instance metrics score the merged regions, so a
+    comparison of them is read like any other. The paper's granularity
+    result merges to a fixed K of 10. The `matched` setting, which took K
+    from the pilot's GT components of at least 300 px, is not carried for
+    now: under the evaluator a GT object is a whole class, and that K would
+    need a definition of its own.
 
 ## What moves
 
@@ -158,7 +165,7 @@ copy to read the RGB clips, and the ported copies read `evalkit.classes`.
 | `track_metrics.py` | `depth_sam_tracking_experiment/track_metrics.py` | `extract/03-metrics` (#3) | It imports `BACKGROUND`, `_gt_idmap` and `_load_depth` from the pilot's `eval_track`; they come from the evaluator instead. `MIN_AREA` is removed (decision 5). It is a tool, outside the evaluator, and its values are reference values (decision 13). |
 | `surgical_core/clip_time.py` | `surgical_core/clip_time.py` | `extract/03-metrics` (#3) | English only. |
 | `surgical_core/viewer/labels.py`, `palette.py` | `surgical_core/viewer/` | `extract/03-metrics` (#3) | English only. `label_table_of` and `cholec_gt_table` move to a new `gt_tables.py`, the one viewer module that imports `evalkit`; `labels.py` builds its table from plain data, so a video with no class table gets one too. The rest of `surgical_core/viewer` is below, under "Not yet extracted anywhere". |
-| `kmerge.py` | `ipcai2027_experiment/scripts/kmerge.py` | `extract/04-kmerge` (#5) | It imports the pilot's `eval_track`, and borrows `verdict` from `paired_stats`. It keeps its own copy of `video_of`, which the port takes from `paired_stats` instead. Waits on "The merge cost". |
+| `kmerge.py` | `ipcai2027_experiment/scripts/kmerge.py` | `extract/04-kmerge` (#5) | It imports the pilot's `eval_track`, and borrows `verdict` from `paired_stats`. It keeps its own copy of `video_of`, which the port takes from `paired_stats` instead. It is a tool (decision 13), and takes the evaluator's instance metrics in place of the pilot's. |
 | `surgical_core/geometry/` | `depth_sam_tracking_experiment/geometry.py` | `extract/04-kmerge` (#5) | English only. Shared by the pipeline and the toolkit. |
 | `condition_inventory.py` | `ipcai2027_experiment/scripts/condition_inventory.py` | `extract/05-inventory` (#4) | It reads `eval_code_sha`, `eval_code_tag` and `eval_version` from score JSONs. "One ruler" is now what `docs/evaluation.md` calls comparable: sha, dataset, class set, view and mode all equal. |
 | `check_env.py` | `ipcai2027_experiment/atlas97/scripts/check_env97.py` | `extract/05-inventory` (#4) | Not carried (decision 4). |
@@ -241,8 +248,8 @@ Which of these can move side by side, in separate branches and sessions,
 while the evaluator is built and reviewed is worked out in `docs/workstreams.md`.
 
 1. **Decide what the evaluator measures over time.** Decided: no measure
-   over time carries a star, and `track_metrics` is a tool (decision 13).
-   What `kmerge` becomes is "The merge cost".
+   over time carries a star, and `track_metrics` and `kmerge` are tools
+   (decision 13).
 2. **Build the evaluator.** CPU only, as the `evalkit` package. Class tables,
    then metrics, then the entry point. It is done when:
    - the hand-derived tests pass, in both modes;
@@ -309,22 +316,14 @@ Every command takes those paths as arguments.
 
 ## Open questions
 
-1. **The merge cost.** `kmerge` merges a condition's regions down to K and
-   scores the result with the pilot evaluator's instance metrics. At its
-   `matched` setting, K is the number of the pilot's GT components of at
-   least 300 px. Under the evaluator, a GT object is a whole class, so that
-   K would become the number of classes present. Decide whether `kmerge` is
-   ported, for instance as a tool that writes merged predictions for the
-   entry point to score like any condition, and what sets K. Its result was
-   a side result in the workbench (`rgbedge` against `rgb` at `matched`).
-2. **The skill-classification code and the other 18 viewer pages.** The plan
+1. **The skill-classification code and the other 18 viewer pages.** The plan
    leaves both behind. The paper's figures come from some of those pages.
-3. **Whether step 5 has to finish before submission.** Step 3 already gives
+2. **Whether step 5 has to finish before submission.** Step 3 already gives
    the numbers. A stage that passes step 5's byte check cannot change them;
    the 14 clips re-extracted under "CholecSeg8k clips whose frames run out
    of order" can, and so can depth made again under "Depth made by two
    versions of the depth stage".
-4. **Pilot mode's own rules.** Five places where pilot mode must not read
+3. **Pilot mode's own rules.** Five places where pilot mode must not read
    the evaluator's tables or helpers, each noted where it was found and
    collected here so the pilot-mode driver settles them in one go:
    - ATLAS-120k typing: the pilot evaluator knew one type, Tools/camera;
@@ -351,7 +350,7 @@ Every command takes those paths as arguments.
      summary to four decimals. The last bit of the two means differs on
      about 40 % of random clips, so the pilot-mode driver aggregates the
      pilot's way and does not call `summarize_clip` (`evalkit/clip.py`).
-5. **Boundary dilation before the freeze.** `evalkit/boundary.py` dilates
+4. **Boundary dilation before the freeze.** `evalkit/boundary.py` dilates
    with `cv2.dilate`; a numpy shift-or over the (2·tol + 1)² offsets agrees
    on every mask tried, borders included. The question is whether a hashed
    file should depend on a library's behaviour at all while OpenCV is
@@ -360,12 +359,12 @@ Every command takes those paths as arguments.
    the order `cv2.connectedComponents` labels them, and the pairing's tie
    rule reads those numbers. That never reaches the frozen files, since
    pilot mode is removed before the freeze (decision 11).
-6. **The benchmark mapping against its source.** The ATLAS-120k mapping to
+5. **The benchmark mapping against its source.** The ATLAS-120k mapping to
    the benchmark's 30 classes was typed from the document and checked by
    hand against ATLAS-bench's `datasets/class_mapping.py` at commit
    e286a584, all 47 ids agreeing. A script that takes that file's path and
    repeats the check would make it reproducible.
-7. **CholecSeg8k's Region line.** The white line between regions is 1 px
+6. **CholecSeg8k's Region line.** The white line between regions is 1 px
    wide; in the masks 87 % of its pixels are the image's outer 1 px (gone
    with the crop) and the rest sits mostly in video43 and video52. Left
    `ignored`, an edge against it is no boundary, so those videos lose much of
@@ -375,7 +374,7 @@ Every command takes those paths as arguments.
    filled count recorded, or whether it stays ignored with the loss
    documented. Either way the pilot evaluator read it as background and
    counted an edge against it as a boundary, a normal-mode difference to list.
-8. **CholecSeg8k clips whose frames run out of order.** In videos where
+7. **CholecSeg8k clips whose frames run out of order.** In videos where
    CholecSeg8k numbers frames at about 30 fps, the workbench's extractor
    (`scripts/extract_cholec_track.py`) resolves the true 25 fps frame for the
    frames that carry a mask and leaves the gap frames it decodes from the
@@ -387,7 +386,7 @@ Every command takes those paths as arguments.
    `hold_mean` ones. When the extractor is ported in step 5 it converts the
    gap frames or refuses the video, the 14 clips are re-extracted and re-run,
    and that is a deliberate exception to step 5's byte-for-byte rule.
-9. **The evaluator map against `evalkit/frame.py`.** Two things to carry
+8. **The evaluator map against `evalkit/frame.py`.** Two things to carry
    into the next redraw of `docs/figures/evaluator_map.png`, neither wrong
    today. The map gives step 2, one frame in one view, no module, and
    names `frame` at step 3 only; in the code both are in `frame.py`, as
@@ -399,7 +398,7 @@ Every command takes those paths as arguments.
    step 3 box, "or skipped whole, and counted", would close that in the
    figure. `evalkit/README.md` is the
    short version and need not say either.
-10. **A class table read from outside the package.** `load_table(...,
+9. **A class table read from outside the package.** `load_table(...,
     path=...)` reads any file, for tests that plant a fault, and
     `ClassTable.path` says it is for `eval_code_sha`; but nothing checks
     that the path is one `code_sha.hashed_files()` lists, so a score made
@@ -408,7 +407,7 @@ Every command takes those paths as arguments.
     check belongs there: refuse a table whose path is not among the hashed
     files before writing a score. Settle with it whether `path` stays a
     public argument of `load_table` at all, or becomes a test-only hook.
-11. **The fewest videos for an interval.** `paired_stats.boot_ci` refuses a
+10. **The fewest videos for an interval.** `paired_stats.boot_ci` refuses a
     population of one video, where every resample is the same video and
     the interval is a point. Two is the floor that removes that failure,
     not a statistical one: with n videos the chance that a resample draws
@@ -419,7 +418,7 @@ Every command takes those paths as arguments.
     above two, and where, is a decision about the paper's populations, not
     the code's; until it is made, a subset's interval is read for its sign
     only, as `--drop-video` says.
-12. **The frame counts in the check against the pilot evaluator.**
+11. **The frame counts in the check against the pilot evaluator.**
     `pilot_check` compares the clip values as the pilot rounded them, four
     decimals, and a mean over a clip's frames can absorb one frame left out
     or added. The pilot's counts (`n_gt_frames`, `n_vi_frames`, and
@@ -427,7 +426,7 @@ Every command takes those paths as arguments.
     that. The evaluator keeps the count behind every key
     (`ClipScores.n_frames`) but has not fixed how a JSON spells it; when the
     pilot-mode driver does, `SHARED` takes the counts too.
-13. **The edge ring as a process-wide flag.**
+12. **The edge ring as a process-wide flag.**
     `surgical_core.geometry.normals.EDGE_MASK_RING` decides whether the
     contour around the image border and around invalid depth is zeroed in the
     edge map the segmenter is prompted with. It is a module global, set for a
@@ -436,7 +435,7 @@ Every command takes those paths as arguments.
     it into its own provenance record. Whether a setting passed per run, and
     recorded with the output in one form, replaces the flag is decided before
     either stage is ported.
-14. **Depth made by two versions of the depth stage.** On the development
+13. **Depth made by two versions of the depth stage.** On the development
     machine's copy of the workbench, 7 of the 9 CholecSeg8k clips (VID01 and
     VID12) carry depth written by a branch of the depth stage that never
     reached the workbench's `main`: their `results.npz` holds a `ray_map` and
@@ -456,7 +455,7 @@ Every command takes those paths as arguments.
     whether the ported stage follows `main`, and the depth so made is made
     again with every condition on it, or the branch's setting becomes the
     stage's.
-15. **The seed frame chosen from GT.** With `--seed_auto`, the tracking stage
+14. **The seed frame chosen from GT.** With `--seed_auto`, the tracking stage
     seeds on the frame nearest the window's centre among those whose GT masks
     call at most `--seed_inst_thresh` of it instrument (0.005 by default), or,
     when there is none, on the frame with the least. It reads each frame's
@@ -482,7 +481,7 @@ Every command takes those paths as arguments.
     stay, under which rule a score records them, and whether their seed keeps
     the `MIN_AREA` cut that "No minimum object size, anywhere" removes
     everywhere else.
-16. **Two orders of the world transform.** `cam_to_world` computes
+15. **Two orders of the world transform.** `cam_to_world` computes
     `(p - t) @ R`; the workbench's back-projection computes
     `(R.T @ (p.T - t)).T`. On the development machine the two give the same
     bits only where the BLAS runs the same kernel: under numpy 2.5.3 on
@@ -495,7 +494,7 @@ Every command takes those paths as arguments.
     surface in the tracking stage's byte check. If it does there, the choice
     is between restoring the workbench's order and accepting a documented
     non-bit-equality — made then, not found later.
-17. **Whether the geometry path has to be fast.** The depth stage
+16. **Whether the geometry path has to be fast.** The depth stage
     back-projects each frame once when a clip is exported, with
     `backproject_depth`, `cam_to_world` and `world_to_gltf`, and writes the
     points to a GLB file. Nothing waits on it there, so its cost is a batch
