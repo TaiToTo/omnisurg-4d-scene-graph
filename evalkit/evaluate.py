@@ -4,13 +4,14 @@ For each clip it reads the inputs (`evalkit.inputs`), scores every GT frame
 in every view (`evalkit.frame`), pools `time_IoU` over every frame with a
 prediction, and averages over the frames (`evalkit.clip`). The JSON holds
 what `docs/evaluation.md` records with every score, one row per clip, and
-the per-frame values. A clip that cannot be scored stops the run, and no
-JSON is written: a population is scored whole or not at all.
+the per-frame values, with the condition's propagation rule as its tracker
+recorded it. A clip that cannot be scored stops the run, and no JSON is
+written: a population is scored whole or not at all.
 
 Usage:
     python -m evalkit.evaluate --dataset cholecseg8k --clips clips.txt \\
         --data-root <dir of clips> --tracks-root <dir of predictions> \\
-        --tag <condition> --out <condition>.json
+        --tag <condition> --out <condition>.json [--propagation <rule>]
 """
 from __future__ import annotations
 
@@ -36,6 +37,12 @@ from evalkit.scored import valid_depth
 from evalkit.time_iou import time_iou
 
 (TIME_KEY,) = CLIP_METRICS
+
+# The propagation rules `docs/evaluation.md` defines.
+PROPAGATION_RULES = ("both_ways_from_centre", "forward_from_first", "per_frame")
+
+# The record a tracker or the per-frame stage writes beside a condition's labels.
+SEED_INFO = "seed_info.json"
 
 
 def check_table(table: ClassTable) -> None:
@@ -110,16 +117,74 @@ def versions() -> dict[str, str]:
             "opencv": cv2.__version__, "pillow": PIL.__version__}
 
 
-def score_condition(dataset: str, class_set: str | None, clips: Sequence[str],
-                    data_root: str | Path, tracks_root: str | Path, tag: str) -> dict:
-    """Score one condition on every clip, and return its score JSON as a dict.
+def rule_of_seed_info(info: dict) -> str | None:
+    """Return the propagation rule a clip's `seed_info.json` records, or None when it holds none.
+
+    The per-frame stage records `seed_source` `per_frame`. The tracker records `bidir`, the seed frame and the
+    frames it labelled: `both_ways_from_centre` seeds on the centre of those frames and carries both ways;
+    `forward_from_first` seeds on frame 0 and carries forward. A seed chosen anywhere else, from the GT for one,
+    holds neither rule.
+    """
+    if info.get("seed_source") == "per_frame":
+        return "per_frame"
+    frames, seed = info.get("frames"), info.get("seed_frame")
+    if not frames or seed is None or "bidir" not in info:
+        return None
+    if info["bidir"] and seed == frames[len(frames) // 2]:
+        return "both_ways_from_centre"
+    if not info["bidir"] and seed == 0 and frames[0] == 0:
+        return "forward_from_first"
+    return None
+
+
+def condition_rule(tracks_root: str | Path, tag: str, clips: Sequence[str], stated: str | None = None) -> str:
+    """Return the condition's propagation rule, as each clip's `seed_info.json` records it or as stated.
+
+    Args:
+        tracks_root: The directory holding one directory per clip.
+        tag: The condition's directory name under each clip.
+        clips: The population.
+        stated: The rule the caller states, for a condition whose labels carry no `seed_info.json`.
 
     Raises:
-        ValueError, KeyError, FileNotFoundError: A clip's inputs cannot be
-            read or scored. Nothing is returned for the others.
+        ValueError: A clip's record holds no rule; two clips hold two rules; the stated rule is not one or
+            contradicts the records; or neither records nor a statement give one.
+    """
+    if stated is not None and stated not in PROPAGATION_RULES:
+        raise ValueError(f"{stated!r} is no propagation rule; one of {PROPAGATION_RULES}")
+    found = {}
+    for clip in clips:
+        path = Path(tracks_root) / clip / tag / SEED_INFO
+        if path.is_file():
+            rule = rule_of_seed_info(json.loads(path.read_text(encoding="utf-8")))
+            if rule is None:
+                raise ValueError(f"{clip}: {tag}'s {SEED_INFO} holds no propagation rule; a seed off the "
+                                 "centre and off the first frame is neither rule")
+            found[clip] = rule
+    rules = set(found.values()) | ({stated} if stated else set())
+    if len(rules) > 1:
+        raise ValueError(f"{tag}: the clips and the statement give {sorted(rules)}; a condition has one rule")
+    if not rules:
+        raise ValueError(f"{tag}: no clip has a {SEED_INFO}, so state the rule with --propagation")
+    return rules.pop()
+
+
+def score_condition(dataset: str, class_set: str | None, clips: Sequence[str],
+                    data_root: str | Path, tracks_root: str | Path, tag: str,
+                    propagation: str | None = None) -> dict:
+    """Score one condition on every clip, and return its score JSON as a dict.
+
+    Args:
+        propagation: The condition's propagation rule, for labels that carry no `seed_info.json`.
+
+    Raises:
+        ValueError, KeyError, FileNotFoundError: The condition's propagation rule is unknown
+            (`condition_rule`), or a clip's inputs cannot be read or scored. Nothing is returned for the
+            others.
     """
     table = load_table(dataset, class_set)
     check_table(table)
+    rule = condition_rule(tracks_root, tag, clips, propagation)
     sha = eval_code_sha()
     rows, shas = [], {}
     for clip in clips:
@@ -129,7 +194,7 @@ def score_condition(dataset: str, class_set: str | None, clips: Sequence[str],
     return {
         "eval_code_sha": sha, "dataset": table.dataset, "class_set": table.class_set,
         "views": list(VIEWS), "pilot": False, "track_dir_name": tag, "clips": list(clips),
-        "input_shas": shas, "versions": versions(), "per_clip": rows,
+        "input_shas": shas, "versions": versions(), "propagation": rule, "per_clip": rows,
     }
 
 
@@ -151,9 +216,12 @@ def main(argv: Sequence[str] | None = None) -> None:
     ap.add_argument("--tracks-root", required=True, help="one directory per clip, one per condition inside")
     ap.add_argument("--tag", required=True, help="the condition's directory name under each clip")
     ap.add_argument("--out", required=True, help="the score JSON to write")
+    ap.add_argument("--propagation", choices=PROPAGATION_RULES, default=None,
+                    help="the condition's propagation rule, for labels that carry no seed_info.json")
     args = ap.parse_args(argv)
     clips = read_population(args.clips)
-    summary = score_condition(args.dataset, args.class_set, clips, args.data_root, args.tracks_root, args.tag)
+    summary = score_condition(args.dataset, args.class_set, clips, args.data_root, args.tracks_root, args.tag,
+                              args.propagation)
     write_scores(summary, args.out)
     print(f"{args.tag}: {len(clips)} clips scored, {args.out}")
 

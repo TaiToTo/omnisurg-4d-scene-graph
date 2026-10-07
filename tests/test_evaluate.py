@@ -3,7 +3,9 @@
 A prediction equal to the GT must score one, or zero for the variation of
 information, on every key in every view. The JSON must pass the tools' own
 readers, two conditions on the same inputs must be comparable, and one on
-another GT must not. A run that fails writes nothing.
+another GT must not. A run that fails writes nothing. The JSON records the
+condition's propagation rule as each clip's `seed_info.json` gives it, and a
+condition whose seed holds no rule is refused.
 """
 import json
 import shutil
@@ -21,17 +23,22 @@ from evalkit.tools.scores import check_comparable, check_rows, load_scores, metr
 
 CLIPS = ["VID01_a", "VID02_b"]
 
+# What the tracker records for a seed on the centre of three frames, carried both ways.
+BOTH_WAYS = {"seed_source": "auto", "seed_frame": 1, "bidir": True, "frames": [0, 1, 2]}
+FORWARD = {"seed_source": "auto", "seed_frame": 0, "bidir": False, "frames": [0, 1, 2]}
 
-def write_condition(tmp_path, tag, regions_of=lambda gt: gt.copy(), clips=CLIPS, data="data"):
+
+def write_condition(tmp_path, tag, regions_of=lambda gt: gt.copy(), clips=CLIPS, data="data", seed_info=BOTH_WAYS):
     for k, clip in enumerate(clips):
         gt = [C.two_organs(cut=8 + 2 * i + k) for i in range(3)]
         if not (tmp_path / data / clip).exists():
             C.write_clip(tmp_path / data, clip, gt)
-        C.write_labels(tmp_path / "tracks", clip, tag, {i: regions_of(g) for i, g in enumerate(gt)})
+        C.write_labels(tmp_path / "tracks", clip, tag, {i: regions_of(g) for i, g in enumerate(gt)},
+                       seed_info=seed_info)
 
 
-def score(tmp_path, tag, data="data", clips=CLIPS):
-    return score_condition("cholecseg8k", None, clips, tmp_path / data, tmp_path / "tracks", tag)
+def score(tmp_path, tag, data="data", clips=CLIPS, propagation=None):
+    return score_condition("cholecseg8k", None, clips, tmp_path / data, tmp_path / "tracks", tag, propagation)
 
 
 def test_a_perfect_prediction_scores_one_on_every_key_and_the_tools_read_the_json(tmp_path):
@@ -59,7 +66,7 @@ def test_a_perfect_prediction_scores_one_on_every_key_and_the_tools_read_the_jso
 def test_time_iou_pools_every_frame_with_a_prediction_in_time_order(tmp_path):
     gt = [C.two_organs(cut=c) for c in (8, 12, 10)]
     C.write_clip(tmp_path / "data", "VID01_a", gt, gt_frames=[0, 2], times=[0.0, 1.2, 0.6])
-    C.write_labels(tmp_path / "tracks", "VID01_a", "t", {i: g.copy() for i, g in enumerate(gt)})
+    C.write_labels(tmp_path / "tracks", "VID01_a", "t", {i: g.copy() for i, g in enumerate(gt)}, seed_info=BOTH_WAYS)
     row = score(tmp_path, "t", clips=["VID01_a"])["per_clip"][0]
     ones = [np.ones((20, 30), dtype=bool)] * 3
     assert row["time_IoU"] == pytest.approx(time_iou([gt[0], gt[2], gt[1]], ones))
@@ -125,3 +132,45 @@ def test_a_value_that_is_not_a_json_number_is_never_written(tmp_path):
     with pytest.raises(ValueError):
         write_scores({"per_clip": [{"clip": "a", "SQ/all": float("nan")}]}, tmp_path / "x.json")
     assert not (tmp_path / "x.json").exists()
+
+
+@pytest.mark.parametrize("info, rule", [
+    (BOTH_WAYS, "both_ways_from_centre"),
+    (FORWARD, "forward_from_first"),
+    ({"seed_source": "per_frame", "frames": "all"}, "per_frame"),
+])
+def test_the_json_records_the_rule_each_clip_s_seed_info_gives(tmp_path, info, rule):
+    write_condition(tmp_path, "c", seed_info=info)
+    summary = score(tmp_path, "c")
+    assert summary["propagation"] == rule
+
+
+@pytest.mark.parametrize("info", [
+    {"seed_source": "gt", "seed_frame": 2, "bidir": True, "frames": [0, 1, 2]},
+    {"seed_source": "auto", "seed_frame": 1, "bidir": False, "frames": [1, 2]},
+    {"seed_source": "auto", "seed_frame": 1, "frames": [0, 1, 2]},
+])
+def test_a_seed_that_holds_no_rule_is_refused(tmp_path, info):
+    write_condition(tmp_path, "c", seed_info=info)
+    with pytest.raises(ValueError, match="holds no propagation rule"):
+        score(tmp_path, "c")
+
+
+def test_two_rules_in_one_condition_are_refused(tmp_path):
+    write_condition(tmp_path, "c", clips=CLIPS[:1])
+    write_condition(tmp_path, "c", clips=CLIPS[1:], seed_info=FORWARD)
+    with pytest.raises(ValueError, match="a condition has one rule"):
+        score(tmp_path, "c")
+
+
+def test_a_statement_that_contradicts_the_records_is_refused(tmp_path):
+    write_condition(tmp_path, "c")
+    with pytest.raises(ValueError, match="a condition has one rule"):
+        score(tmp_path, "c", propagation="forward_from_first")
+
+
+def test_labels_without_a_record_need_the_rule_stated(tmp_path):
+    write_condition(tmp_path, "c", seed_info=None)
+    with pytest.raises(ValueError, match="state the rule with --propagation"):
+        score(tmp_path, "c")
+    assert score(tmp_path, "c", propagation="per_frame")["propagation"] == "per_frame"

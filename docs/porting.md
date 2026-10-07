@@ -341,9 +341,12 @@ Every command takes those paths as arguments.
      pilot's way and does not call `summarize_clip` (`evalkit/clip.py`).
    - Which frames are GT frames: the pilot scored every frame that had both
      a prediction and a mask file, read no manifest, and ordered by file
-     name. `evalkit/inputs.py` takes the manifest's frames and flags, and
-     refuses a mask the manifest does not expect; pilot mode reads the
-     masks the pilot's way (`evalkit/inputs.py`).
+     name. Its data root held the annotated masks only: its scores of the
+     CholecSeg8k clips count exactly the anchor frames. So pilot mode takes
+     the GT frames from the manifest's flags, as `evalkit/inputs.py` does
+     (`docs/evaluation.md`, "Which frames"). On a copy that also holds the
+     viewer's masks, reading every mask file would score frames the pilot
+     never did.
 5. **Boundary dilation before the freeze.** `evalkit/boundary.py` dilates
    with `cv2.dilate`; a numpy shift-or over the (2·tol + 1)² offsets agrees
    on every mask tried, borders included. The question is whether a hashed
@@ -382,11 +385,11 @@ Every command takes those paths as arguments.
    and that is a deliberate exception to step 5's byte-for-byte rule.
    The evaluator refuses two of the nine clips on this machine. In
    `VID25_s15_162_crop` native frame 387 appears twice, at one timestamp.
-   In it and in `VID25_s15_402_crop`, the gap frames carry masks from an
-   earlier extraction, 504 × 504 where the GT is 457 × 456, on frames the
-   manifest says have none: 8 and 19 frames. The pilot evaluator read a
-   mask wherever its file was, so it scored those frames against them
-   wherever a condition predicted the frame.
+   In it and in `VID25_s15_402_crop`, the gap frames hold masks the
+   viewer's step wrote before the clips were extracted again, 504 × 504
+   where the GT is 457 × 456, on frames the manifest says have none: 8 and
+   19 frames. The pilot's scores of these clips count the annotated frames
+   only, so its data root did not hold those masks.
 9. **The evaluator map against `evalkit/frame.py`.** Two things to carry
    into the next redraw of `docs/figures/evaluator_map.png`, neither wrong
    today. The map gives step 2, one frame in one view, no module, and

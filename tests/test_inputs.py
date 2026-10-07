@@ -3,7 +3,8 @@
 The clips are written by `tests/clip_dirs.py` as the pipeline lays them out.
 The refusals include the two faults the real CholecSeg8k clips showed: an
 image that appears twice, at one timestamp, and a stale mask left on a frame
-the manifest says has none.
+the manifest says has none. A mask the viewer's step wrote under the GT's
+name, marked by `seg_provenance`, is not GT and is not scored.
 """
 import hashlib
 import json
@@ -96,7 +97,7 @@ def test_one_image_twice_at_one_timestamp_is_refused(tmp_path):
 def test_a_mask_on_a_frame_the_manifest_says_has_none_is_refused(tmp_path):
     clip_with_labels(tmp_path)
     edit_manifest(tmp_path, lambda m: m["frames"][3].update(has_seg_mask=False))
-    with pytest.raises(ValueError, match="frame 3 is flagged has-GT=False but its mask is there"):
+    with pytest.raises(ValueError, match="frame 3 is flagged has_seg_mask=False but its mask is there"):
         read(tmp_path)
 
 
@@ -141,7 +142,7 @@ def test_a_condition_without_a_directory_for_the_clip_is_refused(tmp_path):
 
 def test_a_clip_with_no_mask_is_refused(tmp_path):
     clip_with_labels(tmp_path, gt_frames=[])
-    with pytest.raises(ValueError, match="no GT mask"):
+    with pytest.raises(ValueError, match="no frame is a GT frame"):
         read(tmp_path)
 
 
@@ -152,4 +153,38 @@ def test_a_mask_colour_the_table_does_not_have_is_refused(tmp_path):
     rgb[0, 0] = (1, 2, 3)
     Image.fromarray(rgb).save(path)
     with pytest.raises(KeyError, match="not in the class table"):
+        read(tmp_path)
+
+
+def test_a_mask_marked_by_seg_provenance_is_not_gt_and_needs_no_prediction(tmp_path):
+    gt = [C.two_organs(cut=10 + i) for i in range(4)]
+    C.write_clip(tmp_path / "data", "c", gt, gt_frames=[0, 3], sam_frames=[1, 2])
+    C.write_labels(tmp_path / "tracks", "c", TAG, {0: gt[0].copy(), 3: gt[3].copy()}, scale=2)
+    clip = read(tmp_path)
+    assert sorted(clip.gt) == [0, 3]
+
+
+def test_the_gt_masks_fingerprint_covers_gt_frames_only(tmp_path):
+    clip_with_labels(tmp_path, gt_frames=[0, 3])
+    before = read(tmp_path).shas["gt_masks"]
+    edit_manifest(tmp_path, lambda m: m["frames"][3].update(seg_provenance="sam3_gt_propagated"))
+    assert read(tmp_path).shas["gt_masks"] != before
+
+
+@pytest.mark.parametrize("change, match", [
+    (lambda m: m["frames"][2].update(is_anchor=False), "frame 2 has a mask but is neither an anchor"),
+    (lambda m: m["frames"][2].pop("is_anchor"), "frame 2 has a mask but is neither an anchor"),
+    (lambda m: m["frames"][1].pop("has_seg_mask"), "frame 1 has no has_seg_mask flag"),
+])
+def test_a_frame_whose_gt_the_manifest_leaves_unknown_is_refused(tmp_path, change, match):
+    clip_with_labels(tmp_path)
+    edit_manifest(tmp_path, change)
+    with pytest.raises(ValueError, match=match):
+        read(tmp_path)
+
+
+def test_a_gt_flag_without_a_mask_file_is_refused(tmp_path):
+    clip_with_labels(tmp_path)
+    (tmp_path / "data" / "c" / MASK_DIR / f"{2:06d}_color_mask.png").unlink()
+    with pytest.raises(ValueError, match="frame 2 is flagged has_seg_mask=True but its mask is missing"):
         read(tmp_path)
