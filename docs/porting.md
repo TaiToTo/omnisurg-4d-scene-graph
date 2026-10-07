@@ -213,13 +213,12 @@ move; the rest is listed under "Not carried for now" below.
     `seg_quality_experiment/scripts/`: `run_track_conditions.py`, whose
     `MODES` hold the operating point's flags (`--seed_auto --bidir
     --max_frames 0 --seed_inst_thresh 1.0`), and the `eval_atlas_gt_clips.py`
-    it imports. `get_sam` is a copy of upstream code, so the port depends on
-    the upstream package instead. `loaders.py` returns a black image for a
-    missing frame; the port raises.
-  - The inputs of two conditions: `ipcai2027_experiment/scripts/make_t5_seeds.py`,
-    which makes the seeds of the granularity result, and
-    `ipcai2027_experiment/atlas97/scripts/make_paste_floor.py`, which makes
-    the pasted floor (`t12_paste`) the identity measures are compared with.
+    it imports. `get_sam`, five lines that paint the mask generator's masks
+    into one map, is written again in the stage; the generator itself comes
+    from the upstream `segment-anything` package. `loaders.py` returns a
+    black image for a missing frame; the port raises.
+  - The input of one condition: `ipcai2027_experiment/scripts/make_t5_seeds.py`,
+    which makes the seeds of the granularity result.
   - The paper's tables: `ipcai2027_experiment/atlas97/scripts/summary97.py`,
     `ipcai2027_experiment/scripts/claims_grid.py` and `arms_paired.py`,
     `ipcai2027_experiment/task15_granularity/scripts/claims_table.py` and
@@ -309,8 +308,10 @@ before it was left out stays in its history.
 - **Paths inside the files that move.** Each was never run for a reported
   number:
   - `track_sam3.py`: seeding from instrument masks (`--instrument_*`), the
-    seed cache, `--seed_frame`, `--stride`, `--track_edge_gain`,
-    `--track_no_smooth`, and the consensus and 3D variants;
+    seed cache, `--seed_frame`, `--stride`, `--max_frames`, `--seed_topk`,
+    the choice of the seed frame from GT (`--seed_inst_thresh` below 1),
+    `--track_edge_gain`, `--track_no_smooth`, and the consensus and 3D
+    variants;
   - `sam3d_core.py`: everything but `num_to_natural` and `get_sam`;
   - `sam3_wrapper/`: `scripts/`, `image_instance`, the concept session and
     `add_boxes`;
@@ -334,6 +335,14 @@ before it was left out stays in its history.
     checks only the clips written against the population;
   - `run_per_frame_seg.py`: `--point_grids_dir`, `--frames gt`, `--smooth`.
 - **`extract_cholec_frames.py`**, which no condition ran.
+- **Conditions seeded from GT masks.** `track_sam3.py --seed_source gt`,
+  which seeds on `track_metrics.pick_seed_frame` with the regions of
+  `track_metrics.gt_instances`; the ATLAS-120k conditions made that way,
+  `t12_gtseed` on five inputs and `t12_paste`; and
+  `ipcai2027_experiment/atlas97/scripts/make_paste_floor.py`, which makes
+  the latter. They measure how well propagation keeps an object given a
+  perfect seed, a reference value (decision 13). If the paper reports
+  them, the numbers come from the workbench's code.
 
 What stays behind is listed in `repo_migration_plan.md`, in the section on
 what stays.
