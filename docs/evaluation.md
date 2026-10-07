@@ -107,7 +107,10 @@ found in the code. A module's docstring says what it returns.
   input size: the longest side scaled to 504 px, then each side rounded to the
   nearest multiple of 14.
 - **Time.** Frames are ordered by their timestamps, not by their file names: in
-  11 of the 27 CholecSeg8k clips the frame numbers do not follow time.
+  11 of the 27 CholecSeg8k clips the frame numbers do not follow time. A
+  dataset that gives no timestamps, ATLAS-120k, is ordered by frame number.
+  A clip in which two frames share a time, or only some frames have one, is
+  refused, since the order of its frames is unknown.
 - **Clips and videos.** A *video* is one recording in the dataset. A *clip* is
   a stretch of one video that the pipeline processes as a unit, and a video
   can supply several clips. Which clips enter a measurement is data, kept in
@@ -117,6 +120,17 @@ found in the code. A module's docstring says what it returns.
 - **Frame manifest.** The pipeline writes `frame_manifest.json` into each
   clip. It lists the clip's frames with their times and GT flags, and holds
   the crop rectangle.
+- **Propagation rule.** A tracked condition carries its labels from one
+  seed frame, under one of two rules. `both_ways_from_centre` seeds on the
+  centre of the frames it labels, frame N // 2 of N, and carries both ways;
+  it is the offline setting. `forward_from_first` seeds on frame 0 and
+  carries forward; it is the causal setting. A condition segmented frame by
+  frame has no seed, and its rule is `per_frame`. The tracker records its
+  seed frame and its direction beside its labels, in `seed_info.json`, and
+  the evaluator reads the rule from there. A seed from anywhere else, the
+  GT for one, holds neither rule: such a condition is a comparison of its
+  own, and is not scored under either. A score records the rule as
+  `propagation`, and a condition whose rule is unknown is not scored.
 
 A clip is a directory. Frame i is `frames[i]` of the frame manifest, counted
 from 0, and every input of that frame sits at index i. The index is the
@@ -537,13 +551,25 @@ uses it.
   changed type is a new evaluator
 - the dataset, the class set (`original`, or for ATLAS-120k also
   `benchmark`), the view, and whether the score was made in pilot mode
-- the sha of every input read: GT masks, depth maps and predictions
+- the sha of every input read, per clip: the GT masks, the depth maps (as
+  `atlas120k_meta/depth_manifest.json` fingerprints them), the crop
+  rectangle, the frames in time order, and the predictions
 - the name of the directory the predictions were read from, as
   `track_dir_name`, which is how `condition_inventory` matches a score to
   its labels; a score that does not say what it scored cannot be inventoried
+- the condition's propagation rule, as `propagation` ("Propagation rule"
+  above)
 - the Python, numpy, OpenCV and Pillow versions
 
 The pilot evaluator's JSONs recorded neither the input shas nor the versions.
+
+A score JSON holds those fields, `clips` (the population, in its order),
+and one row per clip under `per_clip`. A row holds the clip's name, every
+key (`metric/view`, then `time_IoU`), and the counts behind them: `n_frames`,
+the frames each key's mean covers, by key; the scored and excluded frames;
+`pixels`, where each view's pixels went; and `objects`, the GT objects,
+predicted objects, hits and hits that entered `inst_BF`, per view. Its
+`frames` keeps every GT frame's values, by frame number, in time order.
 
 Two scores are comparable only when their `eval_code_sha`, dataset, class set,
 view and mode match, they cover the same clips, and they read the same GT masks
