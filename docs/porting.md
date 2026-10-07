@@ -534,10 +534,13 @@ Every command takes those paths as arguments.
     a name of its own, so that the distinction is in the file and not only in
     the frame manifest.
 20. **Which commit of Depth Anything 3 the `recon3d` extra pins.** The extra
-    names the repository at its head. The commit is the one G ran, read from
-    pip's record of the install there (`direct_url.json`), and is pinned
-    when it has been read.
-21. **G's constraints file.** `pip install -e ".[recon3d]" -c <file>` is to
-    give G's packages at their versions to another machine. The file is
-    written from G's environment and added beside `pyproject.toml` when it
-    has been read; until then the extra alone says what any machine needs.
+    names the repository at its head, so two installs can get two versions.
+    The commit to pin is the one the workbench ran on its GPU machine. pip
+    recorded it there, in the `direct_url.json` of that install. The extra
+    is pinned once that record has been read.
+21. **A constraints file from the GPU machine.** The pipeline was measured
+    with the package versions on the workbench's GPU machine. A constraints
+    file lists them, so that `pip install -e ".[recon3d]" -c <file>` gives
+    another machine the same versions. The file is written from that
+    machine's environment and added beside `pyproject.toml` once it has
+    been read. Until then the extra alone says what a machine needs.
