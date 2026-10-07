@@ -23,7 +23,7 @@ import glob
 import json
 import os
 import sys
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 from evalkit.tools.scores import check_comparable, check_one_rule, clips_of, load_scores, ruler
 
@@ -221,11 +221,16 @@ def _refusal(evals: dict, group: list[str], tag: str) -> tuple[str, str] | None:
     return None
 
 
-def describe_group(summaries: list[dict]) -> str:
-    """One line saying what a group's scores were measured with, under which rule, and on how many clips."""
-    r, rule = ruler(summaries[0]), check_one_rule(dict(enumerate(summaries)))
+def describe_group(summaries: Mapping[str, dict]) -> str:
+    """One line saying what a group's scores were measured with, under which rule, and on how many clips.
+
+    Args:
+        summaries: The group's score JSONs, by tag.
+    """
+    first = next(iter(summaries.values()))
+    r, rule = ruler(first), check_one_rule(summaries)
     return (f"sha={str(r.eval_code_sha)[:8]} pilot={r.pilot} class_set={r.class_set} "
-            f"views={list(r.views)} dataset={r.dataset} n_clips={len(clips_of(summaries[0]))}"
+            f"views={list(r.views)} dataset={r.dataset} n_clips={len(clips_of(first))}"
             + (f" propagation={rule}" if rule is not None else ""))
 
 
@@ -305,7 +310,7 @@ def report(track_root: str, evals: dict, title: str, scored_dirs: set[str]) -> t
         groups, reasons = comparable_groups(evals)
         print(f"\n  comparable groups: {len(groups)}")
         for g in groups:
-            print(f"    {describe_group([evals[t]['summary'] for t in g])} → {len(g)} conditions: {g}")
+            print(f"    {describe_group({t: evals[t]['summary'] for t in g})} → {len(g)} conditions: {g}")
         for tag, member, why in reasons:
             print(f"    !! {tag} vs {member}: " + why.replace("\n", "\n       "))
         if len(groups) > 1:

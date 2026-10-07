@@ -254,8 +254,9 @@ def test_a_per_frame_score_joins_a_group_of_either_rule_and_the_group_names_the_
 
 def test_a_tag_tracked_both_ways_on_some_clips_and_forward_on_others_is_reported(tree):
     tr, ev = tree
-    plant(tr, {"track_rgb_a_rgb": [("c3", {**provenance("rgb", 8), "bidir": False}, 13)]})
-    plant(tr, {"track_rgb_a_rgb": [(c, {**provenance("rgb", 8), "bidir": True}, LABELS[c]) for c in ("c1", "c2")]})
+    tracked = {**provenance("rgb", 8), "seed_source": "sam"}
+    plant(tr, {"track_rgb_a_rgb": [("c3", {**tracked, "bidir": False}, 13)]})
+    plant(tr, {"track_rgb_a_rgb": [(c, {**tracked, "bidir": True}, LABELS[c]) for c in ("c1", "c2")]})
     assert any("conditions are mixed" in p for p in problems(tr, ev))
 
 
