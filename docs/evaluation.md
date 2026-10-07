@@ -120,6 +120,17 @@ found in the code. A module's docstring says what it returns.
 - **Frame manifest.** The pipeline writes `frame_manifest.json` into each
   clip. It lists the clip's frames with their times and GT flags, and holds
   the crop rectangle.
+- **Propagation rule.** A tracked condition carries its labels from one
+  seed frame, under one of two rules. `both_ways_from_centre` seeds on the
+  centre of the frames it labels, frame N // 2 of N, and carries both ways;
+  it is the offline setting. `forward_from_first` seeds on frame 0 and
+  carries forward; it is the causal setting. A condition segmented frame by
+  frame has no seed, and its rule is `per_frame`. The tracker records its
+  seed frame and its direction beside its labels, in `seed_info.json`, and
+  the evaluator reads the rule from there. A seed from anywhere else, the
+  GT for one, holds neither rule: such a condition is a comparison of its
+  own, and is not scored under either. A score records the rule as
+  `propagation`, and a condition whose rule is unknown is not scored.
 
 A clip is a directory. Frame i is `frames[i]` of the frame manifest, counted
 from 0, and every input of that frame sits at index i. The index is the
@@ -525,12 +536,6 @@ uses it.
   mask of background alone, the one frame the marker could hide in, is
   refused. The marker occurs in no palette mask of the release, and no colour
   mask is background alone.
-- A GT frame without a prediction stops the clip. The pilot evaluator
-  scored only the frames that had one, and skipped the others without a
-  count.
-- A GT mask on a frame that the clip's manifest says has none stops the
-  clip, and so does a frame the manifest says has one without a mask. A
-  stale mask from an earlier extraction is otherwise scored as GT.
 - Nothing is dropped without a count: skipped frames, ignored, background and
   invalid pixels, the pixels each view removes, and the frames a metric is not
   defined on are counted in the JSON. A removed pixel is counted once, by the
@@ -552,6 +557,8 @@ uses it.
 - the name of the directory the predictions were read from, as
   `track_dir_name`, which is how `condition_inventory` matches a score to
   its labels; a score that does not say what it scored cannot be inventoried
+- the condition's propagation rule, as `propagation` ("Propagation rule"
+  above)
 - the Python, numpy, OpenCV and Pillow versions
 
 The pilot evaluator's JSONs recorded neither the input shas nor the versions.

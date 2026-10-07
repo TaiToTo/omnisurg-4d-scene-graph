@@ -90,12 +90,12 @@ def _sha_of_json(value) -> str:
 
 
 def depth_sha(depth: np.ndarray) -> str:
-    """The depth's fingerprint: the sha256 of its float32 values, as `atlas120k_meta/depth_manifest.json` records it."""
+    """Return the depth's fingerprint: the sha256 of its float32 values, as `atlas120k_meta/depth_manifest.json` records it."""
     return hashlib.sha256(np.ascontiguousarray(depth, dtype=np.float32).tobytes()).hexdigest()
 
 
 def _time_order(frames: list[dict], clip: str) -> list[int]:
-    """The frames' indexes in time order: by `timestamp_sec`, or by frame number where the dataset gives no time.
+    """Return the frames' indexes in time order: by `timestamp_sec`, or by frame number where the dataset gives no time.
 
     Raises:
         ValueError: Some frames have a timestamp and some do not, or two
@@ -151,7 +151,7 @@ def _resized(arr: np.ndarray, shape: tuple[int, int]) -> np.ndarray:
 
 
 def _labels(label_dir: Path, n: int, clip: str) -> dict[int, Path]:
-    """Each frame index with a prediction to its file.
+    """Map each frame index with a prediction to its file.
 
     Raises:
         FileNotFoundError: The condition has no directory for this clip.
