@@ -184,10 +184,12 @@ move; the rest is listed under "Not carried for now" below.
     `scripts/measure_determinism.py`.
   - ATLAS-120k extraction: `scripts/extract_atlas_frames.py`, as
     `experiment/crop_necessity/run_atlas97_extract.sh` runs it
-    (`--skip-tiles --gt-step-sec 0.52 --gt-min-frames 8 --clip-rects`). Its
-    drivers come with it: `run_atlas97_extract.sh`,
-    `plan_atlas97_population.py`, `verify_atlas97_population.py` and
-    `run_atlas97_depth.sh` from `experiment/crop_necessity/`, and
+    (`--skip-tiles --gt-step-sec 0.52 --gt-min-frames 8 --clip-rects`).
+    Ported, the stage runs every video itself and checks the clips it
+    writes against `atlas120k_meta/clips.txt`, in place of
+    `run_atlas97_extract.sh`, `plan_atlas97_population.py` and
+    `verify_atlas97_population.py` from `experiment/crop_necessity/`.
+    `run_atlas97_depth.sh` comes with it, and so does
     `ipcai2027_experiment/task22_atlas100/scripts/prepare_video_root.py`,
     which converts the one AV1 video of the population
     (`rarp/NitKIjCcS7U`) to H.264.
@@ -317,7 +319,16 @@ before it was left out stays in its history.
     `add_boxes`;
   - `depth_source.py`: the `da2` source and the bilateral `_bil` variants;
   - `preprocess`: the border inpainting and the content-mask detection;
-  - `extract_atlas_frames.py`: the tile clips;
+  - `extract_atlas_frames.py`: the tile clips; the per-video rectangle it
+    estimates from the frames (`detect_content_rect` and the three
+    `refine_rect_*` steps), which a confirmed rectangle replaces on every
+    clip of the release; reading the frames from the mp4 by number, which
+    only a clip without the release's JPEGs takes, or one padded past its
+    annotation (`--gt-pad-factor`); and `--gt-stride`,
+    `--keep-duplicates`, `--dry-run` and `--no-clean`;
+  - `plan_atlas97_population.py`: the reason it plans for each clip of the
+    index. The ported stage records each clip's reason in its report and
+    checks only the clips written against the population;
   - `run_per_frame_seg.py`: `--point_grids_dir`, `--frames gt`, `--smooth`.
 - **`extract_cholec_frames.py`**, which no condition ran.
 
