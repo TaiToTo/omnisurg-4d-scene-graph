@@ -296,25 +296,14 @@ Every command takes those paths as arguments.
 
 ## Open questions
 
-1. **Identity metrics and merge cost.** `docs/evaluation.md` leaves
-   consistency over time undecided: `time_IoU` is a reference value, and the
-   candidates (hold, IDF1, ID switches, fragmentation, re-entry) live in the
-   workbench's `track_metrics` and are not reported. Choosing one means
-   defining a GT track, a second object definition finer than the whole-class
-   object, and saying how the two coexist (`docs/evaluation.md`, "Consistency
-   over time"). Decide whether they and `kmerge` join the evaluator. If
-   `hold_mean` is carried under that name it keeps the workbench's definition,
-   which was pre-registered there; a different denominator is a different
-   metric, with a different name. In the workbench, moving the denominator
-   once flipped a result's sign.
-2. **The skill-classification code and the other 18 viewer pages.** The plan
+1. **The skill-classification code and the other 18 viewer pages.** The plan
    leaves both behind. The paper's figures come from some of those pages.
-3. **Whether step 5 has to finish before submission.** Step 3 already gives
+2. **Whether step 5 has to finish before submission.** Step 3 already gives
    the numbers. A stage that passes step 5's byte check cannot change them;
    the 14 clips re-extracted under "CholecSeg8k clips whose frames run out
    of order" can, and so can depth made again under "Depth made by two
    versions of the depth stage".
-4. **Boundary dilation before the freeze.** `evalkit/boundary.py` dilates
+3. **Boundary dilation before the freeze.** `evalkit/boundary.py` dilates
    with `cv2.dilate`; a numpy shift-or over the (2·tol + 1)² offsets agrees
    on every mask tried, borders included. The question is whether a hashed
    file should depend on a library's behaviour at all while OpenCV is
@@ -323,12 +312,12 @@ Every command takes those paths as arguments.
    the order `cv2.connectedComponents` labels them, and the pairing's tie
    rule reads those numbers. That never reaches the frozen files, since
    pilot mode is removed before the freeze (decision 11).
-5. **The benchmark mapping against its source.** The ATLAS-120k mapping to
+4. **The benchmark mapping against its source.** The ATLAS-120k mapping to
    the benchmark's 30 classes was typed from the document and checked by
    hand against ATLAS-bench's `datasets/class_mapping.py` at commit
    e286a584, all 47 ids agreeing. A script that takes that file's path and
    repeats the check would make it reproducible.
-6. **CholecSeg8k's Region line.** The white line between regions is 1 px
+5. **CholecSeg8k's Region line.** The white line between regions is 1 px
    wide; in the masks 87 % of its pixels are the image's outer 1 px (gone
    with the crop) and the rest sits mostly in video43 and video52. Left
    `ignored`, an edge against it is no boundary, so those videos lose much of
@@ -338,7 +327,7 @@ Every command takes those paths as arguments.
    filled count recorded, or whether it stays ignored with the loss
    documented. Either way the pilot evaluator read it as background and
    counted an edge against it as a boundary, a normal-mode difference to list.
-7. **CholecSeg8k clips whose frames run out of order.** In videos where
+6. **CholecSeg8k clips whose frames run out of order.** In videos where
    CholecSeg8k numbers frames at about 30 fps, the workbench's extractor
    (`scripts/extract_cholec_track.py`) resolves the true 25 fps frame for the
    frames that carry a mask and leaves the gap frames it decodes from the
@@ -357,7 +346,7 @@ Every command takes those paths as arguments.
    where the GT is 457 × 456, on frames the manifest says have none: 8 and
    19 frames. The pilot's scores of these clips count the annotated frames
    only, so its data root did not hold those masks.
-8. **The evaluator map against `evalkit/frame.py`.** Two things to carry
+7. **The evaluator map against `evalkit/frame.py`.** Two things to carry
    into the next redraw of `docs/figures/evaluator_map.png`, neither wrong
    today. The map gives step 2, one frame in one view, no module, and
    names `frame` at step 3 only; in the code both are in `frame.py`, as
@@ -369,7 +358,7 @@ Every command takes those paths as arguments.
    step 3 box, "or skipped whole, and counted", would close that in the
    figure. `evalkit/README.md` is the
    short version and need not say either.
-9. **The fewest videos for an interval.** `paired_stats.boot_ci` refuses a
+8. **The fewest videos for an interval.** `paired_stats.boot_ci` refuses a
     population of one video, where every resample is the same video and
     the interval is a point. Two is the floor that removes that failure,
     not a statistical one: with n videos the chance that a resample draws
@@ -380,16 +369,7 @@ Every command takes those paths as arguments.
     above two, and where, is a decision about the paper's populations, not
     the code's; until it is made, a subset's interval is read for its sign
     only, as `--drop-video` says.
-10. **The edge ring as a process-wide flag.**
-    `surgical_core.geometry.normals.EDGE_MASK_RING` decides whether the
-    contour around the image border and around invalid depth is zeroed in the
-    edge map the segmenter is prompted with. It is a module global, set for a
-    whole process: the tracking stage, `geom_blend.py` (and through it the
-    per-frame segmentation stage) and `d4d_seed.py` read it, and each writes
-    it into its own provenance record. Whether a setting passed per run, and
-    recorded with the output in one form, replaces the flag is decided before
-    either stage is ported.
-11. **Depth made by two versions of the depth stage.** On the development
+9. **Depth made by two versions of the depth stage.** On the development
     machine's copy of the workbench, 7 of the 9 CholecSeg8k clips (VID01 and
     VID12) carry depth written by a branch of the depth stage that never
     reached the workbench's `main`: their `results.npz` holds a `ray_map` and
@@ -409,33 +389,7 @@ Every command takes those paths as arguments.
     whether the ported stage follows `main`, and the depth so made is made
     again with every condition on it, or the branch's setting becomes the
     stage's.
-12. **The seed frame chosen from GT.** With `--seed_auto`, the tracking stage
-    seeds on the frame nearest the window's centre among those whose GT masks
-    call at most `--seed_inst_thresh` of it instrument (0.005 by default), or,
-    when there is none, on the frame with the least. It reads each frame's
-    mask file through the workbench's class tables, by the file's presence
-    rather than the GT flag, and counts a frame with no mask as free of
-    instruments. It was added to keep an instrument in the seed frame from
-    splitting one surface into two tracks. With `--seed_inst_thresh 1.0`, the
-    operating point, every frame counts as free and the seed is the centre of
-    the strided frame list, frame N // 2 at stride 1, whatever the GT says;
-    the ported stage keeps that centre and nothing else of the choice ("Two
-    propagation rules, and no seed chosen from GT"). `seed_info.json` records
-    the seed frame but not the rule. What stays open is the conditions
-    seeded from GT masks (`--seed_source gt`). They seed on
-    `track_metrics.pick_seed_frame`, the frame nearest (N − 1)/2 among those
-    with a mask file, and take the seed's regions from
-    `track_metrics.gt_instances`, which drops a component under `MIN_AREA`.
-    That frame can lie several frames from the centre: on the nine 30-frame
-    CholecSeg8k clips of the development machine, counting the annotated
-    frames only, it is frame 10, 14 or 16 where the operating point seeds at
-    15, and it moves with the mask files present. Such a condition cannot
-    seed on the centre when the centre has no GT, so it holds neither rule.
-    Decide, before the tracking stage is ported, whether these conditions
-    stay, under which rule a score records them, and whether their seed keeps
-    the `MIN_AREA` cut that "No minimum object size, anywhere" removes
-    everywhere else.
-13. **Two orders of the world transform.** `cam_to_world` computes
+10. **Two orders of the world transform.** `cam_to_world` computes
     `(p - t) @ R`; the workbench's back-projection computes
     `(R.T @ (p.T - t)).T`. On the development machine the two give the same
     bits only where the BLAS runs the same kernel: under numpy 2.5.3 on
@@ -443,12 +397,13 @@ Every command takes those paths as arguments.
     tests' 9×11 frame, 20 of 288 elements) and agree above; under numpy
     1.26.4 on OpenBLAS they agree at every size tried. The depth stages'
     clouds are far above the line, so step 5's byte check on G does not
-    answer it; `project.backproject` carries the order into label transfer
-    and warping, which do see small point sets, so a difference would first
-    surface in the tracking stage's byte check. If it does there, the choice
-    is between restoring the workbench's order and accepting a documented
-    non-bit-equality — made then, not found later.
-14. **Whether the geometry path has to be fast.** The depth stage
+    answer it. `project.backproject` carries the order further, but no
+    stage calls it: in the workbench, only two analyses of view consistency
+    do (`view_consistency.py`, `camera_motion.py`), and their point sets can
+    be small. If they are ported and a difference surfaces in their check,
+    the choice is between restoring the workbench's order and accepting a
+    documented non-bit-equality — made then, not found later.
+11. **Whether the geometry path has to be fast.** The depth stage
     back-projects each frame once when a clip is exported, with
     `backproject_depth`, `cam_to_world` and `world_to_gltf`, and writes the
     points to a GLB file. Nothing waits on it there, so its cost is a batch
@@ -476,7 +431,7 @@ Every command takes those paths as arguments.
     geometry or only reads what the export wrote. The functions are in
     `surgical_core/geometry/camera.py` and
     `surgical_core/geometry/project.py`.
-18. **Conditions seeded from GT.** A seed frame is scored like any other
+12. **Conditions seeded from GT.** A seed frame is scored like any other
     frame, because the paper's conditions are seeded from the pipeline's own
     masks. Which of the 38 conditions were seeded from GT instead, and
     whether such a condition is scored on its seed frame or enters a table
@@ -488,7 +443,7 @@ Every command takes those paths as arguments.
     condition's labels, is one; the viewer's `gt_tracked` track, one GT
     frame carried by SAM 3, is another candidate. What the tracking stage
     does with such a seed is "The seed frame chosen from GT".
-19. **Masks that are not GT under the GT's name.** The viewer's step writes
+13. **Masks that are not GT under the GT's name.** The viewer's step writes
     SAM 3 masks into `seg_masks/` as `<i>_color_mask.png`, told apart from
     the annotation only by the frame manifest's `is_anchor` and
     `seg_provenance`, and the two VID25 clips still hold such masks from
