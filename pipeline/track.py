@@ -88,21 +88,31 @@ def paint_masks(masks: list[np.ndarray], shape: tuple[int, int]) -> np.ndarray:
 
 
 def read_seed_labels(seed_labels: str, clip: str, frame: int, shape: tuple[int, int]) -> np.ndarray:
-    """Return the seed regions made outside the stage, `<seed_labels>/<clip>/label_<frame:04d>.npy`.
+    """Return the seed regions made outside the stage, numbered 0..K-1 in the order of their ids.
+
+    The file is `label_<frame:04d>.npy` in `seed_labels` with `{clip}` replaced by the clip's name, such as a
+    condition `evalkit.tools.kmerge` wrote; without `{clip}`, in `<seed_labels>/<clip>/`. The regions are
+    numbered again so that the tracker's ids are 1..K whatever ids the file holds, as the workbench's seed files,
+    numbered 0..K-1 when written, gave them.
 
     Raises:
         FileNotFoundError: the file is missing, as when the seeds were made for another seed frame.
         ValueError: the map is not the depth's shape, or holds no region.
     """
-    p = Path(seed_labels) / clip / f"label_{frame:04d}.npy"
+    d = Path(seed_labels.replace("{clip}", clip)) if "{clip}" in seed_labels else Path(seed_labels) / clip
+    p = d / f"label_{frame:04d}.npy"
     if not p.is_file():
         raise FileNotFoundError(f"no seed labels {p}; were they made for seed frame {frame}?")
     labels = np.load(p).astype(int)
     if labels.shape != shape:
         raise ValueError(f"{p} is {labels.shape}, not the depth's {shape}")
-    if not (labels >= 0).any():
+    ids = np.unique(labels[labels >= 0])
+    if ids.size == 0:
         raise ValueError(f"{p} holds no region")
-    return labels
+    out = np.full(shape, -1, dtype=int)
+    for i, r in enumerate(ids):
+        out[labels == r] = i
+    return out
 
 
 def seed_masks(labels: np.ndarray, min_area: int) -> tuple[list[np.ndarray], list[int]]:
@@ -331,7 +341,8 @@ def main() -> None:
     ap.add_argument("--track-base", required=True, choices=SAM_INPUT_MODES, help="The tracker's input mode.")
     ap.add_argument("--sam-ckpt", help="The SAM ViT-H weights, sam_vit_h_4b8939.pth. Needed without --seed-labels.")
     ap.add_argument("--seed-labels",
-                    help="A directory of seed regions made outside the stage, <dir>/<clip>/label_<frame>.npy.")
+                    help="Seed regions made outside the stage: a directory whose {clip} is the clip's name, such as "
+                         "'<tracks-root>/{clip}/<merged tag>', or one holding <clip>/label_<frame>.npy.")
     ap.add_argument("--depth-source", default="da3", choices=DEPTH_SOURCES,
                     help="The depth the normals and edges come from.")
     ap.add_argument("--points-per-side", type=int, default=24, help="The mask generator's grid.")

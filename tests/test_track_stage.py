@@ -207,12 +207,27 @@ def test_seed_regions_made_outside_are_read_in_place_of_the_segmenter(tmp_path):
     labels[H // 2:] = 4
     seeds = _seeds(tmp_path, clip, 2, labels)
     lab_dir, _, trk = _run(tmp_path, clip, segmenter=None, seed_labels=seeds)
-    assert trk.ids == [1, 5]
+    assert trk.ids == [1, 2]
     info = json.loads((lab_dir / "seed_info.json").read_text())
     assert (info["seed_source"], info["seed_labels"]) == ("external", seeds)
     assert info["seed_input"] == dict(produced_by="external", cache_path=seeds, points_per_side=None,
                                       seed_sam_kwargs=None, seed_edge_gain=None, seed_smooth=None,
                                       edge_ring_masked=None)
+
+
+def test_seed_regions_are_read_from_a_condition_and_numbered_from_0(tmp_path):
+    clip = _clip(tmp_path)
+    labels = np.full((H, W), 7)
+    labels[:, :3] = 3
+    labels[0, 0] = -1
+    d = tmp_path / "tracks" / clip.name / "track_rgb_pf_k10"
+    d.mkdir(parents=True)
+    np.save(d / "label_0002.npy", labels)
+    template = str(tmp_path / "tracks" / "{clip}" / "track_rgb_pf_k10")
+    lab_dir, _, trk = _run(tmp_path, clip, segmenter=None, seed_labels=template)
+    assert trk.ids == [1, 2]
+    assert np.array_equal(trk.masks[0], labels == 3)
+    assert json.loads((lab_dir / "seed_info.json").read_text())["seed_labels"] == template
 
 
 @pytest.mark.parametrize("frame, labels, err, match", [
