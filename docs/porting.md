@@ -199,10 +199,9 @@ move; the rest is listed under "Not carried for now" below.
     list named, ran in no condition.
   - `crop_cholec_frames.py` cuts each CholecSeg8k video to a rectangle
     inside the endoscope's view, with `--method circle`. Ported, it reads
-    the rectangle as data, the one each clip of that video records in
-    `crop_info.json`, as the ATLAS-120k crop rectangles below are data; the
-    circle fit in `preprocess` that found it comes along only to find a new
-    video's. The depth stage then neither detects nor fills a border
+    the rectangle as data, one per clip in `cholecseg8k_meta/crop_rects.json`
+    beside the 27 clips' list, as the ATLAS-120k crop rectangles below are
+    data. The depth stage then neither detects nor fills a border
     (`docs/workstreams.md`, "No endoscope border in the depth stage").
   - Segmentation and tracking, from `depth_sam_tracking_experiment/`:
     `track_sam3.py`, `sam3d_core.py` (`num_to_natural` and `get_sam`),
@@ -237,11 +236,9 @@ move; the rest is listed under "Not carried for now" below.
   `recon3d_wrapper/`. Of `sam3_wrapper/`, the package moves: `get_device`,
   `load_sam3_video_tracker_model` and the part of `Sam3VideoInstanceSession`
   the tracker calls.
-- **Rest of `surgical_core`.** The circle fit of `preprocess` with
-  `circle_frame_inscribed_rect` and `largest_inscribed_rect`;
-  `cholec/seg8k_align.py`, which the CholecSeg8k extraction calls; and, for
-  the viewer, `pointcloud`, the ten modules of `viewer` not listed above
-  and `cholec/cholect50.py`.
+- **Rest of `surgical_core`.** `cholec/seg8k_align.py`'s search, which
+  moves into the CholecSeg8k extraction; and, for the viewer, `pointcloud`,
+  the ten modules of `viewer` not listed above and `cholec/cholect50.py`.
 - **ATLAS-120k metadata, into `atlas120k_meta/`.** No video goes in.
   - Crop rectangles: `experiment/crop_necessity/verdicts/verdicts_latest.json`.
   - The 315-clip population: `ipcai2027_experiment/frozen/atlas97_clips.txt`.
@@ -318,7 +315,13 @@ before it was left out stays in its history.
   - `sam3_wrapper/`: `scripts/`, `image_instance`, the concept session and
     `add_boxes`;
   - `depth_source.py`: the `da2` source and the bilateral `_bil` variants;
-  - `preprocess`: the border inpainting and the content-mask detection;
+  - `preprocess`: the border inpainting, the content-mask detection, and
+    the circle fit (`fit_endoscope_circle`, `circle_frame_inscribed_rect`,
+    `largest_inscribed_rect`, `video_endoscope_crop`) that found the
+    rectangles `cholecseg8k_meta/` holds. Every clip of the paper has its
+    rectangle; a new video would need the fit. With it go
+    `crop_cholec_frames.py`'s `--method p90mask`, `--reduce` and its
+    fallback to a clip's own frames;
   - `extract_atlas_frames.py`: the tile clips; the per-video rectangle it
     estimates from the frames (`detect_content_rect` and the three
     `refine_rect_*` steps), which a confirmed rectangle replaces on every
