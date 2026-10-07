@@ -59,6 +59,20 @@ robot-assisted videos of 14 procedures, 42 classes) and CholecSeg8k
 The rest of the document gives the rules in full, then why the pilot evaluator
 was replaced, then the class tables.
 
+## The evaluator at a glance
+
+Scoring runs in six steps. The evaluator reads a clip's inputs, scores a
+frame in one view and then in all three, averages each key over the clip, and
+writes one score file per condition. The tools then compare two conditions.
+
+![Scoring in six steps on a drawn scene: a clip's inputs; one frame, scored in each of three views (steps 2 and 3); one clip, each key's mean over its frames; one condition, one score file; two conditions, the key that decides each question.](figures/evalkit_overview.png)
+
+The second figure shows the same steps part by part. Each box names, in its
+corner, the module or package that holds the part, so a rule below can be
+found in the code. A module's docstring says what it returns.
+
+![The evaluator part by part: a clip's inputs; scored pixels and the keys of one frame in one view; one frame in every view; one clip; one score file per condition; the tools that compare two conditions. Each box names its module or package.](figures/evaluator_map.png)
+
 ## How a frame is scored
 
 ### Inputs
@@ -103,6 +117,34 @@ was replaced, then the class tables.
   the population files, never a count in a name. Scores are made per clip;
   the bootstrap that decides a star resamples videos, so the clips of one
   video are never treated as independent.
+- **Frame manifest.** The pipeline writes `frame_manifest.json` into each
+  clip. It lists the clip's frames with their times and GT flags, and holds
+  the crop rectangle.
+
+A clip is a directory. Frame i is `frames[i]` of the frame manifest, counted
+from 0, and every input of that frame sits at index i. The index is the
+frame's place in the manifest, not in time; "Time" above says how the frames
+are ordered. For frame 7:
+
+| input | where | frame 7 |
+|---|---|---|
+| frame manifest | `frame_manifest.json`, in the clip | `frames[7]`, whose `seq_idx` is 7 |
+| depth | `exports/mini_npz/results.npz`, in the clip | `depth[7]` |
+| GT mask | `seg_masks/`, in the clip | `000007_color_mask.png` (CholecSeg8k), `000007_class.png` (ATLAS-120k) |
+| prediction | the condition's directory for the clip, which the tracking stage writes | `label_0007.npy` |
+
+### Which frames
+
+The frame manifest says which frames are GT frames, and the mask files do
+not. A GT frame has the dataset's GT flag (`has_seg_mask` for CholecSeg8k,
+`has_gt` for ATLAS-120k), `is_anchor` true and no `seg_provenance`. The mask
+files cannot decide: the pipeline also writes the viewer's SAM 3 masks into
+`seg_masks/` under the GT's names, and they are not GT. A clip is refused
+when a mask file has no GT flag, when a GT flag has no mask file, when a
+flagged frame is neither a GT frame nor marked by `seg_provenance`, or when
+a GT frame has no prediction.
+
+![Ten frames of a clip in four rows: the raw frames, the GT on six of them, a track seeded from the GT and a track seeded unsupervised. The GT frames are shaded through every row, and the predictions are hatched.](figures/frame_roles.png)
 
 ### Objects
 
@@ -135,6 +177,17 @@ is the pilot evaluator's order, kept so that both modes share one rule. A pair
 with IoU ≥ `MATCH_IOU` is a *hit*. `F1_50`, `SQ` and `inst_BF` are taken over
 these objects.
 
+This figure and the ones below draw one scene and run the modules on it.
+Hatched pixels are not scored; "Views" says which. The pale patch next to the
+tool has no depth. Normal mode would refuse such a frame. The figures leave
+the patch out of the scored pixels, as pilot mode does, and score the rest by
+the normal rules.
+
+![Objects on a drawn scene in the geometric view: two GT objects, one per class; three predicted objects, one per region; the pairs taken greedily by IoU, two hits, and F1_50 and SQ computed from them.](figures/objects.png)
+
+[`evalkit/objects.py`](../evalkit/objects.py) computes the numbers on this
+scene.
+
 ### Naming the regions: the class map
 
 The pipeline gives regions without classes, so `mIoU` and `boundary_F` need a
@@ -149,6 +202,11 @@ one. It is not a bound in the strict sense: the majority vote maximises the
 share of correctly named pixels, and a different naming could score a higher
 `mIoU` by favouring small classes. Splitting a class into several regions costs
 nothing there; `VI_split` measures splitting.
+
+![The class map on a drawn scene: each region takes the GT class most of its scored pixels have; the gallbladder split into two regions is named gallbladder twice and costs mIoU nothing.](figures/class_map.png)
+
+[`evalkit/classmap.py`](../evalkit/classmap.py) computes the numbers on this
+scene.
 
 ### Class types
 
@@ -183,6 +241,13 @@ nor penalised there. In the geometric view, a region that runs from the liver
 over the blood lying on it is not penalised for the blood, and neither is one
 that stops at its edge.
 
+![One drawn scene in the three views: hatched pixels are not scored; the tool leaves the tissue view, and the tool and the blood leave the geometric view. A table counts each removed pixel once, by the first reason that removed it.](figures/scored_pixels.png)
+
+[`evalkit/scored.py`](../evalkit/scored.py) computes the numbers on this
+scene, in pilot mode.
+
+#### Why removed pixels are not filled in
+
 The removed pixels are not filled in from their neighbours, as if the liver
 ran on under the blood. Under a thin smear it does, but a fill would have to
 hold for every class a view removes, and under most of them it does not: to
@@ -205,6 +270,8 @@ geometric view scores; 6 % of frames have one, and the median spot is 24 px. In 
 6 of 21,093 frames have one, holding 0.008 % of the `appearance` pixels.
 Removing and filling differ on almost no pixel, so nothing is counted for
 the difference.
+
+#### Background
 
 Background is removed in every view, the same way. What the datasets call
 background is not empty space: it is anatomy nobody labelled, and in
@@ -245,12 +312,24 @@ What the scores cannot see is counted instead, as `unlabelled_share` below.
 
 ### What each key is, per frame
 
+#### Objects found and how well they fit: `F1_50`, `SQ`, `inst_BF`
+
 - `F1_50` = 2 · hits / (GT objects + predicted objects).
 - `SQ` is the mean IoU of the hits. `inst_BF` is the mean, over the hits, of
   the boundary F between the predicted object's contour and the GT object's,
   each marked by the boundary rule below over the scored pixels.
-- `mIoU` is the mean IoU over the classes in the GT or the class map,
-  background excluded.
+
+The figure under "Objects" shows `F1_50` and `SQ`. The figure of `inst_BF`
+comes after the boundary rule it uses, under "Boundaries".
+
+#### The class map, by area: `mIoU`
+
+`mIoU` is the mean IoU over the classes in the GT or the class map,
+background excluded. The figure under "Naming the regions: the class map"
+shows it.
+
+#### Boundaries: `boundary_F`, `boundary_R_raw`
+
 - `boundary_F` compares the class map's boundaries with the GT's.
   `boundary_R_raw` is the share of the GT's class boundaries that the regions'
   own boundaries recover, before any class is assigned, so an extra cut costs
@@ -259,28 +338,66 @@ What the scores cannot see is counted instead, as `unlabelled_share` below.
   scored pixel with another label. An edge against a removed pixel (ignored,
   background, or a class the view leaves out) is not a boundary, so a region
   is neither rewarded nor penalised for where it ends against them. Both sides
-  of an edge are marked, so a boundary is 2 px wide, and the tolerance is a
-  square dilation by `BOUNDARY_TOL_PX`: one-sided, a boundary may be off by
-  `BOUNDARY_TOL_PX` + 1 px. A frame whose scored pixels are all one class has
+  of an edge are marked, so a boundary is 2 px wide. The tolerance is a
+  square dilation by `BOUNDARY_TOL_PX`. An edge shifted by `BOUNDARY_TOL_PX`
+  px scores 1, one shifted by `BOUNDARY_TOL_PX` + 1 px scores 1/2, and one
+  further off scores 0. A frame whose scored pixels are all one class has
   no GT boundary, which is common once a view has removed the rest (a frame
   showing only liver, in the geometric view); the boundary metrics are not
   defined on it, and it is counted. When only the prediction's boundary is
   empty, they score 0.
-- `VI_split` = H(regions | GT) and `VI_merge` = H(GT | regions), the two halves
-  of the variation of information, in bits, over the scored pixels. The
-  pixels with no region count together as one region. On a frame with no
-  scored pixel they are not defined, and the frame is counted.
-- `time_IoU` is a region id's IoU with itself in the next frame. Unlike the
-  other metrics it is one number per clip: the IoUs of every (id, frame pair)
-  are pooled over all tracked frames, with or without GT, and averaged.
-- `unlabelled_share` is, over the regions that have a scored pixel, the share
-  of their pixels lying on background among their pixels on scored or
-  background pixels: the spill the other keys cannot see. A region on
-  background alone is not among them, as it is no object, and pixels the view
-  removed for another reason are in neither count. It reads no GT class, only
-  where the GT is unlabelled, and gets no star. It is reported beside a
-  comparison whose two conditions differ in it by much, as the pilot
-  measurements did for the share of pixels left without a region.
+
+![Boundary pixels on a drawn scene in the geometric view: the GT boundary is only the arc where liver and gallbladder touch; the class map's boundary and the regions' own boundary are scored against it within the tolerance.](figures/boundary.png)
+
+![How far a predicted edge may be off: with a tolerance of 2 px, an edge 2 px off scores 1, one 3 px off scores 1/2, and one 4 px off scores 0.](figures/boundary_tolerance.png)
+
+[`evalkit/boundary.py`](../evalkit/boundary.py) computes the numbers in both
+figures.
+
+`inst_BF` applies the same rule to the contour of each hit.
+
+![inst_BF on a drawn scene: the contour of each hit against its GT object's contour, within the tolerance, and inst_BF as the mean F over the hits. With the gallbladder unlabelled, the liver has no contour to recover, and the hit is left out and counted.](figures/inst_bf.png)
+
+[`evalkit/inst_bf.py`](../evalkit/inst_bf.py) computes the numbers on this
+scene.
+
+#### Splitting and merging: `VI_split`, `VI_merge`
+
+`VI_split` = H(regions | GT) and `VI_merge` = H(GT | regions), the two halves
+of the variation of information, in bits, over the scored pixels. The pixels
+with no region count together as one region. On a frame with no scored pixel
+they are not defined, and the frame is counted.
+
+![VI on a drawn scene: cutting the gallbladder in two raises VI_split, and cutting the liver as well raises it further; merging liver and gallbladder into one region raises VI_merge. Below, the pixels of each region by GT class.](figures/vi.png)
+
+[`evalkit/vi.py`](../evalkit/vi.py) computes the numbers on this scene.
+
+#### Over time: `time_IoU`
+
+`time_IoU` is a region id's IoU with itself in the next frame. Unlike the
+other metrics it is one number per clip: the IoUs of every (id, frame pair)
+are pooled over all tracked frames, with or without GT, and averaged.
+
+![time_IoU on two drawn frames: each id present in both frames gives its IoU with itself; an id that disappears or appears gives nothing.](figures/time_iou.png)
+
+[`evalkit/time_iou.py`](../evalkit/time_iou.py) computes the numbers on these
+frames.
+
+#### The spill no other key sees: `unlabelled_share`
+
+`unlabelled_share` is, over the regions that have a scored pixel, the share
+of their pixels lying on background among their pixels on scored or
+background pixels: the spill the other keys cannot see. A region on
+background alone is not among them, as it is no object, and pixels the view
+removed for another reason are in neither count. It reads no GT class, only
+where the GT is unlabelled, and gets no star. It is reported beside a
+comparison whose two conditions differ in it by much, as the pilot
+measurements did for the share of pixels left without a region.
+
+![unlabelled_share on a drawn scene: a region that fits the liver and one that spills into unlabelled tissue get the same value on every other key; unlabelled_share is 0 for the first and 0.542 for the second.](figures/unlabelled_share.png)
+
+[`evalkit/unlabelled.py`](../evalkit/unlabelled.py) computes the numbers on
+this scene.
 
 ### From frames to clips
 
@@ -321,6 +438,8 @@ conditions, and judges each on its own key, on each dataset's own labels
 | Given one frame as an example, how far can the regions be followed? | not decided yet (below) | — |
 | Given no example, what input puts the regions' boundaries where the GT's class boundaries are? | `boundary_R_raw` | each of the three |
 | Given no GT, how much of the labelled structure is already in the regions? | `F1_50` and `SQ` | geometric |
+
+![The three questions on a drawn scene. Q1: a region picked out in one frame follows the gallbladder for two frames, then leaves it. Q2: the regions' boundaries against the GT's class boundaries, giving boundary_R_raw. Q3: regions matched to the GT's objects, giving F1_50 and SQ.](figures/three_questions.png)
 
 The second question is answered within each view, between conditions that
 differ in what the pipeline is given: the image, the depth, or both. The
@@ -513,6 +632,8 @@ pilot evaluator's numbers.
     hit to average; a frame whose GT boundary is empty scores 0 on the
     boundary metrics rather than being left out; and a clip on which
     `time_IoU` pools nothing writes 0 for it.
+- Pilot mode takes the GT frames from the frame manifest too. On the data
+  the pilot evaluator scored, its mask files were exactly these frames.
 - On the 38 conditions already scored, pilot mode must reproduce every key it
   shares with the pilot evaluator — the metrics table names them, and their
   per-domain variants — at zero tolerance: the values written must be equal.
@@ -594,6 +715,8 @@ likely that some key reaches a star by chance.
   taken at the evaluation resolution, so what 300 px means depends on it.
 - A comment in the pilot evaluator says a fragment counts towards `overseg` if
   it covers "5 % or 200 px" of a class; the code requires both.
+- A frame is a GT frame when a mask file exists for it, so the viewer's SAM 3
+  masks would be scored as GT without a word.
 
 ### What the pilot evaluator's handling changes, measured on the GT
 
@@ -612,18 +735,19 @@ portrait ATLAS-120k clips (73 GT frames) are 476 px wide and 504 px high.
 | `Tools/camera` connected components ≥ 300 px, per frame with tools | 1 in 2,256 frames, 2 in 3,869, 3 or more in 1,395, none in 15. How many are touching instruments merged into one cannot be told from the GT. |
 | 300 px cut | drops 14.2 % of GT components, 0.05 % of foreground pixels. A class vanishes from a frame's instance evaluation in 1.2 % of (frame, class) pairs; the worst is Catheter, 19 of 64. |
 
-**CholecSeg8k: 9 clips, 270 GT frames**
+**CholecSeg8k: 9 clips, 167 GT frames**
 
 These are the nine clips on the machine the measurements were made on, a part
-of the CholecSeg8k population the paper scores. The rows show the kind and
-rough size of each effect, not the population's numbers.
+of the CholecSeg8k population the paper scores. The viewer's SAM 3 masks on
+103 more frames are not GT and are left out (see "Which frames"). The rows
+show the kind and rough size of each effect, not the population's numbers.
 
 | | |
 |---|---|
-| Hepatic Vein | in 20 frames (7.4 %) of 3 clips, all read as background: 11 GT objects of 300 px or more never scored. |
-| colours outside the table | 0.053 % of pixels, all silently background: (0, 50, 128), which is Hepatic Vein, on 28,054 px, and (255, 255, 255) on 3,978 px |
-| 300 px cut | drops 48.3 % of GT components, but 2,320 of the 2,832 dropped are under 10 px (slivers from resizing and annotation), so only 0.08 % of foreground pixels. A class vanishes from a frame in 2.4 % of (frame, class) pairs; the worst is Gastrointestinal Tract, 30 of 170. |
-| Black Background | the pipeline crops each clip to the rectangle around the endoscope's circle, which keeps its corners: 2.2 % of pixels, 7.8 % in one clip. They have valid depth, so the pilot evaluator scores them as background. |
+| Hepatic Vein | in 20 frames (12.0 %) of 3 clips, all read as background: 11 GT objects of 300 px or more never scored. |
+| colours outside the table | 0.088 % of pixels, all silently background: (0, 50, 128), which is Hepatic Vein, on 28,054 px, and (255, 255, 255) on 3,978 px |
+| 300 px cut | drops 17.9 % of GT components, but 180 of the 416 dropped are under 10 px (slivers from resizing and annotation), so only 0.07 % of foreground pixels. A class vanishes from a frame in 1.1 % of (frame, class) pairs; the worst is Gastrointestinal Tract, 4 of 98. |
+| Black Background | the pipeline crops each clip to the rectangle around the endoscope's circle, which keeps its corners: 0.1 % of pixels, 0.2 % in one clip. They have valid depth, so the pilot evaluator scores them as background. |
 
 **Which colour is which CholecSeg8k class.** All 8,080 frames of the original
 dataset were checked against the dataset's watershed masks, which carry a class
