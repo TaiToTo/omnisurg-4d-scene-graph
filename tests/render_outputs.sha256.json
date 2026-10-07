@@ -1,0 +1,22 @@
+{
+  "depth edge_gain=0.85 smooth=False": "uint8[48, 64, 3] 23921b89e6cbc64e852472465d2a4d3aae956a6fe55f7010700327a9528bf537",
+  "depth edge_gain=0.85 smooth=True": "uint8[48, 64, 3] 23921b89e6cbc64e852472465d2a4d3aae956a6fe55f7010700327a9528bf537",
+  "depth edge_gain=1.0 smooth=False": "uint8[48, 64, 3] 23921b89e6cbc64e852472465d2a4d3aae956a6fe55f7010700327a9528bf537",
+  "depth edge_gain=1.0 smooth=True": "uint8[48, 64, 3] 23921b89e6cbc64e852472465d2a4d3aae956a6fe55f7010700327a9528bf537",
+  "normal edge_gain=0.85 smooth=False": "uint8[48, 64, 3] 8a329ba884979303768e929c252c461a8ea18d48e9b3c9370b7a56f264f93c8f",
+  "normal edge_gain=0.85 smooth=True": "uint8[48, 64, 3] 8a329ba884979303768e929c252c461a8ea18d48e9b3c9370b7a56f264f93c8f",
+  "normal edge_gain=1.0 smooth=False": "uint8[48, 64, 3] 8a329ba884979303768e929c252c461a8ea18d48e9b3c9370b7a56f264f93c8f",
+  "normal edge_gain=1.0 smooth=True": "uint8[48, 64, 3] 8a329ba884979303768e929c252c461a8ea18d48e9b3c9370b7a56f264f93c8f",
+  "normal_edge edge_gain=0.85 smooth=False": "uint8[48, 64, 3] 25c2ce254aa8c28bf409110d8667175260fd7cd7e555db2c315831bfead2c050",
+  "normal_edge edge_gain=0.85 smooth=True": "uint8[48, 64, 3] 6de7da1c644b75f649e6c62bfbd7820c00e29d97f45e56b841be5442439dbbd2",
+  "normal_edge edge_gain=1.0 smooth=False": "uint8[48, 64, 3] df7acec78579a2729255e2e9ff27eac6d4d3a5da4b3c221480a3bd6c96d8e32d",
+  "normal_edge edge_gain=1.0 smooth=True": "uint8[48, 64, 3] abcd4f893f3c3290d850c883febc478a471daa93f822b4b5ae4068cc1471b6c3",
+  "rgb edge_gain=0.85 smooth=False": "uint8[48, 64, 3] 17d69be9275eb1c6c9f75b2cba9464abe025457cf0e01cf9e554597dc395adb5",
+  "rgb edge_gain=0.85 smooth=True": "uint8[48, 64, 3] 17d69be9275eb1c6c9f75b2cba9464abe025457cf0e01cf9e554597dc395adb5",
+  "rgb edge_gain=1.0 smooth=False": "uint8[48, 64, 3] 17d69be9275eb1c6c9f75b2cba9464abe025457cf0e01cf9e554597dc395adb5",
+  "rgb edge_gain=1.0 smooth=True": "uint8[48, 64, 3] 17d69be9275eb1c6c9f75b2cba9464abe025457cf0e01cf9e554597dc395adb5",
+  "rgb_edge edge_gain=0.85 smooth=False": "uint8[48, 64, 3] 18a9994bb7ee37ccf017191805ffc3de4a613bded1701a5a924f53c99117bfab",
+  "rgb_edge edge_gain=0.85 smooth=True": "uint8[48, 64, 3] 18a9994bb7ee37ccf017191805ffc3de4a613bded1701a5a924f53c99117bfab",
+  "rgb_edge edge_gain=1.0 smooth=False": "uint8[48, 64, 3] 001c12c0bf119caa993bfc8f1b091fed856408e8fc639f05f8166334858eeea3",
+  "rgb_edge edge_gain=1.0 smooth=True": "uint8[48, 64, 3] 001c12c0bf119caa993bfc8f1b091fed856408e8fc639f05f8166334858eeea3"
+}
