@@ -32,23 +32,15 @@ from evalkit.clip import ClipScores, ScoredFrame, summarize_clip
 from evalkit.code_sha import eval_code_sha, hashed_files
 from evalkit.frame import score_frame
 from evalkit.inputs import ClipInputs, read_clip
-from evalkit.keys import CLIP_METRICS, FRAME_METRICS, metric_key
+from evalkit.keys import FRAME_METRICS, metric_key
 from evalkit.scored import valid_depth
 from evalkit.time_iou import time_iou
-
-(TIME_KEY,) = CLIP_METRICS
 
 # The propagation rules `docs/evaluation.md` defines ("Propagation rule").
 PROPAGATION_RULES = ("both_ways_from_centre", "forward_from_first", "per_frame")
 
 # The record a tracker or the per-frame stage writes beside a condition's labels.
 SEED_INFO = "seed_info.json"
-
-# What `seed_source` says in a record that can hold a rule: the per-frame
-# stage, and the tracker seeded from its own masks. A seed from the GT, or
-# from labels made elsewhere, is a condition of its own and holds no rule.
-PER_FRAME_SOURCE = "per_frame"
-TRACKER_SOURCE = "sam"
 
 
 def check_table(table: ClassTable) -> None:
@@ -101,7 +93,7 @@ def clip_row(clip: str, scores: ClipScores) -> dict:
     views = scores.views
     row: dict = {"clip": clip}
     row.update({metric_key(m, v): _number(views[v].means[m]) for v in VIEWS for m in FRAME_METRICS})
-    row[TIME_KEY] = _number(scores.time_iou)
+    row["time_IoU"] = _number(scores.time_iou)
     row["n_frames"] = {metric_key(m, v): int(views[v].n_frames[m]) for v in VIEWS for m in FRAME_METRICS}
     row["n_scored_frames"] = scores.n_scored_frames
     row["n_excluded_frames"] = scores.n_excluded_frames
@@ -137,9 +129,9 @@ def rule_of_seed_info(info: dict) -> str:
     source = info.get("seed_source")
     if source is None:
         raise ValueError("the record names no seed_source")
-    if source == PER_FRAME_SOURCE:
+    if source == "per_frame":
         return "per_frame"
-    if source != TRACKER_SOURCE:
+    if source != "sam":
         raise ValueError(f"the seed came from {source!r}, not from the tracker's own masks; "
                          "such a condition holds neither rule, wherever its seed sits")
     frames, seed, bidir = info.get("frames"), info.get("seed_frame"), info.get("bidir")
