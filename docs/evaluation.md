@@ -93,7 +93,10 @@ was replaced, then the class tables.
   input size: the longest side scaled to 504 px, then each side rounded to the
   nearest multiple of 14.
 - **Time.** Frames are ordered by their timestamps, not by their file names: in
-  11 of the 27 CholecSeg8k clips the frame numbers do not follow time.
+  11 of the 27 CholecSeg8k clips the frame numbers do not follow time. A
+  dataset that gives no timestamps, ATLAS-120k, is ordered by frame number.
+  A clip in which two frames share a time, or only some frames have one, is
+  refused, since the order of its frames is unknown.
 - **Clips and videos.** A *video* is one recording in the dataset. A *clip* is
   a stretch of one video that the pipeline processes as a unit, and a video
   can supply several clips. Which clips enter a measurement is data, kept in
@@ -419,6 +422,12 @@ uses it.
   mask of background alone, the one frame the marker could hide in, is
   refused. The marker occurs in no palette mask of the release, and no colour
   mask is background alone.
+- A GT frame without a prediction stops the clip. The pilot evaluator
+  scored only the frames that had one, and skipped the others without a
+  count.
+- A GT mask on a frame that the clip's manifest says has none stops the
+  clip, and so does a frame the manifest says has one without a mask. A
+  stale mask from an earlier extraction is otherwise scored as GT.
 - Nothing is dropped without a count: skipped frames, ignored, background and
   invalid pixels, the pixels each view removes, and the frames a metric is not
   defined on are counted in the JSON. A removed pixel is counted once, by the
@@ -434,13 +443,23 @@ uses it.
   changed type is a new evaluator
 - the dataset, the class set (`original`, or for ATLAS-120k also
   `benchmark`), the view, and whether the score was made in pilot mode
-- the sha of every input read: GT masks, depth maps and predictions
+- the sha of every input read, per clip: the GT masks, the depth maps (as
+  `atlas120k_meta/depth_manifest.json` fingerprints them), the crop
+  rectangle, the frames in time order, and the predictions
 - the name of the directory the predictions were read from, as
   `track_dir_name`, which is how `condition_inventory` matches a score to
   its labels; a score that does not say what it scored cannot be inventoried
 - the Python, numpy, OpenCV and Pillow versions
 
 The pilot evaluator's JSONs recorded neither the input shas nor the versions.
+
+A score JSON holds those fields, `clips` (the population, in its order),
+and one row per clip under `per_clip`. A row holds the clip's name, every
+key (`metric/view`, then `time_IoU`), and the counts behind them: `n_frames`,
+the frames each key's mean covers, by key; the scored and excluded frames;
+`pixels`, where each view's pixels went; and `objects`, the GT objects,
+predicted objects, hits and hits that entered `inst_BF`, per view. Its
+`frames` keeps every GT frame's values, by frame number, in time order.
 
 Two scores are comparable only when their `eval_code_sha`, dataset, class set,
 view and mode match, they cover the same clips, and they read the same GT masks
@@ -501,7 +520,8 @@ pilot evaluator's numbers.
     objects, and regions of at least that size as predicted objects;
   - the pixels whose depth is not finite or not above `DEPTH_MIN` masked
     out and counted, where normal mode refuses the frame;
-  - frames in file order for `time_IoU`;
+  - frames in file order for `time_IoU`, and as GT frames every frame with
+    a prediction whose mask file exists, the manifest unread;
   - the pilot evaluator's values in place of undefined ones, zeros where it
     wrote zeros and None where it wrote None: a frame with no class enters
     the `mIoU` mean as 0; a clip on which no frame has a GT object in a
@@ -514,7 +534,8 @@ pilot evaluator's numbers.
   the pilot evaluator scored, its mask files were exactly these frames.
 - On the 38 conditions already scored, pilot mode must reproduce every key it
   shares with the pilot evaluator — the metrics table names them, and their
-  per-domain variants — at zero tolerance: the values written must be equal.
+  per-domain variants — at zero tolerance: the values written must be equal,
+  and so must the number of frames behind each.
   Ties are broken as the pilot evaluator breaks them. The check runs where the
   pilot evaluator and its scores are, and takes their paths as arguments.
 - Every difference in the normal mode then comes from a rule this document

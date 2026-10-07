@@ -2,11 +2,11 @@
 
 The verification of `docs/evaluation.md`, "Checked against the pilot
 evaluator". For each condition, matched by tag, the pilot evaluator's
-JSON and this evaluator's pilot-mode JSON must hold the same value, None
-included, for every pair of keys in `SHARED`, with no tolerance. The
-result names the evaluator's sha, the one the freeze records. The driver
-that writes the pilot-mode JSONs is not here: the check runs where the
-pilot evaluator and its scores are, and takes their paths as arguments.
+JSON and this evaluator's pilot-mode JSON (`evalkit.evaluate --pilot`)
+must hold the same value, None included, for every pair of keys in
+`SHARED`, and the same number of frames behind each, `COUNTS`, with no
+tolerance. The result names the evaluator's sha, the one the freeze
+records. The check runs where the pilot evaluator and its scores are.
 
 Usage:
     python -m evalkit.tools.pilot_check --pilot-dir /path/to/the/pilot/scores \\
@@ -60,6 +60,25 @@ def _shared() -> tuple[tuple[str, str], ...]:
 SHARED = _shared()
 
 
+def _counts() -> tuple[tuple[str, str], ...]:
+    pairs = []
+    for domain in PILOT_DOMAINS:
+        suffix = _pilot_suffix(domain)
+        for pilot, ours in (("n_inst_frames", "F1_50"), ("n_SQ_frames", "SQ"), ("n_BF_frames", "inst_BF")):
+            pairs.append((f"{pilot}{suffix}", metric_key(ours, domain)))
+    for ours in ("mIoU", "boundary_F", "boundary_R_raw"):
+        pairs.append(("n_gt_frames", metric_key(ours, "full")))
+    for ours in ("VI_split", "VI_merge"):
+        pairs.append(("n_vi_frames", metric_key(ours, "labeled")))
+    return tuple(pairs)
+
+
+# `(pilot count, evaluator key)`: the frames behind each shared key, which the
+# evaluator's row holds under `n_frames`. A clip mean rounded to four decimals
+# can absorb a frame left out or added; its count cannot.
+COUNTS = _counts()
+
+
 # No tolerance: whatever width were allowed here is the width a fault in the
 # port could pass through.
 def _equal(a, b) -> bool:
@@ -81,8 +100,8 @@ def diff_shared(pilot: Mapping, ours: Mapping) -> list[str]:
 
     Returns:
         One line per difference: a clip only one side scored, a shared key
-        the evaluator's row lacks, or a value that is not equal. Empty when
-        every shared value is equal on every clip.
+        or count the evaluator's row lacks, or a value or count that is not
+        equal. Empty when every one is equal on every clip.
 
     Raises:
         ValueError: `pilot` is not the pilot evaluator's (another sha, or
@@ -90,7 +109,7 @@ def diff_shared(pilot: Mapping, ours: Mapping) -> list[str]:
             the pilot's domains; a JSON's `clips` and `per_clip` disagree
             or name a clip twice; neither holds a clip; a pilot row removes
             an `extra_ignore`, which pilot mode scores with none; or a
-            pilot row lacks a shared key.
+            pilot row lacks a shared key or a count.
     """
     # The two JSONs, refused unless one is the pilot evaluator's and the other pilot mode's.
     # Not `scores.check_comparable`: the two shas differ by construction, and it would refuse the pair.
@@ -133,6 +152,15 @@ def diff_shared(pilot: Mapping, ours: Mapping) -> list[str]:
                 out.append(f"{c}.{ok}: missing; the pilot wrote {pk}={ra[pk]!r}")
             elif not _equal(ra[pk], rb[ok]):
                 out.append(f"{c}.{ok}: {rb[ok]!r} != pilot {pk}={ra[pk]!r}")
+        counts = rb.get("n_frames", {})
+        for pk, ok in COUNTS:
+            if pk not in ra:
+                raise ValueError(f"{c}: the pilot evaluator's row lacks the count {pk}, so the frames behind "
+                                 f"{ok} cannot be checked")
+            if ok not in counts:
+                out.append(f"{c}.n_frames[{ok}]: missing; the pilot wrote {pk}={ra[pk]!r}")
+            elif counts[ok] != ra[pk]:
+                out.append(f"{c}.n_frames[{ok}]: {counts[ok]!r} != pilot {pk}={ra[pk]!r}")
     return out
 
 
