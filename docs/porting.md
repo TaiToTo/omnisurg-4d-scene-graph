@@ -478,11 +478,12 @@ Every command takes those paths as arguments.
     tests' 9×11 frame, 20 of 288 elements) and agree above; under numpy
     1.26.4 on OpenBLAS they agree at every size tried. The depth stages'
     clouds are far above the line, so step 5's byte check on G does not
-    answer it; `project.backproject` carries the order into label transfer
-    and warping, which do see small point sets, so a difference would first
-    surface in the tracking stage's byte check. If it does there, the choice
-    is between restoring the workbench's order and accepting a documented
-    non-bit-equality — made then, not found later.
+    answer it. `project.backproject` carries the order further, but no
+    stage calls it: in the workbench, only two analyses of view consistency
+    do (`view_consistency.py`, `camera_motion.py`), and their point sets can
+    be small. If they are ported and a difference surfaces in their check,
+    the choice is between restoring the workbench's order and accepting a
+    documented non-bit-equality — made then, not found later.
 17. **Whether the geometry path has to be fast.** The depth stage
     back-projects each frame once when a clip is exported, with
     `backproject_depth`, `cam_to_world` and `world_to_gltf`, and writes the
@@ -500,11 +501,10 @@ Every command takes those paths as arguments.
     such array of points holds about 50 MB at 1080p. On float32 points the
     world transform measured 2.5 times faster. `backproject_depth` and
     `backproject` rebuild the pixel grid on every call, although a clip's
-    resolution is fixed. That rebuild is a few per cent of the time. Two
-    more costs sit on the label transfer path of the tracking stage, not on
-    the export. `backproject` back-projects every frame it is given, and
-    `project_labels_region` votes region by region in a Python loop. None
-    of this is worth changing while the port lasts. float32 changes the
+    resolution is fixed. That rebuild is a few per cent of the time.
+    `backproject` also back-projects every frame it is given, on the path
+    of the view-consistency analyses, not on the export. None of this is
+    worth changing while the port lasts. float32 changes the
     output, and the pipeline port asks each stage to match the workbench
     byte for byte. The byte check reads the GLB files too. Decide once the
     stages match, and decide with it whether a viewer ever recomputes
