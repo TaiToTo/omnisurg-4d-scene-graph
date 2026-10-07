@@ -442,11 +442,10 @@ Every command takes those paths as arguments.
     such array of points holds about 50 MB at 1080p. On float32 points the
     world transform measured 2.5 times faster. `backproject_depth` and
     `backproject` rebuild the pixel grid on every call, although a clip's
-    resolution is fixed. That rebuild is a few per cent of the time. Two
-    more costs sit on the label transfer path of the tracking stage, not on
-    the export. `backproject` back-projects every frame it is given, and
-    `project_labels_region` votes region by region in a Python loop. None
-    of this is worth changing while the port lasts. float32 changes the
+    resolution is fixed. That rebuild is a few per cent of the time.
+    `backproject` also back-projects every frame it is given, on the path
+    of the view-consistency analyses, not on the export. None of this is
+    worth changing while the port lasts. float32 changes the
     output, and the pipeline port asks each stage to match the workbench
     byte for byte. The byte check reads the GLB files too. Decide once the
     stages match, and decide with it whether a viewer ever recomputes
