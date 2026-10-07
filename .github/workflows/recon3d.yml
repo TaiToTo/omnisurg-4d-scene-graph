@@ -26,6 +26,8 @@ permissions:
 jobs:
   install:
     runs-on: ubuntu-24.04
+    # The install takes about four minutes; a stuck download should not hold the runner for hours.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
         with:

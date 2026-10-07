@@ -40,6 +40,19 @@ def world_to_camera(extrinsics: np.ndarray) -> np.ndarray:
     return extrinsics[:, :3, :]
 
 
+def select_gpu(gpu: int | None) -> None:
+    """Select the GPU to use, through `CUDA_VISIBLE_DEVICES`. None leaves the environment as it is.
+
+    Raises:
+        RuntimeError: torch is already imported. The variable would then have no effect.
+    """
+    if gpu is None:
+        return
+    if "torch" in sys.modules:
+        raise RuntimeError("torch is already imported, so CUDA_VISIBLE_DEVICES cannot select the GPU")
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
+
+
 class DA3:
     """Load DA3 once onto a device.
 
@@ -55,10 +68,7 @@ class DA3:
 
     def __init__(self, model_id: str = DEFAULT_MODEL_ID, device: str = "auto", gpu: int | None = None,
                  process_res: int = DEFAULT_PROCESS_RES) -> None:
-        if gpu is not None:
-            if "torch" in sys.modules:
-                raise RuntimeError("torch is already imported, so CUDA_VISIBLE_DEVICES cannot select the GPU")
-            os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
+        select_gpu(gpu)
         # Imported here, not at the top: CUDA_VISIBLE_DEVICES takes effect only before torch's first import.
         import torch
         from depth_anything_3.api import DepthAnything3

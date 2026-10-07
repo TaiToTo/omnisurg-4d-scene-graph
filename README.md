@@ -7,7 +7,7 @@ surgery — built by composing foundation models, with no task-specific training
 
 ## Install
 
-The evaluation toolkit needs Python 3.12 or newer and nothing else:
+The evaluation toolkit needs Python 3.12 or newer; `pip` brings the rest:
 
 ```bash
 pip install -e .

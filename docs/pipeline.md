@@ -58,8 +58,9 @@ own files, the ones named above, and writes them again, so a run on fewer
 frames leaves no file of a frame it no longer writes. The later stages count
 a clip's frames by the files in `depth_raw/`. Every other file in those
 directories stays: what another depth source wrote under a `__<source>`
-suffix, and what the later stages wrote under their own names. The stage also refuses a model result that is not one
-frame per image, before it writes anything.
+suffix, and what the later stages wrote under their own names. The stage
+also refuses a model result that is not one frame per image, before it
+writes anything.
 
 `--gpu N` selects a GPU through `CUDA_VISIBLE_DEVICES`. Without it, the
 stage leaves that variable as it is, so a GPU chosen outside stays chosen.

@@ -1,15 +1,19 @@
-"""Check the reconstruction interface and the DA3 wrapper's own logic: the shapes it refuses, the extrinsics it cuts, the device it picks.
+"""Check the reconstruction interface and the DA3 wrapper's own logic, without weights.
+
+The interface refuses shapes that are not one sequence. The wrapper cuts
+homogeneous extrinsics, selects the GPU and picks the device.
 
 The torch test skips without the `recon3d` extra; the install job runs it.
 """
 
+import os
 import sys
 
 import numpy as np
 import pytest
 
 from recon3d_wrapper import Reconstruction
-from recon3d_wrapper.da3 import DA3, world_to_camera
+from recon3d_wrapper.da3 import DA3, select_gpu, world_to_camera
 
 
 def parts(n=2, h=6, w=8):
@@ -60,10 +64,28 @@ def test_extrinsics_that_are_neither_shape_or_not_homogeneous_are_refused():
         world_to_camera(bad)
 
 
+def test_a_gpu_chosen_before_torch_is_imported_is_written_to_the_environment(monkeypatch):
+    monkeypatch.delitem(sys.modules, "torch", raising=False)
+    monkeypatch.delenv("CUDA_VISIBLE_DEVICES", raising=False)
+    select_gpu(3)
+    assert os.environ["CUDA_VISIBLE_DEVICES"] == "3"
+
+
+def test_no_gpu_choice_leaves_the_environment_as_it_is(monkeypatch):
+    monkeypatch.setenv("CUDA_VISIBLE_DEVICES", "1")
+    select_gpu(None)
+    assert os.environ["CUDA_VISIBLE_DEVICES"] == "1"
+    monkeypatch.delenv("CUDA_VISIBLE_DEVICES")
+    select_gpu(None)
+    assert "CUDA_VISIBLE_DEVICES" not in os.environ
+
+
 def test_a_gpu_chosen_after_torch_is_imported_is_refused(monkeypatch):
     monkeypatch.setitem(sys.modules, "torch", object())
+    monkeypatch.delenv("CUDA_VISIBLE_DEVICES", raising=False)
     with pytest.raises(RuntimeError, match="already imported"):
         DA3(gpu=0)
+    assert "CUDA_VISIBLE_DEVICES" not in os.environ
 
 
 def test_auto_takes_the_device_torch_reports_and_puts_the_model_on_it(monkeypatch):

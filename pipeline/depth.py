@@ -106,7 +106,7 @@ def run_depth(clip_dir: Path, model: Reconstructor, process_res: int, write_glb:
 
     Args:
         clip_dir: the clip.
-        model: the reconstruction model. It is loaded once for every clip.
+        model: the reconstruction model. It is loaded once, before the clips.
         process_res: the resolution the model was built with. `depth_info` records it.
         write_glb: write the point clouds. Only the viewer reads them, and they take about 20 MB a frame.
         overwrite: replace the stage's output when the clip already holds it. The output is removed only after

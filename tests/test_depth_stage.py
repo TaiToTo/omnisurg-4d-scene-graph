@@ -7,12 +7,14 @@ workbench's stage. Writing the images and the point clouds needs the
 """
 
 import json
+import sys
 
 import numpy as np
 import pytest
 from PIL import Image
 
-from pipeline.depth import check_cropped, existing_output, run_depth
+import pipeline.depth
+from pipeline.depth import check_cropped, existing_output, main, run_depth
 from recon3d_wrapper import Reconstruction
 
 
@@ -23,6 +25,7 @@ class StandIn:
     """
 
     model_id = "stand-in"
+    device = "cpu"
 
     def __init__(self, shape=(6, 8), zero_frame=None, returns=None):
         self.shape, self.zero_frame, self.returns = shape, zero_frame, returns
@@ -227,3 +230,53 @@ def test_overwrite_removes_only_the_stage_s_own_files(tmp_path):
     run_depth(clip, StandIn(), process_res=504, write_glb=False, overwrite=True)
     assert others_in(clip) == others
     assert not (clip / "pc_vis" / "frame_0000.glb").exists()
+
+
+def run_main(monkeypatch, root, *args, model=None):
+    """Run the command on `root` with a stand-in in place of DA3, or with a DA3 that must not be built."""
+    def build(**kwargs):
+        if model is None:
+            raise AssertionError("the model was built")
+        return model
+    monkeypatch.setattr(pipeline.depth, "DA3", build)
+    monkeypatch.setattr(sys, "argv", ["pipeline.depth", "--input-dir", str(root), "--no-glb", *args])
+    main()
+
+
+def test_a_missing_input_dir_stops_the_run_before_the_model_loads(tmp_path, monkeypatch):
+    with pytest.raises(SystemExit, match="no such directory"):
+        run_main(monkeypatch, tmp_path / "nowhere")
+
+
+def test_a_mistyped_clip_name_stops_the_run_before_the_model_loads(tmp_path, monkeypatch):
+    make_clip(tmp_path)
+    with pytest.raises(SystemExit, match=r"no clip \(a directory with frame_manifest.json\) at: VID02_s15_80_crop"):
+        run_main(monkeypatch, tmp_path, "--clips", "VID01_s15_80_crop", "VID02_s15_80_crop")
+    assert not (tmp_path / "VID01_s15_80_crop" / "depth_raw").exists()
+
+
+def test_a_directory_without_clips_stops_the_run_before_the_model_loads(tmp_path, monkeypatch):
+    with pytest.raises(SystemExit, match="no clip under"):
+        run_main(monkeypatch, tmp_path)
+
+
+def test_a_clip_that_fails_does_not_stop_the_others_and_the_run_exits_non_zero(tmp_path, monkeypatch, capsys):
+    pytest.importorskip("matplotlib")
+    make_clip(tmp_path, name="VID01_s15_80_crop")
+    make_clip(tmp_path, name="VID02_s15_80_crop", cropped=False)
+    make_clip(tmp_path, name="VID03_s15_80_crop")
+    with pytest.raises(SystemExit, match=r"1 of 3 clip\(s\) failed: VID02_s15_80_crop"):
+        run_main(monkeypatch, tmp_path, model=StandIn())
+    assert "failed: ValueError" in capsys.readouterr().out
+    for name in ("VID01_s15_80_crop", "VID03_s15_80_crop"):
+        assert len(list((tmp_path / name / "depth_raw").iterdir())) == 3
+    assert not (tmp_path / "VID02_s15_80_crop" / "depth_raw").exists()
+
+
+def test_every_clip_runs_and_the_command_exits_clean(tmp_path, monkeypatch):
+    pytest.importorskip("matplotlib")
+    make_clip(tmp_path, name="VID01_s15_80_crop")
+    make_clip(tmp_path, name="VID02_s15_80_crop")
+    run_main(monkeypatch, tmp_path, model=StandIn())
+    for name in ("VID01_s15_80_crop", "VID02_s15_80_crop"):
+        assert len(list((tmp_path / name / "depth_raw").iterdir())) == 3
