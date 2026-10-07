@@ -435,33 +435,7 @@ Every command takes those paths as arguments.
     whether the ported stage follows `main`, and the depth so made is made
     again with every condition on it, or the branch's setting becomes the
     stage's.
-14. **The seed frame chosen from GT.** With `--seed_auto`, the tracking stage
-    seeds on the frame nearest the window's centre among those whose GT masks
-    call at most `--seed_inst_thresh` of it instrument (0.005 by default), or,
-    when there is none, on the frame with the least. It reads each frame's
-    mask file through the workbench's class tables, by the file's presence
-    rather than the GT flag, and counts a frame with no mask as free of
-    instruments. It was added to keep an instrument in the seed frame from
-    splitting one surface into two tracks. With `--seed_inst_thresh 1.0`, the
-    operating point, every frame counts as free and the seed is the centre of
-    the strided frame list, frame N // 2 at stride 1, whatever the GT says;
-    the ported stage keeps that centre and nothing else of the choice ("Two
-    propagation rules, and no seed chosen from GT"). `seed_info.json` records
-    the seed frame but not the rule. What stays open is the conditions
-    seeded from GT masks (`--seed_source gt`). They seed on
-    `track_metrics.pick_seed_frame`, the frame nearest (N − 1)/2 among those
-    with a mask file, and take the seed's regions from
-    `track_metrics.gt_instances`, which drops a component under `MIN_AREA`.
-    That frame can lie several frames from the centre: on the nine 30-frame
-    CholecSeg8k clips of the development machine, counting the annotated
-    frames only, it is frame 10, 14 or 16 where the operating point seeds at
-    15, and it moves with the mask files present. Such a condition cannot
-    seed on the centre when the centre has no GT, so it holds neither rule.
-    Decide, before the tracking stage is ported, whether these conditions
-    stay, under which rule a score records them, and whether their seed keeps
-    the `MIN_AREA` cut that "No minimum object size, anywhere" removes
-    everywhere else.
-15. **Two orders of the world transform.** `cam_to_world` computes
+14. **Two orders of the world transform.** `cam_to_world` computes
     `(p - t) @ R`; the workbench's back-projection computes
     `(R.T @ (p.T - t)).T`. On the development machine the two give the same
     bits only where the BLAS runs the same kernel: under numpy 2.5.3 on
@@ -474,7 +448,7 @@ Every command takes those paths as arguments.
     surface in the tracking stage's byte check. If it does there, the choice
     is between restoring the workbench's order and accepting a documented
     non-bit-equality — made then, not found later.
-16. **Whether the geometry path has to be fast.** The depth stage
+15. **Whether the geometry path has to be fast.** The depth stage
     back-projects each frame once when a clip is exported, with
     `backproject_depth`, `cam_to_world` and `world_to_gltf`, and writes the
     points to a GLB file. Nothing waits on it there, so its cost is a batch
@@ -502,7 +476,7 @@ Every command takes those paths as arguments.
     geometry or only reads what the export wrote. The functions are in
     `surgical_core/geometry/camera.py` and
     `surgical_core/geometry/project.py`.
-17. **Conditions seeded from GT.** A seed frame is scored like any other
+16. **Conditions seeded from GT.** A seed frame is scored like any other
     frame, because the paper's conditions are seeded from the pipeline's own
     masks. Which of the 38 conditions were seeded from GT instead, and
     whether such a condition is scored on its seed frame or enters a table
@@ -512,9 +486,11 @@ Every command takes those paths as arguments.
     where it does not tell, the command that made the condition does.
     The workshop's oracle row, GT instrument masks painted onto a
     condition's labels, is one; the viewer's `gt_tracked` track, one GT
-    frame carried by SAM 3, is another candidate. What the tracking stage
-    does with such a seed is "The seed frame chosen from GT".
-18. **Masks that are not GT under the GT's name.** The viewer's step writes
+    frame carried by SAM 3, is another candidate. The ported tracking stage
+    seeds from no GT: the conditions the workbench seeded from GT masks
+    (`--seed_source gt`: `t12_gtseed` on five inputs, and `t12_paste`) stay
+    in the workbench, and what they measured is a reference value.
+17. **Masks that are not GT under the GT's name.** The viewer's step writes
     SAM 3 masks into `seg_masks/` as `<i>_color_mask.png`, told apart from
     the annotation only by the frame manifest's `is_anchor` and
     `seg_provenance`, and the two VID25 clips still hold such masks from

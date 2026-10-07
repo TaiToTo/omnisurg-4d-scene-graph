@@ -40,6 +40,16 @@ render = ["matplotlib", "trimesh"]
 # import them only where they are used, so reading and checking scores works
 # without the extra.
 tools = ["scipy", "matplotlib"]
+# The tracking stage needs the render extra, SAM 3's video tracker from
+# transformers, and SAM's automatic mask generator, which cuts the seed
+# frame. Both are imported only when the stage builds its models, so the
+# stage's tests run without them.
+track = [
+    "omnisurg-4d-scene-graph[render]",
+    "torch",
+    "transformers>=4.57",
+    "segment-anything",
+]
 
 [project.urls]
 Homepage = "https://github.com/TaiToTo/omnisurg-4d-scene-graph"
@@ -49,7 +59,7 @@ Homepage = "https://github.com/TaiToTo/omnisurg-4d-scene-graph"
 # rather than run from the clone, so that nothing edits `sys.path` to find
 # the others, and a stage runs the same from any directory.
 [tool.setuptools.packages.find]
-include = ["surgical_core*", "evalkit*", "pipeline*"]
+include = ["surgical_core*", "evalkit*", "pipeline*", "sam3_wrapper*"]
 
 # The class tables are data the evaluator reads and hashes, so an install
 # without them would score nothing.
