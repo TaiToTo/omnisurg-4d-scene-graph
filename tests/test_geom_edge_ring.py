@@ -4,10 +4,10 @@ The normals are central differences, so on the outer pixel of the image and
 next to an invalid pixel they are 0 or NaN; the 1 - cos to the neighbour is
 then 1, the strongest possible crease, and the depth gradient looks like a
 step at the rim of a hole. A contour standing there is not geometry.
-`EDGE_MASK_RING` zeroes that ring, and must not change a single pixel
-inside it: if it did, regenerating the edge conditions would measure some
-other change under the name of ring removal, and the images would look the
-same.
+`mask_ring` zeroes that ring, and must not change a single pixel inside
+it: if it did, regenerating the edge conditions would measure some other
+change under the name of ring removal, and the images would look the same.
+The setting is an argument all the way from the segmenter input down.
 """
 
 import numpy as np
@@ -72,23 +72,37 @@ def test_dense_depth_masks_only_the_border():
     assert r.sum() == (h - 4) * (w - 4)
 
 
-def test_flag_lives_in_normals_only():
-    """The package does not re-export the flag. An import copies a value, so
-    a package copy could be set to False while `geom_edge_map` kept reading
-    True from `normals`, and the provenance record would lie."""
+def test_no_module_flag_decides_the_ring():
+    """No module global sets the ring for a whole process: one process could
+    then make two settings' inputs under one record."""
+    assert not hasattr(geo, "EDGE_MASK_RING")
     assert not hasattr(geometry, "EDGE_MASK_RING")
     assert not hasattr(geometry, "EDGE_RING_PX")
-    assert geo.EDGE_MASK_RING is True
 
 
 @pytest.mark.parametrize("parts", ["both", "normal", "depth"])
-def test_default_follows_module_flag(monkeypatch, parts):
-    """`mask_ring=None` follows the module flag, which is how old labels are
-    reproduced."""
+def test_the_ring_is_masked_by_default(parts):
     d, k = _smooth_depth_with_hole()
-    monkeypatch.setattr(geo, "EDGE_MASK_RING", False)
-    assert np.array_equal(geo.geom_edge_map(d, k, parts=parts),
-                          geo.geom_edge_map(d, k, parts=parts, mask_ring=False))
-    monkeypatch.setattr(geo, "EDGE_MASK_RING", True)
     assert np.array_equal(geo.geom_edge_map(d, k, parts=parts),
                           geo.geom_edge_map(d, k, parts=parts, mask_ring=True))
+
+
+@pytest.mark.parametrize("bad", [None, 0, 1, "yes"])
+def test_a_ring_setting_that_is_not_a_bool_is_refused(bad):
+    d, k = _smooth_depth_with_hole()
+    with pytest.raises(ValueError, match="mask_ring is True or False"):
+        geo.geom_edge_map(d, k, mask_ring=bad)
+
+
+@pytest.mark.parametrize("mode", ["normal_edge", "rgb_edge"])
+def test_the_segmenter_input_passes_the_ring_setting_down(mode):
+    """An edge input made with the ring left in differs from the default, and
+    equals the edges burnt with the ring left in."""
+    render = pytest.importorskip("surgical_core.geometry.render")
+    d, k = _smooth_depth_with_hole()
+    rgb = np.full((*d.shape, 3), 200, np.uint8)
+    kept = render.sam_input_image(mode, d, k, None, rgb, mask_ring=False)
+    assert not np.array_equal(kept, render.sam_input_image(mode, d, k, None, rgb))
+    want = (geo.normal_edge_map(d, k, mask_ring=False) if mode == "normal_edge"
+            else geo.burn_geom_edge(rgb, d, k, mask_ring=False))
+    assert np.array_equal(kept, want)

@@ -44,10 +44,11 @@ SAM_INPUT_MODES = ("depth", "normal", "normal_edge", "rgb", "rgb_edge")
 def uses_geom_edge(mode):
     """Return whether `sam_input_image(mode, ...)` burns geometric edges in.
 
-    For the provenance record: `edge_ring_masked` describes how the edges
-    were made, so writing True or False for an input that burns no edges
-    (`rgb`, `normal`, `depth`) would read as "made with that setting". For
-    those inputs the record writes `None`, and this is how it tells.
+    For the provenance record: `edge_ring_masked` records the `mask_ring`
+    the edges were made with, so writing True or False for an input that
+    burns no edges (`rgb`, `normal`, `depth`) would read as "made with that
+    setting". For those inputs the record writes `None`, and this is how it
+    tells.
 
     Args:
         mode: one of `SAM_INPUT_MODES`.
@@ -60,7 +61,7 @@ def uses_geom_edge(mode):
     return mode in ("normal_edge", "rgb_edge")
 
 
-def sam_input_image(mode, depth, K, gray01, rgb, edge_gain=0.85, smooth=True):
+def sam_input_image(mode, depth, K, gray01, rgb, edge_gain=0.85, smooth=True, mask_ring=True):
     """Return the 3-channel image the segmenter is prompted with, per input mode.
 
     Args:
@@ -74,6 +75,8 @@ def sam_input_image(mode, depth, K, gray01, rgb, edge_gain=0.85, smooth=True):
         rgb: (H, W, 3) uint8.
         edge_gain: how dark the edge lines are, 0 to 1.
         smooth: bilateral-filter the normal image in `normal_edge`.
+        mask_ring: zero the ring of the burnt-in edges along the image border
+            and around invalid depth (`geom_edge_map`), in the `_edge` modes.
 
     Returns:
         (H, W, 3) uint8.
@@ -88,9 +91,9 @@ def sam_input_image(mode, depth, K, gray01, rgb, edge_gain=0.85, smooth=True):
     if mode == "normal":
         return normal_map(depth, K)
     if mode == "normal_edge":
-        return normal_edge_map(depth, K, edge_gain=edge_gain, smooth=smooth)
+        return normal_edge_map(depth, K, edge_gain=edge_gain, smooth=smooth, mask_ring=mask_ring)
     if mode == "rgb_edge":
-        return burn_geom_edge(rgb, depth, K, edge_gain=edge_gain)
+        return burn_geom_edge(rgb, depth, K, edge_gain=edge_gain, mask_ring=mask_ring)
     # Matched by name like every other mode, never as a default: a misspelt
     # mode in a config would otherwise run the depth condition under another
     # name, and nothing downstream could tell.
