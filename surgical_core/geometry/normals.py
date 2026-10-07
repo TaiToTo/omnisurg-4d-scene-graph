@@ -15,8 +15,7 @@ def camera_normals(depth, K):
 
     Each pixel is back-projected into camera space and the normal is the
     cross product of the horizontal and vertical tangent vectors, taken by
-    central differences. `normal_map`, `geom_edge_map` and the relighting all
-    start from this.
+    central differences. `normal_map` and `geom_edge_map` start from this.
 
     Args:
         depth: (H, W) depth. 0 and NaN are invalid.
@@ -109,7 +108,7 @@ def edge_reliable_mask(m):
 
 
 def geom_edge_map(depth, K, normal_thresh=0.3, depth_thresh=0.04, parts="both",
-                  mask_ring=None):
+                  mask_ring=None, normals=None):
     """Geometric edge strength in [0, 1] from normal discontinuity and depth steps.
 
     Large at real geometric boundaries (organ creases, occlusion steps), small
@@ -129,6 +128,7 @@ def geom_edge_map(depth, K, normal_thresh=0.3, depth_thresh=0.04, parts="both",
             around invalid pixels. `None` follows `EDGE_MASK_RING`. Reproduce
             old labels by setting `normals.EDGE_MASK_RING`, not this
             argument: the provenance record reads the flag.
+        normals: `camera_normals(depth, K)`, when the caller has it already.
 
     Returns:
         (H, W) float edge strength, 0 where invalid.
@@ -142,7 +142,7 @@ def geom_edge_map(depth, K, normal_thresh=0.3, depth_thresh=0.04, parts="both",
         with `parts="depth"` the outer 2 pixels of real steps are lost too.
         That is the conservative side, so the two are kept equal.
     """
-    n, m = camera_normals(depth, K)
+    n, m = camera_normals(depth, K) if normals is None else normals
     H, W = depth.shape
     nf = np.nan_to_num(n)
     # Normal discontinuity: 1 - cos to the right and lower neighbour, large at
@@ -191,13 +191,12 @@ def normal_edge_map(depth, K, edge_gain=0.85, smooth=True):
     base[~m] = 0
     if smooth:
         base = cv2.bilateralFilter(base, d=5, sigmaColor=40, sigmaSpace=5)
-    edge = geom_edge_map(depth, K)
-    img = base.astype(np.float32) * (1.0 - edge_gain * edge)[..., None]
+    img = burn_geom_edge(base, depth, K, edge_gain, normals=(n, m))
     img[~m] = 0
-    return np.clip(img, 0, 255).astype(np.uint8)
+    return img
 
 
-def burn_geom_edge(base, depth, K, edge_gain=0.85):
+def burn_geom_edge(base, depth, K, edge_gain=0.85, normals=None):
     """Burn the same geometric edges into any 3-channel image.
 
     The edge comes from `geom_edge_map`, from depth and intrinsics alone, so
@@ -211,10 +210,11 @@ def burn_geom_edge(base, depth, K, edge_gain=0.85):
         depth: (H, W) depth.
         K: (3, 3) intrinsics.
         edge_gain: how dark the edge line is, 0 to 1.
+        normals: `camera_normals(depth, K)`, when the caller has it already.
 
     Returns:
         (H, W, 3) uint8.
     """
-    edge = geom_edge_map(depth, K)
+    edge = geom_edge_map(depth, K, normals=normals)
     img = base.astype(np.float32) * (1.0 - edge_gain * edge)[..., None]
     return np.clip(img, 0, 255).astype(np.uint8)

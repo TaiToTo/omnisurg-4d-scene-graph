@@ -1,6 +1,6 @@
 """`sam_input_image` answers every mode in `SAM_INPUT_MODES` and refuses the rest.
 
-The module needs the `render` extra (matplotlib, scipy); without it the tests
+The module needs the `render` extra (matplotlib); without it the tests
 skip, and CI runs them in the job that installs the extra.
 """
 
@@ -8,7 +8,6 @@ import numpy as np
 import pytest
 
 pytest.importorskip("matplotlib")
-pytest.importorskip("scipy")
 
 from surgical_core.geometry import render  # noqa: E402
 
@@ -37,3 +36,32 @@ def test_unknown_mode_is_refused():
     depth, K, gray01, rgb = _inputs()
     with pytest.raises(ValueError, match="unknown input mode 'depht'"):
         render.sam_input_image("depht", depth, K, gray01, rgb)
+
+
+def test_a_mode_burns_edges_in_exactly_when_its_gain_changes_it():
+    depth, K, gray01, rgb = _inputs()
+    for mode in render.SAM_INPUT_MODES:
+        off = render.sam_input_image(mode, depth, K, gray01, rgb, edge_gain=0.0)
+        on = render.sam_input_image(mode, depth, K, gray01, rgb, edge_gain=0.85)
+        assert render.uses_geom_edge(mode) == (not np.array_equal(off, on)), mode
+
+
+def test_an_unknown_mode_has_no_answer_on_edges():
+    with pytest.raises(ValueError, match="unknown input mode 'depht'"):
+        render.uses_geom_edge("depht")
+
+
+@pytest.mark.parametrize("mode", render.SAM_INPUT_MODES)
+def test_each_mode_computes_the_normals_at_most_once(mode, monkeypatch):
+    from surgical_core.geometry import normals
+    calls = []
+    real = normals.camera_normals
+
+    def counting(depth, K):
+        calls.append(mode)
+        return real(depth, K)
+
+    monkeypatch.setattr(normals, "camera_normals", counting)
+    depth, K, gray01, rgb = _inputs()
+    render.sam_input_image(mode, depth, K, gray01, rgb)
+    assert len(calls) <= 1, f"{mode} computed the normals {len(calls)} times"
