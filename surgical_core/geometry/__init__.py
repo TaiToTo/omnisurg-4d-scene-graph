@@ -27,11 +27,8 @@ The package is split by dependency:
 
 The functions of `normals`, `project` and `valid`, and `DEPTH_MIN`, are
 re-exported so that `from surgical_core import geometry` keeps working for
-them. `DEPTH_MIN` is never set, so a copy of it cannot drift. The flags
-`EDGE_MASK_RING` and `EDGE_RING_PX` are not: an import copies a value, so a
-copy here could be set to False while `geom_edge_map` kept reading True from
-`normals`, and the provenance record would then say the ring was left in
-when it was not. They live in `surgical_core.geometry.normals` only.
+them. `DEPTH_MIN` is never set, so a copy of it cannot drift. The ring's
+width, `EDGE_RING_PX`, lives in `surgical_core.geometry.normals` only.
 """
 
 from surgical_core.geometry.normals import (  # noqa: F401

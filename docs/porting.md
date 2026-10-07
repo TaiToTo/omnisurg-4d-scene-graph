@@ -415,16 +415,7 @@ Every command takes those paths as arguments.
     that. The evaluator keeps the count behind every key
     (`ClipScores.n_frames`) but has not fixed how a JSON spells it; when the
     pilot-mode driver does, `SHARED` takes the counts too.
-13. **The edge ring as a process-wide flag.**
-    `surgical_core.geometry.normals.EDGE_MASK_RING` decides whether the
-    contour around the image border and around invalid depth is zeroed in the
-    edge map the segmenter is prompted with. It is a module global, set for a
-    whole process: the tracking stage, `geom_blend.py` (and through it the
-    per-frame segmentation stage) and `d4d_seed.py` read it, and each writes
-    it into its own provenance record. Whether a setting passed per run, and
-    recorded with the output in one form, replaces the flag is decided before
-    either stage is ported.
-14. **Depth made by two versions of the depth stage.** On the development
+13. **Depth made by two versions of the depth stage.** On the development
     machine's copy of the workbench, 7 of the 9 CholecSeg8k clips (VID01 and
     VID12) carry depth written by a branch of the depth stage that never
     reached the workbench's `main`: their `results.npz` holds a `ray_map` and
@@ -444,7 +435,7 @@ Every command takes those paths as arguments.
     whether the ported stage follows `main`, and the depth so made is made
     again with every condition on it, or the branch's setting becomes the
     stage's.
-15. **The seed frame chosen from GT.** With `--seed_auto`, the tracking stage
+14. **The seed frame chosen from GT.** With `--seed_auto`, the tracking stage
     seeds on the frame nearest the window's centre among those whose GT masks
     call at most `--seed_inst_thresh` of it instrument (0.005 by default), or,
     when there is none, on the frame with the least. It reads each frame's
@@ -470,7 +461,7 @@ Every command takes those paths as arguments.
     stay, under which rule a score records them, and whether their seed keeps
     the `MIN_AREA` cut that "No minimum object size, anywhere" removes
     everywhere else.
-16. **Two orders of the world transform.** `cam_to_world` computes
+15. **Two orders of the world transform.** `cam_to_world` computes
     `(p - t) @ R`; the workbench's back-projection computes
     `(R.T @ (p.T - t)).T`. On the development machine the two give the same
     bits only where the BLAS runs the same kernel: under numpy 2.5.3 on
@@ -483,7 +474,7 @@ Every command takes those paths as arguments.
     surface in the tracking stage's byte check. If it does there, the choice
     is between restoring the workbench's order and accepting a documented
     non-bit-equality — made then, not found later.
-17. **Whether the geometry path has to be fast.** The depth stage
+16. **Whether the geometry path has to be fast.** The depth stage
     back-projects each frame once when a clip is exported, with
     `backproject_depth`, `cam_to_world` and `world_to_gltf`, and writes the
     points to a GLB file. Nothing waits on it there, so its cost is a batch
@@ -511,7 +502,7 @@ Every command takes those paths as arguments.
     geometry or only reads what the export wrote. The functions are in
     `surgical_core/geometry/camera.py` and
     `surgical_core/geometry/project.py`.
-18. **Conditions seeded from GT.** A seed frame is scored like any other
+17. **Conditions seeded from GT.** A seed frame is scored like any other
     frame, because the paper's conditions are seeded from the pipeline's own
     masks. Which of the 38 conditions were seeded from GT instead, and
     whether such a condition is scored on its seed frame or enters a table
@@ -523,7 +514,7 @@ Every command takes those paths as arguments.
     condition's labels, is one; the viewer's `gt_tracked` track, one GT
     frame carried by SAM 3, is another candidate. What the tracking stage
     does with such a seed is "The seed frame chosen from GT".
-19. **Masks that are not GT under the GT's name.** The viewer's step writes
+18. **Masks that are not GT under the GT's name.** The viewer's step writes
     SAM 3 masks into `seg_masks/` as `<i>_color_mask.png`, told apart from
     the annotation only by the frame manifest's `is_anchor` and
     `seg_provenance`, and the two VID25 clips still hold such masks from
