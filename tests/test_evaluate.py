@@ -174,3 +174,10 @@ def test_labels_without_a_record_need_the_rule_stated(tmp_path):
     with pytest.raises(ValueError, match="state the rule with --propagation"):
         score(tmp_path, "c")
     assert score(tmp_path, "c", propagation="per_frame")["propagation"] == "per_frame"
+
+
+def test_pilot_mode_scores_a_condition_seeded_off_both_rules(tmp_path):
+    # The pilot evaluator scored the conditions seeded from GT too, and the check covers them.
+    write_condition(tmp_path, "c", seed_info={"seed_source": "gt", "seed_frame": 2, "bidir": True, "frames": [0, 1, 2]})
+    summary = score_condition("cholecseg8k", None, CLIPS, tmp_path / "data", tmp_path / "tracks", "c", pilot=True)
+    assert summary["pilot"] and summary["propagation"] == "neither"

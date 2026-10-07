@@ -16,7 +16,7 @@ import pytest
 import clip_dirs as C
 import scenes as S
 from evalkit.evaluate import score_condition
-from evalkit.inputs import MANIFEST, MASK_DIR
+from evalkit.inputs import MANIFEST
 from evalkit.keys import CLIP_METRICS, FRAME_METRICS, metric_key
 from evalkit.pilot import PILOT_DOMAINS, PILOT_MIN_CC_PX
 from evalkit.pilot_clip import _pilot_gt, pilot_frame, pilot_row, pilot_time_iou, score_pilot_clip
@@ -163,21 +163,36 @@ def test_the_frames_come_in_file_name_order_as_the_pilot_read_them(tmp_path):
     assert set(shas) == {"gt_masks", "depth", "predictions"}
 
 
-def test_a_mask_the_manifest_does_not_expect_is_scored_as_the_pilot_scored_it(tmp_path):
+def test_a_mask_the_viewer_wrote_is_not_scored_as_gt(tmp_path):
+    # The pilot's data root held the annotated masks only; the viewer's masks, marked by seg_provenance, are
+    # not among the frames it scored.
+    pilot_clip_dir(tmp_path, [f"label_{i:04d}.npy" for i in range(3)])
+    path = tmp_path / "data" / "c" / MANIFEST
+    m = json.loads(path.read_text())
+    m["frames"][1].update(is_anchor=False, seg_provenance="sam3_gt_propagated")
+    path.write_text(json.dumps(m))
+    row, _ = score_pilot_clip(tmp_path / "data", tmp_path / "tracks", "t", "c", "cholecseg8k")
+    assert [f["frame"] for f in row["frames"]] == [0, 2]
+
+
+def test_a_mask_the_manifest_does_not_flag_is_refused(tmp_path):
     pilot_clip_dir(tmp_path, [f"label_{i:04d}.npy" for i in range(3)])
     path = tmp_path / "data" / "c" / MANIFEST
     m = json.loads(path.read_text())
     m["frames"][1]["has_seg_mask"] = False
     path.write_text(json.dumps(m))
-    row, _ = score_pilot_clip(tmp_path / "data", tmp_path / "tracks", "t", "c", "cholecseg8k")
-    assert [f["frame"] for f in row["frames"]] == [0, 1, 2]
+    with pytest.raises(ValueError, match="frame 1 is flagged has_seg_mask=False but its mask is there"):
+        score_pilot_clip(tmp_path / "data", tmp_path / "tracks", "t", "c", "cholecseg8k")
 
 
-def test_a_clip_whose_predicted_frames_have_no_mask_is_refused(tmp_path):
+def test_a_clip_whose_predicted_frames_are_not_gt_frames_is_refused(tmp_path):
     pilot_clip_dir(tmp_path, [f"label_{i:04d}.npy" for i in range(2)])
-    for p in (tmp_path / "data" / "c" / MASK_DIR).iterdir():
-        p.unlink()
-    with pytest.raises(ValueError, match="no predicted frame has a mask"):
+    path = tmp_path / "data" / "c" / MANIFEST
+    m = json.loads(path.read_text())
+    for f in m["frames"]:
+        f.update(is_anchor=False, seg_provenance="sam3_gt_propagated")
+    path.write_text(json.dumps(m))
+    with pytest.raises(ValueError, match="no predicted frame is a GT frame"):
         score_pilot_clip(tmp_path / "data", tmp_path / "tracks", "t", "c", "cholecseg8k")
 
 

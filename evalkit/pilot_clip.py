@@ -2,8 +2,10 @@
 
 Pilot mode exists for the check against the pilot evaluator and is removed
 before the freeze. It reads what the pilot read: every `label_<i>.npy` in
-file-name order, the mask of frame `i` wherever its file exists, a colour
-mask through the pilot's own colours, and the pixels with valid depth. Each
+file-name order, the mask of each GT frame the manifest's flags give, a
+colour mask through the pilot's own colours, and the pixels with valid
+depth. The pilot read a mask wherever its file was, but its data root held
+the annotated masks only, so the flags give the frames it scored. Each
 frame is scored with the evaluator's modules under the pilot's objects and
 domains (`evalkit.pilot`), with the pilot's arithmetic where it differs.
 The clip is averaged and rounded as the pilot did. The row holds the keys
@@ -11,6 +13,7 @@ The clip is averaged and rounded as the pilot did. The row holds the keys
 """
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from types import MappingProxyType
@@ -21,7 +24,7 @@ from PIL import Image
 
 from evalkit.boundary import BoundaryScore, boundary_pixels, boundary_score
 from evalkit.classmap import class_map
-from evalkit.inputs import DEPTH_FILE, MASK_DIR, depth_sha, sha_of_files
+from evalkit.inputs import DEPTH_FILE, GT_FLAG, MANIFEST, MASK_DIR, MASK_SUFFIX, depth_sha, gt_frames, sha_of_files
 from evalkit.inst_bf import instance_boundary_f
 from evalkit.keys import metric_key
 from evalkit.objects import instance_scores
@@ -227,12 +230,16 @@ def score_pilot_clip(data_root: str | Path, tracks_root: str | Path, tag: str, c
         The clip's row and the sha of each input read.
 
     Raises:
-        FileNotFoundError: The depth or the prediction directory is missing.
-        ValueError: The condition has no prediction for the clip; a label
-            file names a frame outside the depth; no predicted frame has a
-            mask; or a mask is not readable.
+        FileNotFoundError: The manifest, the depth or the prediction directory is missing.
+        ValueError: The manifest leaves a frame's GT unknown (`evalkit.inputs.gt_frames`); the condition has
+            no prediction for the clip; a label file names a frame outside the depth; no predicted frame is a
+            GT frame; or a mask is not readable.
     """
     clip_dir = Path(data_root) / clip
+    frames_listed = json.loads((clip_dir / MANIFEST).read_text(encoding="utf-8"))["frames"]
+    with_mask = {i for i in range(len(frames_listed))
+                 if (clip_dir / MASK_DIR / f"{i:06d}{MASK_SUFFIX[dataset]}").is_file()}
+    gt_set = set(gt_frames(frames_listed, GT_FLAG[dataset], with_mask, clip))
     with np.load(clip_dir / DEPTH_FILE) as z:
         depth = np.asarray(z["depth"], dtype=np.float32)
     shape = depth.shape[1:]
@@ -255,12 +262,12 @@ def score_pilot_clip(data_root: str | Path, tracks_root: str | Path, tag: str, c
         valid = valid_depth(depth[i], pilot=True)
         regions.append(r)
         valids.append(valid)
-        gt = _pilot_gt(clip_dir / MASK_DIR, i, shape)
+        gt = _pilot_gt(clip_dir / MASK_DIR, i, shape) if i in gt_set else None
         if gt is not None:
             frames.append((i, pilot_frame(gt[0], r, valid, PILOT_INSTRUMENT_IDS[dataset])))
             mask_paths.append(gt[1])
     if not frames:
-        raise ValueError(f"{clip}: no predicted frame has a mask under {MASK_DIR}/")
+        raise ValueError(f"{clip}: no predicted frame is a GT frame")
 
     shas = {"gt_masks": sha_of_files(mask_paths), "depth": depth_sha(depth),
             "predictions": sha_of_files(label_paths)}
