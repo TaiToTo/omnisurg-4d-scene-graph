@@ -7,10 +7,6 @@ segments through time, and export what the viewer reads. Each stage is a
 module of `pipeline` and runs as `python -m pipeline.<stage>`. Each stage
 reads what the earlier stages wrote into the clip.
 
-The stages are moving here one at a time from the research workbench where
-they were measured. A stage counts as moved once it writes the same files as
-the workbench's stage, byte for byte. The depth stage is the first.
-
 ## A clip
 
 A clip is a directory with these files:
