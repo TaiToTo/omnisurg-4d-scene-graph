@@ -47,7 +47,7 @@ def ours_json(clips=CLIPS, pilot=True, views=PILOT_DOMAINS):
         rows.append(r)
     return dict(eval_code_sha="a" * 64, dataset="cholecseg8k", pilot=pilot, class_set="original",
                 views=list(views), clips=list(clips), input_shas={c: {} for c in clips}, versions={},
-                per_clip=rows)
+                propagation="both_ways_from_centre", per_clip=rows)
 
 
 def test_the_shared_keys_are_the_table_s():
