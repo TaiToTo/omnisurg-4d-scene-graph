@@ -24,9 +24,11 @@ A clip is a directory with these files:
 python -m pipeline.depth --input-dir /path/to/clips [--clips <clip> ...] [--gpu N] [--overwrite] [--no-glb]
 ```
 
-The stage runs Depth Anything 3 on all frames of a clip in one call. It
-first resizes each frame to 504 pixels on its longest side (`--process-res`).
-It writes into the clip:
+The stage runs Depth Anything 3 (DA3) on all frames of a clip in one call.
+DA3 is the model whose depth the later stages read. Another reconstruction
+model runs as a stage of its own and writes beside DA3's files, under a
+`__<model>` suffix. The stage first resizes each frame to 504 pixels on its
+longest side (`--process-res`). It writes into the clip:
 
 - `depth_raw/depth_NNNNNN.npy`: one depth map per frame.
 - `depth_vis/NNNN.jpg`: each depth map as an image, near warm and far cool.
