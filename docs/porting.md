@@ -207,8 +207,8 @@ move; the rest is listed under "Not carried for now" below.
     `track_sam3.py`, `sam3d_core.py` (`num_to_natural` and `get_sam`),
     `loaders.py` (`CholecGtLoader`), `depth_source.py` (DA3 and the `pi3`
     swap), `viz_common.py` and `sam_env.py`. From
-    `ipcai2027_experiment/scripts/`: `run_per_frame_seg.py`, the dispatch of
-    `geom_blend.py`, `rgb_flatten.py`, which `geom_blend.py` imports, and
+    `ipcai2027_experiment/scripts/`: `run_per_frame_seg.py`, whose inputs
+    pass through `geom_blend.py` to the five modes unchanged, and
     `run_conditions.py`, which runs every tracked condition. From
     `seg_quality_experiment/scripts/`: `run_track_conditions.py`, whose
     `MODES` hold the operating point's flags (`--seed_auto --bidir
@@ -282,8 +282,10 @@ before it was left out stays in its history.
   No input beat RGB there, and every input's boundaries sat near the GT's.
   These are the only callers of `project.backproject`.
 - **Blended inputs** of `geom_blend.py` (`Terms`, `blend`, `SPECS` and the
-  rest of the blend machinery), measured on CholecSeg8k and the earlier
-  13-video ATLAS-120k set, never on the 315 clips.
+  rest of the blend machinery), and the flattened RGB bases of
+  `rgb_flatten.py` (`rgb_flat_*`), measured on CholecSeg8k and the earlier
+  13-video ATLAS-120k set, never on the 315 clips. Both lost to the inputs
+  they modified.
 
 - **Fourteen segmenter inputs and `rgb_refl`.** Of the twenty modes of
   `sam_input_image`, the paper's conditions ran `rgb`, `depth`, `normal`,
