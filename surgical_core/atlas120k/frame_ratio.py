@@ -90,6 +90,10 @@ class FrameRatios:
     def __len__(self) -> int:
         return len(self._ratios)
 
+    def videos(self) -> list[tuple[str, str]]:
+        """The measured videos, as `(procedure, video)` in sorted order."""
+        return sorted(self._ratios)
+
     def ratio(self, procedure: str, video: str) -> int:
         """Return the video's `mp4_frame / native_frame`.
 
