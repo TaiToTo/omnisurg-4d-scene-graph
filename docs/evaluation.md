@@ -574,16 +574,14 @@ predicted objects, hits and hits that entered `inst_BF`, per view. Its
 
 Two scores are comparable only when their `eval_code_sha`, dataset, class set,
 view and mode match, they cover the same clips, they read the same GT masks
-and depth maps, and their predictions were propagated under one rule or one
-of them frame by frame. The two rules never meet in one number: a difference
-between them would pass for a difference between the methods. A condition
-segmented frame by frame may sit beside either, since propagation against
-per-frame segmentation is itself a comparison the paper makes. Pairs that
-each pass can therefore still put both rules in one table, so the conditions
-of one table hold one rule besides `per_frame` between them. `compare_eval`
-refuses any other pair, `paired_stats` any other table, and both report a
-difference in versions. The same `eval_code_sha` is not enough on its own:
-pilot mode and the normal mode share it, and so do the views.
+and depth maps, and they share a propagation rule. A difference between two
+rules would pass for a difference between the methods. `per_frame` is the
+exception: it may sit beside either rule, since that comparison is one the
+paper makes. The conditions of one table therefore hold one rule besides
+`per_frame`. `compare_eval` refuses any other pair and `paired_stats` any
+other table; both report a difference in versions. The same `eval_code_sha`
+is not enough on its own: pilot mode and the normal mode share it, and so do
+the views.
 
 The check against the pilot evaluator, below, is not a comparison under this
 rule: the two shas differ by construction. It is a verification, run by its
@@ -603,9 +601,8 @@ pilot evaluator's numbers.
 - A *ruler* is what a score was measured with, as `scores.Ruler` holds it:
   `eval_code_sha`, dataset, mode, class set, views, and for a pilot JSON its
   domain. Two scores are *comparable* when they share a ruler, cover the
-  same clips, read the same GT masks and depth maps, and were propagated
-  under one rule or one of them frame by frame, the rule above. The rules
-  are defined under "Propagation rule" above.
+  same clips, read the same GT masks and depth maps, and share a
+  propagation rule, `per_frame` aside, the rule above.
 - A *tag* is a condition's name on disk: the directory under each clip that
   holds its labels, and separately the name of its score JSON; the score
   names the label directory it read in `track_dir_name`.
