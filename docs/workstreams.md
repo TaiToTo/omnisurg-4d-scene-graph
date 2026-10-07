@@ -76,28 +76,18 @@ say, in the form a session starting cold needs.
 ## Not now: blocked on a decision
 
 `track_metrics` and `kmerge` wait on a decision not yet made; started before
-it, they would be ported twice. The tracking stage waits on a decision
-too, and the stages after tracking wait on the tracking stage. The questions are named as `docs/porting.md` heads
-them.
+it, they would be ported twice. The stages after tracking wait on the
+tracking stage. The questions are named as `docs/porting.md` heads them.
 
 | piece | waits for |
 |---|---|
 | `track_metrics`, `kmerge` | "Identity metrics and merge cost" |
-| the tracking stage: `track_sam3.py`, `sam3_wrapper/` and their helpers | "The seed frame chosen from GT", and `track_metrics`, whose seed helpers it imports |
 | the export stages and the viewer | the tracking stage, whose output they read |
 
-The tracking stage reads GT in two places. With `--seed_auto` and the
-default threshold, it chooses the seed frame by how much of each frame the
-GT masks call instrument, reading the mask files through the workbench's
-class tables. With `--seed_source gt`, a condition seeded from GT masks, it
-reads the seed frame's GT through the pilot evaluator's
-`eval_track._gt_idmap`, and takes the seed frame and the GT instances from
-the workbench's `track_metrics` (`pick_seed_frame`, `gt_instances`).
-Whatever class table it reads once ported is `evalkit.classes`. It does not
-wait on the depth stages: its check links the workbench's stored
-`results.npz` in, as the determinism measurement did. The measurement ran it
-with `--seed_auto` at the default threshold, which reads GT; its check runs
-both sides at the operating point's `--seed_inst_thresh 1.0` instead.
+The ported tracking stage reads no GT. The rule places the seed, on the
+middle frame or on frame 0, and no seed comes from GT masks. Its check links
+the workbench's stored `results.npz` in, so it does not wait on the depth
+stages.
 
 ## Now: workstreams that can start today
 
