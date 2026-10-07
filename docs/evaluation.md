@@ -1,8 +1,6 @@
 # Evaluation — specification
 
-**Status: agreed, not yet implemented.** Nothing here is frozen yet. One thing
-is still undecided: how to score consistency over time (the last point of the
-summary).
+**Status: agreed, not yet implemented.** Nothing here is frozen yet.
 
 ## Summary
 
@@ -30,13 +28,13 @@ robot-assisted videos of 14 procedures, 42 classes) and CholecSeg8k
   merges them into 30 classes; those are scored too, for comparison with the
   benchmark, as reference values only.
 - **Ten metrics, three questions.** The paper asks three questions of the
-  regions, and each is judged on its own *primary* metric: how far a region
-  picked out in one frame can be followed (not decided yet, the last point
-  below); what input puts the regions' boundaries where the GT's class
-  boundaries are, judged on `boundary_R_raw` in each view; and how much of
-  the labelled structure the regions hold, judged on `F1_50` (objects found,
-  with every extra region counted against it) and `SQ` (how well the found
-  ones fit), in the geometric view.
+  regions. Two are judged on a *primary* metric of their own: what input
+  puts the regions' boundaries where the GT's class boundaries are, judged
+  on `boundary_R_raw` in each view; and how much of the labelled structure
+  the regions hold, judged on `F1_50` (objects found, with every extra region
+  counted against it) and `SQ` (how well the found ones fit), in the
+  geometric view. The third, how far a region picked out in one frame can be
+  followed, is answered with reference values only (the last point below).
 - **Regions are named from the GT.** Each region takes the class most of its
   pixels have in the GT, so the class-map metric `mIoU` is an oracle value,
   kinder than any real classifier would get.
@@ -50,11 +48,12 @@ robot-assisted videos of 14 procedures, 42 classes) and CholecSeg8k
   by an earlier evaluator, the *pilot evaluator* (`eval_code_sha = 1f8a813a…`),
   which stays frozen in the private research workbench. Run with its rules
   (*pilot mode*), this evaluator must reproduce its scores exactly.
-- **Not decided yet: consistency over time.** The pilot evaluator's `time_IoU`
-  is kept as a reference value only, because coarse regions score well on it.
-  Measures of whether a tracked thing keeps its identity — hold, IDF1, ID
-  switches, fragmentation — are candidates; the evaluator does not compute
-  them yet.
+- **Consistency over time: reference values only.** The pilot evaluator's
+  `time_IoU` is kept as a reference value, because coarse regions score well
+  on it. Measures of whether a tracked thing keeps its identity — hold, IDF1,
+  ID switches, fragmentation, re-entry — are computed by a tool outside the
+  evaluator and reported as reference values too. No measure over time
+  carries a star.
 
 The rest of the document gives the rules in full, then why the pilot evaluator
 was replaced, then the class tables.
@@ -334,7 +333,7 @@ conditions, and judges each on its own key, on each dataset's own labels
 
 | question | primary metric | view |
 |---|---|---|
-| Given one frame as an example, how far can the regions be followed? | not decided yet (below) | — |
+| Given one frame as an example, how far can the regions be followed? | none: reference values only (below) | — |
 | Given no example, what input puts the regions' boundaries where the GT's class boundaries are? | `boundary_R_raw` | each of the three |
 | Given no GT, how much of the labelled structure is already in the regions? | `F1_50` and `SQ` | geometric |
 
@@ -351,7 +350,7 @@ The set is kept as small as the claims allow. The evaluator computes every
 metric in the table; which of them the paper reports is settled before any
 score of this evaluator is seen.
 
-### Consistency over time: not decided yet
+### Consistency over time: reference values only
 
 `time_IoU` is kept only as a reference value and never gets a star. It uses no
 GT, and the workbench measured three faults in it:
@@ -364,19 +363,21 @@ GT, and the workbench measured three faults in it:
 
 `temporal_f1`, built to close the second fault, keeps the first.
 
-The candidates measure identity against the GT, and come from the workbench's
+The measures of identity against the GT come from the workbench's
 `track_metrics`: hold (whether the region picked on the frame tracking starts
 from still covers the same GT thing seconds later), IDF1, ID switches,
-fragmentation and re-entry. Choosing among them also means deciding what a GT
-track is: the datasets carry no ids for individual things, and the workbench
-links each class's connected components over time. That is a second object
-definition, finer than the whole-class object used above, and adopting a
-candidate means saying how the two live side by side.
+fragmentation and re-entry. None of them joins the evaluator. Each needs a
+GT track, and the datasets carry no ids for individual things, so a GT track
+would be a second object definition beside the whole-class object used
+above. The workbench also measured a fault in each. Two denominators of hold,
+both pre-registered, gave one comparison opposite signs. IDF1 rises when
+regions merge. Re-entry scored 0.97 to 1.00 for every condition.
 
-Until that is settled, the evaluator computes no temporal measure but
-`time_IoU`, and that one is a reference value. The candidates exist in the
-workbench and are not reported. A measure that is to carry a star has to join
-the evaluator before it is frozen.
+So a tool outside the evaluator, `evalkit/tools/track_metrics`, computes
+them, and they are reported as reference values: measured, and written about
+when they show something, but never marked with a star. The tool defines its
+own GT track. A measure that is to carry a star would have to join the
+evaluator before it is frozen, and none does.
 
 ## Rules that keep the numbers honest
 
