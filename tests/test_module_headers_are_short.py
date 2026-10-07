@@ -32,9 +32,6 @@ STILL_LONG = frozenset({
     "evalkit/tools/paired_stats.py",
     "evalkit/tools/scores.py",
     "surgical_core/geometry/__init__.py",
-    "tests/scenes.py",
-    "tests/test_no_personal_email.py",
-    "tests/test_no_todo_in_code.py",
 })
 
 
