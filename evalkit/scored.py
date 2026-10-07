@@ -1,41 +1,14 @@
-"""The scored pixels of a frame: what a view keeps, and a count of what it removes.
+"""Compute the scored pixels of a frame in a view, and count the pixels the view removes.
 
-Every metric is computed over the scored pixels of a view, the same way: a
-pixel is scored when its depth is valid and its GT class is one the view
-includes. The rest is removed from the GT and the prediction alike, so a
-region lying there is neither an object nor a false positive, and no
-boundary is marked against it. This module computes that mask once per
-frame and view, from the mask ids as `ClassTable.mask_ids` read them, and
-the class map that goes with it; the metric modules take them as `scored`
-and the GT.
-
-Removed pixels are counted, by the first reason that removes them: invalid
-depth, then an `ignored` class, then `background`, then a class the view
-leaves out. The counts are disjoint and sum to the frame, so a JSON reader
-can see where every pixel went. `docs/evaluation.md` fixes the order.
-
-An `excluded` class is a marker that takes the whole frame out. It is
-checked on the mask's own ids, before the mapping to a class set, because
-ATLAS-120k's benchmark set maps the marker to background and would hide it.
-The caller asks `frame_is_excluded` first and skips and counts the frame;
-`scored_pixels` runs the same check on the same ids and refuses the frame,
-in every class set, so a caller that forgot cannot score it.
-
-Depth decides nothing about which pixels are scored. The pilot evaluator
-scored only the pixels whose depth was finite and above `DEPTH_MIN`, and
-pilot mode keeps that test so that its scores can be reproduced. In normal
-mode a pixel without such a depth is a data fault: the depth maps the
-pipeline runs on (Depth Anything 3) give a finite positive value on every
-pixel, and an evaluation of 2D masks has no reason to leave a pixel out
-because one model said nothing there. So `valid_depth` refuses the frame,
-and `scored_pixels` refuses a `valid` mask with a False in it, so that a
-caller that built its own mask cannot score around the fault either.
-
-`evalkit.frame.score_frame` is the driver that asks `frame_is_excluded` and
-then scores every view through `scored_pixels`.
-
-`docs/figures/scored_pixels.png` shows this on a drawn scene, with the numbers the module
-gives for it in pilot mode: the scene has a patch without depth, which normal mode refuses.
+A pixel is scored when its depth is valid and its GT class is one the view
+includes. `scored_pixels` computes that mask from the mask ids as
+`ClassTable.mask_ids` read them, with the class map that goes with it. It
+counts each removed pixel under the first reason that removes it, so the
+counts sum to the frame. `frame_is_excluded` finds a frame that an
+`excluded` class takes out, and `scored_pixels` refuses such a frame too.
+`docs/evaluation.md` fixes the order of the reasons and the depth rule
+("Fail closed"). `docs/figures/scored_pixels.png` shows this on a drawn
+scene, in pilot mode, since the scene has a patch without depth.
 """
 from __future__ import annotations
 
@@ -108,7 +81,7 @@ def _mask_id_map(mask_ids: np.ndarray) -> np.ndarray:
 
 
 def _excluded_ids_present(mask_ids: np.ndarray, table: ClassTable) -> list[int]:
-    """The excluded markers the frame holds; every id present is checked against the table first."""
+    """Return the excluded markers the frame holds; every id present is checked against the table first."""
     present = np.unique(mask_ids).tolist()
     for v in present:
         table.class_of(v)
@@ -116,7 +89,7 @@ def _excluded_ids_present(mask_ids: np.ndarray, table: ClassTable) -> list[int]:
 
 
 def frame_is_excluded(mask_ids: np.ndarray, table: ClassTable) -> bool:
-    """Whether the frame carries the marker that takes it out of evaluation.
+    """Return whether the frame carries the marker that takes it out of evaluation.
 
     Checked on the mask ids as read, not on the class set's ids, so that the
     benchmark set, which maps the marker to background, still sees it.
@@ -129,7 +102,7 @@ def frame_is_excluded(mask_ids: np.ndarray, table: ClassTable) -> bool:
 
 
 def valid_depth(depth: np.ndarray, *, pilot: bool = False) -> np.ndarray:
-    """The pixels whose depth is finite and above `DEPTH_MIN`, as a bool mask.
+    """Return the pixels whose depth is finite and above `DEPTH_MIN`, as a bool mask.
 
     Args:
         depth: The (H, W) float depth map of the frame.
@@ -161,7 +134,7 @@ def valid_depth(depth: np.ndarray, *, pilot: bool = False) -> np.ndarray:
 def scored_pixels(
     mask_ids: np.ndarray, table: ClassTable, view: str, valid: np.ndarray, *, pilot: bool = False,
 ) -> Scored:
-    """The pixels a view scores, the GT classes, and a count of the pixels it does not score.
+    """Return the pixels a view scores, the GT classes, and a count of the pixels it does not score.
 
     Args:
         mask_ids: An (H, W) integer map of the ids the GT mask holds, as
