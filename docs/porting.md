@@ -372,9 +372,13 @@ Every command takes those paths as arguments.
    is wrong, and one image can appear twice. 14 of the 27 pilot clips are
    affected, 11 visibly. Removing them changes the verdict of several F1 and
    IDF1 comparisons (power, not sign) and none of the `boundary_F` or
-   `hold_mean` ones. When the extractor is ported in step 5 it converts the
-   gap frames or refuses the video, the 14 clips are re-extracted and re-run,
-   and that is a deliberate exception to step 5's byte-for-byte rule.
+   `hold_mean` ones. The ported extractor (`pipeline/extract_cholecseg8k.py`)
+   converts the gap frames: it interpolates their native frames between the
+   clip's annotated frames, and carries the rate past them. Decided: the 14
+   clips are re-extracted with it and re-run on G for the paper's numbers,
+   a deliberate exception to step 5's byte-for-byte rule. The other 13
+   clips extract as the workbench's did, byte for byte. The question closes
+   when the re-run is scored.
 9. **The evaluator map against `evalkit/frame.py`.** Two things to carry
    into the next redraw of `docs/figures/evaluator_map.png`, neither wrong
    today. The map gives step 2, one frame in one view, no module, and
