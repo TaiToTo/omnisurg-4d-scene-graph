@@ -75,16 +75,16 @@ say, in the form a session starting cold needs.
 
 ## Not now: blocked on a decision
 
-`track_metrics` and `kmerge` are decided: tools outside the evaluator. They
-wait for the evaluator's reader of a clip's inputs, whose GT and depth
-loaders they take in place of the pilot's. The tracking stage and the
-per-frame segmentation stage wait on decisions too, and the stages after
-tracking wait on the tracking stage. The questions are named as
-`docs/porting.md` heads them.
+`track_metrics` and `kmerge` are decided: tools outside the evaluator
+("No measure over time carries a star", "`kmerge` is a tool").
+`track_metrics` waits on its GT track; `kmerge` waits on nothing and is
+listed under "Now". The tracking stage and the per-frame segmentation stage
+wait on decisions, and the stages after tracking wait on the tracking
+stage. The questions are named as `docs/porting.md` heads them.
 
 | piece | waits for |
 |---|---|
-| `track_metrics`, `kmerge` | the evaluator's reader of a clip's inputs, `evalkit/inputs.py` |
+| `track_metrics` | "The GT track of `track_metrics`" |
 | the tracking stage: `track_sam3.py`, `sam3_wrapper/` and their helpers | "The seed frame chosen from GT", "The edge ring as a process-wide flag", and `track_metrics`, whose seed helpers it imports |
 | the per-frame segmentation stage: `run_per_frame_seg.py`, `geom_blend.py` | "The edge ring as a process-wide flag" |
 | the export stages and the viewer | the tracking stage, whose output they read |
@@ -108,6 +108,7 @@ both sides at the operating point's `--seed_inst_thresh 1.0` instead.
 |---|---|---|---|
 | `evalkit/metric-guide` | a page that shows each metric on the test scenes | E `archive/metric-guide` | anywhere |
 | `docs/short-headers` | the module headers of `main` brought under the cap of `docs/review.md` | this repository | anywhere |
+| `tools/kmerge` | `kmerge` as a tool: a condition's predictions merged down to K, written as a condition of their own | E `extract/04-kmerge`, then W `ipcai2027_experiment/scripts/kmerge.py` | anywhere |
 
 The depth stages can start today too. Their port runs anywhere and their
 check needs W and G; they have a section of their own, at the end.

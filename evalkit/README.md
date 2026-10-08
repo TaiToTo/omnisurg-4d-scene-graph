@@ -10,7 +10,7 @@ The pipeline cuts every frame of a surgical video into regions and follows
 them over time. It is not trained on surgery and it never names a region.
 Against two public datasets with hand-labelled masks, the evaluator asks
 three questions. Two of them are decided by keys named here; the other keys
-help explain the answer.
+help explain the answers.
 
 - **Given one frame as an example, how far can the regions be followed?**
   With no training, for how many frames does a region picked out once keep
@@ -50,14 +50,14 @@ conditions vary what the pipeline is given, the image, the depth or both.
 
 ## The map
 
-![The evaluator at a glance: a clip's inputs; one frame, scored in three views; one clip, each key's mean over its frames; one condition, one score file; two conditions, the key that decides each question](../docs/figures/evalkit_overview.png)
+![The evaluator at a glance: a clip's inputs; one frame, scored in three views; one clip, each key's mean over its frames; one condition, one score file; two conditions, the key that decides the second and the third question](../docs/figures/evalkit_overview.png)
 
 Six steps, from a clip's inputs to the three questions: steps 2 to 5 score
 one condition, and step 6 compares two.
 
 The same steps, part by part: what each part computes, and the module that
-holds it. Arrows say what is computed from what; Q1 to Q3 mark the parts that
-hold the key deciding each question above. What a module returns is in its
-docstring.
+holds it. Arrows say what is computed from what; Q2 and Q3 mark the parts
+that hold the key deciding those questions above, and the first question has
+none. What a module returns is in its docstring.
 
 ![The evaluator, part by part: a clip's inputs; scored pixels and the keys of one frame in one view; one frame in every view; one clip; one score file per condition; the tools that compare two conditions](../docs/figures/evaluator_map.png)

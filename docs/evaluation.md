@@ -34,7 +34,8 @@ robot-assisted videos of 14 procedures, 42 classes) and CholecSeg8k
   the regions hold, judged on `F1_50` (objects found, with every extra region
   counted against it) and `SQ` (how well the found ones fit), in the
   geometric view. The third, how far a region picked out in one frame can be
-  followed, is answered with reference values only (the last point below).
+  followed, is answered with reference values only ("Consistency over time:
+  reference values only", below).
 - **Regions are named from the GT.** Each region takes the class most of its
   pixels have in the GT, so the class-map metric `mIoU` is an oracle value,
   kinder than any real classifier would get.
@@ -49,7 +50,7 @@ robot-assisted videos of 14 procedures, 42 classes) and CholecSeg8k
   which stays frozen in the private research workbench. Run with its rules
   (*pilot mode*), this evaluator must reproduce its scores exactly.
 - **Consistency over time: reference values only.** The pilot evaluator's
-  `time_IoU` is kept as a reference value, because coarse regions score well
+  `time_IoU` is kept, as a reference value only: coarse regions score well
   on it. Measures of whether a tracked thing keeps its identity — hold, IDF1,
   ID switches, fragmentation, re-entry — are computed by a tool outside the
   evaluator and reported as reference values too. No measure over time
@@ -64,7 +65,7 @@ Scoring runs in six steps. The evaluator reads a clip's inputs, scores a
 frame in one view and then in all three, averages each key over the clip, and
 writes one score file per condition. The tools then compare two conditions.
 
-![Scoring in six steps on a drawn scene: a clip's inputs; one frame, scored in each of three views (steps 2 and 3); one clip, each key's mean over its frames; one condition, one score file; two conditions, the key that decides each question.](figures/evalkit_overview.png)
+![Scoring in six steps on a drawn scene: a clip's inputs; one frame, scored in each of three views (steps 2 and 3); one clip, each key's mean over its frames; one condition, one score file; two conditions, the key that decides the second and the third question.](figures/evalkit_overview.png)
 
 The second figure shows the same steps part by part. Each box names, in its
 corner, the module or package that holds the part, so a rule below can be
@@ -483,19 +484,26 @@ from still covers the same GT thing seconds later), IDF1, ID switches,
 fragmentation and re-entry. The evaluator computes none of them. Each needs
 a GT track, and the datasets carry no ids for individual things, so a GT
 track would be a second object definition, in addition to the whole-class
-object used above. The workbench also measured a fault in each:
+object used above. The workbench also measured a fault in four of them, and
+the fifth depends on a rule:
 
 - two denominators of hold, both pre-registered, gave one comparison
   opposite signs;
 - IDF1 rises when regions merge;
-- re-entry scored 0.97 to 1.00 for every condition.
+- ID switches cannot tell a tracker from a floor that never moves: one mask
+  pasted on every frame scores close to zero;
+- re-entry counts a gap of at most three observations in a GT track, not a
+  return to the field of view, and it drops every gap whose two ends are
+  not both matched, which in the workbench was most of them;
+- fragmentation changes with the rule that links the GT track, so its value
+  is a property of the track definition as much as of the condition.
 
 So a tool outside the evaluator, `evalkit/tools/track_metrics`, computes the
-measures of identity, and they are reported as reference values: measured,
-and written about when they show something, but never marked with a star.
-The tool defines its own GT track. A measure that is to carry a star would
-have to be computed by the evaluator before the evaluator is frozen, and
-none is.
+measures of identity, and they are reported as reference values: in a table
+that carries no star. The tool's GT track is an open question
+(`docs/porting.md`, "The GT track of `track_metrics`"). A measure that is to
+carry a star would have to be computed by the evaluator before the
+evaluator is frozen, and none is.
 
 ## Rules that keep the numbers honest
 

@@ -69,8 +69,8 @@ omnisurg-4d-scene-graph/
 ├── LICENSE  README.md  CITATION.cff  pyproject.toml
 ├── surgical_core/     cholec atlas120k geometry pointcloud preprocess viewer clip_time
 ├── evalkit/           the evaluator, hashed into eval_code_sha with its class tables
-│   └── tools/         what reads scores or measures reference values, never hashed:
-│                      scores paired_stats compare_eval condition_inventory pilot_check
+│   └── tools/         what reads scores or predictions, never hashed: scores
+│                      paired_stats compare_eval condition_inventory pilot_check
 │                      (track_metrics, kmerge: not yet ported)
 ├── pipeline/          depth → segmentation → tracking → viewer export
 ├── recon3d_wrapper/   3D reconstruction — DA3 and Pi3 behind one interface

@@ -117,23 +117,28 @@ Where they and this document differ, this document holds.
     value, and the evaluator computes no measure of identity from the
     workbench's `track_metrics` (hold, IDF1, ID switches, fragmentation,
     re-entry). `track_metrics` is ported as a tool under `evalkit/tools/`,
-    outside `eval_code_sha`, and what it reports is a reference value:
-    measured, and written about when it shows something, never marked with a
-    star. So `docs/evaluation.md` defines no GT track. The tool defines its
-    own when it is ported, without `MIN_AREA` ("No minimum object size,
-    anywhere"). The evaluator's whole-class object, followed over time, needs
-    no rule to link pieces and no size; the workbench linked each class's
-    components instead. If `hold_mean` is carried under that name, it keeps
-    the workbench's definition, which was pre-registered there. A different
-    denominator is a different metric, with a different name: in the
-    workbench, moving the denominator once flipped a result's sign. `kmerge`
-    is ported as a tool too. It changes predictions, not metrics: it merges a
-    condition's regions down to K, and the evaluator's instance metrics score
-    the merged regions, so a comparison of them is read like any other. The
-    paper's granularity result merges to a fixed K of 10. The `matched`
-    setting, which took K from the pilot's GT components of at least 300 px,
-    is not carried for now: under the evaluator a GT object is a whole class,
-    and that K would need a definition of its own.
+    outside `eval_code_sha`, and what it reports is a reference value: it
+    is measured and reported in a table that carries no star. So
+    `docs/evaluation.md` defines no GT track. The tool defines its own when
+    it is ported, without `MIN_AREA` ("No minimum object size, anywhere");
+    that track is an open question ("The GT track of `track_metrics`"). The
+    workbench pre-registered two definitions under the name `hold_mean`: one
+    per condition, in `track_metrics`, and one over the GT tracks that every
+    compared condition registered, in `summarize_track16`. The tool carries
+    at most one of them under that name, and the other under a name of its
+    own, because a different denominator is a different metric: in the
+    workbench, moving the denominator once flipped a result's sign. Which
+    one keeps the name is settled with the tool's GT track.
+14. **`kmerge` is a tool.** `kmerge` is ported under `evalkit/tools/`,
+    outside `eval_code_sha`. It changes predictions, not metrics: it merges
+    a condition's regions down to K and writes them as a condition of their
+    own, which the evaluator scores and `compare_eval` compares. So it
+    computes no metric, and a comparison of a merged condition can carry a
+    star like any other. The paper's granularity result merges to a fixed K
+    of 10. The `matched` setting, which took K from the pilot's GT
+    components of at least 300 px, is not carried for now: under the
+    evaluator a GT object is a whole class, and that K would need a
+    definition of its own.
 
 ## What moves
 
@@ -169,10 +174,10 @@ copy to read the RGB clips, and the ported copies read `evalkit.classes`.
 |---|---|---|---|
 | `paired_stats.py` | `ipcai2027_experiment/scripts/paired_stats.py` | `extract/03-metrics` (#3) | `VERDICT_RULE` does not change. The comparability check is `scores.check_comparable`, which applies the rule of `docs/evaluation.md`, in place of the pilot's, and the statistics are taken on the clips it compared. `video_of` is defined here rather than delegated. Each row records the metric's `sign` and `verdict` reads the interval in it, so a metric where smaller is better, or a reference value that is never marked, is not oriented by the caller. A bootstrap over fewer than two units refuses rather than return a point. |
 | `compare_eval.py` | `depth_sam_tracking_experiment/compare_eval.py` | `extract/03-metrics` (#3) | It refuses to mix shas through `scores.check_comparable`, which also compares dataset, class set, view and mode. The table prints each metric's direction and no mark: the workbench's circle and cross followed the sign of the mean difference, a second verdict beside `paired_stats.verdict`. The per-clip list, the chart and `wins` follow the question's primary metric, named with `--key`; the directions of the pilot keys come from `scores.PILOT_SIGNS`, the one table `paired_stats` reads too. |
-| `track_metrics.py` | `depth_sam_tracking_experiment/track_metrics.py` | `extract/03-metrics` (#3) | It imports `BACKGROUND`, `_gt_idmap` and `_load_depth` from the pilot's `eval_track`; they come from the evaluator instead. `MIN_AREA` is removed ("No minimum object size, anywhere"). It is a tool, outside the evaluator, and its values are reference values ("No measure over time carries a star"). |
+| `track_metrics.py` | `depth_sam_tracking_experiment/track_metrics.py` | `extract/03-metrics` (#3) | It imports `BACKGROUND`, `_gt_idmap` and `_load_depth` from the pilot's `eval_track`; they come from the evaluator instead. `MIN_AREA` is removed ("No minimum object size, anywhere"). It is a tool, outside the evaluator, and its values are reference values ("No measure over time carries a star"). Its GT track is open ("The GT track of `track_metrics`"). |
 | `surgical_core/clip_time.py` | `surgical_core/clip_time.py` | `extract/03-metrics` (#3) | English only. |
 | `surgical_core/viewer/labels.py`, `palette.py` | `surgical_core/viewer/` | `extract/03-metrics` (#3) | English only. `label_table_of` and `cholec_gt_table` move to a new `gt_tables.py`, the one viewer module that imports `evalkit`; `labels.py` builds its table from plain data, so a video with no class table gets one too. The rest of `surgical_core/viewer` is below, under "Not yet extracted anywhere". |
-| `kmerge.py` | `ipcai2027_experiment/scripts/kmerge.py` | `extract/04-kmerge` (#5) | It imports the pilot's `eval_track`, and borrows `verdict` from `paired_stats`. It keeps its own copy of `video_of`, which the port takes from `paired_stats` instead. It is a tool ("No measure over time carries a star"), and takes the evaluator's instance metrics in place of the pilot's. |
+| `kmerge.py` | `ipcai2027_experiment/scripts/kmerge.py` | `extract/04-kmerge` (#5) | It imports the pilot's `eval_track`, borrows `verdict`, `boot_ci`, `SEED_SCHEME` and `VERDICT_RULE` from `paired_stats`, and keeps a copy of `video_of`. It is ported as `evalkit/tools/kmerge.py`, outside `eval_code_sha` ("`kmerge` is a tool"). It merges a condition's predictions down to K and writes them as a condition of their own, which the evaluator scores and `compare_eval` compares, so it computes no metric and borrows nothing from `paired_stats`. Not carried for now: its scoring with the pilot's instance metrics, the curve over K, the `matched` K, `--pairs`, and the merges by threshold and by geometry (`tmerge_sequence`, `kgeo_sequence`). |
 | `surgical_core/geometry/` | `depth_sam_tracking_experiment/geometry.py` | `extract/04-kmerge` (#5) | English only. Shared by the pipeline and the toolkit. |
 | `condition_inventory.py` | `ipcai2027_experiment/scripts/condition_inventory.py` | `extract/05-inventory` (#4) | It reads `eval_code_sha`, `eval_code_tag` and `eval_version` from score JSONs. "One ruler" is now what `docs/evaluation.md` calls comparable: `eval_code_sha`, dataset, class set, view and mode all equal, and one propagation rule. The provenance fields now include `bidir`, whether the tracker ran both ways. |
 | `check_env.py` | `ipcai2027_experiment/atlas97/scripts/check_env97.py` | `extract/05-inventory` (#4) | Not carried (decision 4). |
@@ -256,7 +261,7 @@ while the evaluator is built and reviewed is worked out in `docs/workstreams.md`
 
 1. **Decide what the evaluator measures over time.** Decided: no measure
    over time carries a star, and `track_metrics` and `kmerge` are tools
-   ("No measure over time carries a star").
+   ("No measure over time carries a star", "`kmerge` is a tool").
 2. **Build the evaluator.** CPU only, as the `evalkit` package. Class tables,
    then metrics, then the entry point. It is done when:
    - the hand-derived tests pass, in both modes;
@@ -325,9 +330,29 @@ Every command takes those paths as arguments.
 
 ## Open questions
 
-1. **The skill-classification code and the other 18 viewer pages.** The plan
+1. **The GT track of `track_metrics`.** The tool measures identity against
+   GT tracks, and the datasets carry no ids for individual things, so the
+   tool defines the track itself ("No measure over time carries a star").
+   The workbench linked each class's connected components over time: a
+   component joins a track of the same class when its IoU with the track's
+   last mask is at least 0.3, a track stays a candidate for three missed
+   observations, and the links are made greedily, largest IoU first. Open
+   before the tool is ported:
+   - whether a track is one class's whole-class object followed over time,
+     which needs no linking rule, or linked components, which need one;
+   - if components, the linking rule: the IoU threshold, how many missed
+     observations a track survives, and which pixels make an observation
+     now that no size cut applies;
+   - how time is counted, in observations as the workbench did or in
+     seconds, since the GT frames are not evenly spaced;
+   - which of the two pre-registered `hold_mean` definitions keeps the name
+     ("No measure over time carries a star");
+   - what hold means under forward propagation (`forward_from_first`),
+     where its time offsets from the seed frame run one way only; the
+     workbench claimed this changes the measure and did not measure it.
+2. **The skill-classification code and the other 18 viewer pages.** The plan
    leaves both behind. The paper's figures come from some of those pages.
-2. **Whether step 5 has to finish before submission.** Step 3 already gives
+3. **Whether step 5 has to finish before submission.** Step 3 already gives
    the numbers. A stage that passes step 5's byte check cannot change them;
    the 14 clips re-extracted under "CholecSeg8k clips whose frames run out
    of order" can, and so can depth made again under "Depth made by two
