@@ -178,6 +178,45 @@ def test_the_command_diffs_every_condition_by_tag(tmp_path):
     assert r.returncode == 1 and "2 of 3 conditions differ" in r.stdout and "not scored in pilot mode" in r.stdout
 
 
+def test_a_condition_left_out_is_named_and_not_checked(tmp_path):
+    # A condition seeded from GT holds neither rule, so pilot mode refuses it and the check leaves it out.
+    pd, ed = tmp_path / "pilot", tmp_path / "ours"
+    pd.mkdir(), ed.mkdir()
+    for tag in ("a", "gt_seeded"):
+        (pd / f"{tag}.json").write_text(json.dumps(pilot_json()))
+    (ed / "a.json").write_text(json.dumps(ours_json()))
+    (tmp_path / "leave_out.txt").write_text("gt_seeded\n")
+    cmd = [sys.executable, "-m", "evalkit.tools.pilot_check", "--pilot-dir", str(pd), "--eval-dir", str(ed)]
+    r = subprocess.run(cmd, capture_output=True, text=True, cwd=REPO)
+    assert r.returncode == 1 and "gt_seeded: not scored in pilot mode" in r.stdout
+    r = subprocess.run(cmd + ["--leave-out", str(tmp_path / "leave_out.txt")], capture_output=True, text=True, cwd=REPO)
+    assert r.returncode == 0 and "all 1 conditions" in r.stdout
+    assert "left out, holding neither propagation rule: ['gt_seeded']" in r.stdout
+
+
+@pytest.mark.parametrize("pilot_tags, ours_tags, left, why", [
+    (["a", "b"], ["a"], ["typo"], "holds no JSON of them"),
+    (["a", "b"], ["a"], ["a"], "pilot mode scored them"),
+    (["b"], [], ["b"], "every condition of"),
+])
+def test_a_condition_left_out_that_cannot_be_is_refused(tmp_path, pilot_tags, ours_tags, left, why):
+    pd, ed = tmp_path / "pilot", tmp_path / "ours"
+    pd.mkdir(), ed.mkdir()
+    for tag in pilot_tags:
+        (pd / f"{tag}.json").write_text(json.dumps(pilot_json()))
+    for tag in ours_tags:
+        (ed / f"{tag}.json").write_text(json.dumps(ours_json()))
+    with pytest.raises(ValueError, match=why):
+        PC.check_dirs(str(pd), str(ed), left)
+
+
+@pytest.mark.parametrize("text, why", [("", "lists no condition"), ("a\nb\na\n", "more than once")])
+def test_a_leave_out_file_that_lists_nothing_or_a_tag_twice_is_refused(tmp_path, text, why):
+    (tmp_path / "leave_out.txt").write_text(text)
+    with pytest.raises(ValueError, match=why):
+        PC.read_tags(str(tmp_path / "leave_out.txt"))
+
+
 def test_the_command_refuses_a_directory_scored_by_two_evaluators(tmp_path):
     pd, ed = tmp_path / "pilot", tmp_path / "ours"
     pd.mkdir(), ed.mkdir()

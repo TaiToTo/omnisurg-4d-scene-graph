@@ -46,10 +46,6 @@ PROPAGATION_RULES = ("both_ways_from_centre", "forward_from_first", "per_frame")
 # The record a tracker or the per-frame stage writes beside a condition's labels.
 SEED_INFO = "seed_info.json"
 
-# What a pilot-mode JSON records for a condition that holds no rule. Pilot mode scores every condition the
-# pilot evaluator scored, those seeded from GT among them, and its JSONs never enter a comparison.
-NO_RULE = "neither"
-
 
 def check_table(table: ClassTable) -> None:
     """Refuse a class table that is not one of the files `eval_code_sha` covers.
@@ -157,8 +153,7 @@ def rule_of_seed_info(info: dict) -> str:
     return "forward_from_first"
 
 
-def condition_rule(tracks_root: str | Path, tag: str, clips: Sequence[str], stated: str | None = None,
-                   *, pilot: bool = False) -> str:
+def condition_rule(tracks_root: str | Path, tag: str, clips: Sequence[str], stated: str | None = None) -> str:
     """Return the condition's propagation rule, as every clip's `seed_info.json` records it or as stated.
 
     Args:
@@ -166,8 +161,6 @@ def condition_rule(tracks_root: str | Path, tag: str, clips: Sequence[str], stat
         tag: The condition's directory name under each clip.
         clips: The population.
         stated: The rule the caller states, for a condition whose labels carry no `seed_info.json`.
-        pilot: Record `NO_RULE` for a record that holds no rule, and for no record and no statement, where
-            normal mode refuses both.
 
     Raises:
         ValueError: The stated rule is not one; a clip's record holds no rule (`rule_of_seed_info`); some
@@ -185,9 +178,6 @@ def condition_rule(tracks_root: str | Path, tag: str, clips: Sequence[str], stat
         try:
             found[clip] = rule_of_seed_info(json.loads(path.read_text(encoding="utf-8")))
         except ValueError as e:
-            # Pilot mode records no rule for a record that holds none, and refuses one it cannot parse.
-            if pilot and not isinstance(e, json.JSONDecodeError):
-                return NO_RULE
             raise ValueError(f"{clip}: {tag}'s {SEED_INFO} holds no propagation rule: {e}") from None
     # All or none: a record on some clips says nothing about the others.
     if found and without:
@@ -197,8 +187,6 @@ def condition_rule(tracks_root: str | Path, tag: str, clips: Sequence[str], stat
     if len(rules) > 1:
         raise ValueError(f"{tag}: the clips and the statement give {sorted(rules)}; a condition has one rule")
     if not rules:
-        if pilot:
-            return NO_RULE
         raise ValueError(f"{tag}: no clip has a {SEED_INFO}, so state the rule with --propagation")
     return rules.pop()
 
@@ -210,6 +198,7 @@ def score_condition(dataset: str, class_set: str | None, clips: Sequence[str],
 
     In pilot mode each clip is read and scored by the pilot evaluator's rules
     (`evalkit.pilot_clip`), in its four domains, for the check against it.
+    The propagation rule is read as in normal mode.
 
     Args:
         propagation: The condition's propagation rule, for labels that carry no `seed_info.json`.
@@ -224,7 +213,7 @@ def score_condition(dataset: str, class_set: str | None, clips: Sequence[str],
     check_table(table)
     if pilot and table.class_set != "original":
         raise ValueError("pilot mode scores the original ids, as the pilot evaluator did")
-    rule = condition_rule(tracks_root, tag, clips, propagation, pilot=pilot)
+    rule = condition_rule(tracks_root, tag, clips, propagation)
     sha = eval_code_sha()
     rows, shas = [], {}
     for clip in clips:

@@ -85,11 +85,14 @@ Where they and this document differ, this document holds.
     that the check runs through the entry point that produces the paper's
     numbers. Pilot mode is `python -m evalkit.evaluate --pilot`, which
     scores each clip through `evalkit/pilot_clip.py`; it is not a script of
-    its own. Once the check has passed, everything only pilot mode uses is
-    removed:
-    - `evalkit/pilot.py` and `evalkit/pilot_clip.py`;
-    - the entry point's `--pilot`;
-    - the `pilot` arguments of `evalkit/scored.py` and `evalkit/inst_bf.py`.
+    its own. Once the check has passed, everything in the hashed files that
+    only pilot mode uses is removed:
+    - `evalkit/pilot.py` and `evalkit/pilot_clip.py`, and their entries in
+      `evalkit/code_sha.py`;
+    - the entry point's `--pilot`, and the `pilot` argument of
+      `score_condition` with the imports it needs;
+    - the `pilot` arguments of `evalkit/scored.py` and `evalkit/inst_bf.py`;
+    - every sentence of a hashed module that says what pilot mode does.
 
     The normal-mode tests must still pass, and then the evaluator is frozen.
     Moving pilot mode out of `evalkit/` was the alternative. It could then be
@@ -236,7 +239,8 @@ while the evaluator is built and reviewed is worked out in `docs/workstreams.md`
    then metrics, then the entry point. It is done when:
    - the hand-derived tests pass, in both modes;
    - in pilot mode, the evaluator reproduces every key it shares with the
-     pilot evaluator, at zero tolerance, on the 38 scored conditions.
+     pilot evaluator, at zero tolerance, on the 38 scored conditions, apart
+     from those that hold neither propagation rule.
    Record its sha with every score; do not freeze it (decision 2). Pilot
    mode stays in it until just before the freeze (decision 11).
 3. **Re-score.** CPU only. Score every condition's existing predictions with
@@ -484,7 +488,9 @@ Every command takes those paths as arguments.
     masks. Which of the 38 conditions were seeded from GT instead, and
     whether such a condition is scored on its seed frame or enters a table
     at all, is settled before step 3, on the machine that holds the
-    predictions. The `seed_source` that each
+    predictions. The check against the pilot evaluator in step 2 needs the
+    list sooner: it leaves out by name every condition that holds neither
+    propagation rule (`pilot_check --leave-out`). The `seed_source` that each
     condition's `seed_info.json` records says where its seed came from;
     where it does not tell, the command that made the condition does.
     The workshop's oracle row, GT instrument masks painted onto a
