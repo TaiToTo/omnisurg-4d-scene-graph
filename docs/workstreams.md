@@ -359,8 +359,8 @@ one module. `surgical_core.geometry.project.backproject` already
 back-projects, so one of the two definitions goes. They compute the same
 thing in a different order (`(p - t) @ R` against `(R.T @ (p.T - t)).T`),
 which can move the last bit, so the one that keeps the stages' bytes stays,
-and the other is rebuilt on it. `project_world_to_pixel` is not carried: no stage calls it, and
-`project_world_to_frame` projects already. The workbench's
+and the other is rebuilt on it. `project_world_to_pixel` is not carried: no
+stage calls it, and `project_world_to_frame` projects already. The workbench's
 `pointcloud.valid_depth_mask` is not carried either; this repository's
 replaces it. The viewer modules join `surgical_core.viewer`. The colormap
 needs `matplotlib`, which the `render` extra has; the GLB writer imports
