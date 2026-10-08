@@ -1,13 +1,13 @@
-"""Score one frame in every view, through the modules that define each metric.
+"""Score one frame in every view, with the modules that define each metric.
 
 `score_frame` is the normal-mode driver of `docs/evaluation.md`, "How a
 frame is scored". It computes no metric itself. It checks the depth map,
 then the excluded marker, and returns an excluded frame with no view for the
 clip driver to count. It takes each view's scored pixels once, and passes
 the same GT, region map and mask to every metric module. A key is None on a
-frame its metric is not defined on, and the counts behind every key are kept.
-`time_IoU` is per clip and not here. Pilot mode has a driver of its own, and
-shares the metric modules, not this composition.
+frame its metric is not defined on. The counts behind every key are kept for
+the clip driver. `time_IoU` is per clip and is not computed here. Pilot mode
+has a driver of its own, and shares the metric modules, not this composition.
 """
 from __future__ import annotations
 

@@ -1,14 +1,14 @@
 """Compute the scored pixels of a frame in a view, and count the pixels the view removes.
 
 A pixel is scored when its depth is valid and its GT class is one the view
-includes. `scored_pixels` computes that mask from the mask ids as
-`ClassTable.mask_ids` read them, with the class map that goes with it. It
-counts each removed pixel under the first reason that removes it, so the
-counts sum to the frame. `frame_is_excluded` finds a frame that an
-`excluded` class takes out, and `scored_pixels` refuses such a frame too.
-`docs/evaluation.md` fixes the order of the reasons and the depth rule
-("Fail closed"). `docs/figures/scored_pixels.png` shows this on a drawn
-scene, in pilot mode, since the scene has a patch without depth.
+includes. `scored_pixels` computes the scored pixels and the GT classes from
+the mask ids that `ClassTable.mask_ids` read. It counts each removed pixel
+under the first reason that removes it, so the counts sum to the frame.
+`frame_is_excluded` finds a frame that an `excluded` class takes out, and
+`scored_pixels` refuses such a frame too. `docs/evaluation.md` fixes the
+order of the reasons ("Fail closed") and the refusal of invalid depth
+("Inputs"). `docs/figures/scored_pixels.png` shows this on a drawn scene in
+pilot mode. The scene has a patch without depth, which normal mode refuses.
 """
 from __future__ import annotations
 

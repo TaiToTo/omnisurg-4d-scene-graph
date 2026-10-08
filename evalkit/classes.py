@@ -4,11 +4,11 @@ Each dataset has one table, a JSON file under `class_tables/`. It lists each
 class its masks hold, with its id, name, type and colour. ATLAS-120k's file
 also maps each original id to one of the benchmark's 30 classes, which gives
 a second table. `docs/evaluation.md` defines the types, the views and the
-mapping. `ClassTable.mask_ids` is the one place a GT mask meets its table.
-The tables are hashed into `eval_code_sha`, and `table_paths()` lists exactly
-the files `load_table` reads. A colour or id the table does not know raises.
-So does a table with a missing field, an unknown type, a key given twice, or
-two classes that share an id, a name or a colour.
+mapping. Only `ClassTable.mask_ids` converts a GT mask to mask ids. The
+tables are hashed into `eval_code_sha`, and `table_paths()` lists exactly
+the files `load_table` reads. `load_table` refuses a table it cannot trust,
+and each reader of `ClassTable` raises on a colour or id the table does not
+know.
 """
 from __future__ import annotations
 
@@ -492,7 +492,7 @@ def table_paths(table_dir: Path | None = None) -> list[Path]:
     `_MASK_ENCODINGS`, and the directory may hold nothing else.
 
     A table file put there without being registered in this module would be
-    neither read nor hashed, so it raises.
+    neither read nor hashed, so the function raises on it.
 
     Args:
         table_dir: The directory to check; None is the package's own. A copy
