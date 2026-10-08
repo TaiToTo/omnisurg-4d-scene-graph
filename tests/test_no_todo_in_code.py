@@ -1,16 +1,12 @@
-"""No TODO marker in the repository's files.
+"""Check that no TODO marker is in the repository's files.
 
-A path known to give a wrong answer for some input raises on that input, and
-a decision not yet made is written under "Open questions" in `docs/porting.md`.
-Neither lives in a comment. A comment is read only by whoever opens that file;
-the clip extractor whose gap frames carried the wrong frame number said so in
-a comment for two months while the data it produced was measured, and the
-fault was found again downstream and explained wrongly.
-
+Code known to give a wrong answer for some input raises on that input, and a
+decision not yet made is written under "Open questions" in
+`docs/porting.md`. Neither is written in a comment, which only whoever opens
+the file reads. `docs/review.md` gives the incident behind the rule ("Code").
 Every tracked text file is scanned, except the planning documents that hold
-the open items and the file that states the rule. A binary file (the figures
-under `docs/figures/`) is not text and is not scanned; it is told from text
-the way git tells it, by a NUL byte in its first 8,000 bytes, so that no text
+the open items and the files that state the rule. A binary file is told from
+text as git tells it, by a NUL byte in its first 8,000 bytes, so no text
 file can pass as binary by being saved in another encoding.
 """
 
@@ -47,7 +43,7 @@ def tracked_files(repo: Path) -> list[Path]:
 
 
 def is_binary(path: Path) -> bool:
-    """Whether git would treat `path` as binary: a NUL byte in its first 8,000 bytes."""
+    """Return whether git would treat `path` as binary: a NUL byte in its first 8,000 bytes."""
     with path.open("rb") as f:
         return b"\0" in f.read(8000)
 

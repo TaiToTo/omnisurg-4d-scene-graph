@@ -37,9 +37,6 @@ STILL_LONG = frozenset({
     "surgical_core/atlas120k/clip_rects.py",
     "surgical_core/atlas120k/frame_ratio.py",
     "surgical_core/geometry/__init__.py",
-    "tests/scenes.py",
-    "tests/test_no_personal_email.py",
-    "tests/test_no_todo_in_code.py",
 })
 
 
