@@ -4,11 +4,11 @@ The stage writes `exports/mini_npz/results__pi3x.npz`, `depth_vis/NNNN__pi3x.jpg
 and `pc_vis/frame_NNNN__pi3x.glb` into the clip, and leaves DA3's files alone.
 It adds `geometry_sources.pi3x` to the manifest: per frame the point cloud's
 centroid, size and camera axes, and for the run its settings, runtime and
-round-trip check. The round-trip check back-projects the stage's own depth
-through its own poses and compares the points with the ones Pi3X predicted.
-The stage refuses:
+round-trip check. The check back-projects the stage's depth through its poses
+and compares the points with the ones Pi3X predicted. The stage refuses:
 
 - a clip that fails the round-trip check, as an inverted pose convention does;
+- a clip whose manifest lists other frames than `input_images/`;
 - a clip that already holds the stage's output; `--overwrite` removes it first.
 
 Usage:
