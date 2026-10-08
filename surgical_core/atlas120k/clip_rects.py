@@ -4,11 +4,11 @@
 marked `ok` or `ng` gives the rectangle to use in `rect`. A clip marked
 `skip`, or not yet judged, is not returned, and the caller falls back to its
 per-video rectangle. Rectangles are in the source video's pixels
-(`src_size`). They are rounded to integers and cut to the frame, and one
-left degenerate is refused, as is an entry without `src_size`. The README of
-`atlas120k_meta/` says why a rectangle is judged per clip ("Crop
-rectangles"). `docs/figures/atlas120k_clip_rects.png` shows this on a drawn
-frame.
+(`src_size`), and are rounded to integers and cut to the frame.
+`load_clip_rects` refuses a rectangle left degenerate and an entry without
+`src_size`. The README of `atlas120k_meta/` says why a rectangle is judged
+per clip ("Crop rectangles"). `docs/figures/atlas120k_clip_rects.png` shows
+this on a drawn frame.
 """
 
 import json

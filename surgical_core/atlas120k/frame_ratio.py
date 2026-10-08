@@ -2,8 +2,8 @@
 
 In 14 of the 97 ATLAS-120k videos, `clip_index.json` numbers frames at a
 lower rate than the mp4, and `mp4_frame = native_frame * ratio`. Reading the
-bundled JPEGs by number is unaffected. Decoding the mp4 by number drifts
-silently, to a real frame from another moment. The measured ratios are in
+bundled JPEGs by number is unaffected. Decoding the mp4 by number silently
+returns a real frame from another moment. The measured ratios are in
 `atlas120k_meta/frame_ratio.json`. A video missing from it is refused, not
 assumed to be 1. The README of `atlas120k_meta/` says how the ratios were
 measured and where they come from ("Frame ratios").
