@@ -2,11 +2,14 @@
 
 Names and affiliations may appear, since the paper prints them. An email
 address, once pushed to a public repository, is harvested, and removing it
-means rewriting history. The check reads the author, committer and tagger of
-every commit and tag in HEAD's history, every commit message, and every
-tracked file. In CI on a pull request, HEAD is the pull request merged into
-main. The merge commit GitHub makes on merging is checked by the run on the
-push to main.
+means rewriting history. The check reads:
+
+- every tracked file;
+- the author, committer and message of every commit in HEAD's history;
+- the tagger and message of every annotated tag.
+
+In CI on a pull request, HEAD is the pull request merged into main. The run
+on the push to main checks the merge commit GitHub makes on merging.
 """
 
 import os
@@ -119,9 +122,12 @@ def mask(addr):
 def history(root=REPO):
     """List every place in the git history where an address can sit.
 
-    An address gets in through the git config of the machine that made a
-    commit, through a commit GitHub makes itself, and through a trailer such
-    as `Co-authored-by:` that GitHub fills in when it squashes a pull request.
+    An address is written into the history from three sources:
+
+    - the git config of the machine that made a commit;
+    - a commit GitHub makes itself;
+    - a trailer such as `Co-authored-by:`, which GitHub fills in when it
+      squashes a pull request.
 
     Args:
         root: The repository.

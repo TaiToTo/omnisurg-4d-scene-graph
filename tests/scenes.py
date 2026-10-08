@@ -3,11 +3,12 @@
 Each scene is a ground truth and a prediction with one controlled fault. Its
 areas are round numbers, so the value of every metric on it can be derived on
 paper and pinned. The evaluator's hand-derived tests are computed on these
-scenes, and a metric guide draws the same frames, so the two cannot drift
-apart. Every scene is 60 x 100 px, and every region stays above the pilot
-evaluator's 300 px cut, except in `sliver`, which sits on either side of it.
-GT class 1 fills the left half and class 2 the right half unless a scene says
-otherwise. Predicted regions are ids 0, 1, 2, ..., and -1 is "no region".
+scenes. A metric guide draws the same frames, so that its pictures and the
+tests cannot disagree. Every scene is 60 x 100 px, and every region is above
+the pilot evaluator's 300 px cut, except in `sliver`, whose region size the
+caller sets on either side of the cut. GT class 1 fills the left half and GT
+class 2 fills the right half, unless a scene says otherwise. Predicted
+regions are ids 0, 1, 2, ..., and -1 is "no region".
 """
 from dataclasses import dataclass, field
 

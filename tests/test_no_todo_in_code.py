@@ -1,13 +1,13 @@
 """Check that no TODO marker is in the repository's files.
 
-A path known to give a wrong answer raises on that input, and a decision not
-yet made goes under "Open questions" in `docs/porting.md`. Neither lives in
-a comment, which only whoever opens the file reads. `docs/review.md` gives
-the incident behind the rule ("Code"). Every tracked text file is scanned,
-except the planning documents that hold the open items and the files that
-state the rule. A binary file is told from text as git tells it, by a NUL
-byte in its first 8,000 bytes, so no text file can pass as binary by being
-saved in another encoding.
+Code known to give a wrong answer for some input raises on that input, and a
+decision not yet made is written under "Open questions" in
+`docs/porting.md`. Neither is written in a comment, which only whoever opens
+the file reads. `docs/review.md` gives the incident behind the rule ("Code").
+Every tracked text file is scanned, except the planning documents that hold
+the open items and the files that state the rule. A binary file is told from
+text as git tells it, by a NUL byte in its first 8,000 bytes, so no text
+file can pass as binary by being saved in another encoding.
 """
 
 import os
