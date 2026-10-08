@@ -84,17 +84,17 @@ The round-trip check back-projects the stage's depth through its own poses
 and compares the points with the ones Pi3X predicted. It also computes the
 error under the inverted reading of the poses. The stage refuses:
 
-- a clip that fails the round-trip check. The error at the 99.9th
-  percentile must be under 3 % of the median depth, and the inverted
+- a clip that fails the round-trip check. The error must be finite, its
+  99.9th percentile must be under 3 % of the median depth, and the inverted
   reading's error must be at least ten times larger.
-- a clip whose manifest lists other frames than `input_images/`, matched by
-  `seq_idx`. The stage checks this before the model runs.
+- a clip whose manifest does not list each frame of `input_images/` once:
+  `seq_idx` must run from 0 to N - 1, and `n_frames` must be N. The stage
+  checks this before the model runs.
 - a clip that already holds the stage's output; the refusal says what is
   there. `--overwrite` removes the stage's own files and manifest records,
   never DA3's, and writes them again.
 
-`python -m pipeline.pi3x --help` lists the options.
+A refused clip is left as it was: the stage writes and removes nothing
+until every check has passed.
 
-Pi3X also runs on a CPU, in float32. On a laptop with 16 GB of memory, two
-frames take about 15 seconds and four frames take about 30, each in under
-7.5 GB. Eight frames do not fit, and the machine swaps.
+`python -m pipeline.pi3x --help` lists the options.
