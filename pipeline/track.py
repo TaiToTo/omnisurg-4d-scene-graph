@@ -161,7 +161,7 @@ def read_clip(clip_dir: Path, depth_source: str) -> tuple[np.ndarray, np.ndarray
     with np.load(clip_dir / PI3X_BUNDLE) as z:
         d, K = z["depth"].astype(np.float32), z["intrinsics"].astype(np.float64)
     if d.shape[0] != depth.shape[0]:
-        raise ValueError(f"{clip_dir.name}: Pi3X has {d.shape[0]} frames, DA3 {depth.shape[0]}")
+        raise ValueError(f"{clip_dir.name}: Pi3X has {d.shape[0]} frames, but DA3 has {depth.shape[0]}")
     if d.shape[1:] != depth.shape[1:]:
         h, w = depth.shape[1:]
         sy, sx = h / d.shape[1], w / d.shape[2]
