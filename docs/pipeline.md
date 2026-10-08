@@ -19,7 +19,7 @@ A clip is a directory with these files:
   the clip from its dataset. Its `dataset` key names the dataset; a
   manifest without one belongs to CholecSeg8k.
 - `crop_info.json`, for a CholecSeg8k clip only: the rectangle inside the
-  endoscope's view that the frames were cut to.
+  endoscope's view that the frames were cropped to.
 
 ## The ATLAS-120k extraction stage
 
@@ -39,7 +39,7 @@ clip with two such runs becomes two clips, `s1` and `s2`; none of the 315
 is one. A run with the frames and rectangle of one already written is not
 written again. Into each clip it writes:
 
-- `input_images/`: the release's JPEGs, cut to the clip's confirmed
+- `input_images/`: the release's JPEGs, cropped to the clip's confirmed
   rectangle (`atlas120k_meta/crop_rects.json`) and resized to a long side
   of 854.
 - `seg_masks/`: the class ids, read through the evaluator's class table.
@@ -69,6 +69,45 @@ until every check has passed, apart from the class table's, which is made
 while a mask is written.
 
 `python -m pipeline.extract_atlas120k --help` lists the options.
+
+## The CholecSeg8k crop stage
+
+```bash
+python -m pipeline.crop_cholecseg8k --input-dir /path/to/clips --rects cholecseg8k_meta/crop_rects.json \
+    --clips VID01_s15_80 [VID25_s15_162 ...] [--overwrite]
+```
+
+The stage crops a CholecSeg8k clip to the rectangle inside the endoscope's
+view, the rectangle `cholecseg8k_meta/crop_rects.json` gives the clip. It
+reads the clip `python -m pipeline.extract_cholecseg8k` wrote, named
+`VID<nn>_s15_<start>` as the table's keys are, and writes
+`VID<nn>_s15_<start>_crop` beside it. Into the cropped clip it writes:
+
+- `input_images/`: every frame, cropped to the rectangle.
+- `seg_masks/`: every colour mask, cropped to the rectangle.
+- `frame_manifest.json`: the clip's manifest, with each frame's new
+  `image_size` and the rectangle as `crop_info`.
+- `crop_info.json`: the rectangle again, which the depth stage requires of
+  a CholecSeg8k clip.
+
+The stage refuses:
+
+- a rectangle that lacks a key, holds a value that is not an integer, or
+  is empty or reaches past its frame;
+- a clip named on the command line that has no directory with
+  `frame_manifest.json`, or no rectangle in the table; either stops the
+  run before any clip is cropped;
+- a clip without an image;
+- a manifest that does not list one frame per image;
+- a frame or a mask whose size is not the frame's the rectangle was found
+  on;
+- a cropped clip that already exists, unless `--overwrite` is given, which
+  removes it first.
+
+A refused clip is left as it was: the stage writes and removes nothing
+until every check has passed.
+
+`python -m pipeline.crop_cholecseg8k --help` lists the options.
 
 ## The depth stage
 

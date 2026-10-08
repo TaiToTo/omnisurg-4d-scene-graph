@@ -537,3 +537,22 @@ Every command takes those paths as arguments.
     gets no cloud, no manifest entry and a count of 0, and the run exits 0.
     No real clip has done this; a bundle with no depth at all is more likely
     a broken bundle than data. Decide whether the stage refuses such a clip.
+20. **The rectangles the GPU machine's CholecSeg8k clips were cut to.**
+    `cholecseg8k_meta/crop_rects.json` holds, for each of the 27 clips, the
+    rectangle inside the endoscope's circle, fitted to the cholec80 video,
+    and the clips of one video share it. The workbench's
+    `crop_cholec_frames.py --method circle` on the development machine
+    writes these rectangles, and the 9 clips stored there hold them. The
+    paper's clips were cut on the GPU machine by `run_all17_pipeline.sh`,
+    whose step 2 runs that script on the host without `--source-root`.
+    The script's default source root exists only inside the container, so
+    on the host it finds no video and takes the rectangle from each clip's
+    own 30 frames instead; the step's own message says "frame-derived".
+    Those rectangles differ from the table's (computed here on the port's
+    windows: none of the 27 equals the table, up to 59 px off, and the
+    clips of one video differ). Before the 14 clips of "CholecSeg8k clips
+    whose frames run out of order" are cut again, read the 27 clips'
+    `crop_info.json` on the GPU machine. If they hold the frame-derived
+    rectangles, the table takes those values, so that the 14 clips cut
+    again are cut as the 13 kept ones were, and `cholecseg8k_meta/README.md`
+    says where the rectangles came from.
