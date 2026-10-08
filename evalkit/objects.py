@@ -1,12 +1,12 @@
 """Find the objects of a frame, pair them, and compute `F1_50` and `SQ` over the pairs.
 
-`gt_objects` takes one object per GT class, and `predicted_objects` takes
+`gt_objects` builds one object per GT class, and `predicted_objects` builds
 one object per region. Both read the scored pixels only, so a region with
 no scored pixel is no object. `pair` pairs the objects greedily, highest
 IoU first, and `Pair.hit` marks a pair with IoU >= `MATCH_IOU`.
 `docs/evaluation.md` ("Objects") defines the objects and the order that
-breaks a tie. Pilot mode builds its GT objects in its own module, and shares
-the pairing and the two formulas.
+breaks a tie. `evalkit.pilot` builds pilot mode's objects by the pilot
+evaluator's rules, to be paired and scored here.
 
 `docs/figures/objects.png` shows this on a drawn scene.
 """
@@ -179,8 +179,7 @@ def pair(gt: Objects, pred: Objects) -> list[Pair]:
     the pilot evaluator sorted (iou, gt, pred) descending. Either index key
     can decide which objects are found at exactly `MATCH_IOU`. The GT index
     settles a tie between two classes under one region. The predicted index
-    settles a tie between two regions over one class. Which key is applied
-    first changes only the order of the returned list.
+    settles a tie between two regions over one class.
 
     Returns:
         The pairs in the order they were taken.

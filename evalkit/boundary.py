@@ -1,14 +1,14 @@
 """Mark where a label map changes, and score how well two sets of boundaries agree.
 
 `boundary_F`, `boundary_R_raw` and `inst_BF` are all computed with
-`boundary_pixels` and `boundary_score`. `boundary_pixels` marks a scored
-pixel whose left, right, upper or lower neighbour is a scored pixel with
-another label. Both sides of an edge are marked, and an edge against a
-pixel that is not scored is no boundary. `boundary_score` counts the
-boundary pixels of one map within `BOUNDARY_TOL_PX` of the other's.
-`docs/evaluation.md` defines the boundary rule and its tolerance ("What
-each key is, per frame"). `docs/figures/boundary.png` and
-`docs/figures/boundary_tolerance.png` show both on a drawn scene.
+`boundary_pixels` and `boundary_score`. `boundary_pixels` marks the boundary
+pixels of a label map over the scored pixels. `boundary_score` returns the
+precision, recall and F of a predicted boundary against a GT boundary,
+within `tol` pixels, `BOUNDARY_TOL_PX` by default. `docs/evaluation.md`
+defines a boundary pixel and the tolerance ("Boundaries: `boundary_F`,
+`boundary_R_raw`"). `docs/figures/boundary.png` shows the boundary pixels
+on a drawn scene, and `docs/figures/boundary_tolerance.png` shows the
+tolerance.
 """
 from __future__ import annotations
 
@@ -17,8 +17,8 @@ from dataclasses import dataclass
 import cv2
 import numpy as np
 
-# The pilot evaluator's value for its main boundary keys. Both sides of an edge are marked, so an edge shifted by
-# `BOUNDARY_TOL_PX` px scores 1, one shifted by one more pixel scores 1/2, and one further off scores 0.
+# The pilot evaluator's value for its main boundary keys. `docs/evaluation.md`
+# says what it allows ("Boundaries: `boundary_F`, `boundary_R_raw`").
 BOUNDARY_TOL_PX = 2
 
 
@@ -31,8 +31,9 @@ class BoundaryScore:
             of a GT boundary pixel.
         recall: The share of GT boundary pixels within the tolerance of a
             predicted boundary pixel.
-        f: Their harmonic mean; 0 when both are 0. Pilot mode computes the
-            pilot evaluator's own F from `precision` and `recall`.
+        f: Their harmonic mean; 0 when both are 0. Pilot mode is to compute
+            the pilot evaluator's own F from `precision` and `recall`
+            (`docs/porting.md`, "Pilot mode's own rules").
     """
 
     precision: float
