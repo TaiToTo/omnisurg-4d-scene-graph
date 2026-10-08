@@ -12,6 +12,8 @@ import pytest
 import clip_dirs as C
 import evalkit.tools.kmerge as KM
 from evalkit.evaluate import condition_rule, score_condition
+from evalkit.classes import load_table
+from evalkit.inputs import DEPTH_FILE, read_clip
 from evalkit.tools.kmerge import kmerge, merge_condition
 
 BOTH_WAYS = {"seed_source": "sam", "seed_frame": 1, "bidir": True, "frames": [0, 1, 2]}
@@ -89,7 +91,9 @@ def test_the_merged_condition_is_written_at_the_depth_shape_and_scored(tmp_path)
     merged = np.load(out / "label_0001.npy")
     assert merged.shape == (20, 30) and len(np.unique(merged)) == 2
     assert json.loads((out / "seed_info.json").read_text())["kmerge"] == {"from_tag": "t", "k": 2}
-    assert json.loads((out / "kmerge.json").read_text()) == {"from_tag": "t", "k": 2}
+    source = read_clip(tmp_path / "data", tmp_path / "tracks", "t", "VID01_a", load_table("cholecseg8k"))
+    assert json.loads((out / "kmerge.json").read_text()) == {
+        "from_tag": "t", "from_predictions_sha": source.shas["predictions"], "k": 2}
     assert condition_rule(tmp_path / "tracks", "t_k2", clips) == condition_rule(tmp_path / "tracks", "t", clips)
     summary = score_condition("cholecseg8k", None, clips, tmp_path / "data", tmp_path / "tracks", "t_k2")
     assert summary["propagation"] == "both_ways_from_centre"
@@ -110,3 +114,69 @@ def test_the_merged_condition_needs_a_tag_of_its_own(tmp_path):
     clips = _condition(tmp_path)
     with pytest.raises(ValueError, match="tag of its own"):
         merge_condition("cholecseg8k", clips, tmp_path / "data", tmp_path / "tracks", "t", "t", k=2)
+
+
+def test_a_merge_of_several_steps_carries_area_and_boundaries_on():
+    # Areas 1: 3, 4: 2, 0: 2, 2: 1, 3: 1. Each step below holds only if the step before added the taken
+    # region's area and boundaries to its taker, and recorded the taker among its new neighbours' neighbours.
+    # 2 shares 1 with each of 0, 1 and 3, and goes to 3, the neighbour of least area.
+    # 0 shares 2 with 1 and, now, 1 with 3, and goes to 1.
+    # 3, of area 2 like 4 and the lower id, shares 1 with 4 and, through 0, 2 with 1, and goes to 1.
+    lab = np.array([[1, 1, 4],
+                    [0, 1, 4],
+                    [0, 2, 3]])
+    assert np.array_equal(kmerge(lab, 2), np.where(lab == 4, 4, 1))
+
+
+def test_a_refused_clip_leaves_every_clip_as_it_was(tmp_path):
+    clips = _condition(tmp_path)
+    merge_condition("cholecseg8k", clips, tmp_path / "data", tmp_path / "tracks", "t", "t_k2", k=2)
+    earlier = tmp_path / "tracks" / "VID01_a" / "t_k2" / "marker"
+    earlier.touch()
+    # The second clip loses a GT frame's prediction, which `read_clip` refuses.
+    (tmp_path / "tracks" / "VID02_b" / "t" / "label_0001.npy").unlink()
+    with pytest.raises(ValueError, match="no prediction"):
+        merge_condition("cholecseg8k", clips, tmp_path / "data", tmp_path / "tracks", "t", "t_k2", k=2,
+                        overwrite=True)
+    assert earlier.exists()
+
+
+def test_k_below_one_is_refused_before_anything_is_written(tmp_path):
+    clips = _condition(tmp_path)
+    with pytest.raises(ValueError, match="at least 1"):
+        merge_condition("cholecseg8k", clips, tmp_path / "data", tmp_path / "tracks", "t", "t_k0", k=0)
+    assert not (tmp_path / "tracks" / "VID01_a" / "t_k0").exists()
+
+
+def test_a_condition_that_is_not_merged_predictions_is_not_replaced(tmp_path):
+    clips = _condition(tmp_path)
+    # A tracked condition named as the output: it has no `kmerge.json`.
+    for clip in clips:
+        C.write_labels(tmp_path / "tracks", clip, "s", {0: np.zeros((20, 30), np.int32)})
+    tracked = tmp_path / "tracks" / "VID01_a" / "s" / "label_0000.npy"
+    with pytest.raises(ValueError, match="not merged predictions"):
+        merge_condition("cholecseg8k", clips, tmp_path / "data", tmp_path / "tracks", "t", "s", k=2,
+                        overwrite=True)
+    assert tracked.exists()
+
+
+def test_a_frame_without_valid_depth_is_refused_before_anything_is_written(tmp_path):
+    clips = _condition(tmp_path)
+    depth_file = tmp_path / "data" / "VID02_b" / DEPTH_FILE
+    depth = np.load(depth_file)["depth"]
+    depth[1, 3, 4] = 0.0
+    np.savez(depth_file, depth=depth)
+    with pytest.raises(ValueError, match="VID02_b: frame 1: .*no valid depth"):
+        merge_condition("cholecseg8k", clips, tmp_path / "data", tmp_path / "tracks", "t", "t_k2", k=2)
+    assert not (tmp_path / "tracks" / "VID01_a" / "t_k2").exists()
+
+
+def test_a_region_id_below_minus_one_is_refused_before_anything_is_written(tmp_path):
+    clips = _condition(tmp_path)
+    label = tmp_path / "tracks" / "VID02_b" / "t" / "label_0000.npy"
+    bad = np.load(label)
+    bad[0, 0] = -2
+    np.save(label, bad)
+    with pytest.raises(ValueError, match="VID02_b: frame 0 holds a region id below -1"):
+        merge_condition("cholecseg8k", clips, tmp_path / "data", tmp_path / "tracks", "t", "t_k2", k=2)
+    assert not (tmp_path / "tracks" / "VID01_a" / "t_k2").exists()

@@ -1,8 +1,9 @@
 """Clip directories on disk, laid out as the pipeline writes them, for the entry point's tests.
 
-`write_clip` writes one CholecSeg8k clip from class-id maps: its manifest,
-its depth and its colour masks, the masks `scale` times larger than the
-depth so that the resize is exercised. `write_labels` writes one condition's
+`write_clip` writes one clip from class-id maps: its manifest, its depth
+and its GT masks, the masks `scale` times larger than the depth so that the
+resize is exercised. A CholecSeg8k mask holds colours, an ATLAS-120k mask
+the ids themselves. `write_labels` writes one condition's
 predictions for it.
 """
 import json
@@ -12,7 +13,7 @@ import numpy as np
 from PIL import Image
 
 from evalkit.classes import load_table
-from evalkit.inputs import DEPTH_FILE, MANIFEST, MASK_DIR, MASK_SUFFIX
+from evalkit.inputs import DEPTH_FILE, GT_FLAG, MANIFEST, MASK_DIR, MASK_SUFFIX
 
 TABLE = load_table("cholecseg8k")
 LIVER, GALLBLADDER, FAT, GRASPER = 2, 10, 4, 5
@@ -33,7 +34,7 @@ def colour_mask(ids: np.ndarray) -> np.ndarray:
 
 
 def write_clip(data_root: Path, clip: str, gt: list[np.ndarray], *, gt_frames=None, sam_frames=(), times=None,
-               scale: int = 2, manifest_extra: dict | None = None) -> Path:
+               scale: int = 2, manifest_extra: dict | None = None, dataset: str = "cholecseg8k") -> Path:
     """One clip of `len(gt)` frames; `gt_frames` (default all) have a GT mask, `times` (default 0.6 s apart) their timestamps.
 
     `sam_frames` have a mask the viewer's step wrote under the GT's name, marked by `seg_provenance`.
@@ -46,7 +47,7 @@ def write_clip(data_root: Path, clip: str, gt: list[np.ndarray], *, gt_frames=No
     (clip_dir / MASK_DIR).mkdir(parents=True)
     (clip_dir / DEPTH_FILE).parent.mkdir(parents=True)
     frames = [{"seq_idx": i, "native_frame": 100 + 15 * i, "timestamp_sec": times[i],
-               "has_seg_mask": i in gt_frames | sam_frames, "is_anchor": i in gt_frames} for i in range(n)]
+               GT_FLAG[dataset]: i in gt_frames | sam_frames, "is_anchor": i in gt_frames} for i in range(n)]
     for i in sam_frames:
         frames[i]["seg_provenance"] = "sam3_gt_propagated"
     manifest = {"frames": frames, "crop_info": {"x0": 0, "x1": w, "y0": 0, "y1": h}, **(manifest_extra or {})}
@@ -54,7 +55,8 @@ def write_clip(data_root: Path, clip: str, gt: list[np.ndarray], *, gt_frames=No
     np.savez(clip_dir / DEPTH_FILE, depth=np.ones((n, h, w), dtype=np.float32))
     for i in sorted(gt_frames | sam_frames):
         big = np.kron(gt[i], np.ones((scale, scale), dtype=np.int32))
-        Image.fromarray(colour_mask(big)).save(clip_dir / MASK_DIR / f"{i:06d}{MASK_SUFFIX['cholecseg8k']}")
+        mask = colour_mask(big) if dataset == "cholecseg8k" else big.astype(np.uint8)
+        Image.fromarray(mask).save(clip_dir / MASK_DIR / f"{i:06d}{MASK_SUFFIX[dataset]}")
     return clip_dir
 
 

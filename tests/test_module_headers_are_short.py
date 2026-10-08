@@ -26,27 +26,12 @@ HEADER_LINES = 12
 # workstream `docs/short-headers`. A module is removed here when it is
 # shortened; a module that is short and still listed fails the ratchet.
 STILL_LONG = frozenset({
-    "evalkit/boundary.py",
-    "evalkit/classes.py",
-    "evalkit/classmap.py",
-    "evalkit/clip.py",
     "evalkit/code_sha.py",
-    "evalkit/frame.py",
-    "evalkit/inst_bf.py",
-    "evalkit/objects.py",
     "evalkit/pilot.py",
-    "evalkit/scored.py",
     "evalkit/time_iou.py",
     "evalkit/tools/paired_stats.py",
     "evalkit/tools/scores.py",
-    "evalkit/unlabelled.py",
-    "evalkit/vi.py",
-    "surgical_core/atlas120k/clip_rects.py",
-    "surgical_core/atlas120k/frame_ratio.py",
     "surgical_core/geometry/__init__.py",
-    "tests/scenes.py",
-    "tests/test_no_personal_email.py",
-    "tests/test_no_todo_in_code.py",
 })
 
 
