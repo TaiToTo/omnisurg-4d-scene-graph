@@ -537,3 +537,26 @@ Every command takes those paths as arguments.
     gets no cloud, no manifest entry and a count of 0, and the run exits 0.
     No real clip has done this; a bundle with no depth at all is more likely
     a broken bundle than data. Decide whether the stage refuses such a clip.
+20. **Cuts inside GT clips.** The workbench searched for scene changes only
+    inside GT clips, at frame pairs whose pixel difference was above 40,
+    and judged 40 of those 125 pairs; the other 85 were not looked at, and
+    pairs below 40 never were. Of the 315 clips,
+    `cholecystectomy__1ud3syYKD3A__gt_0001` contains six judged cuts, all
+    inside its kept run (between its frames 22/23, 28/29, 51/52, 56/57,
+    69/70 and 76/77; the centre frame, where tracking from the centre is
+    seeded, sits at one), and `cholecystectomy__Bj13QcLRCVc__gt_0001`
+    contains one candidate left undecided. The workbench decided on
+    2026-09-13 to use such a clip whole; the question then was the crop
+    rectangle, not tracking. Every frame but the seed is scored on a mask
+    that tracking propagated, so after a cut the per-frame scores of a
+    tracking condition measure the scene change, not the input, and every
+    measure over time is meaningless there. The comparison is paired by
+    video, so every condition loses alike on that one video. Before the
+    population is extracted again and the evaluator is frozen: judge the
+    85 remaining pairs on the workbench's `cuts` review page
+    (`experiment/crop_necessity/HANDOFF.md`, "5.2"), then decide whether a
+    clip with a cut is used whole, excluded, or split at the cut.
+    Excluding or splitting changes `clips.txt` and `depth_manifest.json`.
+    Splitting also makes the cut marks
+    (`experiment/crop_necessity/marks/marks_20260913_174731.jsonl`) a file
+    a measurement reads, so they would return to `atlas120k_meta/`.

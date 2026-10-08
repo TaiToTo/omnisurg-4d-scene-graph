@@ -19,10 +19,16 @@ clip. Nothing is excluded on a score. Crop rectangles select nothing. A clip
 with a cut in its recording is used whole. `pipeline/extract_atlas120k.py`
 applies the rule.
 
-A cut is a scene change in the mp4, judged by eye in the workbench. Two of
-the 315 clips contain cuts: `cholecystectomy__1ud3syYKD3A__gt_0001` contains
-six, and `cholecystectomy__Bj13QcLRCVc__gt_0001` contains one candidate left
-undecided. No measurement of the paper reads the cuts.
+A cut is a scene change inside the mp4, judged by eye in the workbench. The
+search looked only inside GT clips, at the frame pairs whose pixel
+difference was above 40, and judged 40 of those 125 pairs; the rest were
+not looked at. Two of the 315 clips contain a judged cut:
+`cholecystectomy__1ud3syYKD3A__gt_0001` contains six, and
+`cholecystectomy__Bj13QcLRCVc__gt_0001` contains one candidate left
+undecided. Such a clip is used whole: that was decided when the crop
+rectangles were checked, before tracking was considered, and whether it
+stands for the tracked frames is not decided. No measurement of the paper
+reads the cuts.
 
 `videos/videos.json` is the inventory of the release's tree: all 100 videos
 and their 502 clips. An earlier extraction wrote it, so its `keep`,
