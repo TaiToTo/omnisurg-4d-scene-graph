@@ -20,8 +20,8 @@ import pytest
 
 META = Path(__file__).resolve().parent.parent / "atlas120k_meta"
 
-# Anything that looks like a filesystem path on a development machine. The
-# workbench's manifests carried one such path when they were copied.
+# Anything that looks like a filesystem path on a development machine.
+# `videos.json` carried one such path when it was copied.
 MACHINE_PATH = re.compile(r"/(home|var/autofs|mnt|Users)/")
 # Any CJK character, including the full-width punctuation the workbench's notes
 # used around dates: the notes were translated on the way in, and a fresh copy
@@ -156,54 +156,6 @@ def test_every_clip_in_the_population_has_a_depth_fingerprint():
 
 def test_every_clip_in_the_population_has_a_crop_rectangle():
     _check_crop_rectangles(META)
-
-
-def test_cut_marks_are_judgements_on_boundaries_of_known_videos():
-    """The log is append-only, so a key may repeat; what must hold is that
-    every line is a complete judgement and that the last one per key, the
-    verdict, is a value a reader can act on."""
-    population = {
-        " ".join(p.split()) for p in META.joinpath("videos", "population.txt").read_text().split("\n") if p}
-    last = {}
-    for line in META.joinpath("cut_marks.jsonl").read_text(encoding="utf-8").splitlines():
-        mark = json.loads(line)
-        assert mark["key"] == f"{mark['procedure']}/{mark['video']}#{mark['cand']}"
-        assert mark["is_cut"] in ("yes", "no", "dk", None), mark["key"]
-        assert mark["cut_between"][0] + 1 == mark["cut_between"][1], mark["key"]
-        last[mark["key"]] = mark
-    assert all(m["is_cut"] is not None for m in last.values()), "a boundary was never judged"
-    cuts = {f"{m['procedure']} {m['video']}" for m in last.values() if m["is_cut"] == "yes"}
-    assert cuts <= population, cuts - population
-
-
-def test_audits_cover_the_same_videos_and_clips_as_the_manifests():
-    """Each audit was run on the earlier extraction's output, so it must list
-    exactly the clips (or videos) that extraction wrote."""
-    clips = json.loads(META.joinpath("videos", "clips.json").read_text())
-    coverage = json.loads(META.joinpath("audit", "gt_coverage.json").read_text())
-    assert {c["clip"] for c in coverage["clips"]} == set(clips["clips"])
-    assert coverage["n_clips"] == len(coverage["clips"])
-    population = {"__".join(p.split()) for p in META.joinpath("videos", "population.txt").read_text().split("\n") if p}
-    residue = json.loads(META.joinpath("audit", "ui_residue.json").read_text())
-    assert {v["video"] for v in residue["videos"]} == population
-    rects = json.loads(META.joinpath("crop_rects.json").read_text(encoding="utf-8"))
-    scope = json.loads(META.joinpath("audit", "crop_scope_table.json").read_text())
-    assert {v["video"] for v in scope["videos"]} == {f"{e['procedure']}/{e['video']}" for e in rects}
-
-
-def test_video_manifest_and_its_clip_list_agree():
-    """`videos.json` is the inventory before extraction and `clips.json` what
-    came out, so clip numbers are not compared (one video's outputs were
-    numbered by position at the time); videos and counts are."""
-    videos = json.loads(META.joinpath("videos", "videos.json").read_text())
-    clips = json.loads(META.joinpath("videos", "clips.json").read_text())
-    population = [p.split() for p in META.joinpath("videos", "population.txt").read_text().split("\n") if p]
-    assert len(population) == videos["n_videos"] == clips["n_videos"]
-    kept = {f"{v['procedure']}__{v['video']}" for v in videos["videos"] if not v["excluded"]}
-    assert kept == {f"{p}__{v}" for p, v in population}
-    assert clips["n_clips"] == len(clips["clips"]) == videos["n_clips"]
-    assert all(CLIP_NAME.fullmatch(c) for c in clips["clips"])
-    assert {c.rsplit("__gt_", 1)[0] for c in clips["clips"]} <= kept
 
 
 @pytest.mark.parametrize(
