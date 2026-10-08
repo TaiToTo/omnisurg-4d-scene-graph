@@ -384,9 +384,10 @@ Every command takes those paths as arguments.
    `hold_mean` ones. The ported extractor (`pipeline/extract_cholecseg8k.py`)
    converts the gap frames: it interpolates their native frames between the
    clip's annotated frames, and carries the rate past them. Decided: the 14
-   clips are re-extracted with it and re-run on G for the paper's numbers,
-   a deliberate exception to step 5's byte-for-byte rule. The other 13
-   clips extract as the workbench's did, byte for byte.
+   clips are re-extracted with it and re-run on the workbench's GPU machine
+   for the paper's numbers, a deliberate exception to step 5's byte-for-byte
+   rule. The ported extractor writes the other 13 clips as the workbench's
+   did, byte for byte.
    The evaluator refuses two of the nine clips on this machine. In
    `VID25_s15_162_crop` native frame 387 appears twice, at one timestamp.
    In it and in `VID25_s15_402_crop`, the gap frames hold masks the

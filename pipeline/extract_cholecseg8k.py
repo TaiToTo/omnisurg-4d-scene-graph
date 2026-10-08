@@ -1,13 +1,13 @@
-"""Cut CholecSeg8k windows into the clip directories the pipeline reads.
+"""Extract CholecSeg8k windows into the clip directories the pipeline reads.
 
-A clip `VID<nn>_s<stride>_<start>` is `--count` frames of video `nn`, its
-CholecSeg8k frame numbers `stride` apart from `start`. A frame CholecSeg8k
-annotated takes the image the mask was drawn on, and the mask; its
-`native_frame`, the cholec80 frame it is, is found by matching that image
-against the video. CholecSeg8k numbers 12 of its 17 videos at about 30 frames
-a second, so a frame it did not annotate takes the native frame its number
-stands for, interpolated between the clip's annotated frames, and is decoded
-from the video. The clip gets `input_images/`, `seg_masks/` and
+A clip `VID<nn>_s<stride>_<start>` is `--count` frames of video `nn`,
+numbered in CholecSeg8k from `start` in steps of `stride`. A frame
+CholecSeg8k annotated takes the image the mask was drawn on, and the mask.
+Its `native_frame`, the cholec80 frame it is, is found by matching that image
+against the video. A frame CholecSeg8k did not annotate is decoded from the
+video. CholecSeg8k numbers 12 of its 17 videos at about 30 frames a second,
+so the native frame of such a frame is interpolated between the clip's
+annotated frames. The clip gets `input_images/`, `seg_masks/` and
 `frame_manifest.json`.
 
 Usage:
@@ -25,8 +25,9 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-# How far from its CholecSeg8k number a frame's native frame is searched for. A video numbered at 30 frames a
-# second runs a sixth ahead of the video, so the window reaches back a fifth of the number, and 150 frames more.
+# How far from its CholecSeg8k number a frame's native frame is searched for. In a video numbered at 30 frames a
+# second, a number exceeds its native frame by a sixth of the number, so the window reaches back a fifth of the
+# number, and 150 frames more.
 SEARCH_BACK_PER_FRAME = 5
 SEARCH_BACK = 150
 SEARCH_AHEAD = 60
@@ -85,8 +86,9 @@ def match_native(cap: cv2.VideoCapture, image: np.ndarray, seg: int, n_frames: i
     is taken.
 
     Raises:
-        ValueError: a frame is not the image's size, the best match is further than `MATCH_TOL`, or it lies on an
-            edge of the window that is not an end of the video, so the frame may lie beyond it.
+        ValueError: a frame is not the image's size, the best match is further than `MATCH_TOL`, or the best
+            match is on an edge of the window that is not an end of the video, where the true frame may be
+            outside the window.
     """
     lo = max(0, seg - seg // SEARCH_BACK_PER_FRAME - SEARCH_BACK)
     hi = min(seg + SEARCH_AHEAD, n_frames - 1)
@@ -97,7 +99,7 @@ def match_native(cap: cv2.VideoCapture, image: np.ndarray, seg: int, n_frames: i
         if not ok:
             break
         if frame.shape != image.shape:
-            raise ValueError(f"video frame {i} is {frame.shape}, the annotated image {image.shape}")
+            raise ValueError(f"video frame {i} is {frame.shape}, but the annotated image is {image.shape}")
         last = i
         d = float(np.mean(np.abs(frame.astype(np.int16) - image.astype(np.int16))))
         if d < best:
@@ -178,7 +180,7 @@ def extract_clip(seg8k_root: Path, videos_root: Path, out: Path, clip: str, coun
         n_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
         # Match each annotated image against the video, carry the rate to the other frames, and refuse native
-        # frames that do not rise: a frame decoded out of place would sit among the others unnoticed.
+        # frames that do not rise. No other check refuses a frame decoded out of place.
         annotated = {s: match_native(cap, read_image(p[0]), s, n_frames) for s, p in pairs.items() if p}
         natives = {**annotated, **unannotated_natives(segs, annotated)}
         order = [natives[s] for s in segs]

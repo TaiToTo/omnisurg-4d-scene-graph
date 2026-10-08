@@ -1,10 +1,10 @@
-"""The CholecSeg8k extraction, on videos and annotations made up for the test.
+"""Test the CholecSeg8k extraction on videos and annotations made up for the test.
 
 Two synthetic videos stand for the two ways CholecSeg8k numbers frames: one
 at the video's own rate, one at 30 frames a second against its 25. Their
 annotated images are decoded frames of the video, so each matches one frame.
 A third video changes slowly, to put a match on the edge of the search
-window. Each refusal is planted and watched.
+window. Each refusal has a test that plants its fault.
 """
 
 import json
@@ -19,8 +19,8 @@ from pipeline.extract_cholecseg8k import extract_clip, parse_clip, unannotated_n
 N_FRAMES = 200
 SIZE = (64, 48)
 
-# Video 1 is numbered at its own rate; video 25 at 30 frames a second, so CholecSeg8k number s is native frame
-# 60 + (s - 60) * 5 / 6. A stride of 6 numbers is 5 native frames, so no frame falls between two.
+# Video 1 is numbered at its own rate. Video 25 is numbered at 30 frames a second, so CholecSeg8k number s is
+# native frame 60 + (s - 60) * 5 / 6. A stride of 6 numbers is 5 native frames, so no frame falls between two.
 ANNOTATED = {
     1: {s: s for s in (60, 66, 72, 78, 84, 102, 108)},
     25: {s: 60 + (s - 60) * 5 // 6 for s in (60, 66, 72, 78, 84, 102, 108)},
@@ -118,7 +118,8 @@ def test_masks_are_written_only_on_annotated_frames(source):
 
 
 def test_the_rate_is_carried_between_and_past_the_annotated_frames():
-    # Between 30 and 60 the frames run at 24/30, not the clip's 50/60: 45 is 38 by them, 38.5 by the clip.
+    # Between 30 and 60 the frames run at 24/30, not at the clip's 50/60. Number 45 is native frame 38 at the
+    # first rate and 38.5 at the second.
     annotated = {0: 0, 30: 26, 60: 50}
     assert unannotated_natives([0, 15, 30, 45, 60, 75, 90], annotated) == {15: 13, 45: 38, 75: 63, 90: 75}
 
@@ -165,7 +166,8 @@ def test_a_mask_without_its_image_is_refused(source):
 
 
 def test_a_match_on_the_edge_of_the_window_is_refused(tmp_path):
-    # Frame i is grey level i, so the image of frame 75 is 5 from frame 70, the last frame number 10 searches.
+    # Frame i is grey level i, so the image of frame 75 differs by 5 from frame 70, the last frame the search
+    # for number 10 reads.
     roots = dict(seg8k_root=tmp_path / "CholecSeg8k", videos_root=tmp_path / "videos", out=tmp_path / "out")
     roots["videos_root"].mkdir()
     grey = [np.full((SIZE[1], SIZE[0], 3), i, np.uint8) for i in range(N_FRAMES)]
