@@ -97,9 +97,50 @@ them changes.
   ticket, an audit letter or a task id (`see §2.3`, `audit B7`, `task22`):
   they point at documents this repository does not have, and the reader is
   left holding a dead pointer. The only citable things are the ones that
-  outlive the work: the frozen sha, the module that defines a rule
-  (`paired_stats.VERDICT_RULE`), a published paper.
+  outlive the work: the frozen `eval_code_sha`, the module that defines a
+  rule (`paired_stats.VERDICT_RULE`), a published paper.
 - Code, comments and docs in English.
+
+## Wording
+
+A writer knows which of two things a word names, what a short name stands
+for, and what "it" points to. A reader who opens the page cold does not.
+The rules below keep that knowledge in the text. They hold for every text
+in the repository: documents, docstrings, comments, error messages, commit
+messages and pull request text. No test can read for them, so the reviewer
+does. Existing text is rewritten when a change touches the sentence.
+
+- **One word, one meaning.** A word that names one thing in a document
+  names nothing else there. Before a new term goes in, search the document
+  for the bare word. On a page that calls both the propagation rule and the
+  conditions for comparable scores a "rule", "a comparison under this rule"
+  can mean either. "A comparison bound by these conditions" says which.
+- **The verb says what the code does.** Write the operation: compare,
+  refuse, include. An image such as "sit beside", "meet", "join" or "pass
+  through" leaves the reader to guess the operation. A reader should be
+  able to write the test from the sentence: "`per_frame` may sit beside
+  either rule" becomes "a `per_frame` condition may be compared with a
+  condition of either rule".
+- **Each sentence reads on its own.** Leave no verb out, and point no
+  pronoun at a noun several lines back; repeat the noun instead.
+  "`compare_eval` refuses any other pair and `paired_stats` any other
+  table" becomes two sentences, each with its verb: "`compare_eval` refuses
+  any other pair. `paired_stats` refuses any other table." "That
+  comparison" becomes the comparison itself.
+- **A field, a function or a file goes in backticks; anything else is a
+  plain word.** Prose uses the word a reader outside the project knows, not
+  a team's shorthand. "The input shas" mixes the two: it half-quotes the
+  key `input_shas` and uses git's "sha" for a hash. Write "input hashes",
+  and name `input_shas` once, where the field is defined.
+- **Parallel items go in a list; a chain of reasons stays in sentences.**
+  Conditions, fields and the things a tool refuses can be counted, so they
+  go in a short list, one item per line. A list drops "because" and "so".
+  A reason needs those words, so a reason stays in sentences.
+- **A new case updates every list of cases.** A sentence or a list that
+  names the cases or the reasons ("because A", "A, B or C") goes stale when
+  a case is added, and nothing fails. When a change adds a case, search for
+  every sentence and list that names the others and add the case there
+  too.
 
 ## Code
 
