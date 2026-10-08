@@ -40,7 +40,7 @@ def evaluator_score(track_dir: str, pilot: bool = False, class_set: str = "origi
                     depth: str = "d") -> dict:
     return dict(track_dir_name=track_dir, eval_code_sha="a" * 64, dataset="atlas120k", pilot=pilot,
                 class_set=class_set, views=["all", "tissue", "geometric"], n_clips=len(clips), n_missing=0,
-                n_failed=0, clips=list(clips), versions={},
+                n_failed=0, clips=list(clips), versions={}, propagation="both_ways_from_centre",
                 input_shas={c: {"gt_masks": "g", "depth": depth, "predictions": track_dir} for c in clips},
                 per_clip=[dict(clip=c) for c in clips])
 
@@ -230,6 +230,34 @@ def test_two_class_sets_under_one_sha_are_two_groups(tree):
     write_score(ev, "a_rgb", evaluator_score("track_rgb_a_rgb"))
     write_score(ev, "a_normal", evaluator_score("track_rgb_a_normal", class_set="benchmark"))
     assert any("2 groups" in p for p in problems(tr, ev))
+
+
+def test_two_propagation_rules_in_one_score_directory_are_two_groups(tree, capsys):
+    tr, ev = tree
+    forward = evaluator_score("track_rgb_a_normal")
+    forward["propagation"] = "forward_from_first"
+    write_score(ev, "a_normal", forward)
+    write_score(ev, "a_rgb", evaluator_score("track_rgb_a_rgb"))
+    assert any("2 groups" in p for p in problems(tr, ev))
+    assert "propagated under different rules" in capsys.readouterr().out
+
+
+def test_a_per_frame_score_joins_a_group_of_either_rule_and_the_group_names_the_rule(tree, capsys):
+    tr, ev = tree
+    per_frame = evaluator_score("track_rgb_a_normal")
+    per_frame["propagation"] = "per_frame"
+    write_score(ev, "a_normal", per_frame)
+    write_score(ev, "a_rgb", evaluator_score("track_rgb_a_rgb"))
+    assert problems(tr, ev) == []
+    assert "propagation=both_ways_from_centre → 2 conditions" in capsys.readouterr().out
+
+
+def test_a_tag_tracked_both_ways_on_some_clips_and_forward_on_others_is_reported(tree):
+    tr, ev = tree
+    tracked = {**provenance("rgb", 8), "seed_source": "sam"}
+    plant(tr, {"track_rgb_a_rgb": [("c3", {**tracked, "bidir": False}, 13)]})
+    plant(tr, {"track_rgb_a_rgb": [(c, {**tracked, "bidir": True}, LABELS[c]) for c in ("c1", "c2")]})
+    assert any("conditions are mixed" in p for p in problems(tr, ev))
 
 
 def test_a_pilot_json_and_an_evaluator_json_are_two_groups(tree):
