@@ -17,8 +17,8 @@ The package is split by dependency:
   normal image. numpy and OpenCV only. This is what the toolkit needs.
 - `camera`: pixels to camera, world and the viewer's glTF space, the
   transforms the depth stages write their point clouds with. numpy only.
-- `project`: back-projection, projection, label transfer and label warping
-  between frames, on `camera`'s transforms. numpy only.
+- `project`: back-projection and projection between frames, on `camera`'s
+  transforms. numpy only.
 - `valid`: which depth values count, `DEPTH_MIN` and `valid_depth_mask`.
   numpy only.
 - `render`: the images the segmenter is prompted with (colormapped depth,
@@ -38,5 +38,5 @@ from surgical_core.geometry.normals import (  # noqa: F401
     burn_geom_edge, camera_normals, edge_reliable_mask, geom_edge_map, normal_edge_map,
     normal_map)
 from surgical_core.geometry.project import (  # noqa: F401
-    backproject, project_labels, project_labels_region, project_world_to_frame, warp_labels)
+    backproject, project_world_to_frame)
 from surgical_core.geometry.valid import DEPTH_MIN, valid_depth_mask  # noqa: F401

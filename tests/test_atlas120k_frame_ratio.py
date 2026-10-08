@@ -100,6 +100,12 @@ def test_committed_table_covers_the_population(table):
     assert ratios <= {1, 2, 3, 4}
 
 
+def test_measured_videos_are_listed_sorted(tmp_path):
+    path = _write(tmp_path, [{"procedure": "b", "video": "x", "ratio": 1},
+                             {"procedure": "a", "video": "y", "ratio": 2}])
+    assert FrameRatios.load(path).videos() == [("a", "y"), ("b", "x")]
+
+
 def test_committed_table_matches_within_tolerance():
     """Each listed match is a real match: well inside the tolerance that
     separates a match from a miss."""

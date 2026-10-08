@@ -1,32 +1,14 @@
-"""The crop rectangle of each clip, as a person confirmed it.
+"""Read the crop rectangle of each ATLAS-120k clip, as a person confirmed it.
 
-Why a rectangle per clip and not per video: the automatic recipe estimates one
-rectangle per video from a sample of its frames, and when all 494 clips of the
-97 videos were checked by eye, that rectangle was wrong for 305 of them, and
-in seven videos the rectangle changes within one mp4 because the recording
-conditions switch mid-video. Neither fits a per-video rectangle, so each clip
-was judged and the file is that judgement.
-
-The file is what the judging tool writes, one entry per clip:
-
-    {"procedure": ..., "video": ..., "clip": "clip_0001",
-     "rect": [x, y, w, h], "verdict": "ok" | "ng" | "skip", ...}
-
-`ok` means the recipe's rectangle was accepted, `ng` that a person redrew it;
-either way `rect` is the rectangle to use, so the two are read alike. A clip
-marked `skip` (not to be used) or not yet judged is not returned, and the
-caller falls back to its per-video rectangle.
-
-Rectangles are in the source video's pixels (`src_size`). On loading they are
-rounded to integers, cut to the part that lies inside the frame and refused if
-that leaves them degenerate. An entry without `src_size` is refused: a
-rectangle that cannot be checked against its frame may reach past the left
-or top edge, and a negative origin in a numpy slice wraps around to the other
-side of the image instead of failing.
-
-The committed judgement is `atlas120k_meta/crop_rects.json`.
-
-`docs/figures/atlas120k_clip_rects.png` shows this on a drawn frame.
+`atlas120k_meta/crop_rects.json` holds one entry per judged clip. An entry
+marked `ok` or `ng` gives the rectangle to use in `rect`. A clip marked
+`skip`, or not yet judged, is not returned, and the caller falls back to its
+per-video rectangle. Rectangles are in the source video's pixels
+(`src_size`), and are rounded to integers and cut to the frame.
+`load_clip_rects` refuses a rectangle left degenerate and an entry without
+`src_size`. The README of `atlas120k_meta/` says why a rectangle is judged
+per clip ("Crop rectangles"). `docs/figures/atlas120k_clip_rects.png` shows
+this on a drawn frame.
 """
 
 import json
@@ -47,6 +29,9 @@ def _clean(rect: list, src_size: list | None, where: str) -> Rect:
             shorter than `MIN_SIDE`. A rectangle drawn wrong is not used as
             it is.
     """
+    # A rectangle that cannot be checked against its frame may reach past the
+    # left or top edge. A negative origin in a numpy slice wraps around to the
+    # other side of the image instead of failing.
     if not src_size:
         raise ValueError(f"{where}: no src_size, so the rectangle cannot be checked against its frame")
     sw, sh = int(src_size[0]), int(src_size[1])
@@ -97,7 +82,7 @@ def load_clip_rects(path: str) -> dict[tuple[str, str, str], Rect]:
 
 def rect_for(table: dict, procedure: str, video: str, clip: str,
              default: Rect) -> tuple[Rect, str]:
-    """The rectangle to crop a clip with, and where it came from.
+    """Return the rectangle to crop a clip with, and where it came from.
 
     Args:
         table: what `load_clip_rects` returned. Empty means always `default`.

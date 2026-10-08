@@ -61,7 +61,8 @@ class ClipInputs:
         gt: Each index with a GT mask to its (H, W) int32 mask ids.
             Read-only.
         regions: Each index with a prediction to its (H, W) int32 region
-            map, -1 for no region. Read-only.
+            map, -1 for no region, in the order of the files' names.
+            Read-only.
         shas: Each input's sha256: `gt_masks`, `depth`, `crop`, `frames`,
             and `predictions`, the one that is the condition's own.
     """
@@ -75,9 +76,10 @@ class ClipInputs:
     shas: Mapping[str, str]
 
 
-def _sha_of_files(paths: list[Path]) -> str:
-    # Each file's name and content, each preceded by its length, so that a
-    # renamed file and a moved boundary between two files both change the sha.
+def sha_of_files(paths: list[Path]) -> str:
+    """Return the sha256 of the files' names and contents, in the order given."""
+    # Each part is hashed after its length, so that a renamed file and a moved
+    # boundary between two files both change the hash.
     h = hashlib.sha256()
     for p in paths:
         for part in (p.name.encode("utf-8"), p.read_bytes()):
@@ -152,7 +154,7 @@ def _resized(arr: np.ndarray, shape: tuple[int, int]) -> np.ndarray:
 
 
 def _labels(label_dir: Path, n: int, clip: str) -> dict[int, Path]:
-    """Map each frame index with a prediction to its file.
+    """Map each frame index with a prediction to its file, in the order of the files' names.
 
     Raises:
         FileNotFoundError: The condition has no directory for this clip.
@@ -241,11 +243,11 @@ def read_clip(data_root: str | Path, tracks_root: str | Path, tag: str, clip: st
         regions[i] = _resized(r.astype(np.int32), shape)
 
     shas = {
-        "gt_masks": _sha_of_files([mask_paths[i] for i in sorted(mask_paths)]),
+        "gt_masks": sha_of_files([mask_paths[i] for i in sorted(mask_paths)]),
         "depth": depth_sha(depth),
         "crop": _sha_of_json(manifest[crops[0]]),
         "frames": _sha_of_json([[i, numbers[i]] for i in order]),
-        "predictions": _sha_of_files([label_paths[i] for i in sorted(label_paths)]),
+        "predictions": sha_of_files([label_paths[i] for i in sorted(label_paths)]),
     }
     return ClipInputs(
         clip=clip, order=tuple(order), numbers=MappingProxyType(numbers), depth=depth,
