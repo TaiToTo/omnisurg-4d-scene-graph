@@ -1,35 +1,14 @@
-"""Objects, their pairing, and the two metrics taken over them, `F1_50` and `SQ`.
+"""Find the objects of a frame, pair them, and compute `F1_50` and `SQ` over the pairs.
 
-The datasets label classes, not individual things, so in the GT an object is
-one class's whole region in one frame; in the prediction an object is one
-region, one id in one frame. Both are taken over the scored pixels only: a
-view removes the pixels of the classes it leaves out from the GT and the
-prediction alike, and a region with no scored pixel is no object.
+`gt_objects` builds one object per GT class, and `predicted_objects` builds
+one object per region. Both read the scored pixels only, so a region with
+no scored pixel is no object. `pair` pairs the objects greedily, highest
+IoU first, and `Pair.hit` marks a pair with IoU >= `MATCH_IOU`.
+`docs/evaluation.md` ("Objects") defines the objects and the order that
+breaks a tie. `evalkit.pilot` builds pilot mode's objects by the pilot
+evaluator's rules, to be paired and scored here.
 
-Objects are paired greedily, highest IoU first, each object at most once,
-whatever its class. Among pairs of equal IoU the one with the higher GT
-object index is taken first, then the higher predicted index, with GT
-objects indexed by class id and predicted objects by region id, both
-ascending. That is the pilot evaluator's order, kept so that both modes
-share one rule. Both index keys can decide which objects are found: at
-exactly `MATCH_IOU`, two classes under one region are settled by the GT
-key and two regions over one class by the predicted key, and an ascending
-order on either would take different pairs. Which of the two index keys is
-applied first does not matter: with both descending, the pairs taken are
-the same either way (checked exhaustively up to 4 GT and 5 predicted
-objects), and that order only decides how the pairs are listed. A pair with
-IoU >= `MATCH_IOU` is a hit.
-
-`F1_50` is 2 · hits / (GT objects + predicted objects), so every extra region
-counts against it; `SQ` is the mean IoU of the hits, so it says how well the
-found objects fit. `F1_50` is not defined on a frame with no GT object, `SQ`
-on a frame with no hit; the caller leaves those frames out of the mean and
-counts them. Pilot mode's GT objects are per-class connected components of at
-least `PILOT_MIN_CC_PX` and come from its own module; the pairing and the two
-formulas here are shared.
-
-`docs/figures/objects.png` shows this on a drawn scene, with the numbers the module
-gives for it.
+`docs/figures/objects.png` shows this on a drawn scene.
 """
 from __future__ import annotations
 
@@ -198,9 +177,9 @@ def pair(gt: Objects, pred: Objects) -> list[Pair]:
     Only overlapping pairs are candidates. Among pairs of equal IoU the one
     with the higher GT index is taken first, then the higher predicted index:
     the pilot evaluator sorted (iou, gt, pred) descending. Either index key
-    can decide a tie at exactly `MATCH_IOU`; which of the two is applied
-    first changes only the order of the returned list (see the module
-    docstring).
+    can decide which objects are found at exactly `MATCH_IOU`. The GT index
+    settles a tie between two classes under one region. The predicted index
+    settles a tie between two regions over one class.
 
     Returns:
         The pairs in the order they were taken.
@@ -251,7 +230,7 @@ class InstanceScores:
 
 
 def instance_scores(gt: Objects, pred: Objects) -> InstanceScores:
-    """Pair the objects and take `F1_50` and `SQ` over the result."""
+    """Pair the objects, and compute `F1_50` and `SQ` over the pairs."""
     pairs = tuple(pair(gt, pred))
     hits = [p for p in pairs if p.hit]
     n_gt, n_pred, n_hits = len(gt), len(pred), len(hits)

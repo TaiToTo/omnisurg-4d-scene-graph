@@ -5,13 +5,15 @@ in every view (`evalkit.frame`), pools `time_IoU` over every frame with a
 prediction, and averages over the frames (`evalkit.clip`). The JSON holds
 what `docs/evaluation.md` records with every score, one row per clip, and
 the per-frame values, with the condition's propagation rule as its tracker
-recorded it. A clip that cannot be scored stops the run, and no JSON is
-written: a population is scored whole or not at all.
+recorded it. With `--pilot`, each clip is read the same way and scored by
+the pilot evaluator's rules instead (`evalkit.pilot_clip`). A clip that
+cannot be scored stops the run, and no JSON is written: a population is
+scored whole or not at all.
 
 Usage:
     python -m evalkit.evaluate --dataset cholecseg8k --clips clips.txt \\
         --data-root <dir of clips> --tracks-root <dir of predictions> \\
-        --tag <condition> --out <condition>.json [--propagation <rule>]
+        --tag <condition> --out <condition>.json [--propagation <rule>] [--pilot]
 """
 from __future__ import annotations
 
@@ -33,6 +35,8 @@ from evalkit.code_sha import eval_code_sha, hashed_files
 from evalkit.frame import score_frame
 from evalkit.inputs import ClipInputs, read_clip
 from evalkit.keys import FRAME_METRICS, metric_key
+from evalkit.pilot import PILOT_DOMAINS
+from evalkit.pilot_clip import score_pilot_clip
 from evalkit.scored import valid_depth
 from evalkit.time_iou import time_iou
 
@@ -189,29 +193,41 @@ def condition_rule(tracks_root: str | Path, tag: str, clips: Sequence[str], stat
 
 def score_condition(dataset: str, class_set: str | None, clips: Sequence[str],
                     data_root: str | Path, tracks_root: str | Path, tag: str,
-                    propagation: str | None = None) -> dict:
+                    propagation: str | None = None, *, pilot: bool = False) -> dict:
     """Score one condition on every clip, and return its score JSON as a dict.
+
+    In pilot mode each clip is read and scored by the pilot evaluator's rules
+    (`evalkit.pilot_clip`), in its four domains, for the check against it.
+    The propagation rule is read as in normal mode.
 
     Args:
         propagation: The condition's propagation rule, for labels that carry no `seed_info.json`.
+        pilot: Score by the pilot evaluator's rules.
 
     Raises:
-        ValueError, KeyError, FileNotFoundError: The condition's propagation rule is unknown
-            (`condition_rule`), or a clip's inputs cannot be read or scored. Nothing is returned for the
-            others.
+        ValueError, KeyError, FileNotFoundError: Pilot mode is asked for a class set other than `original`;
+            the condition's propagation rule is unknown (`condition_rule`); or a clip's inputs cannot be read
+            or scored. Nothing is returned for the others.
     """
     table = load_table(dataset, class_set)
     check_table(table)
+    if pilot and table.class_set != "original":
+        raise ValueError("pilot mode scores the original ids, as the pilot evaluator did")
     rule = condition_rule(tracks_root, tag, clips, propagation)
     sha = eval_code_sha()
     rows, shas = [], {}
     for clip in clips:
+        if pilot:
+            row, shas[clip] = score_pilot_clip(data_root, tracks_root, tag, clip, table)
+            rows.append(row)
+            continue
         inputs = read_clip(data_root, tracks_root, tag, clip, table)
         rows.append(clip_row(clip, score_clip(inputs, table)))
         shas[clip] = dict(inputs.shas)
     return {
         "eval_code_sha": sha, "dataset": table.dataset, "class_set": table.class_set,
-        "views": list(VIEWS), "pilot": False, "track_dir_name": tag, "clips": list(clips),
+        "views": list(PILOT_DOMAINS if pilot else VIEWS), "pilot": pilot, "track_dir_name": tag,
+        "clips": list(clips),
         "input_shas": shas, "versions": versions(), "propagation": rule, "per_clip": rows,
     }
 
@@ -236,10 +252,12 @@ def main(argv: Sequence[str] | None = None) -> None:
     ap.add_argument("--out", required=True, help="the score JSON to write")
     ap.add_argument("--propagation", choices=PROPAGATION_RULES, default=None,
                     help="the condition's propagation rule, for labels that carry no seed_info.json")
+    ap.add_argument("--pilot", action="store_true",
+                    help="score by the pilot evaluator's rules, for the check against it")
     args = ap.parse_args(argv)
     clips = read_population(args.clips)
     summary = score_condition(args.dataset, args.class_set, clips, args.data_root, args.tracks_root, args.tag,
-                              args.propagation)
+                              args.propagation, pilot=args.pilot)
     write_scores(summary, args.out)
     print(f"{args.tag}: {len(clips)} clips scored, {args.out}")
 
