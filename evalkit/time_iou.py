@@ -12,10 +12,9 @@ Unlike the other metrics it is one number per clip: the IoUs of every
 (id, frame pair) are pooled over all tracked frames, with or without GT, and
 averaged. The frames come in time order, which the caller settles from the
 timestamps: in 11 of the 27 CholecSeg8k clips the frame numbers do not
-follow time. Pilot mode orders them by file name instead, and that too is
-the caller's.
+follow time.
 
-Pilot mode is to order the frames exactly as the pilot evaluator did, by
+Pilot mode orders the frames exactly as the pilot evaluator did, by
 `sorted()` of the `label_*.npy` file names. That sorts the names as text,
 so `label_10` comes before `label_2` unless the numbers are zero-padded.
 This metric reads no GT and no view, so the entry point computes it once

@@ -1,32 +1,13 @@
-"""`inst_BF`: how well the found objects' contours fit.
+"""Compute `inst_BF`: how well the contours of the found objects fit.
 
-`SQ` says how well each hit fits by area; `inst_BF` says it by contour. For
-every hit (a GT object paired with a predicted object at IoU >= `MATCH_IOU`),
-the predicted object's boundary is scored against the GT object's with the
-boundary rule of `evalkit.boundary`, both taken over the scored pixels, and
-the frame's value is the mean F over the hits.
-
-An object's boundary is the edge between its pixels and the other scored
-pixels. An edge against a pixel the view removed is no boundary, as
-everywhere else, so a GT object whose contour lies wholly against removed
-pixels has none: the one GT object of a frame that fills the scored pixels,
-or an object cut off from every other class by a tool or by unlabelled
-tissue. There is no contour to recover there, so such a hit enters no mean
-and is counted, and `inst_BF` is not defined on a frame where no hit remains.
-That is the rule the frame-level boundary metrics follow on a frame without
-a GT boundary, applied per object. When only the predicted object's boundary
-is empty, the hit scores 0, as the frame-level metrics do.
-
-The pilot evaluator marked each object's boundary on the whole map and
-masked it afterwards, so an object's edge against a removed pixel (invalid
-depth, or background and instruments in its `labeled` and `tissue` domains)
-was a boundary on the object's side; and it scored such a hit 0 and used a
-1e-9 in its F. Pilot mode asks for the pilot's marking with `pilot=True`,
-and reads the per-hit scores returned here to apply its own zeros and its
-own F, rather than counting boundary pixels a second time.
-
-`docs/figures/inst_bf.png` shows this on a drawn scene, with the numbers the module
-gives for it.
+For every hit, the module scores the predicted object's boundary against
+the GT object's with the boundary rule of `evalkit.boundary`.
+`docs/evaluation.md` defines a hit ("Objects"). Both boundaries are taken
+over the scored pixels, and the frame's value is the mean F over the hits.
+A GT object whose contour lies wholly against removed pixels has no
+boundary. Its hit enters no mean and is counted, and `inst_BF` is not
+defined on a frame where no hit remains. A hit whose predicted object has
+no boundary scores 0. `docs/figures/inst_bf.png` shows this on a drawn scene.
 """
 from __future__ import annotations
 
@@ -47,7 +28,9 @@ class InstanceBoundary:
             None when no hit has one, which includes a frame with no hit.
         scores: One entry per hit, in the order of `InstanceScores.hits`:
             the hit's boundary score, or None when its GT object has no
-            boundary pixel within the scored pixels.
+            boundary pixel within the scored pixels. `evalkit.pilot_clip`
+            reads these entries and applies the pilot evaluator's zero and
+            its F to them.
         n_hits: The hits of the frame.
         n_entered: The hits that entered the mean.
     """

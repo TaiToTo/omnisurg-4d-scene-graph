@@ -551,9 +551,10 @@ uses it.
   changed type is a new evaluator
 - the dataset, the class set (`original`, or for ATLAS-120k also
   `benchmark`), the view, and whether the score was made in pilot mode
-- the sha of every input read, per clip: the GT masks, the depth maps (as
-  `atlas120k_meta/depth_manifest.json` fingerprints them), the crop
-  rectangle, the frames in time order, and the predictions
+- a sha256 hash of every input read, per clip, as `input_shas`: the GT
+  masks, the depth maps (as `atlas120k_meta/depth_manifest.json`
+  fingerprints them), the crop rectangle, the frames in time order, and the
+  predictions
 - the name of the directory the predictions were read from, as
   `track_dir_name`, which is how `condition_inventory` matches a score to
   its labels; a score that does not say what it scored cannot be inventoried
@@ -561,7 +562,8 @@ uses it.
   above)
 - the Python, numpy, OpenCV and Pillow versions
 
-The pilot evaluator's JSONs recorded neither the input shas nor the versions.
+The pilot evaluator's JSONs recorded no input hashes, propagation rule or
+versions.
 
 A score JSON holds those fields, `clips` (the population, in its order),
 and one row per clip under `per_clip`. A row holds the clip's name, every
@@ -571,15 +573,32 @@ the frames each key's mean covers, by key; the scored and excluded frames;
 predicted objects, hits and hits that entered `inst_BF`, per view. Its
 `frames` keeps every GT frame's values, by frame number, in time order.
 
-Two scores are comparable only when their `eval_code_sha`, dataset, class set,
-view and mode match, they cover the same clips, and they read the same GT masks
-and depth maps. `compare_eval` refuses any other pair, and reports a difference
-in versions. The same `eval_code_sha` is not enough on its own: pilot mode and
-the normal mode share it, and so do the views.
+Two scores are comparable only when all of these hold:
 
-The check against the pilot evaluator, below, is not a comparison under this
-rule: the two shas differ by construction. It is a verification, run by its
-own script outside `compare_eval`, that this evaluator in pilot mode writes the
+- their `eval_code_sha`, dataset, class set, view and mode match;
+- they cover the same clips;
+- they read the same GT masks and depth maps;
+- they share a propagation rule, or one of them is `per_frame`.
+
+The same `eval_code_sha` is not enough on its own. Pilot mode and the
+normal mode share it, and so do the views.
+
+Conditions under two different propagation rules are never compared. The
+difference between the rules would look like a difference between the
+methods. A `per_frame` condition is the exception: it may be compared with
+a condition of either rule. The paper compares tracking with per-frame
+segmentation. So one table holds one rule, plus any `per_frame` conditions.
+
+The tools enforce this:
+
+- `compare_eval` refuses a pair that is not comparable.
+- `paired_stats` refuses such a pair too, and a table that holds two rules
+  other than `per_frame`.
+- Both report a difference in library versions but do not refuse it.
+
+The check against the pilot evaluator, below, is not bound by these
+conditions: the two `eval_code_sha` differ by construction. Its own script,
+outside `compare_eval`, verifies that this evaluator in pilot mode writes the
 pilot evaluator's numbers.
 
 ### Terms the tools read a score with
@@ -588,14 +607,15 @@ pilot evaluator's numbers.
   clip, under `per_clip`. A *key* is one column of the rows: the evaluator
   writes `metric/view` (`F1_50/geometric`) and `time_IoU` once per clip; a
   *pilot JSON*, one the pilot evaluator wrote, is told apart by holding none
-  of the class set, views, mode, input shas and versions
+  of the class set, views, mode, input hashes, versions and propagation rule
   (`scores.EVALUATOR_FIELDS`) and keeps the pilot evaluator's spellings
   (`inst_F1_50`, `inst_F1_50_tissue`, with the domain after an underscore).
   A JSON this evaluator writes in pilot mode is not a pilot JSON.
 - A *ruler* is what a score was measured with, as `scores.Ruler` holds it:
   `eval_code_sha`, dataset, mode, class set, views, and for a pilot JSON its
   domain. Two scores are *comparable* when they share a ruler, cover the
-  same clips and read the same GT masks and depth maps, the rule above.
+  same clips, read the same GT masks and depth maps, and share a
+  propagation rule unless one of them is `per_frame`.
 - A *tag* is a condition's name on disk: the directory under each clip that
   holds its labels, and separately the name of its score JSON; the score
   names the label directory it read in `track_dir_name`.
@@ -639,17 +659,27 @@ pilot evaluator's numbers.
     hit to average; a frame whose GT boundary is empty scores 0 on the
     boundary metrics rather than being left out; and a clip on which
     `time_IoU` pools nothing writes 0 for it.
-- Pilot mode takes the GT frames from the frame manifest too. On the data
-  the pilot evaluator scored, its mask files were exactly these frames.
-- On the 38 conditions already scored, pilot mode must reproduce every key it
-  shares with the pilot evaluator — the metrics table names them, and their
-  per-domain variants — at zero tolerance: the values written must be equal.
-  Ties are broken as the pilot evaluator breaks them. The check runs where the
-  pilot evaluator and its scores are, and takes their paths as arguments.
+- Pilot mode reads a clip as normal mode does, and refuses every input
+  normal mode refuses. The pilot evaluator accepted some faulty inputs
+  silently, a frame with two prediction files among them; pilot mode does
+  not, because a fault in the data is not a rule to reproduce. So the GT
+  frames come from the frame manifest too. On the data the pilot evaluator
+  scored, its mask files were exactly these frames.
+- On the 38 conditions already scored, apart from those that hold neither
+  propagation rule, pilot mode must reproduce every key it shares with the
+  pilot evaluator — the metrics table names them, and their per-domain
+  variants — at zero tolerance: the values written must be equal, and so
+  must the number of frames behind each. Ties are broken as the pilot
+  evaluator breaks them. The check runs where the pilot evaluator and its
+  scores are, and takes their paths as arguments.
 - Every difference in the normal mode then comes from a rule this document
   changes, and is listed.
 - A score made in pilot mode is marked as such and never enters a comparison
   with a normal one.
+- Pilot mode reads a condition's propagation rule as normal mode does. So it
+  refuses a condition that holds neither rule, a condition seeded from GT
+  among them, and the check leaves such a condition out by name. The paper
+  reports none of them, and the other conditions run the same metric code.
 - Pilot mode exists for this check alone. It is removed from the evaluator
   once the check has passed and before the evaluator is frozen, so the
   frozen evaluator has one mode.
@@ -657,7 +687,8 @@ pilot evaluator's numbers.
 ## Why the pilot evaluator was replaced
 
 The pilot evaluator cannot be corrected in place: any changed byte moves its
-sha. Three kinds of problem make correcting it worth a new evaluator.
+`eval_code_sha`. Three kinds of problem make correcting it worth a new
+evaluator.
 
 ### 1. The metrics overlap
 

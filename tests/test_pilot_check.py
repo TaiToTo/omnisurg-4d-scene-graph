@@ -23,6 +23,9 @@ def pilot_json(clips=CLIPS, sha=PILOT_EVAL_CODE_SHA):
             r[f"inst_F1_50{s}"] = 0.6 if d == "full" else None
             r[f"SQ{s}"] = None if d != "full" else 0.7
             r[f"inst_BF{s}"] = 0.0 if d == "full" else None
+            r[f"n_inst_frames{s}"] = 3 if d == "full" else 0
+            r[f"n_SQ_frames{s}"] = r[f"n_BF_frames{s}"] = 2 if d == "full" else 0
+        r.update(n_gt_frames=3, n_vi_frames=3)
         rows.append(r)
     return dict(eval_code_sha=sha, eval_code_tag="t", eval_version=2, dataset="cholec",
                 tissue_ignore=[5], clips=list(clips), per_clip=rows)
@@ -40,10 +43,11 @@ def ours_json(clips=CLIPS, pilot=True, views=PILOT_DOMAINS):
             r[metric_key("F1_50", d)] = 0.6 if d == "full" else None
             r[metric_key("SQ", d)] = None if d != "full" else 0.7
             r[metric_key("inst_BF", d)] = 0.0 if d == "full" else None
+        r["n_frames"] = {ok: pilot_json()["per_clip"][0][pk] for pk, ok in PC.COUNTS}
         rows.append(r)
     return dict(eval_code_sha="a" * 64, dataset="cholecseg8k", pilot=pilot, class_set="original",
                 views=list(views), clips=list(clips), input_shas={c: {} for c in clips}, versions={},
-                per_clip=rows)
+                propagation="both_ways_from_centre", per_clip=rows)
 
 
 def test_the_shared_keys_are_the_table_s():
@@ -174,6 +178,45 @@ def test_the_command_diffs_every_condition_by_tag(tmp_path):
     assert r.returncode == 1 and "2 of 3 conditions differ" in r.stdout and "not scored in pilot mode" in r.stdout
 
 
+def test_a_condition_left_out_is_named_and_not_checked(tmp_path):
+    # A condition seeded from GT holds neither rule, so pilot mode refuses it and the check leaves it out.
+    pd, ed = tmp_path / "pilot", tmp_path / "ours"
+    pd.mkdir(), ed.mkdir()
+    for tag in ("a", "gt_seeded"):
+        (pd / f"{tag}.json").write_text(json.dumps(pilot_json()))
+    (ed / "a.json").write_text(json.dumps(ours_json()))
+    (tmp_path / "leave_out.txt").write_text("gt_seeded\n")
+    cmd = [sys.executable, "-m", "evalkit.tools.pilot_check", "--pilot-dir", str(pd), "--eval-dir", str(ed)]
+    r = subprocess.run(cmd, capture_output=True, text=True, cwd=REPO)
+    assert r.returncode == 1 and "gt_seeded: not scored in pilot mode" in r.stdout
+    r = subprocess.run(cmd + ["--leave-out", str(tmp_path / "leave_out.txt")], capture_output=True, text=True, cwd=REPO)
+    assert r.returncode == 0 and "all 1 conditions" in r.stdout
+    assert "left out, holding neither propagation rule: ['gt_seeded']" in r.stdout
+
+
+@pytest.mark.parametrize("pilot_tags, ours_tags, left, why", [
+    (["a", "b"], ["a"], ["typo"], "holds no JSON of them"),
+    (["a", "b"], ["a"], ["a"], "pilot mode scored them"),
+    (["b"], [], ["b"], "every condition of"),
+])
+def test_a_condition_left_out_that_cannot_be_is_refused(tmp_path, pilot_tags, ours_tags, left, why):
+    pd, ed = tmp_path / "pilot", tmp_path / "ours"
+    pd.mkdir(), ed.mkdir()
+    for tag in pilot_tags:
+        (pd / f"{tag}.json").write_text(json.dumps(pilot_json()))
+    for tag in ours_tags:
+        (ed / f"{tag}.json").write_text(json.dumps(ours_json()))
+    with pytest.raises(ValueError, match=why):
+        PC.check_dirs(str(pd), str(ed), left)
+
+
+@pytest.mark.parametrize("text, why", [("", "lists no condition"), ("a\nb\na\n", "more than once")])
+def test_a_leave_out_file_that_lists_nothing_or_a_tag_twice_is_refused(tmp_path, text, why):
+    (tmp_path / "leave_out.txt").write_text(text)
+    with pytest.raises(ValueError, match=why):
+        PC.read_tags(str(tmp_path / "leave_out.txt"))
+
+
 def test_the_command_refuses_a_directory_scored_by_two_evaluators(tmp_path):
     pd, ed = tmp_path / "pilot", tmp_path / "ours"
     pd.mkdir(), ed.mkdir()
@@ -213,3 +256,27 @@ def test_the_command_names_the_tag_and_the_path_of_a_json_it_cannot_read(tmp_pat
     r = subprocess.run(cmd, capture_output=True, text=True, cwd=REPO)
     assert r.returncode != 0 and "Traceback" not in r.stderr
     assert r.stderr.startswith(f"a: the pilot evaluator's JSON {pd / 'a.json'} cannot be read")
+
+
+def test_the_counts_pair_each_shared_key_with_the_frames_behind_it():
+    assert ("n_inst_frames_tissue", "F1_50/tissue") in PC.COUNTS and ("n_gt_frames", "mIoU/full") in PC.COUNTS
+    assert ("n_vi_frames", "VI_merge/labeled") in PC.COUNTS
+    assert {ok for _, ok in PC.COUNTS} == {ok for _, ok in PC.SHARED} - {"time_IoU"}
+
+
+def test_a_frame_left_out_is_a_difference_even_where_the_mean_hides_it():
+    ours = ours_json()
+    ours["per_clip"][0]["n_frames"]["mIoU/full"] = 2
+    diffs = PC.diff_shared(pilot_json(), ours)
+    assert diffs == [f"{CLIPS[0]}.n_frames[mIoU/full]: 2 != pilot n_gt_frames=3"]
+
+
+def test_a_count_the_evaluator_lacks_is_a_difference_and_one_the_pilot_lacks_is_refused():
+    ours = ours_json()
+    del ours["per_clip"][1]["n_frames"]["SQ/labeled"]
+    assert PC.diff_shared(pilot_json(), ours) == [f"{CLIPS[1]}.n_frames[SQ/labeled]: missing; the pilot wrote n_SQ_frames_labeled=0"]
+    pilot = pilot_json()
+    del pilot["per_clip"][0]["n_vi_frames"]
+    with pytest.raises(ValueError, match="lacks the count n_vi_frames"):
+        PC.diff_shared(pilot, ours_json())
+

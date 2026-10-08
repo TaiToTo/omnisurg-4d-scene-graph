@@ -23,18 +23,20 @@ import glob
 import json
 import os
 import sys
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
-from evalkit.tools.scores import check_comparable, clips_of, load_scores, ruler
+from evalkit.tools.scores import check_comparable, check_one_rule, clips_of, load_scores, ruler
 
 # The provenance file the pipeline writes beside a clip's labels.
 PROV_NAME = "seed_info.json"
 
 # The provenance fields that tell one condition from another. `clip` and
 # `tag` say where the labels are, not what made them; of `frames`, which is
-# that clip's own frame numbers, only the kind is kept.
+# that clip's own frame numbers, only the kind is kept. `bidir` says
+# whether the tracker ran both ways. A tag tracked both ways on some clips
+# and forward on others mixes two propagation rules.
 PROV_KEYS = ("sam_input", "depth_source", "seed_source", "track_base",
-             "seed_min_area", "seed_topk", "point_grids")
+             "seed_min_area", "seed_topk", "point_grids", "bidir")
 SEED_KEYS = ("points_per_side", "seed_edge_gain", "seed_smooth",
              "edge_ring_masked", "seed_sam_kwargs", "produced_by")
 
@@ -184,8 +186,9 @@ def comparable_groups(evals: dict) -> tuple[list[list[str]], list[tuple[str, str
 
     Each tag joins the first group whose every member it is comparable
     with, and starts one when there is none. Every member, not the first
-    alone: the check is not transitive, since a pilot JSON that records no
-    domain is comparable with one of either domain.
+    alone: the check is not transitive. A pilot JSON that records no domain
+    is comparable with one of either domain, and a `per_frame` condition
+    with one of either propagation rule.
 
     Returns:
         The groups, each a sorted list of tags, largest first; and, per tag
@@ -219,11 +222,20 @@ def _refusal(evals: dict, group: list[str], tag: str) -> tuple[str, str] | None:
     return None
 
 
-def describe_group(summary: dict) -> str:
-    """One line saying what a group's scores were measured with, and on how many clips, for the table."""
-    r = ruler(summary)
+def describe_group(summaries: Mapping[str, dict]) -> str:
+    """Describe in one line what a group's scores were measured with, under which rule, and on how many clips.
+
+    Args:
+        summaries: The group's score JSONs, by tag.
+    """
+    # The members are comparable with one another, so the first one's ruler
+    # and clips stand for the group.
+    first = next(iter(summaries.values()))
+    r, rule = ruler(first), check_one_rule(summaries)
+    # A pilot JSON records no rule, so none is printed.
     return (f"sha={str(r.eval_code_sha)[:8]} pilot={r.pilot} class_set={r.class_set} "
-            f"views={list(r.views)} dataset={r.dataset} n_clips={len(clips_of(summary))}")
+            f"views={list(r.views)} dataset={r.dataset} n_clips={len(clips_of(first))}"
+            + (f" propagation={rule}" if rule is not None else ""))
 
 
 def report(track_root: str, evals: dict, title: str, scored_dirs: set[str]) -> tuple[list[str], dict]:
@@ -302,7 +314,7 @@ def report(track_root: str, evals: dict, title: str, scored_dirs: set[str]) -> t
         groups, reasons = comparable_groups(evals)
         print(f"\n  comparable groups: {len(groups)}")
         for g in groups:
-            print(f"    {describe_group(evals[g[0]]['summary'])} → {len(g)} conditions: {g}")
+            print(f"    {describe_group({t: evals[t]['summary'] for t in g})} → {len(g)} conditions: {g}")
         for tag, member, why in reasons:
             print(f"    !! {tag} vs {member}: " + why.replace("\n", "\n       "))
         if len(groups) > 1:
