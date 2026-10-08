@@ -1,10 +1,10 @@
 # ATLAS-120k metadata
 
 What the measurements need to know about the ATLAS-120k videos, without the
-videos: which clips are measured, how each is cropped, and a fingerprint of
-each clip's depth. No video, frame or mask is
-here. Which clips a measurement reads is decided by `clips.txt`, never by a
-count in a directory name.
+videos: which clips are measured, how each is cropped, how each video's clip
+index numbers its mp4's frames, and a fingerprint of each clip's depth. No
+video, frame or mask is here. Which clips a measurement reads is decided by
+`clips.txt`, never by a count in a directory name.
 
 ## The population
 
@@ -14,8 +14,8 @@ clip index, take one frame every 0.52 s and keep the longest run of
 consecutive annotated frames if it has at least 8. Of the 494 clips in the
 index, 167 were too short after thinning (six videos lost every clip), 10
 have no mask, and 2 are duplicates of another clip. Nothing is excluded on a
-score. Crop rectangles select nothing, and a clip with a cut in its
-recording is used whole.
+score. Crop rectangles select nothing. A clip with a cut in its recording
+is used whole.
 
 `videos/videos.json` is the inventory of the release's tree, made by an
 earlier extraction of it (96 videos, 438 clips; stride 3 annotated frames, at
@@ -60,7 +60,7 @@ The files are byte copies of the workbench's, except that an absolute path
 (`atlas_root` in `videos.json`) was removed and free-text `note` fields were
 translated from Japanese. Nothing reads the notes. The workbench's other
 files about this tree (the cut marks, the audits of the earlier extraction,
-its clip lists) are not carried for now: the paper's numbers read none of
+its clip lists) are not carried for now. No measurement of the paper reads
 them. `docs/porting.md` lists them under "Not carried for now".
 
 `frame_ratio.json` is the exception: it was assembled from the measurement's
