@@ -1,27 +1,15 @@
-"""Class tables: what each dataset's classes are, and which of them a view scores.
+"""Read each dataset's class table, and say which classes a view scores.
 
-Each dataset has one table, a JSON file under `class_tables/`, listing the
-classes its masks hold, the dataset's own labels: each with its id, name,
-type and the colour that stands for it. Claims are judged on these. ATLAS-120k's
-file also lists the 30 classes its benchmark scores, and the one each original
-id merges into, so that the same file yields a second table for comparison
-with the benchmark. `docs/evaluation.md` gives the types, the views and the
-mapping, and the reasons behind each type; this module only reads the files
-and refuses the ones it cannot trust.
-
-A GT mask meets its table in one place, `ClassTable.mask_ids`, and both
-datasets pass through it the same way: a mask that stores ids is read by its
-values, one that stores colours through the table.
-
-The tables are hashed into `eval_code_sha` with the evaluator's code, so a
-changed type is a new evaluator. `table_paths()` lists exactly the files that
-`load_table` can read, fixed by the code and not by what the directory holds:
-a table file put there without being registered here would be neither read
-nor hashed, so a file the module does not know raises instead.
-
-Everything here fails closed: a colour or id the table does not know raises,
-and so does a table with a field missing, a type it does not define, a key
-given twice, or two classes sharing an id, a name or a colour.
+Each dataset has one table, a JSON file under `class_tables/`. It lists each
+class its masks hold, with its id, name, type and colour. ATLAS-120k's file
+also maps each original id to one of the benchmark's 30 classes, which gives
+a second table. `docs/evaluation.md` defines the types, the views and the
+mapping. Only `ClassTable.mask_ids` converts a GT mask to mask ids. The
+tables are hashed into `eval_code_sha`, and `table_paths()` lists exactly
+the files `load_table` reads. `load_table` refuses a table with a missing
+field, an unknown type, a key given twice, or two classes that share an id,
+a name or a colour. Each reader of `ClassTable` raises on a colour or id the
+table does not know.
 """
 from __future__ import annotations
 
@@ -175,7 +163,7 @@ class ClassTable:
     # would change scores without changing `eval_code_sha`.
 
     def class_of(self, mask_id: int) -> int:
-        """The class a mask id belongs to; raises on an id no mask may hold."""
+        """Return the class a mask id belongs to; raises on an id no mask may hold."""
         try:
             return self.mask_id_to_class[mask_id]
         except KeyError:
@@ -184,7 +172,7 @@ class ClassTable:
             ) from None
 
     def type_of(self, class_id: int) -> ClassType:
-        """The type of `class_id`; raises when the table does not have it."""
+        """Return the type of `class_id`; raises when the table does not have it."""
         try:
             return self.entries[class_id].type
         except KeyError:
@@ -193,13 +181,13 @@ class ClassTable:
             ) from None
 
     def ids_of_type(self, *types: ClassType) -> frozenset[int]:
-        """The ids whose type is one of `types`; at least one type is required."""
+        """Return the ids whose type is one of `types`; at least one type is required."""
         if not types:
             raise TypeError("ids_of_type needs at least one type; no type means no ids, not all")
         return frozenset(e.id for e in self.entries.values() if e.type in types)
 
     def ids_in_view(self, view: str) -> frozenset[int]:
-        """The ids a view scores; raises on a view name `VIEWS` does not have."""
+        """Return the ids a view scores; raises on a view name `VIEWS` does not have."""
         try:
             types = VIEWS[view]
         except KeyError:
@@ -207,7 +195,7 @@ class ClassTable:
         return self.ids_of_type(*types)
 
     def mask_id_of_colour(self, colour: Colour) -> int:
-        """The mask id a colour stands for; raises on a colour not in the table."""
+        """Return the mask id a colour stands for; raises on a colour not in the table."""
         try:
             return self.colour_to_mask_id[colour]
         except KeyError:
@@ -216,7 +204,7 @@ class ClassTable:
             ) from None
 
     def mask_ids(self, image: Image.Image) -> np.ndarray:
-        """The mask id of every pixel of a GT mask, read through the table.
+        """Return the mask id of every pixel of a GT mask, read through the table.
 
         A palette or greyscale image holds the ids themselves and is read by
         its values, never through its palette: the palettes embedded in
@@ -274,7 +262,7 @@ class ClassTable:
         raise ValueError(f"{self.dataset}: a mask of mode {mode!r} is neither ids nor RGB colours")
 
     def classes_of(self, mask_ids: np.ndarray) -> np.ndarray:
-        """The class of every pixel of this set, from the ids `mask_ids` read."""
+        """Return the class of every pixel of this set, from the ids `mask_ids` read."""
         lut = np.full(max(self.mask_id_to_class) + 1, -1, dtype=np.int32)
         for mask_id, class_id in self.mask_id_to_class.items():
             lut[mask_id] = class_id
@@ -329,7 +317,7 @@ def _type(dataset: str, raw: dict) -> ClassType:
 
 
 def _colour(dataset: str, raw: dict, class_type: ClassType) -> Colour | None:
-    """The class's colour. Only an `excluded` marker may lack one, because the
+    """Return the class's colour. Only an `excluded` marker may lack one, because the
     one ATLAS-120k has shares Background's."""
     c = raw["colour"]
     if c is None:
@@ -342,7 +330,7 @@ def _colour(dataset: str, raw: dict, class_type: ClassType) -> Colour | None:
 
 
 def _entry(dataset: str, raw: dict, extra: set[str]) -> ClassEntry:
-    """One class a mask holds, refusing a field missing, a stray one or a bad value."""
+    """Read one class a mask holds, refusing a field missing, a stray one or a bad value."""
     _fields(dataset, raw, _CLASS_FIELDS | extra)
     _check_id_and_name(dataset, raw)
     class_type = _type(dataset, raw)
@@ -350,7 +338,7 @@ def _entry(dataset: str, raw: dict, extra: set[str]) -> ClassEntry:
 
 
 def _benchmark_entry(dataset: str, raw: dict) -> ClassEntry:
-    """One benchmark class. It has no colour: no mask holds it directly."""
+    """Read one benchmark class. It has no colour: no mask holds it directly."""
     _fields(dataset, raw, _BENCHMARK_FIELDS)
     _check_id_and_name(dataset, raw)
     return ClassEntry(id=raw["id"], name=raw["name"], type=_type(dataset, raw))
@@ -365,8 +353,10 @@ def _unique(dataset: str, what: str, values: list) -> None:
 
 
 def _refuse_duplicate_keys(pairs: list[tuple[str, object]]) -> dict:
-    """`json.load` keeps the last of two equal keys; a class typed twice would
-    silently take the second type, so the file is refused instead."""
+    """Build a JSON object, refusing a key given twice.
+
+    `json.load` keeps the last of two equal keys, so a class typed twice would
+    silently take the second type."""
     out: dict = {}
     for k, v in pairs:
         if k in out:
@@ -378,7 +368,7 @@ def _refuse_duplicate_keys(pairs: list[tuple[str, object]]) -> dict:
 def _benchmark_map(
     dataset: str, raws: list[dict], entries: list[ClassEntry], benchmark: Mapping[int, ClassEntry],
 ) -> dict[int, int]:
-    """Each original id to the benchmark class it merges into.
+    """Map each original id to the benchmark class it merges into.
 
     Every benchmark class but background must be reached, or no mask could
     hold it. A benchmark class reached by one id alone is that id under
@@ -499,8 +489,11 @@ def load_table(dataset: str, class_set: str | None = None, path: Path | None = N
 
 
 def table_paths(table_dir: Path | None = None) -> list[Path]:
-    """The table files to hash into `eval_code_sha`: one per dataset in
+    """Return the table files to hash into `eval_code_sha`: one per dataset in
     `_MASK_ENCODINGS`, and the directory may hold nothing else.
+
+    A table file put there without being registered in this module would be
+    neither read nor hashed, so the function raises on it.
 
     Args:
         table_dir: The directory to check; None is the package's own. A copy
