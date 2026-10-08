@@ -1,24 +1,15 @@
-"""One frame scored in every view, through the modules that define each metric.
+"""Score one frame in every view, with the modules that define each metric.
 
-This is the normal-mode driver of `docs/evaluation.md`, "How a frame is
-scored". It computes no metric itself: it decides whether the frame is
-scored at all, takes the scored pixels of each view once, and hands the
-same GT, region map and mask to every metric module, so that each key is
-the value its module defines, on the same pixels as the others.
-
-A frame is checked before it is scored: the depth map first, which in
-normal mode refuses a pixel without a valid value whether or not the frame
-is scored, then the excluded marker on the mask ids, on which the frame is
-returned with no view, for the clip driver to count. The keys themselves do
-not depend on one another, and each view takes them in the specification's
-order: the objects, the class map, the boundaries, the variation of
-information and `unlabelled_share`. `time_IoU` is per clip and not here.
-
-A key is None on a frame its metric is not defined on; nothing writes a 0
-in its place. The counts behind every key are kept for the clip driver.
-
-Pilot mode has a driver of its own (four domains, connected components as
-objects, zeros for None); it shares the metric modules, not this composition.
+`score_frame` implements "How a frame is scored" of `docs/evaluation.md` in
+normal mode. It computes no metric itself. It checks the depth map, then the
+excluded marker, and returns an excluded frame with no view for the clip
+driver to count. It takes each view's scored pixels once, and passes the
+same GT, region map and mask to every metric module. A key is None on a
+frame its metric is not defined on. The counts behind every key are kept for
+the clip driver. `time_IoU` is per clip and is not computed here. Pilot mode
+is to run through the entry point too, with the pilot evaluator's rules
+(`docs/evaluation.md`, "Checked against the pilot evaluator"). It shares the
+metric modules, not `score_frame`.
 """
 from __future__ import annotations
 
