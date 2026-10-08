@@ -240,7 +240,7 @@ def score_pilot_clip(data_root: str | Path, tracks_root: str | Path, tag: str, c
     with_mask = {i for i in range(len(frames_listed))
                  if (clip_dir / MASK_DIR / f"{i:06d}{MASK_SUFFIX[dataset]}").is_file()}
     # The pilot evaluator read every mask file, but its data root held the annotated masks only. The flags
-    # give those frames, also on a copy that holds the viewer's masks as well.
+    # give those frames, even on a copy that also holds the viewer's masks.
     gt_set = set(gt_frames(frames_listed, GT_FLAG[dataset], with_mask, clip))
     with np.load(clip_dir / DEPTH_FILE) as z:
         depth = np.asarray(z["depth"], dtype=np.float32)
