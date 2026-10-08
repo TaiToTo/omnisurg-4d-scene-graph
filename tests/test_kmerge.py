@@ -12,7 +12,8 @@ import pytest
 import clip_dirs as C
 import evalkit.tools.kmerge as KM
 from evalkit.evaluate import condition_rule, score_condition
-from evalkit.inputs import DEPTH_FILE
+from evalkit.classes import load_table
+from evalkit.inputs import DEPTH_FILE, read_clip
 from evalkit.tools.kmerge import kmerge, merge_condition
 
 BOTH_WAYS = {"seed_source": "sam", "seed_frame": 1, "bidir": True, "frames": [0, 1, 2]}
@@ -90,7 +91,9 @@ def test_the_merged_condition_is_written_at_the_depth_shape_and_scored(tmp_path)
     merged = np.load(out / "label_0001.npy")
     assert merged.shape == (20, 30) and len(np.unique(merged)) == 2
     assert json.loads((out / "seed_info.json").read_text())["kmerge"] == {"from_tag": "t", "k": 2}
-    assert json.loads((out / "kmerge.json").read_text()) == {"from_tag": "t", "k": 2}
+    source = read_clip(tmp_path / "data", tmp_path / "tracks", "t", "VID01_a", load_table("cholecseg8k"))
+    assert json.loads((out / "kmerge.json").read_text()) == {
+        "from_tag": "t", "from_predictions_sha": source.shas["predictions"], "k": 2}
     assert condition_rule(tmp_path / "tracks", "t_k2", clips) == condition_rule(tmp_path / "tracks", "t", clips)
     summary = score_condition("cholecseg8k", None, clips, tmp_path / "data", tmp_path / "tracks", "t_k2")
     assert summary["propagation"] == "both_ways_from_centre"

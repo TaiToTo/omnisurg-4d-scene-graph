@@ -150,8 +150,9 @@ def merge_condition(dataset: str, clips: Sequence[str], data_root: str | Path, t
 
     Each prediction is read as the evaluator reads it, at the shape of the clip's depth, and the merged map is
     written at that shape, under the source file's name. The clip's `seed_info.json`, if any, is copied with
-    `kmerge` added, so that the merged condition keeps its propagation rule; `kmerge.json` records the source
-    and `k` in any case.
+    `kmerge` added, so that the merged condition keeps its propagation rule. `kmerge.json` records the source,
+    `k` and the sha256 of the source's predictions as `read_clip` fingerprints them, the value a score of the
+    source records under `input_shas`; a source re-tracked after the merge no longer matches it.
 
     Every clip is read and checked before anything is written. A refusal at the second clip would otherwise
     leave the first clip merged by this run beside clips merged by an earlier one, and the evaluator would
@@ -204,7 +205,8 @@ def merge_condition(dataset: str, clips: Sequence[str], data_root: str | Path, t
             info = json.loads((src / SEED_INFO).read_text(encoding="utf-8"))
             info["kmerge"] = {"from_tag": tag, "k": k}
             (dst / SEED_INFO).write_text(json.dumps(info, indent=2), encoding="utf-8")
-        (dst / RECORD).write_text(json.dumps({"from_tag": tag, "k": k}, indent=2), encoding="utf-8")
+        record = {"from_tag": tag, "from_predictions_sha": inputs.shas["predictions"], "k": k}
+        (dst / RECORD).write_text(json.dumps(record, indent=2), encoding="utf-8")
         print(f"{clip}: {len(inputs.regions)} frames merged to at most {k} regions")
 
 
