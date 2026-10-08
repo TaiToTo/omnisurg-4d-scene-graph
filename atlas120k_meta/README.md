@@ -113,23 +113,26 @@ Code that reads the bundled `images/frame_NNNNNN.jpg` uses the number as a
 key, and nothing goes wrong. Code that decodes the mp4 by frame number
 silently gets the wrong frame: a real frame, from another moment.
 
-How the ratio was measured. For each video, the bundled JPEG of one frame of
-its first clip was matched against the mp4 by mean absolute pixel
-difference, scanning from the start or seeking to each candidate ratio. A
-match differs by 0.7 to 1.9 (the two compressions). A miss differs by 20 to
-190, so there is no ambiguity. The ratio was checked at three points of
-each video, early, middle and late, for all 14 videos and 17 controls with
-ratio 1. It held at every point.
+### How the ratio was measured
 
-Where the ratio comes from. The dataset's extraction script
-(`download/process_atlas120k.py` in the ATLAS repository) walks the mp4 and
-keeps every `max(1, int(fps / 15))`-th frame. It numbers the kept frames from
-zero, whether or not they fall in the surgical section. The division
-truncates, so 60.00 fps gives 4, 59.94 and 50.00 give 3, 30.00 gives 2, and
-29.97, 25, 23.98 and 15 give 1. The 14 videos above ratio 1 are exactly those
-at 30.00 fps or more, and the measured ratios agree with the sampling rule
-for all 97. The dataset's README says "15 fps", which is loose: a 29.97 fps
-video is kept at its native rate.
+For each video, the bundled JPEG of one frame of its first clip was matched
+against the mp4 by mean absolute pixel difference, scanning from the start
+or seeking to each candidate ratio. A match differs by 0.7 to 1.9 (the two
+compressions). A miss differs by 20 to 190, so there is no ambiguity. The
+ratio was checked at three points of each video, early, middle and late, for
+all 14 videos and 17 controls with ratio 1. It held at every point.
+
+### Where the ratio comes from
+
+The dataset's extraction script (`download/process_atlas120k.py` in the
+ATLAS repository) walks the mp4 and keeps every `max(1, int(fps / 15))`-th
+frame. It numbers the kept frames from zero, whether or not they fall in the
+surgical section. The division truncates, so 60.00 fps gives 4, 59.94 and
+50.00 give 3, 30.00 gives 2, and 29.97, 25, 23.98 and 15 give 1. The 14
+videos above ratio 1 are exactly those at 30.00 fps or more, and the
+measured ratios agree with the sampling rule for all 97. The dataset's
+README says "15 fps", which is loose: a 29.97 fps video is kept at its
+native rate.
 
 `frame_ratio.json` is a measurement rather than the sampling rule applied,
 because the rule's input is not under our control. The mp4 on disk is

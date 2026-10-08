@@ -1,6 +1,6 @@
 """Read the crop rectangle of each ATLAS-120k clip, as a person confirmed it.
 
-`atlas120k_meta/crop_rects.json` holds one judged entry per clip. An entry
+`atlas120k_meta/crop_rects.json` holds one entry per judged clip. An entry
 marked `ok` or `ng` gives the rectangle to use in `rect`. A clip marked
 `skip`, or not yet judged, is not returned, and the caller falls back to its
 per-video rectangle. Rectangles are in the source video's pixels
@@ -29,8 +29,9 @@ def _clean(rect: list, src_size: list | None, where: str) -> Rect:
             shorter than `MIN_SIDE`. A rectangle drawn wrong is not used as
             it is.
     """
-    # A rectangle that cannot be checked against its frame may reach past the left or top edge. A negative origin
-    # in a numpy slice wraps around to the other side of the image instead of failing.
+    # A rectangle that cannot be checked against its frame may reach past the
+    # left or top edge. A negative origin in a numpy slice wraps around to the
+    # other side of the image instead of failing.
     if not src_size:
         raise ValueError(f"{where}: no src_size, so the rectangle cannot be checked against its frame")
     sw, sh = int(src_size[0]), int(src_size[1])
