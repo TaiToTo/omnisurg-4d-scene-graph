@@ -3,10 +3,12 @@
 The release holds one video: a synthetic mp4 whose frames all look
 different, its JPEGs, and one clip for each outcome a clip of the index can
 have: kept, split at a gap, a duplicate, too short, without a mask
-directory, without masks. Each refusal has a test that plants its fault.
+directory, without masks. Each refusal has a test that plants its fault,
+and the command's own checks are run through `main`.
 """
 
 import json
+import sys
 from pathlib import Path
 
 import cv2
@@ -15,7 +17,7 @@ import pytest
 from PIL import Image
 
 from evalkit.classes import load_table
-from pipeline.extract_atlas120k import check_population, extract_video, stride_for
+from pipeline.extract_atlas120k import check_population, extract_video, main, stride_for
 from surgical_core.atlas120k.clip_rects import load_clip_rects
 from surgical_core.atlas120k.frame_ratio import FrameRatios
 
@@ -38,6 +40,9 @@ COLOUR_MASKS = {"clip_0003"}
 NO_MASK_DIR = {"clip_0006"}
 NO_MASKS = {"clip_0007"}
 
+# The clips the release yields under the rule above.
+WRITTEN = [f"{PROC}__{VID}__gt_{n}" for n in ("0001", "0003s1", "0003s2")]
+
 
 def _ids() -> np.ndarray:
     ids = np.full((SIZE[1], SIZE[0]), 5, np.uint8)
@@ -48,7 +53,10 @@ def _ids() -> np.ndarray:
 
 @pytest.fixture
 def release(tmp_path):
-    """Write the release, the crop rectangles and the frame ratio; return what `extract_video` takes."""
+    """Write the release, the crop rectangles and the frame ratio; return what `extract_video` takes.
+
+    The tables are `crop_rects.json` and `frame_ratio.json` beside `out`, for the tests that run the command.
+    """
     root = tmp_path / "ATLAS"
     (root / "raw_data" / PROC).mkdir(parents=True)
     writer = cv2.VideoWriter(str(root / "raw_data" / PROC / f"{VID}.mp4"), cv2.VideoWriter_fourcc(*"mp4v"), FPS,
@@ -103,10 +111,18 @@ def _clip(out: Path, n: str) -> Path:
     return out / f"{PROC}__{VID}__gt_{n}"
 
 
+def _source(release, clip: str) -> Path:
+    return release["atlas_root"] / "atlas120k" / "train" / PROC / VID / clip
+
+
+def _report(release) -> dict:
+    return json.loads((release["out"] / f"{PROC}__{VID}__extract_report.json").read_text())
+
+
 def test_every_clip_of_the_index_is_written_or_recorded(release):
     written = extract_video(**release)
-    assert written == [f"{PROC}__{VID}__gt_{n}" for n in ("0001", "0003s1", "0003s2")]
-    report = json.loads((release["out"] / f"{PROC}__{VID}__extract_report.json").read_text())
+    assert written == WRITTEN
+    report = _report(release)
     reasons = {r["source_clip"]: r["reason"] for r in report["clips"]}
     assert reasons == {"clip_0001": "kept", "clip_0003": "kept_after_split", "clip_0004": "duplicate",
                        "clip_0005": "too_short", "clip_0006": "no_mask_dir", "clip_0007": "no_masks"}
@@ -126,7 +142,7 @@ def test_a_run_is_thinned_and_never_spans_a_gap(release):
 def test_frames_and_masks_are_cut_to_the_confirmed_rectangle(release):
     extract_video(**release)
     x, y, w, h = RECT
-    jpg = release["atlas_root"] / "atlas120k" / "train" / PROC / VID / "clip_0001" / "images" / "frame_000045.jpg"
+    jpg = _source(release, "clip_0001") / "images" / "frame_000045.jpg"
     clip = _clip(release["out"], "0001")
     assert np.array_equal(cv2.imread(str(clip / "input_images" / "000001.png")), cv2.imread(str(jpg))[y:y + h, x:x + w])
     for n in ("0001", "0003s1"):
@@ -145,10 +161,20 @@ def test_a_frame_is_resized_to_the_long_side(release):
     assert set(np.unique(mask)) == {1, 5, 12}
 
 
+def test_masks_under_machine_masks_are_read(release):
+    (_source(release, "clip_0001") / "masks").rename(_source(release, "clip_0001") / "machine_masks")
+    assert extract_video(**release) == WRITTEN
+
+
 def test_a_clip_without_a_confirmed_rectangle_is_refused(release):
     rects = {k: v for k, v in release["rects"].items() if k[2] != "clip_0003"}
     with pytest.raises(KeyError, match="clip_0003 has no confirmed crop rectangle"):
         extract_video(**dict(release, rects=rects))
+
+
+def test_an_unmeasured_video_is_refused(release):
+    with pytest.raises(KeyError, match="has not been measured"):
+        extract_video(**dict(release, ratios=FrameRatios({}, 8.0)))
 
 
 def test_a_wrong_frame_ratio_is_refused(release):
@@ -164,27 +190,31 @@ def test_a_step_far_from_the_one_asked_for_is_refused(release):
 
 
 def test_a_mask_of_another_size_is_refused(release):
-    png = release["atlas_root"] / "atlas120k" / "train" / PROC / VID / "clip_0001" / "masks" / "frame_000050.png"
+    png = _source(release, "clip_0001") / "masks" / "frame_000050.png"
     Image.fromarray(np.ones((60, 80), np.uint8)).save(png)
     with pytest.raises(ValueError, match="not the mp4's 160x120"):
         extract_video(**release)
 
 
+def test_a_frame_of_another_size_is_refused(release):
+    jpg = _source(release, "clip_0001") / "images" / "frame_000050.jpg"
+    cv2.imwrite(str(jpg), np.zeros((60, 80, 3), np.uint8))
+    with pytest.raises(ValueError, match="frame_000050.jpg is 80x60, not the mp4's 160x120"):
+        extract_video(**release)
+
+
 def test_a_kept_clip_without_jpegs_is_refused(release):
-    images = release["atlas_root"] / "atlas120k" / "train" / PROC / VID / "clip_0001" / "images"
-    for p in images.iterdir():
+    for p in (_source(release, "clip_0001") / "images").iterdir():
         p.unlink()
     with pytest.raises(RuntimeError, match="clip_0001: the release holds no JPEG"):
         extract_video(**release)
 
 
 def test_a_short_clip_without_jpegs_is_still_recorded(release):
-    images = release["atlas_root"] / "atlas120k" / "train" / PROC / VID / "clip_0005" / "images"
-    for p in images.iterdir():
+    for p in (_source(release, "clip_0005") / "images").iterdir():
         p.unlink()
     extract_video(**release)
-    report = json.loads((release["out"] / f"{PROC}__{VID}__extract_report.json").read_text())
-    assert report["clips"][3]["reason"] == "too_short"
+    assert _report(release)["clips"][3]["reason"] == "too_short"
 
 
 def test_earlier_output_is_refused_unless_replaced(release):
@@ -197,6 +227,23 @@ def test_earlier_output_is_refused_unless_replaced(release):
     assert not stale.exists()
 
 
+def test_a_refusal_writes_and_removes_nothing(release):
+    # The last frame of the last clip written is the fault, so a stage that checked while writing would have
+    # written two clips and removed the earlier output before finding it.
+    extract_video(**release)
+    before = sorted(p.relative_to(release["out"]) for p in release["out"].rglob("*"))
+    png = _source(release, "clip_0003") / "masks" / "frame_000135.png"
+    Image.fromarray(np.ones((60, 80), np.uint8)).save(png)
+    with pytest.raises(ValueError, match="not the mp4's"):
+        extract_video(**dict(release, overwrite=True))
+    assert sorted(p.relative_to(release["out"]) for p in release["out"].rglob("*")) == before
+    empty = release["out"].parent / "empty"
+    empty.mkdir()
+    with pytest.raises(ValueError, match="not the mp4's"):
+        extract_video(**dict(release, out=empty))
+    assert list(empty.iterdir()) == []
+
+
 def test_clips_off_the_population_are_refused():
     names = [f"{PROC}__{VID}__gt_0001", f"{PROC}__{VID}__gt_0003s1"]
     population = names + ["other__vid__gt_0001"]
@@ -205,3 +252,37 @@ def test_clips_off_the_population_are_refused():
         check_population(names[:1], population, PROC, VID)
     with pytest.raises(ValueError, match="not in the population"):
         check_population(names + [f"{PROC}__{VID}__gt_0004"], population, PROC, VID)
+
+
+def run_main(monkeypatch, release, *args):
+    """Run the command on the release with the test's step and run length."""
+    root = release["out"].parent
+    monkeypatch.setattr(sys, "argv", [
+        "pipeline.extract_atlas120k", "--atlas-root", str(release["atlas_root"]), "--out", str(release["out"]),
+        "--clip-rects", str(root / "crop_rects.json"), "--frame-ratios", str(root / "frame_ratio.json"),
+        "--step-sec", str(STEP), "--min-frames", str(MIN_FRAMES), *args])
+    main()
+
+
+def test_the_command_refuses_a_video_not_named_procedure_slash_video(release, monkeypatch):
+    with pytest.raises(SystemExit, match="not <procedure>/<video>: vid"):
+        run_main(monkeypatch, release, "--videos", f"{PROC}/{VID}", VID)
+    assert list(release["out"].iterdir()) == []
+
+
+def test_the_command_extracts_every_measured_video_and_checks_the_population(release, monkeypatch):
+    population = release["out"].parent / "clips.txt"
+    population.write_text("\n".join(WRITTEN + ["other__vid__gt_0001"]) + "\n")
+    run_main(monkeypatch, release, "--population", str(population))
+    assert sorted(p.name for p in release["out"].iterdir() if p.is_dir()) == WRITTEN
+
+
+def test_the_command_fails_a_video_whose_clips_are_not_the_populations(release, monkeypatch, capsys):
+    population = release["out"].parent / "clips.txt"
+    population.write_text("\n".join(WRITTEN[:2]) + "\n")
+    with pytest.raises(SystemExit, match=rf"1 of 1 video\(s\) failed: {PROC}/{VID}"):
+        run_main(monkeypatch, release, "--videos", f"{PROC}/{VID}", "--population", str(population))
+    assert "failed: ValueError" in capsys.readouterr().out
+    population.write_text("\n".join(WRITTEN + WRITTEN[:1]) + "\n")
+    with pytest.raises(ValueError, match="more than once"):
+        run_main(monkeypatch, release, "--population", str(population))

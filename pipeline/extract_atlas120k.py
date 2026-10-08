@@ -22,6 +22,7 @@ import json
 import math
 import re
 import shutil
+from dataclasses import dataclass
 from pathlib import Path
 
 import cv2
@@ -29,6 +30,7 @@ import numpy as np
 from PIL import Image
 
 from evalkit.classes import ClassTable, load_table
+from evalkit.evaluate import read_population
 from surgical_core.atlas120k.clip_rects import Rect, load_clip_rects
 from surgical_core.atlas120k.frame_ratio import MIN_NATIVE_FRAME, FrameRatios
 
@@ -36,6 +38,20 @@ SPLITS = ("train", "val", "test")
 
 # The masks of a clip are under `masks/`; the release's README calls the directory `machine_masks/`.
 MASK_DIRS = ("masks", "machine_masks")
+
+
+@dataclass(frozen=True)
+class KeptRun:
+    """One run of a clip that is to be written, and where its files come from."""
+
+    name: str
+    clip: str
+    picked: tuple[int, ...]
+    segment_index: int
+    n_segments_written: int
+    rect: Rect
+    mask_dir: Path
+    img_dir: Path
 
 
 def find_video(atlas_root: Path, procedure: str, video: str) -> tuple[str, Path, Path]:
@@ -60,7 +76,8 @@ def read_mp4(path: Path) -> tuple[float, tuple[int, int]]:
     """Return the mp4's frame rate and its frame size as (width, height).
 
     Raises:
-        RuntimeError: the mp4 cannot be opened or reports no frame rate.
+        RuntimeError: the mp4 cannot be opened, or reports no frame rate or no frame size. An OpenCV without
+            the video's codec opens the file and reports a size of 0x0.
     """
     cap = cv2.VideoCapture(str(path))
     try:
@@ -72,14 +89,16 @@ def read_mp4(path: Path) -> tuple[float, tuple[int, int]]:
         cap.release()
     if not fps > 0:
         raise RuntimeError(f"{path} reports no frame rate")
+    if min(size) <= 0:
+        raise RuntimeError(f"{path} reports a frame size of {size[0]}x{size[1]}; this OpenCV cannot decode it")
     return fps, size
 
 
 def stride_for(step_sec: float, fps: float, ratio: int) -> int:
     """Return the stride, in the clip index's frame numbers, nearest to one step of `step_sec` seconds.
 
-    The clip index numbers frames at `fps / ratio`. Halves round up: Python's `round` rounds them to the even
-    side, which would shift the stride by one at a step that falls on a half.
+    The clip index numbers frames at `fps / ratio`. Halves round up. Python's `round` rounds them to the even
+    side, and would shift the stride by one at a step that falls on a half.
     """
     return max(1, int(math.floor(step_sec * fps / ratio + 0.5)))
 
@@ -122,8 +141,8 @@ def target_size(w: int, h: int, long_side: int) -> tuple[int, int]:
     return max(int(round(w * scale)), 1), max(int(round(h * scale)), 1)
 
 
-def check_size(arr: np.ndarray, src_size: tuple[int, int], where: str) -> None:
-    """Refuse an image whose size is not the mp4's.
+def check_size(path: Path, src_size: tuple[int, int]) -> None:
+    """Refuse an image file whose size is not the mp4's. Only the file's header is read.
 
     The rectangles are in the mp4's pixels. On a smaller image numpy shortens a slice without an error, and the
     frame and its mask would come from different regions.
@@ -131,16 +150,17 @@ def check_size(arr: np.ndarray, src_size: tuple[int, int], where: str) -> None:
     Raises:
         ValueError: the sizes differ.
     """
-    if (arr.shape[1], arr.shape[0]) != tuple(src_size):
-        raise ValueError(f"{where} is {arr.shape[1]}x{arr.shape[0]}, not the mp4's {src_size[0]}x{src_size[1]}")
+    with Image.open(path) as im:
+        size = im.size
+    if size != tuple(src_size):
+        raise ValueError(f"{path} is {size[0]}x{size[1]}, not the mp4's {src_size[0]}x{src_size[1]}")
 
 
-def write_frame(dst: Path, jpg: Path, rect: Rect, size: tuple[int, int], src_size: tuple[int, int]) -> None:
+def write_frame(dst: Path, jpg: Path, rect: Rect, size: tuple[int, int]) -> None:
     """Cut a frame to the rectangle, resize it with area averaging and write it as PNG."""
     bgr = cv2.imread(str(jpg), cv2.IMREAD_COLOR)
     if bgr is None:
         raise RuntimeError(f"cannot read {jpg}")
-    check_size(bgr, src_size, str(jpg))
     x, y, w, h = rect
     img = bgr[y:y + h, x:x + w]
     if (img.shape[1], img.shape[0]) != size:
@@ -148,15 +168,13 @@ def write_frame(dst: Path, jpg: Path, rect: Rect, size: tuple[int, int], src_siz
     cv2.imwrite(str(dst), img)
 
 
-def write_mask(dst: Path, png: Path, rect: Rect, size: tuple[int, int], src_size: tuple[int, int],
-               table: ClassTable) -> None:
+def write_mask(dst: Path, png: Path, rect: Rect, size: tuple[int, int], table: ClassTable) -> None:
     """Read a mask as class ids, cut it to the rectangle, resize it with the nearest neighbour and write it.
 
     The release stores most masks as ids and some as colours, both within one video; the class table reads
     either, as the evaluator reads them. Nearest neighbour keeps every pixel a class the mask holds.
     """
     ids = table.mask_ids(Image.open(png)).astype(np.uint8)
-    check_size(ids, src_size, str(png))
     x, y, w, h = rect
     ids = ids[y:y + h, x:x + w]
     if (ids.shape[1], ids.shape[0]) != size:
@@ -194,47 +212,21 @@ def existing_output(out: Path, procedure: str, video: str) -> list[Path]:
     return found + ([report] if report.is_file() else [])
 
 
-def extract_video(atlas_root: Path, procedure: str, video: str, out: Path, rects: dict, ratios: FrameRatios,
-                  table: ClassTable, step_sec: float, min_frames: int, long_side: int, step_tol: float,
-                  overwrite: bool = False) -> list[str]:
-    """Extract one video's clips, write its report and return the names of the clips written.
+def plan_clips(index: dict, gt_dir: Path, digits: int, stride: int, min_frames: int, rects: dict,
+               src_size: tuple[int, int], procedure: str, video: str) -> tuple[list[dict], list[KeptRun]]:
+    """Decide what becomes of every clip of the index, and return the report's rows and the runs to write.
+
+    Nothing is written here. Every check that needs no pixel is made here, so that a refusal leaves the output
+    directory as it was: the rectangle, the JPEG of the first frame, and the size of every frame and mask
+    that would be written.
 
     Raises:
-        FileNotFoundError: the release has no such video or no mp4 of it.
-        KeyError: the video's frame ratio was not measured, or a clip with masks has no confirmed rectangle.
-        ValueError: the video already has output and `overwrite` is false, the step falls more than `step_tol`
-            off `step_sec`, or a frame or mask is not the mp4's size.
-        RuntimeError: a clip with masks has no JPEG for its first frame, or the frame ratio fails its check.
+        KeyError: a kept clip has no confirmed rectangle.
+        RuntimeError: a kept clip has no JPEG for its first frame.
+        ValueError: a frame or mask to be written is not the mp4's size.
     """
-    # Find the video, read its frame rate and its ratio, and check the ratio against the pixels.
-    split, gt_dir, mp4 = find_video(atlas_root, procedure, video)
-    index = json.loads((gt_dir / "clip_index.json").read_text())
-    digits = index.get("frame_digits", 6)
-    fps, src_size = read_mp4(mp4)
-    ratio = ratios.ratio(procedure, video)
-    verify_ratio(ratios, procedure, video, mp4, gt_dir, index["clips"], digits)
-
-    # Set the stride, and refuse a step far from the one asked for: a wrong ratio puts it two to four times off.
-    stride = stride_for(step_sec, fps, ratio)
-    step = stride * ratio / fps
-    if abs(step - step_sec) > step_tol * step_sec:
-        raise ValueError(f"{procedure}/{video}: the step is {step:.4f} s, more than {step_tol:.0%} off "
-                         f"{step_sec} s; suspect the frame ratio")
-    print(f"  {src_size[0]}x{src_size[1]}, {fps:.3f} fps, ratio {ratio}, stride {stride} = {step:.4f} s")
-
-    # Refuse output an earlier run left, unless asked to replace it. A frame left by a run that wrote more
-    # frames would otherwise stay in the clip.
-    held = existing_output(out, procedure, video)
-    if held and not overwrite:
-        raise ValueError(f"{procedure}/{video} already has output in {out} ({', '.join(p.name for p in held)}); "
-                         "pass --overwrite to replace it")
-    for p in held:
-        shutil.rmtree(p) if p.is_dir() else p.unlink()
-
-    # Write each clip of the index, and record what became of it.
-    fps_native = round(fps, 3)
     seen: dict[tuple, str] = {}
-    rows = []
+    rows, kept = [], []
     for clip in sorted(index["clips"]):
         n = clip_number(clip)
         frames = sorted(int(x) for x in index["clips"][clip])
@@ -269,7 +261,7 @@ def extract_video(atlas_root: Path, procedure: str, video: str, out: Path, rects
             continue
         row["reason"] = "kept" if len(runs) == 1 else "kept_after_split"
 
-        # Write each kept run, unless one with the same frames and rectangle was written already.
+        # Keep each run, unless one with the same frames and rectangle is kept already.
         rect = rects.get((procedure, video, clip))
         if rect is None:
             raise KeyError(f"{procedure}/{video}/{clip} has no confirmed crop rectangle")
@@ -282,22 +274,81 @@ def extract_video(atlas_root: Path, procedure: str, video: str, out: Path, rects
             if not has_jpegs:
                 raise RuntimeError(f"{procedure}/{video}/{clip}: the release holds no JPEG of its first frame, "
                                    f"{frames[0]}, and frames are read from the release's JPEGs only")
+            for f in picked:
+                check_size(img_dir / f"frame_{f:0{digits}d}.jpg", src_size)
+                check_size(mask_dir / f"frame_{f:0{digits}d}.png", src_size)
             seen[key] = name
             row["out_clips"].append(name)
             row["n_picked"].append(len(picked))
-            write_clip(out / name, picked, mask_dir, img_dir, digits, rect, long_side, src_size, table, dict(
-                dataset="atlas120k", procedure=procedure, youtube_id=video, split=split,
-                is_robot=bool(index.get("is_robot", False)), fps_native=fps_native, frame_ratio=ratio,
-                src_size=list(src_size), out_size=None, clip_kind="gt", source_clip=clip, segment_index=j,
-                n_segments_written=len(keep), pixel_source="jpeg", stride=stride, gt_stride=stride,
-                gt_step_sec=step_sec, gt_step_sec_actual=round(stride * ratio / fps_native, 6),
-                gt_min_frames=min_frames, gt_pad_factor=1.0))
-            print(f"  {name}: {len(picked)} frames")
+            kept.append(KeptRun(name, clip, tuple(picked), j, len(keep), rect, mask_dir, img_dir))
         if row["duplicate_of"] and not row["out_clips"]:
             row["reason"] = "duplicate"
+    return rows, kept
+
+
+def extract_video(atlas_root: Path, procedure: str, video: str, out: Path, rects: dict, ratios: FrameRatios,
+                  table: ClassTable, step_sec: float, min_frames: int, long_side: int, step_tol: float,
+                  overwrite: bool = False) -> list[str]:
+    """Extract one video's clips, write its report and return the names of the clips written.
+
+    Every check below is made before anything is written or removed, apart from one: a mask whose ids or
+    colours the class table lacks is found while it is written.
+
+    Raises:
+        FileNotFoundError: the release has no such video or no mp4 of it.
+        KeyError: the video's frame ratio was not measured, or a kept clip has no confirmed rectangle.
+        ValueError: the video already has output and `overwrite` is false, the step falls more than `step_tol`
+            off `step_sec`, or a frame or mask to be written is not the mp4's size.
+        RuntimeError: a kept clip has no JPEG for its first frame, or the frame ratio fails its check.
+    """
+    # Refuse output an earlier extraction left, unless asked to replace it. A frame left by an extraction that
+    # wrote more frames would otherwise stay in the clip.
+    held = existing_output(out, procedure, video)
+    if held and not overwrite:
+        raise ValueError(f"{procedure}/{video} already has output in {out} ({', '.join(p.name for p in held)}); "
+                         "pass --overwrite to replace it")
+
+    # Find the video, read its frame rate and its ratio, and check the ratio against the pixels.
+    split, gt_dir, mp4 = find_video(atlas_root, procedure, video)
+    index = json.loads((gt_dir / "clip_index.json").read_text())
+    digits = index.get("frame_digits", 6)
+    fps, src_size = read_mp4(mp4)
+    ratio = ratios.ratio(procedure, video)
+    verify_ratio(ratios, procedure, video, mp4, gt_dir, index["clips"], digits)
+
+    # Set the stride, and refuse a step far from the one asked for: a wrong ratio puts it two to four times off.
+    stride = stride_for(step_sec, fps, ratio)
+    step = stride * ratio / fps
+    if abs(step - step_sec) > step_tol * step_sec:
+        raise ValueError(f"{procedure}/{video}: the step is {step:.4f} s, more than {step_tol:.0%} off "
+                         f"{step_sec} s; suspect the frame ratio")
+    print(f"  {src_size[0]}x{src_size[1]}, {fps:.3f} fps, ratio {ratio}, stride {stride} = {step:.4f} s")
+
+    # Decide what becomes of every clip of the index, and check the files each kept run needs.
+    rows, kept = plan_clips(index, gt_dir, digits, stride, min_frames, rects, src_size, procedure, video)
+
+    # Remove the earlier output, now that every check that needs no pixel has passed.
+    for p in held:
+        if p.is_dir():
+            shutil.rmtree(p)
+        else:
+            p.unlink()
+
+    # Write each kept run.
+    fps_native = round(fps, 3)
+    for run in kept:
+        write_clip(out / run.name, run, digits, long_side, table, dict(
+            dataset="atlas120k", procedure=procedure, youtube_id=video, split=split,
+            is_robot=bool(index.get("is_robot", False)), fps_native=fps_native, frame_ratio=ratio,
+            src_size=list(src_size), out_size=None, clip_kind="gt", source_clip=run.clip,
+            segment_index=run.segment_index, n_segments_written=run.n_segments_written, pixel_source="jpeg",
+            stride=stride, gt_stride=stride, gt_step_sec=step_sec,
+            gt_step_sec_actual=round(stride * ratio / fps_native, 6), gt_min_frames=min_frames,
+            gt_pad_factor=1.0))
+        print(f"  {run.name}: {len(run.picked)} frames")
 
     # Write the report last, so that it marks a video whose every clip was written.
-    written = [c for r in rows for c in r["out_clips"]]
+    written = [run.name for run in kept]
     report = dict(procedure=procedure, video=video, split=split, fps_native=fps_native, frame_ratio=ratio,
                   gt_step_sec=step_sec, gt_stride=stride, gt_step_sec_actual=round(step, 6),
                   gt_min_frames=min_frames, n_index_clips=len(rows), n_written=len(written), clips=rows)
@@ -306,24 +357,23 @@ def extract_video(atlas_root: Path, procedure: str, video: str, out: Path, rects
     return written
 
 
-def write_clip(clip_dir: Path, picked: list[int], mask_dir: Path, img_dir: Path, digits: int, rect: Rect,
-               long_side: int, src_size: tuple[int, int], table: ClassTable, meta: dict) -> None:
+def write_clip(clip_dir: Path, run: KeptRun, digits: int, long_side: int, table: ClassTable, meta: dict) -> None:
     """Write one clip's frames, masks and manifest. Every frame of the clip has ground truth and is an anchor.
 
     `meta` holds the manifest's keys before `crop`; its `out_size` is filled in here. The keys and their order
     are the workbench's, so that a clip extracted here equals one extracted there, byte for byte.
     """
-    size = target_size(rect[2], rect[3], long_side)
+    size = target_size(run.rect[2], run.rect[3], long_side)
     (clip_dir / "input_images").mkdir(parents=True)
     (clip_dir / "seg_masks").mkdir()
-    for seq, f in enumerate(picked):
+    for seq, f in enumerate(run.picked):
         stem = f"frame_{f:0{digits}d}"
-        write_frame(clip_dir / "input_images" / f"{seq:06d}.png", img_dir / f"{stem}.jpg", rect, size, src_size)
-        write_mask(clip_dir / "seg_masks" / f"{seq:06d}_class.png", mask_dir / f"{stem}.png", rect, size,
-                   src_size, table)
-    manifest = dict(meta, out_size=list(size), crop=dict(zip("xywh", rect)), crop_source="confirmed",
+        write_frame(clip_dir / "input_images" / f"{seq:06d}.png", run.img_dir / f"{stem}.jpg", run.rect, size)
+        write_mask(clip_dir / "seg_masks" / f"{seq:06d}_class.png", run.mask_dir / f"{stem}.png", run.rect, size,
+                   table)
+    manifest = dict(meta, out_size=list(size), crop=dict(zip("xywh", run.rect)), crop_source="confirmed",
                     frames=[{"seq_idx": seq, "native_frame": f, "has_gt": True, "is_anchor": True}
-                            for seq, f in enumerate(picked)])
+                            for seq, f in enumerate(run.picked)])
     with open(clip_dir / "frame_manifest.json", "w") as fh:
         json.dump(manifest, fh, indent=2)
 
@@ -366,7 +416,7 @@ def main() -> None:
     rects = load_clip_rects(args.clip_rects)
     ratios = FrameRatios.load(args.frame_ratios)
     table = load_table("atlas120k")
-    population = Path(args.population).read_text().split() if args.population else None
+    population = read_population(args.population) if args.population else None
     videos = [tuple(v.split("/")) for v in args.videos] if args.videos else ratios.videos()
     bad = ["/".join(v) for v in videos if len(v) != 2]
     if bad:

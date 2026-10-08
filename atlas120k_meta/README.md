@@ -10,12 +10,14 @@ count in a directory name.
 
 `clips.txt` lists the **315 clips from 91 videos** the paper measures. The
 rule, fixed before the extraction ran: from the 97 videos with an mp4 and a
-clip index, take one frame every 0.52 s and keep the longest run of
-consecutive annotated frames if it has at least 8. Of the 494 clips in the
-index, 167 were too short after thinning (six videos lost every clip), 10
-have no mask, and 2 are duplicates of another clip. Nothing is excluded on a
-score. Crop rectangles and cut marks select nothing: a clip with a cut is
-used whole.
+clip index, split each clip into runs of consecutive annotated frames, take
+one frame every 0.52 s, and keep every run that still has at least 8. A clip
+with two kept runs would give two clips, `s1` and `s2`; none of the 315 is
+one. Of the 494 clips in the index, 167 were too short after thinning (six
+videos lost every clip), 10 have no mask, and 2 are duplicates of another
+clip. Nothing is excluded on a score. Crop rectangles and cut marks select
+nothing: a clip with a cut is used whole. `pipeline/extract_atlas120k.py`
+applies the rule.
 
 `videos/` is an earlier extraction of the same tree (96 videos, 438 clips;
 stride 3 annotated frames, at least 15 of them, a clip with a mask gap dropped
