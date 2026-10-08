@@ -1,11 +1,11 @@
 """Measure `unlabelled_share`: the share of the scored regions' pixels that lie on unlabelled tissue.
 
-Every view removes background, so no other key sees a region that runs from
-a labelled organ into unlabelled tissue. This key counts it instead.
-`docs/evaluation.md` defines the key ("What each key is, per frame") and
-says why background is removed ("Background"). The key reads no GT class,
-only where the GT is unlabelled. It is a reference value, and no verdict
-reads it.
+Every view removes background, so no other key sees the pixels a region
+has on unlabelled tissue. `unlabelled_share` counts those pixels.
+`docs/evaluation.md` defines the key ("The spill no other key sees:
+`unlabelled_share`") and says why background is removed ("Background").
+The key reads no GT class, only where the GT is unlabelled. It is a
+reference value, and no verdict reads it.
 
 `docs/figures/unlabelled_share.png` shows this on a drawn scene, with the
 numbers the module gives for it.
@@ -25,9 +25,9 @@ def unlabelled_share(regions: np.ndarray, scored: np.ndarray, background: np.nda
             background. Disjoint from `scored`.
 
     Returns:
-        The share in [0, 1], or None when no region has a scored pixel. No
-        region can then run onto unlabelled tissue, and the caller counts
-        the frame.
+        The share in [0, 1], or None when no region has a scored pixel.
+        There is then no region to measure, and the caller counts the
+        frame.
 
     Raises:
         ValueError: A map is not an (H, W) array of the right dtype, the

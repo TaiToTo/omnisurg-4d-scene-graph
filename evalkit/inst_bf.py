@@ -1,13 +1,13 @@
 """Compute `inst_BF`: how well the contours of the found objects fit.
 
-For every hit, a GT object paired with a predicted object at IoU >=
-`MATCH_IOU`, the predicted object's boundary is scored against the GT
-object's with the boundary rule of `evalkit.boundary`. Both boundaries are
-taken over the scored pixels, and the frame's value is the mean F over the
-hits. A GT object whose contour lies wholly against removed pixels has no
+For every hit, the module scores the predicted object's boundary against
+the GT object's with the boundary rule of `evalkit.boundary`.
+`docs/evaluation.md` defines a hit ("Objects"). Both boundaries are taken
+over the scored pixels, and the frame's value is the mean F over the hits.
+A GT object whose contour lies wholly against removed pixels has no
 boundary. Its hit enters no mean and is counted, and `inst_BF` is not
-defined on a frame where no hit remains. A hit whose predicted object has no
-boundary scores 0. `docs/figures/inst_bf.png` shows this on a drawn scene.
+defined on a frame where no hit remains. A hit whose predicted object has
+no boundary scores 0. `docs/figures/inst_bf.png` shows this on a drawn scene.
 """
 from __future__ import annotations
 
@@ -28,9 +28,9 @@ class InstanceBoundary:
             None when no hit has one, which includes a frame with no hit.
         scores: One entry per hit, in the order of `InstanceScores.hits`:
             the hit's boundary score, or None when its GT object has no
-            boundary pixel within the scored pixels. Pilot mode reads these
-            entries to score such a hit 0 and to compute F as the pilot
-            evaluator did.
+            boundary pixel within the scored pixels. Pilot mode is to read
+            these entries and apply the pilot evaluator's rules for such a
+            hit (`docs/porting.md`, "Pilot mode's own rules").
         n_hits: The hits of the frame.
         n_entered: The hits that entered the mean.
     """

@@ -1,13 +1,13 @@
-"""Summarise a clip: each key's mean over the frames it is defined on, and the number of those frames.
+"""Summarize a clip: each key's mean over the frames it is defined on, and the number of those frames.
 
 `summarize_clip` averages the per-frame keys of `evalkit.frame` over the
 clip's GT frames, view by view. Each mean covers only the frames on which
 its key is defined, and the summary records the number of those frames.
-The excluded frames are counted, and the pixel and object counts are
-summed. A clip with no scored frame is refused. `time_IoU` is passed in.
-It pools every tracked frame, GT or not, so the entry point computes it.
-PQ is not stored; `pq` gives it per frame. Pilot mode does not call
-`summarize_clip`.
+`summarize_clip` counts the frames the excluded marker takes out, and sums
+the pixel and object counts. A clip with no scored frame is refused.
+`time_IoU` is passed in. It pools every tracked frame, GT or not, so the
+entry point computes it. PQ is not stored; `pq` gives it per frame. Pilot
+mode does not call `summarize_clip`.
 """
 from __future__ import annotations
 
@@ -85,7 +85,8 @@ def pq(scores: ViewScores) -> float | None:
     """Return PQ of one frame in one view: `SQ` x `F1_50`, and 0 on a frame with GT objects but no hit.
 
     None on a frame with no GT object, where `F1_50` is not defined either.
-    `docs/evaluation.md` ("From frames to clips") says why a frame with no hit counts as 0.
+    Leaving the no-hit frames out would lift PQ above its usual definition,
+    which the pilot evaluator follows.
     """
     if scores.f1_50 is None:
         return None

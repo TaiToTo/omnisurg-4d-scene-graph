@@ -4,8 +4,8 @@ Over the scored pixels, with X a pixel's region id and Y its GT class,
 `VI_split` = H(X | Y) and `VI_merge` = H(Y | X), in bits. `VI_split` grows
 as a class is cut into pieces. `VI_merge` grows as a region runs across
 classes. The pixels with no region count together as one region. Pilot mode
-passes the pilot evaluator's mask and calls `variation_of_information`
-unchanged.
+calls `variation_of_information` too, with the pilot evaluator's mask as
+`scored`.
 
 `docs/figures/vi.png` shows this on a drawn scene, with the numbers the
 module gives for it.
