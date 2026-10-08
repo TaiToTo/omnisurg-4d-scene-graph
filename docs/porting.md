@@ -541,3 +541,9 @@ Every command takes those paths as arguments.
     whether a mask that is not annotation moves out of `seg_masks/` or takes
     a name of its own, so that the distinction is in the file and not only in
     the frame manifest.
+20. **A clip with no usable depth in any frame.** The point-cloud stage
+    skips a frame with no usable depth, as the workbench does, because the
+    data can hold such a frame. A clip with no usable depth in any frame
+    gets no cloud, no manifest entry and a count of 0, and the run exits 0.
+    No real clip has done this; a bundle with no depth at all is more likely
+    a broken bundle than data. Decide whether the stage refuses such a clip.
