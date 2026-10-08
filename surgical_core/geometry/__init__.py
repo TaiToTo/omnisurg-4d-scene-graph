@@ -6,15 +6,16 @@ back-projection formula has to be switched, because feeding c2w through the
 w2c formula raises nothing: the point cloud simply comes out on the far side
 of the origin.
 
-Both sides need this code. The merge cost uses `camera_normals`, and the
-propagation side builds its segmenter inputs from the same normals and edge
-maps, so it lives in neither and is imported by both. Two copies would, from
-the day one of them is fixed, return different geometry under the same name.
+The pipeline builds its segmenter inputs from these normals and edge maps,
+and the viewer draws its point clouds with these transforms, so the code
+lives in neither and is imported by both. The toolkit imports none of it; it
+keeps its own `DEPTH_MIN`, and a test refuses the two drifting apart.
 
 The package is split by dependency:
 
 - `normals`: normals from depth, the geometric edge maps and the edge-burnt
-  normal image. numpy and OpenCV only. This is what the toolkit needs.
+  normal image. numpy and OpenCV only. This is what `render` builds the
+  segmenter inputs from.
 - `camera`: pixels to camera, world and the viewer's glTF space, the
   transforms the depth stages write their point clouds with. numpy only.
 - `project`: back-projection, projection, label transfer and label warping
