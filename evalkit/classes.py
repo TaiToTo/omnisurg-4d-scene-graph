@@ -6,9 +6,10 @@ also maps each original id to one of the benchmark's 30 classes, which gives
 a second table. `docs/evaluation.md` defines the types, the views and the
 mapping. Only `ClassTable.mask_ids` converts a GT mask to mask ids. The
 tables are hashed into `eval_code_sha`, and `table_paths()` lists exactly
-the files `load_table` reads. `load_table` refuses a table it cannot trust,
-and each reader of `ClassTable` raises on a colour or id the table does not
-know.
+the files `load_table` reads. `load_table` refuses a table with a missing
+field, an unknown type, a key given twice, or two classes that share an id,
+a name or a colour. Each reader of `ClassTable` raises on a colour or id the
+table does not know.
 """
 from __future__ import annotations
 
