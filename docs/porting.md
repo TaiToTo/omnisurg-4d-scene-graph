@@ -107,26 +107,26 @@ Where they and this document differ, this document holds.
     has no rule and may sit beside either, since propagation against
     per-frame segmentation is itself a comparison the paper makes.
 13. **No measure over time carries a star.** `time_IoU` stays a reference
-    value, and no measure of identity from the workbench's `track_metrics`
-    (hold, IDF1, ID switches, fragmentation, re-entry) joins the evaluator.
-    `track_metrics` is ported as a tool under `evalkit/tools/`, outside
-    `eval_code_sha`, and what it reports is a reference value: measured, and
-    written about when it shows something, never marked with a star. So
-    `docs/evaluation.md` defines no GT track. The tool defines its own when it
-    is ported, without `MIN_AREA` (decision 5). The evaluator's whole-class
-    object, followed over time, needs no rule to link pieces and no size;
-    the workbench linked each class's components instead. If `hold_mean` is
-    carried under that name, it keeps the workbench's definition, which was
-    pre-registered there. A different denominator is a different metric,
-    with a different name: in the workbench, moving the denominator once
-    flipped a result's sign. `kmerge` is ported as a tool too. It changes
-    predictions, not metrics: it merges a condition's regions down to K,
-    and the evaluator's instance metrics score the merged regions, so a
-    comparison of them is read like any other. The paper's granularity
-    result merges to a fixed K of 10. The `matched` setting, which took K
-    from the pilot's GT components of at least 300 px, is not carried for
-    now: under the evaluator a GT object is a whole class, and that K would
-    need a definition of its own.
+    value, and the evaluator computes no measure of identity from the
+    workbench's `track_metrics` (hold, IDF1, ID switches, fragmentation,
+    re-entry). `track_metrics` is ported as a tool under `evalkit/tools/`,
+    outside `eval_code_sha`, and what it reports is a reference value:
+    measured, and written about when it shows something, never marked with a
+    star. So `docs/evaluation.md` defines no GT track. The tool defines its
+    own when it is ported, without `MIN_AREA` ("No minimum object size,
+    anywhere"). The evaluator's whole-class object, followed over time, needs
+    no rule to link pieces and no size; the workbench linked each class's
+    components instead. If `hold_mean` is carried under that name, it keeps
+    the workbench's definition, which was pre-registered there. A different
+    denominator is a different metric, with a different name: in the
+    workbench, moving the denominator once flipped a result's sign. `kmerge`
+    is ported as a tool too. It changes predictions, not metrics: it merges a
+    condition's regions down to K, and the evaluator's instance metrics score
+    the merged regions, so a comparison of them is read like any other. The
+    paper's granularity result merges to a fixed K of 10. The `matched`
+    setting, which took K from the pilot's GT components of at least 300 px,
+    is not carried for now: under the evaluator a GT object is a whole class,
+    and that K would need a definition of its own.
 
 ## What moves
 
@@ -162,10 +162,10 @@ copy to read the RGB clips, and the ported copies read `evalkit.classes`.
 |---|---|---|---|
 | `paired_stats.py` | `ipcai2027_experiment/scripts/paired_stats.py` | `extract/03-metrics` (#3) | `VERDICT_RULE` does not change. The comparability check is `scores.check_comparable`, which applies the rule of `docs/evaluation.md`, in place of the pilot's, and the statistics are taken on the clips it compared. `video_of` is defined here rather than delegated. Each row records the metric's `sign` and `verdict` reads the interval in it, so a metric where smaller is better, or a reference value that is never marked, is not oriented by the caller. A bootstrap over fewer than two units refuses rather than return a point. |
 | `compare_eval.py` | `depth_sam_tracking_experiment/compare_eval.py` | `extract/03-metrics` (#3) | It refuses to mix shas through `scores.check_comparable`, which also compares dataset, class set, view and mode. The table prints each metric's direction and no mark: the workbench's circle and cross followed the sign of the mean difference, a second verdict beside `paired_stats.verdict`. The per-clip list, the chart and `wins` follow the question's primary metric, named with `--key`; the directions of the pilot keys come from `scores.PILOT_SIGNS`, the one table `paired_stats` reads too. |
-| `track_metrics.py` | `depth_sam_tracking_experiment/track_metrics.py` | `extract/03-metrics` (#3) | It imports `BACKGROUND`, `_gt_idmap` and `_load_depth` from the pilot's `eval_track`; they come from the evaluator instead. `MIN_AREA` is removed (decision 5). It is a tool, outside the evaluator, and its values are reference values (decision 13). |
+| `track_metrics.py` | `depth_sam_tracking_experiment/track_metrics.py` | `extract/03-metrics` (#3) | It imports `BACKGROUND`, `_gt_idmap` and `_load_depth` from the pilot's `eval_track`; they come from the evaluator instead. `MIN_AREA` is removed ("No minimum object size, anywhere"). It is a tool, outside the evaluator, and its values are reference values ("No measure over time carries a star"). |
 | `surgical_core/clip_time.py` | `surgical_core/clip_time.py` | `extract/03-metrics` (#3) | English only. |
 | `surgical_core/viewer/labels.py`, `palette.py` | `surgical_core/viewer/` | `extract/03-metrics` (#3) | English only. `label_table_of` and `cholec_gt_table` move to a new `gt_tables.py`, the one viewer module that imports `evalkit`; `labels.py` builds its table from plain data, so a video with no class table gets one too. The rest of `surgical_core/viewer` is below, under "Not yet extracted anywhere". |
-| `kmerge.py` | `ipcai2027_experiment/scripts/kmerge.py` | `extract/04-kmerge` (#5) | It imports the pilot's `eval_track`, and borrows `verdict` from `paired_stats`. It keeps its own copy of `video_of`, which the port takes from `paired_stats` instead. It is a tool (decision 13), and takes the evaluator's instance metrics in place of the pilot's. |
+| `kmerge.py` | `ipcai2027_experiment/scripts/kmerge.py` | `extract/04-kmerge` (#5) | It imports the pilot's `eval_track`, and borrows `verdict` from `paired_stats`. It keeps its own copy of `video_of`, which the port takes from `paired_stats` instead. It is a tool ("No measure over time carries a star"), and takes the evaluator's instance metrics in place of the pilot's. |
 | `surgical_core/geometry/` | `depth_sam_tracking_experiment/geometry.py` | `extract/04-kmerge` (#5) | English only. Shared by the pipeline and the toolkit. |
 | `condition_inventory.py` | `ipcai2027_experiment/scripts/condition_inventory.py` | `extract/05-inventory` (#4) | It reads `eval_code_sha`, `eval_code_tag` and `eval_version` from score JSONs. "One ruler" is now what `docs/evaluation.md` calls comparable: sha, dataset, class set, view and mode all equal. |
 | `check_env.py` | `ipcai2027_experiment/atlas97/scripts/check_env97.py` | `extract/05-inventory` (#4) | Not carried (decision 4). |
@@ -249,7 +249,7 @@ while the evaluator is built and reviewed is worked out in `docs/workstreams.md`
 
 1. **Decide what the evaluator measures over time.** Decided: no measure
    over time carries a star, and `track_metrics` and `kmerge` are tools
-   (decision 13).
+   ("No measure over time carries a star").
 2. **Build the evaluator.** CPU only, as the `evalkit` package. Class tables,
    then metrics, then the entry point. It is done when:
    - the hand-derived tests pass, in both modes;

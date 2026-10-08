@@ -5,8 +5,8 @@ workbench measured three faults in it: it rises as regions get coarser, and
 one region covering the whole frame scores 1.0; an id that disappears costs
 nothing; and for a condition segmented frame by frame, whose ids do not
 carry over, it means nothing. It is kept because the pilot evaluator wrote
-it, and the measure of consistency over time that is to replace it is not
-decided yet (`docs/evaluation.md`, "Consistency over time").
+it, and the evaluator computes no other measure over time
+(`docs/evaluation.md`, "Consistency over time: reference values only").
 
 Unlike the other metrics it is one number per clip: the IoUs of every
 (id, frame pair) are pooled over all tracked frames, with or without GT, and

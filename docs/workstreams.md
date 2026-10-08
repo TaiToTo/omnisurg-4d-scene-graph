@@ -77,9 +77,10 @@ say, in the form a session starting cold needs.
 
 `track_metrics` and `kmerge` are decided: tools outside the evaluator. They
 wait for the evaluator's reader of a clip's inputs, whose GT and depth
-loaders they take in place of the pilot's. The tracking stage and the per-frame segmentation stage wait on decisions
-too, and the stages after tracking wait on the tracking stage. The questions
-are named as `docs/porting.md` heads them.
+loaders they take in place of the pilot's. The tracking stage and the
+per-frame segmentation stage wait on decisions too, and the stages after
+tracking wait on the tracking stage. The questions are named as
+`docs/porting.md` heads them.
 
 | piece | waits for |
 |---|---|

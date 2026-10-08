@@ -9,13 +9,14 @@ this page is the short version, with a map of the parts.
 The pipeline cuts every frame of a surgical video into regions and follows
 them over time. It is not trained on surgery and it never names a region.
 Against two public datasets with hand-labelled masks, the evaluator asks
-three questions. Each is decided by one key, named here; the other keys help
-explain the answer.
+three questions. Two of them are decided by keys named here; the other keys
+help explain the answer.
 
 - **Given one frame as an example, how far can the regions be followed?**
   With no training, for how many frames does a region picked out once keep
-  covering the same thing? *Decided by:* not settled yet. `time_IoU` is
-  reported for reference, but it rewards coarse regions and cannot decide.
+  covering the same thing? *Decided by:* no key, since no measure over time
+  carries a star. `time_IoU` is reported for reference; it rewards coarse
+  regions.
 - **Given no example at all, what input makes the regions' boundaries fall
   where the labelled classes' boundaries are?** The image, the 3D shape from
   depth, or both; and for which classes and which procedures, since the
@@ -30,7 +31,7 @@ explain the answer.
 
 ![The three questions on a drawn scene. Q1: a region picked out in one frame follows the gallbladder for two frames, then leaves it. Q2: the regions' boundaries against the GT's class boundaries, found and missed, giving boundary_R_raw. Q3: regions matched to the GT's objects, two hits and one extra region, giving F1_50 and SQ](../docs/figures/three_questions.png)
 
-The three questions on a drawn scene. No key decides the first yet, so its
+The three questions on a drawn scene. No key decides the first, so its
 panel is an illustration; the numbers in the other two are what the modules
 give on the scene.
 

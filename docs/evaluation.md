@@ -440,8 +440,8 @@ diagnostics and never get a star.
 ### Primary metrics
 
 The paper asks three questions, each as a comparison between two
-conditions, and judges each on its own key, on each dataset's own labels
-(the `original` class set):
+conditions, and judges two of them on a key of their own, on each dataset's
+own labels (the `original` class set):
 
 | question | primary metric | view |
 |---|---|---|
@@ -480,18 +480,22 @@ GT, and the workbench measured three faults in it:
 The measures of identity against the GT come from the workbench's
 `track_metrics`: hold (whether the region picked on the frame tracking starts
 from still covers the same GT thing seconds later), IDF1, ID switches,
-fragmentation and re-entry. None of them joins the evaluator. Each needs a
-GT track, and the datasets carry no ids for individual things, so a GT track
-would be a second object definition beside the whole-class object used
-above. The workbench also measured a fault in each. Two denominators of hold,
-both pre-registered, gave one comparison opposite signs. IDF1 rises when
-regions merge. Re-entry scored 0.97 to 1.00 for every condition.
+fragmentation and re-entry. The evaluator computes none of them. Each needs
+a GT track, and the datasets carry no ids for individual things, so a GT
+track would be a second object definition, in addition to the whole-class
+object used above. The workbench also measured a fault in each:
 
-So a tool outside the evaluator, `evalkit/tools/track_metrics`, computes
-them, and they are reported as reference values: measured, and written about
-when they show something, but never marked with a star. The tool defines its
-own GT track. A measure that is to carry a star would have to join the
-evaluator before it is frozen, and none does.
+- two denominators of hold, both pre-registered, gave one comparison
+  opposite signs;
+- IDF1 rises when regions merge;
+- re-entry scored 0.97 to 1.00 for every condition.
+
+So a tool outside the evaluator, `evalkit/tools/track_metrics`, computes the
+measures of identity, and they are reported as reference values: measured,
+and written about when they show something, but never marked with a star.
+The tool defines its own GT track. A measure that is to carry a star would
+have to be computed by the evaluator before the evaluator is frozen, and
+none is.
 
 ## Rules that keep the numbers honest
 
