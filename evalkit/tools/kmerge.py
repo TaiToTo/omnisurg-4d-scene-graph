@@ -79,7 +79,8 @@ def kmerge(labels: np.ndarray, k: int) -> np.ndarray:
 
     The region of least area is merged into the neighbour it shares the longest boundary with, and takes that
     neighbour's id. Of two regions of least area, the lower id is merged first. Of two neighbours that share
-    the longest boundary, the smaller one takes the region. A map of `k` regions or fewer is returned as it is.
+    the longest boundary, the one of smaller area takes the region. A map of `k` regions or fewer is returned
+    as it is.
 
     Args:
         labels: An (H, W) integer map, -1 for no region.
