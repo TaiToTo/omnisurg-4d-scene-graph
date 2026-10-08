@@ -70,6 +70,30 @@ while a mask is written.
 
 `python -m pipeline.extract_atlas120k --help` lists the options.
 
+### A video OpenCV cannot decode
+
+```bash
+python -m pipeline.prepare_atlas120k_videos --src /path/to/ATLAS --dst /path/to/ATLAS_h264
+```
+
+One video of the 97, `rarp/NitKIjCcS7U`, is AV1, which some builds of
+OpenCV cannot decode. This command builds a second root for the extraction
+to take as `--atlas-root`. Its `atlas120k/` is a symlink to the release's.
+Under its `raw_data/`, every H.264 video is a symlink to the release's
+file, and every other video is converted to H.264 with FFmpeg, keeping its
+size and frame count. `video_root.json` records what was done to each
+video. The command refuses:
+
+- a release without `atlas120k/` or without an mp4;
+- a converted video whose size or frame count is not the source's, or
+  that OpenCV cannot read a frame from;
+- a path in the new root that is already something else.
+
+A converted video that is already there is checked, not made again. The
+extraction's output does not depend on the conversion: it reads the
+frames from the release's JPEGs, and takes from the mp4 only its frame
+rate and size, which the conversion keeps.
+
 ## The depth stage
 
 ```bash
@@ -98,6 +122,24 @@ The stage refuses:
   stage's own files and leaves every other file.
 
 `python -m pipeline.depth --help` lists the options.
+
+### Every clip of a population
+
+```bash
+python -m pipeline.depth_population --input-dir /path/to/clips --clips atlas120k_meta/clips.txt [--gpus 0 1 2 3]
+```
+
+The command runs the depth stage on every clip of a population file, one
+process per GPU, without the point clouds. A clip that already holds
+`exports/mini_npz/results.npz` is skipped, so a stopped run continues where
+it was. Each process writes its output to `<input-dir>/_logs/depth_gpu<N>.log`.
+The command refuses:
+
+- a clip of the population that is not under `--input-dir`, before any
+  process starts;
+- a run after which a clip of the population lacks its bundle, or whose
+  bundle has another number of depth maps than the clip has images;
+- a process that exited non-zero; the message names its log.
 
 ### Without a CUDA GPU
 
