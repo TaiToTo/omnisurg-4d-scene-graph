@@ -75,8 +75,8 @@ say, in the form a session starting cold needs.
 
 ## Not now: blocked on a decision
 
-`track_metrics` waits on a decision not yet made; started before it, it
-would be ported twice. The tracking stage and the per-frame
+`track_metrics` waits on a decision not yet made: ported before the
+decision, it would be ported twice. The tracking stage and the per-frame
 segmentation stage wait on decisions too, and the stages after tracking wait
 on the tracking stage. The questions are named as `docs/porting.md` heads
 them.
