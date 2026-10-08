@@ -58,3 +58,43 @@ pip install -e ".[render]" torch torchvision
 pip install --no-deps "depth-anything-3 @ git+https://github.com/ByteDance-Seed/Depth-Anything-3.git"
 pip install "numpy<2" addict einops evo huggingface_hub imageio moviepy==1.0.3 omegaconf plyfile pycolmap safetensors
 ```
+
+## The Pi3X stage
+
+```bash
+python -m pipeline.pi3x --input-dir /path/to/clips --clips <clip> [--device auto] [--gpu N] [--overwrite]
+```
+
+The stage reconstructs a clip with a second model, Pi3X
+(`recon3d_wrapper.pi3x`). Pi3X predicts each frame's points and camera pose
+together. The stage resizes each frame to at most 255,000 pixels, with sides
+that are multiples of 14. It writes into DA3's directories, each name
+carrying the suffix `__pi3x`, and leaves DA3's files alone:
+
+- `exports/mini_npz/results__pi3x.npz`: the same four arrays as DA3's
+  bundle.
+- `depth_vis/NNNN__pi3x.jpg`: the depth images, coloured as DA3's are.
+- `pc_vis/frame_NNNN__pi3x.glb`: one point cloud per frame.
+- `geometry_sources.pi3x` in the manifest. Each frame gets its cloud's
+  centroid, its number of points and the camera's axes, under
+  `frames[i].geometry_sources.pi3x`. The run gets its settings, its runtime
+  and the round-trip check.
+
+The round-trip check back-projects the stage's depth through its own poses
+and compares the points with the ones Pi3X predicted. It also computes the
+error under the inverted reading of the poses. The stage refuses:
+
+- a clip that fails the round-trip check. The error must be finite, its
+  99.9th percentile must be under 3 % of the median depth, and the inverted
+  reading's error must be at least ten times larger.
+- a clip whose manifest does not list each frame of `input_images/` once:
+  `seq_idx` must run from 0 to N - 1, and `n_frames` must be N. The stage
+  checks this before the model runs.
+- a clip that already holds the stage's output; the refusal says what is
+  there. `--overwrite` removes the stage's own files and manifest records,
+  never DA3's, and writes them again.
+
+A refused clip is left as it was: the stage writes and removes nothing
+until every check has passed.
+
+`python -m pipeline.pi3x --help` lists the options.

@@ -26,12 +26,13 @@ cd omnisurg-4d-scene-graph
 python3.12 -m venv .venv && . .venv/bin/activate
 pip install -e ".[recon3d]"
 python -m pipeline.depth --input-dir /path/to/clips --clips <clip>
+python -m pipeline.pi3x --input-dir /path/to/clips --clips <clip>
 ```
 
-The model weights download from Hugging Face on first use; DA3-LARGE takes
-about 1.4 GB. The weights are licensed CC BY-NC 4.0, for non-commercial use
-only, unlike this repository's code. `docs/pipeline.md` describes a clip
-and the files each stage writes.
+The model weights download from Hugging Face on first use: about 1.4 GB for
+DA3-LARGE and 5.1 GB for Pi3X. Both are licensed CC BY-NC 4.0, for
+non-commercial use only, unlike this repository's code. `docs/pipeline.md`
+describes a clip and the files each stage writes.
 
 ## License
 
