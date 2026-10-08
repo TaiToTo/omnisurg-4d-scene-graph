@@ -1,11 +1,11 @@
 """One reader for every score JSON: its clips, its rows, its keys, and the ruler it was measured with.
 
-Every tool reads scores through this module, so the rule of
-`docs/evaluation.md` ("Recorded with every score") is checked in one
-place. `check_comparable` refuses a pair unless everything that must
-match does: `eval_code_sha`, dataset, class set, views, mode, the clip
-population, and the GT and depth each clip was scored against. Library
-versions are the one difference reported instead of refused.
+Every tool reads scores through this module, so the conditions for
+comparable scores (`docs/evaluation.md`, "Recorded with every score") are
+checked in one place. `check_comparable` refuses a pair unless everything
+that must match does: `eval_code_sha`, dataset, class set, views, mode, the
+clip population, the GT and depth each clip was scored against, and the
+propagation rule. Library versions are reported instead of refused.
 
 Two kinds of JSON arrive. The evaluator's carry every field in
 `EVALUATOR_FIELDS`. The pilot evaluator's predate those fields and carry
@@ -36,7 +36,10 @@ PILOT_EVAL_CODE_SHA = "1f8a813a5be31dd204fe4130a1799053411c41166f19821f80ca30d3a
 
 # What the evaluator records with every score beyond what the pilot did.
 # All or none: a JSON with a part of them is refused.
-EVALUATOR_FIELDS = ("class_set", "views", "pilot", "input_shas", "versions")
+EVALUATOR_FIELDS = ("class_set", "views", "pilot", "input_shas", "versions", "propagation")
+
+# The rule of a condition with no tracker; it may be compared with either rule.
+PER_FRAME = "per_frame"
 
 # The pilot evaluator's four domains, which its JSONs score in place of views.
 PILOT_DOMAINS = ("full", "labeled", "tissue", "labeled_tissue")
@@ -121,6 +124,57 @@ def is_pilot_json(summary: Mapping) -> bool:
             f"{list(EVALUATOR_FIELDS)}, and the pilot evaluator none, so this one is neither"
         )
     return not present
+
+
+def propagation_rule_of(summary: Mapping) -> str | None:
+    """Return the propagation rule a JSON records, or None for a pilot JSON, which records none.
+
+    Raises:
+        ValueError: The JSON has some of the evaluator's fields but not
+            all, or its rule is not a name.
+    """
+    if is_pilot_json(summary):
+        return None
+    rule = summary["propagation"]
+    if not isinstance(rule, str) or not rule:
+        raise ValueError(f"a score JSON records the propagation rule {rule!r}, which names no rule")
+    return rule
+
+
+def check_one_rule(summaries: Mapping[str, Mapping]) -> str | None:
+    """Return the one propagation rule of a table's conditions, `per_frame` aside.
+
+    Checking each pair is not enough. A `per_frame` condition is comparable
+    with a condition of either rule, so two pairs can each pass and still
+    put two rules in one table.
+
+    Args:
+        summaries: The score JSONs that go into one table, by tag.
+
+    Returns:
+        The rule; `per_frame` when every condition is per frame; None when
+        every JSON is a pilot JSON, which records none.
+
+    Raises:
+        ValueError: The conditions hold two rules besides `per_frame`.
+    """
+    by_rule: dict[str, list[str]] = {}
+    for tag, summary in summaries.items():
+        rule = propagation_rule_of(summary)
+        if rule is not None:
+            by_rule.setdefault(rule, []).append(tag)
+    rules = sorted(set(by_rule) - {PER_FRAME})
+    if len(rules) > 1:
+        listed = "\n".join(f"  {r}: {sorted(by_rule[r])}" for r in rules)
+        raise ValueError(
+            "one table holds conditions propagated under different rules, so its numbers would mix them:\n"
+            f"{listed}\n  Make one table per rule; a {PER_FRAME!r} condition may go in each"
+        )
+    if rules:
+        return rules[0]
+    # Only `per_frame` is left, or nothing: `per_frame` when some JSON
+    # records it, None when every JSON is a pilot JSON.
+    return PER_FRAME if by_rule else None
 
 
 def clips_of(summary: Mapping) -> list[str]:
@@ -262,16 +316,20 @@ def check_comparable(
     Returns:
         `clips`, sorted; `population`, `"identical"` or `"intersection"`;
         `eval_code`, the sha's first 16 characters or `"legacy-unverified"`;
-        and, only when the two evaluator JSONs record different library
-        versions, `versions_differ`, name to the pair of values.
+        for two evaluator JSONs, `propagation`, the pair's rule, which is
+        `per_frame` only when both are; and, only when the two record
+        different library versions, `versions_differ`, name to the pair of
+        values.
 
     Raises:
         ValueError: The shas differ or one is missing; one JSON is the pilot
             evaluator's and the other the evaluator's; the mode, class set,
             views or dataset differ; the pilot domains or a compared clip's
-            `extra_ignore` differ; a JSON's `clips` and `per_clip` name
-            different clips; the clips differ, no clip is common, or
-            neither JSON holds one; or the two read different inputs.
+            `extra_ignore` differ; the two were propagated under different
+            rules, neither of them `per_frame`; a JSON's `clips` and
+            `per_clip` name different clips; the clips differ, no clip is
+            common, or neither JSON holds one; or the two read different
+            inputs.
     """
     ra, rb = ruler(a), ruler(b)
     sa, sb = ra.eval_code_sha, rb.eval_code_sha
@@ -329,6 +387,16 @@ def check_comparable(
             f"  base: dataset={ra.dataset!r} pilot={ra.pilot} class_set={ra.class_set!r} views={list(ra.views)}\n"
             f"  cond: dataset={rb.dataset!r} pilot={rb.pilot} class_set={rb.class_set!r} views={list(rb.views)}"
         )
+    # The rule the predictions were propagated under. A difference between
+    # two rules would look like a difference between the methods.
+    rule_a, rule_b = propagation_rule_of(a), propagation_rule_of(b)
+    if rule_a != rule_b and PER_FRAME not in (rule_a, rule_b):
+        raise ValueError(
+            "two conditions propagated under different rules cannot be compared: the difference\n"
+            "  between them would include the difference between the rules.\n"
+            f"  base: propagation={rule_a!r}\n  cond: propagation={rule_b!r}\n"
+            f"  Compare each with a condition of its own rule, or with a {PER_FRAME!r} one"
+        )
 
     check_rows(a, "base")
     check_rows(b, "cond")
@@ -362,6 +430,8 @@ def check_comparable(
         _check_extra_ignores(a, b, clips)
     if not pilot_a:
         _check_inputs(a, b, clips)
+        # The pair's rule is the tracked one; it is `per_frame` only when both are.
+        out["propagation"] = rule_b if rule_a == PER_FRAME else rule_a
         va, vb = a["versions"] or {}, b["versions"] or {}
         differ = {k: (va.get(k), vb.get(k)) for k in sorted(set(va) | set(vb)) if va.get(k) != vb.get(k)}
         if differ:
