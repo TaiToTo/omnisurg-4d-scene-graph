@@ -1,7 +1,7 @@
 """Run `pipeline.point_clouds` on a synthetic depth bundle, and check what it writes and what it refuses.
 
-Writing the point clouds needs trimesh, the `render` extra; those tests
-skip without it.
+Writing the point clouds needs trimesh, which the `render` extra installs;
+those tests skip without it.
 """
 
 import json
@@ -40,7 +40,7 @@ def test_each_frame_gets_a_cloud_and_its_placement_in_the_manifest(tmp_path):
     m = json.loads((clip / "frame_manifest.json").read_text())
     assert list(m["frames"][1]) == ["seq_idx", "native_frame", "glb_centroid", "camera_pos_glb",
                                     "camera_forward_glb", "camera_up_glb"]
-    # The camera moves along x with an identity rotation, so it sits at -t.
+    # The camera moves along x with an identity rotation, so it is at -t.
     assert m["frames"][2]["camera_pos_glb"] == pytest.approx([-2.0, 0.0, 0.0])
 
 

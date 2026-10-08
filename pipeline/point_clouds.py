@@ -1,11 +1,12 @@
-"""Write each frame's point cloud from a clip's depth bundle, and record where the cloud sits in the world.
+"""Write each frame's point cloud from a clip's depth bundle, and record where the cloud is in the world.
 
 The stage reads `exports/mini_npz/results.npz`, which the depth stage wrote,
 and needs no model. It writes `pc_vis/frame_NNNN.glb` for every frame with
 usable depth. Each cloud is centred on its centroid. The stage records that
-centroid, `glb_centroid`, and the camera's position and axes in glTF's frame,
-`camera_*_glb`, on the frame's manifest entry. The viewer's world mode reads
-these keys to place every frame's cloud and camera in one scene.
+centroid, `glb_centroid`, and the camera's position and axes in glTF's
+coordinate system, `camera_*_glb`, on the frame's manifest entry. The
+viewer's world mode reads these keys to place every frame's cloud and camera
+in one scene.
 
 Usage:
     python -m pipeline.point_clouds --input-dir /path/to/clips [--clips <clip> ...]
@@ -68,7 +69,7 @@ def run_point_clouds(clip_dir: Path) -> int:
     if missing:
         raise FileNotFoundError(f"{clip_dir.name}: the bundle has {n_frames} frames, but there is no {missing[:5]}")
 
-    # Write a cloud per frame, coloured by the frame, and keep where it sits.
+    # Write a cloud per frame, coloured by the frame's image, and keep where the cloud is.
     pc_vis = clip_dir / "pc_vis"
     pc_vis.mkdir(exist_ok=True)
     per_frame: dict[int, dict] = {}
@@ -82,14 +83,14 @@ def run_point_clouds(clip_dir: Path) -> int:
         gltf_pts = world_to_gltf(cam_to_world(backproject_depth(depth[i], K_all[i]), R, t))
         valid = valid_depth_mask(depth[i].reshape(-1))
         if not valid.any():
-            # A frame can hold no usable depth. The viewer shows no cloud for it; the other frames stand.
+            # A frame can hold no usable depth. The viewer shows no cloud for it; the other frames still get theirs.
             print(f"  frame {i:04d}: no usable depth, no point cloud")
             continue
         centroid = write_point_cloud_glb(pc_vis / f"frame_{i:04d}.glb", gltf_pts[valid], colors[valid],
                                          recenter=True)
         per_frame[i] = {"glb_centroid": centroid.tolist(), **camera_axes_in_gltf(R, t)}
 
-    # Record where each cloud sits.
+    # Record where each cloud is.
     if per_frame:
         update_manifest(clip_dir, per_frame)
     return len(per_frame)
