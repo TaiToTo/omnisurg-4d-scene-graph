@@ -1,7 +1,7 @@
-"""Check that every segmenter input renders the same bytes as when the shas were recorded.
+"""Check that every segmenter input renders the same bytes as when the hashes were recorded.
 
 A change that moves one pixel of one input mode changes a measured
-condition, and nothing else would notice. The shas in
+condition, and nothing else would notice. The hashes in
 `render_outputs.sha256.json` were recorded from the code on `main` before
 the unused modes were removed. Each mode runs at both edge gains the
 conditions used, with and without smoothing, on one synthetic frame.
@@ -52,7 +52,7 @@ def cases():
 
 
 def sha(img):
-    """Return the image's dtype, shape and the sha256 of its bytes, as one string."""
+    """Return the image's dtype, shape and the SHA-256 hash of its bytes, as one string."""
     return f"{img.dtype}{list(img.shape)} {hashlib.sha256(np.ascontiguousarray(img).tobytes()).hexdigest()}"
 
 

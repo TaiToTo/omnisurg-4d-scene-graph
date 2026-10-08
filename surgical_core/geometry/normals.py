@@ -15,7 +15,8 @@ def camera_normals(depth, K):
 
     Each pixel is back-projected into camera space and the normal is the
     cross product of the horizontal and vertical tangent vectors, taken by
-    central differences. `normal_map` and `geom_edge_map` start from this.
+    central differences. `normal_map` and `geom_edge_map` are computed from
+    these normals.
 
     Args:
         depth: (H, W) depth. 0 and NaN are invalid.
