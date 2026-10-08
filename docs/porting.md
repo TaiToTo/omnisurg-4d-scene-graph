@@ -261,13 +261,23 @@ while the evaluator is built and reviewed is worked out in `docs/workstreams.md`
      planted mixed ruler and a planted missing condition.
    The paper's numbers are the step-3 scores read through these tools.
 5. **Port the pipeline, one stage at a time.** Each stage's output must match
-   the workbench byte for byte. Two exceptions: Pi3X's `runtime_sec`, per
-   `repo_migration_determinism.md`; and the 14 CholecSeg8k clips whose gap
-   frames the workbench's extractor placed 1 to 3 s late ("CholecSeg8k
-   clips whose frames run out of order"), which the ported extractor
-   converts or refuses, and which are then re-extracted and re-run. The 315
-   clips also get DA3 and `glb_centroid`: the demo's reference grid stays
-   DA3.
+   the workbench byte for byte. The exceptions:
+   - Pi3X's `runtime_sec`, per `repo_migration_determinism.md`.
+   - The 14 CholecSeg8k clips whose gap frames the workbench's extractor
+     placed 1 to 3 s late ("CholecSeg8k clips whose frames run out of
+     order"), which the ported extractor converts or refuses, and which are
+     then re-extracted and re-run.
+   - In the ATLAS-120k extraction, a frame that the stage shrinks. OpenCV's
+     area resize rounds differently from one build to another: between the
+     development machine and the GPU machine's clips, about one pixel in ten
+     thousand differs by one level, and a frame written at its own size
+     does not differ at all. So the frames are compared on one machine, as
+     every stage is.
+   - In the ATLAS-120k extraction, the manifest key `pixel_source`. The
+     workbench's extractor gained it after the GPU machine's clips were
+     extracted, so those manifests lack it and the ported stage writes it.
+   The 315 clips also get DA3 and `glb_centroid`: the demo's reference grid
+   stays DA3.
    This step compares files, not scores, so it does not wait on steps 1 to
    4; it may run beside them. The port is reviewed anywhere. The DA3 stage
    is checked first on the development machine's CPU with the real model;

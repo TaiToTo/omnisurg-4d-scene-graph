@@ -1,22 +1,74 @@
 # The pipeline
 
 The pipeline turns a clip of surgical video into the geometry that a 4D
-scene graph is built on. It runs in stages. The depth stage estimates depth
-and camera poses for every frame. Later stages segment the frames, track the
-segments through time, and export what the viewer reads. Each stage is a
-module of `pipeline` and runs as `python -m pipeline.<stage>`. Each stage
-reads what the earlier stages wrote into the clip.
+scene graph is built on. It runs in stages. The extraction stage cuts the
+clips from a dataset's release. The depth stage estimates depth and camera
+poses for every frame. Later stages segment the frames, track the segments
+through time, and export what the viewer reads. Each stage is a module of
+`pipeline` and runs as `python -m pipeline.<stage>`. Each stage reads what
+the earlier stages wrote into the clip.
 
 ## A clip
 
 A clip is a directory with these files:
 
 - `input_images/`: the frames as PNG files. Their names sort in time order.
+- `seg_masks/`: the ground-truth masks of the frames that have one. An
+  ATLAS-120k mask holds the class id of each pixel, as `NNNNNN_class.png`.
 - `frame_manifest.json`: the clip's record, written by the stage that cut
   the clip from its dataset. Its `dataset` key names the dataset; a
   manifest without one belongs to CholecSeg8k.
 - `crop_info.json`, for a CholecSeg8k clip only: the rectangle inside the
   endoscope's view that the frames were cut to.
+
+## The ATLAS-120k extraction stage
+
+```bash
+python -m pipeline.extract_atlas120k --atlas-root /path/to/ATLAS --out /path/to/clips \
+    --clip-rects atlas120k_meta/crop_rects.json --frame-ratios atlas120k_meta/frame_ratio.json \
+    [--videos <procedure>/<video> ...] [--population atlas120k_meta/clips.txt] [--overwrite]
+```
+
+The stage cuts the annotated clips of ATLAS-120k videos from the release,
+the way the paper's 315 clips were cut. `--atlas-root` holds the release's
+`atlas120k/` and the videos' `raw_data/`. For each clip of a video's
+`clip_index.json`, the stage splits the clip into runs of consecutive
+annotated frames, thins each run to one frame every 0.52 s, and writes each
+run that still has 8 frames or more as `<procedure>__<video>__gt_<n>`. A
+clip with two such runs becomes two clips, `s1` and `s2`; none of the 315
+is one. A run with the frames and rectangle of one already written is not
+written again. Into each clip it writes:
+
+- `input_images/`: the release's JPEGs, cut to the clip's confirmed
+  rectangle (`atlas120k_meta/crop_rects.json`) and resized to a long side
+  of 854.
+- `seg_masks/`: the class ids, read through the evaluator's class table.
+- `frame_manifest.json`: every frame has ground truth and is an anchor.
+
+Each video also gets `<procedure>__<video>__extract_report.json`, one row
+per clip of its index, saying whether the clip was kept, split, a duplicate,
+too short, or without masks. With no `--videos`, the stage extracts every
+video whose frame ratio was measured. With `--population`, it refuses a
+video whose clips written are not the population's clips of that video.
+
+The stage refuses:
+
+- a video whose frame ratio was not measured, or whose ratio fails the
+  pixel check against one of its JPEGs;
+- a stride whose step is more than 20 % off 0.52 s;
+- a kept clip with no confirmed rectangle, or for which the release holds
+  no JPEGs;
+- a frame or a mask whose size is not the mp4's;
+- a mask with an id or a colour the class table lacks;
+- a video that already has output, unless `--overwrite` is given, which
+  removes the video's clips and report first;
+- clips written that are not the population's.
+
+A refused video is left as it was: the stage writes and removes nothing
+until every check has passed, apart from the class table's, which is made
+while a mask is written.
+
+`python -m pipeline.extract_atlas120k --help` lists the options.
 
 ## The depth stage
 
