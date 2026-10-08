@@ -552,3 +552,9 @@ Every command takes those paths as arguments.
     another machine the same versions. Once that machine's environment has
     been read, the file is written from it and added beside `pyproject.toml`.
     Until then the extra alone says what a machine needs.
+21. **A clip with no usable depth in any frame.** The point-cloud stage
+    skips a frame with no usable depth, as the workbench does, because the
+    data can hold such a frame. A clip with no usable depth in any frame
+    gets no cloud, no manifest entry and a count of 0, and the run exits 0.
+    No real clip has done this; a bundle with no depth at all is more likely
+    a broken bundle than data. Decide whether the stage refuses such a clip.
