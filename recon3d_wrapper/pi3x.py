@@ -4,8 +4,9 @@ Pi3X predicts each frame's points and camera pose together. This backend
 turns them into depth, intrinsics fitted to the predicted rays, and
 world-to-camera extrinsics. It also keeps the world points, so that a stage
 can check the pose convention against them. The module depends on the
-upstream `pi3` package and on torch, the `recon3d` extra. It imports them
-only when a model is built, so importing the module needs neither.
+upstream `pi3` package and on torch, which the `recon3d` extra installs. It
+imports them only when a model is built, so importing the module needs
+neither.
 """
 
 import contextlib
@@ -22,7 +23,7 @@ from recon3d_wrapper import Reconstruction
 
 MODEL_REPO = "yyfz233/Pi3X"
 
-# The most pixels a frame keeps after resizing. Upstream's default; a larger budget lost coverage on these clips.
+# The most pixels a frame keeps after resizing. Upstream's default; a larger budget lost coverage on the clips measured.
 DEFAULT_PIXEL_LIMIT = 255_000
 
 # The side of the model's patch. A resized frame's sides are multiples of it.

@@ -65,40 +65,36 @@ pip install "numpy<2" addict einops evo huggingface_hub imageio moviepy==1.0.3 o
 python -m pipeline.pi3x --input-dir /path/to/clips --clips <clip> [--device auto] [--gpu N] [--overwrite]
 ```
 
-The stage reconstructs a clip with Pi3X (`recon3d_wrapper.pi3x`), a second
-model beside DA3. Pi3X predicts each frame's points and camera pose
+The stage reconstructs a clip with a second model, Pi3X
+(`recon3d_wrapper.pi3x`). Pi3X predicts each frame's points and camera pose
 together. The stage resizes each frame to at most 255,000 pixels, with sides
-that are multiples of 14. It writes its files beside DA3's, each name
+that are multiples of 14. It writes into DA3's directories, each name
 carrying the suffix `__pi3x`, and leaves DA3's files alone:
 
 - `exports/mini_npz/results__pi3x.npz`: the same four arrays as DA3's
   bundle.
-- `depth_vis/NNNN__pi3x.jpg`: the depth images, coloured as DA3's are, so
-  that the two can be set side by side.
-- `pc_vis/frame_NNNN__pi3x.glb`: one point cloud per frame. The stage first
-  removes this source's clouds from an earlier run.
+- `depth_vis/NNNN__pi3x.jpg`: the depth images, coloured as DA3's are.
+- `pc_vis/frame_NNNN__pi3x.glb`: one point cloud per frame.
 - `geometry_sources.pi3x` in the manifest. Each frame gets its cloud's
   centroid, its number of points and the camera's axes, under
   `frames[i].geometry_sources.pi3x`. The run gets its settings, its runtime
   and the round-trip check.
 
 The round-trip check back-projects the stage's depth through its own poses
-and compares the points with the ones Pi3X predicted. It also places the
-points under the inverted reading of the poses. The right reading must win
-by at least ten times, and its error at the 99.9th percentile must stay
-under 3 % of the median depth. The stage refuses a clip that fails the
-check, because a wrong pose convention places every later point cloud
-wrong without any error.
+and compares the points with the ones Pi3X predicted. It also computes the
+error under the inverted reading of the poses. The stage refuses:
 
-The manifest's frames are matched to the images by `seq_idx`. The stage
-refuses a clip whose manifest lists other frames than `input_images/`. It
-checks this before the model runs, so a refused clip is left as it was.
+- a clip that fails the round-trip check. The error at the 99.9th
+  percentile must be under 3 % of the median depth, and the inverted
+  reading's error must be at least ten times larger.
+- a clip whose manifest lists other frames than `input_images/`, matched by
+  `seq_idx`. The stage checks this before the model runs.
+- a clip that already holds the stage's output; the refusal says what is
+  there. `--overwrite` removes the stage's own files and manifest records,
+  never DA3's, and writes them again.
 
-The stage also refuses a clip that already holds its output, and says what
-is there. `--overwrite` replaces that output: the stage removes its own files
-and manifest records, never DA3's, and writes them again. A frame that gets
-no point cloud then keeps none from an earlier run.
+`python -m pipeline.pi3x --help` lists the options.
 
 Pi3X also runs on a CPU, in float32. On a laptop with 16 GB of memory, two
-frames take about 15 seconds and four about 30, each in under 7.5 GB. Eight
-frames do not fit, and the machine swaps.
+frames take about 15 seconds and four frames take about 30, each in under
+7.5 GB. Eight frames do not fit, and the machine swaps.

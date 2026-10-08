@@ -40,7 +40,7 @@ def pinhole(n=3, h=24, w=32, seed=0):
 
 
 def inverted(rec, poses):
-    """Return the same reconstruction with the camera-to-world poses passed through uninverted."""
+    """Return the same reconstruction with the camera-to-world poses taken as extrinsics, uninverted."""
     return Reconstruction(depth=rec.depth, conf=rec.conf, intrinsics=rec.intrinsics,
                           extrinsics=poses[:, :3, :].astype(np.float32), points=rec.points)
 

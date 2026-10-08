@@ -1,10 +1,10 @@
 name: recon3d
 
 # Run the README's pipeline install on a clean runner. The job checks that
-# the `recon3d` extra resolves, that DA3 and the stage import, and that the
-# suite passes with torch installed. It uses no GPU and no weights. It
-# installs torch and DA3's dependencies, several gigabytes, so it runs only
-# when something it installs or tests changes.
+# the `recon3d` extra resolves, that the backends and their stages import,
+# and that the suite passes with torch installed. It uses no GPU and no
+# weights. It installs torch and the models' dependencies, several gigabytes,
+# so it runs only when something it installs or tests changes.
 on:
   push:
     branches: [main]

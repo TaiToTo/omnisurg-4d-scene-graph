@@ -1,4 +1,4 @@
-"""Check the parts of the Pi3X backend that need no model: the pose inversion and the frame loader.
+"""Check the parts of the Pi3X backend that need no model: the pose inversion, the frame loader and the precision.
 
 None of these tests needs torch or the weights.
 """

@@ -1,4 +1,4 @@
-"""Run the Pi3X stage: reconstruct each clip with Pi3X, as a second geometry source beside DA3's.
+"""Run the Pi3X stage: reconstruct each clip with Pi3X, a geometry source in addition to DA3.
 
 The stage writes `exports/mini_npz/results__pi3x.npz`, `depth_vis/NNNN__pi3x.jpg`
 and `pc_vis/frame_NNNN__pi3x.glb` into the clip, and leaves DA3's files alone.
@@ -6,9 +6,10 @@ It adds `geometry_sources.pi3x` to the manifest: per frame the point cloud's
 centroid, size and camera axes, and for the run its settings, runtime and
 round-trip check. The round-trip check back-projects the stage's own depth
 through its own poses and compares the points with the ones Pi3X predicted.
-An inverted pose convention fails it. The stage refuses a clip that fails it.
-A clip that already holds the stage's output is refused unless `--overwrite`
-is given, which removes that output first.
+The stage refuses:
+
+- a clip that fails the round-trip check, as an inverted pose convention does;
+- a clip that already holds the stage's output; `--overwrite` removes it first.
 
 Usage:
     python -m pipeline.pi3x --input-dir /path/to/clips [--clips <clip> ...] [--device auto] [--gpu N] [--overwrite]
@@ -41,12 +42,12 @@ SOURCE = "pi3x"
 OWN_FILES = {"depth_vis": rf"\d+__{SOURCE}\.jpg", "pc_vis": rf"frame_\d+__{SOURCE}\.glb"}
 BUNDLE = f"exports/mini_npz/results__{SOURCE}.npz"
 
-# How many times the inverted pose reading's error must exceed the stage's own. The right reading wins by 100 to
-# 300 times on every clip measured, so 10 leaves an order of magnitude of slack.
+# How many times the inverted pose reading's error must exceed the stage's own. The right reading's error is 100
+# to 300 times smaller on every clip measured, so 10 leaves an order of magnitude of slack.
 ROUNDTRIP_MIN_RATIO = 10.0
 
 # The largest round-trip error allowed at the 99.9th percentile, relative to the median depth. Pi3X's rays are
-# not quite a pinhole: the fit leaves p99.9 up to 1.1e-2. An inverted pose lands near 1 to 3.
+# not quite a pinhole: the fit leaves p99.9 up to 1.1e-2. An inverted pose gives about 1 to 3.
 DEFAULT_ROUNDTRIP_TOL = 3e-2
 
 
@@ -54,8 +55,8 @@ def verify_roundtrip(rec: Reconstruction, n_sample: int = 20000, seed: int = 0) 
     """Compare the world points that depth and poses give with the ones Pi3X predicted.
 
     The error is taken as a percentile, not a maximum: the maximum grows with the number of frames even when the
-    geometry is equally good. The control places the same points under the inverted reading of the pose and is
-    reduced the same way, so that the ratio of the two speaks only of the convention.
+    geometry is equally good. The control reads the same pose as camera to world, and its error is reduced the
+    same way, so that the ratio of the two depends only on the convention.
 
     Args:
         rec: a reconstruction with `points`.
@@ -105,7 +106,7 @@ def verify_roundtrip(rec: Reconstruction, n_sample: int = 20000, seed: int = 0) 
 def read_manifest(clip_dir: Path, n_input: int, seq_idxs: Iterable[int]) -> dict:
     """Read the clip's manifest, and refuse one that lists other frames than `input_images/`.
 
-    Frames are matched by `seq_idx`, which holds only while `input_images/` and the manifest list the same
+    Frames are matched by `seq_idx`, which is right only while `input_images/` and the manifest list the same
     frames. A manifest that lists no frames passes; the merge adds them.
 
     Args:
@@ -202,10 +203,10 @@ def existing_output(clip_dir: Path, manifest: dict) -> list[str]:
 
 
 def remove_output(clip_dir: Path) -> None:
-    """Remove the stage's own files and manifest records from the clip, so that a run writes every one it then holds.
+    """Remove the stage's own files and manifest records from the clip, and leave another source's.
 
     A frame that gets no point cloud in the new run would otherwise keep the earlier run's cloud and record, and
-    the viewer would draw them. Another source's files and records stay.
+    the viewer would draw them.
     """
     for files in own_files(clip_dir).values():
         for path in files:
@@ -312,7 +313,7 @@ def run_pi3x(clip_dir: Path, model: Reconstructor, pixel_limit: int, conf_thre: 
             keep &= rec.conf[i].reshape(-1) > conf_thre
         gltf_pts, cols = gltf_pts[keep], colors[keep]
         if len(gltf_pts) == 0:
-            # A frame can hold no usable depth. The viewer shows no cloud for it; the other frames stand.
+            # A frame can hold no usable depth. The viewer shows no cloud for it; the other frames still get theirs.
             print(f"  frame {i:04d}: no usable depth, no point cloud")
             continue
         if max_points and len(gltf_pts) > max_points:
@@ -375,7 +376,7 @@ def main() -> None:
         raise SystemExit(f"no clip under {root}")
     model = Pi3X(device=args.device, gpu=args.gpu, pixel_limit=args.pixel_limit)
     print(f"{model.model_id} on {model.device}, {len(clips)} clip(s)")
-    # Run every clip, even after one fails. Any error, the GPU running out of memory among them, counts as the
+    # Run every clip, even after one fails. Any error, the GPU running out of memory included, counts as the
     # failure of that clip alone. The run lists each failure and exits non-zero.
     failed = []
     for clip_dir in clips:

@@ -2,8 +2,10 @@
 
 A backend is built with its settings. Its `reconstruct(image_paths)` returns
 a `Reconstruction`: depth, confidence, intrinsics and world-to-camera
-extrinsics for the frames. DA3 is the first backend, in `recon3d_wrapper.da3`.
-This package does not import it, so nothing here needs torch.
+extrinsics for the frames, and world points from a model that predicts them.
+The backends are DA3, in `recon3d_wrapper.da3`, and Pi3X, in
+`recon3d_wrapper.pi3x`. This package imports neither, so nothing here needs
+torch.
 """
 
 from collections.abc import Sequence
