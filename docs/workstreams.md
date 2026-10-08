@@ -77,13 +77,13 @@ say, in the form a session starting cold needs.
 
 `track_metrics` and `kmerge` wait on a decision not yet made; started before
 it, they would be ported twice. The tracking stage waits on a decision
-too, and the stages after tracking wait on the tracking stage. The questions are named as `docs/porting.md` heads
-them.
+too, and the stages after tracking wait on the tracking stage. The questions
+are named as `docs/porting.md` heads them.
 
 | piece | waits for |
 |---|---|
 | `track_metrics`, `kmerge` | "Identity metrics and merge cost" |
-| the tracking stage: `track_sam3.py`, `sam3_wrapper/` and their helpers | "The seed frame chosen from GT", and `track_metrics`, whose seed helpers it imports |
+| the tracking stage: `track_sam3.py`, `sam3_wrapper/` and their helpers | "The seed frame chosen from GT" and `track_metrics`, whose seed helpers it imports |
 | the export stages and the viewer | the tracking stage, whose output they read |
 
 The tracking stage reads GT in two places. With `--seed_auto` and the

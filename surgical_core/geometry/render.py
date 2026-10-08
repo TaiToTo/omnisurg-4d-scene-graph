@@ -47,8 +47,8 @@ def uses_geom_edge(mode):
     For the provenance record: `edge_ring_masked` records the `mask_ring`
     the edges were made with, so writing True or False for an input that
     burns no edges (`rgb`, `normal`, `depth`) would read as "made with that
-    setting". For those inputs the record writes `None`, and this is how it
-    tells.
+    setting". For those inputs the record writes `None`, and a stage calls
+    `uses_geom_edge` to tell them apart.
 
     Args:
         mode: one of `SAM_INPUT_MODES`.

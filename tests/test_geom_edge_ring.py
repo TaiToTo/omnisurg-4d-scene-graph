@@ -7,7 +7,8 @@ step at the rim of a hole. A contour standing there is not geometry.
 `mask_ring` zeroes that ring, and must not change a single pixel inside
 it: if it did, regenerating the edge conditions would measure some other
 change under the name of ring removal, and the images would look the same.
-The setting is an argument all the way from the segmenter input down.
+Every function from `sam_input_image` down to `geom_edge_map` takes the
+setting as an argument.
 """
 
 import numpy as np
