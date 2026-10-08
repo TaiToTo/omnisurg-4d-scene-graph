@@ -77,3 +77,71 @@ def test_inputs_a_fit_cannot_take_are_refused():
         ate(np.zeros((4, 3)), GT_C)
     with pytest.raises(ValueError, match="does not move"):
         ate(SIMILAR, np.ones((N, 3)))
+
+
+def test_rpe_of_the_truth_at_twice_the_scale_is_exactly_1():
+    # Every relative translation comes out twice as long as the truth's, so each error equals the truth's
+    # length, and the RMSE of the errors over the RMS of the truth's lengths is 1.
+    gt_R = np.tile(np.eye(3), (N, 1, 1))
+    assert abs(rpe(GT_C, gt_R, GT_C, gt_R, TIMES, 2.0, dt=1.0)["rpe_trans_rel"] - 1.0) < 1e-12
+
+
+def test_rpe_rotation_of_a_camera_turning_by_a_fixed_angle_a_frame():
+    # The frames are 24/119 s apart, so a pair spans 5 frames and the relative rotation of every pair is 5θ.
+    theta = 2.0
+    a = np.radians(theta) * np.arange(N)
+    est_R = np.stack([np.tile([1.0, 0.0, 0.0], (N, 1)), np.stack([np.zeros(N), np.cos(a), -np.sin(a)], 1),
+                      np.stack([np.zeros(N), np.sin(a), np.cos(a)], 1)], 1)
+    gt_R = np.tile(np.eye(3), (N, 1, 1))
+    q = rpe(GT_C, est_R, GT_C, gt_R, TIMES, 1.0, dt=1.0)
+    assert q["n_pairs"] == N - 5
+    assert abs(q["rpe_rot_deg"] - 5 * theta) < 1e-9
+
+
+def test_rpe_with_fewer_than_3_pairs_is_nan():
+    # Only frames 0 and 1 have a frame 23.7 s after them.
+    gt_R = np.tile(np.eye(3), (N, 1, 1))
+    q = rpe(GT_C, gt_R, GT_C, gt_R, TIMES, 1.0, dt=23.7)
+    assert q["n_pairs"] == 2 and np.isnan(q["rpe_trans_rel"]) and np.isnan(q["rpe_rot_deg"])
+
+
+def test_four_stretches_the_last_at_twice_the_scale_give_a_ratio_of_exactly_2():
+    est = SIMILAR.copy()
+    est[90:] *= 2.0
+    r = scale_consistency(est, GT_C)
+    assert len(r["scales"]) == 4
+    assert abs(r["scale_ratio"] - 2.0) < 1e-9
+    short = scale_consistency(SIMILAR[:15], GT_C[:15])
+    assert np.isnan(short["scale_ratio"]) and short["scales"] == []
+
+
+def test_the_fitted_scale_is_the_least_squares_scale_for_the_fitted_rotation():
+    # For a fixed rotation the best scale is Σ b·(R a) / Σ|a|², with a and b the centred points. A mirrored
+    # estimate makes the reflection guard act, and only then can the scale and the rotation disagree.
+    src, dst = SIMILAR * np.array([1.0, 1.0, -1.0]), GT_C
+    s, R, _ = umeyama(src, dst)
+    a, b = src - src.mean(0), dst - dst.mean(0)
+    assert abs(s - (b * (a @ R.T)).sum() / (a ** 2).sum()) < 1e-9 * abs(s)
+
+
+def test_rpe_refuses_frames_that_do_not_agree_and_times_out_of_order():
+    gt_R = np.tile(np.eye(3), (N, 1, 1))
+    # `times` says how many frames there are, so a shorter `times` is reported on the first other array.
+    with pytest.raises(ValueError, match="est_c has shape"):
+        rpe(GT_C, gt_R, GT_C, gt_R, TIMES[:-1], 1.0)
+    with pytest.raises(ValueError, match="gt_c has shape"):
+        rpe(GT_C, gt_R, GT_C[:-1], gt_R, TIMES, 1.0)
+    with pytest.raises(ValueError, match="times decrease"):
+        rpe(GT_C, gt_R, GT_C, gt_R, TIMES[::-1].copy(), 1.0)
+
+
+def test_a_value_that_is_not_finite_is_refused():
+    gt_R = np.tile(np.eye(3), (N, 1, 1))
+    hole = GT_C.copy()
+    hole[7, 1] = np.nan
+    with pytest.raises(ValueError, match="not finite"):
+        ate(hole, GT_C)
+    with pytest.raises(ValueError, match="not finite"):
+        scale_consistency(hole, GT_C)
+    with pytest.raises(ValueError, match="gt_c holds 1 values that are not finite"):
+        rpe(GT_C, gt_R, hole, gt_R, TIMES, 1.0)

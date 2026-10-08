@@ -1,27 +1,29 @@
 """Measure an estimated camera trajectory against the true one: ATE after a similarity fit, RPE, and scale drift.
 
-A monocular depth model knows no scale, so the estimated camera centres are
-first fitted to the true ones by one similarity transform (Umeyama: rotation,
-translation and one scale), and the error is the RMSE of the fitted centres.
-`ate` divides it by the true trajectory's RMS radius about its centroid, so
-a camera that never moves scores exactly 1.0: below 1.0, the poses carry
-information. Only `ate_rel` decides the result; `rpe` and
-`scale_consistency` help explain it. The model's extrinsics are
-world-to-camera and the camera centre is `-R^T t`; a camera-to-world pose
-holds the centre as its translation.
+The estimated camera centres are fitted to the true ones by one similarity
+transform (rotation, translation and one scale), and `ate` is the RMSE of
+the fitted centres over the true trajectory's RMS radius about its
+centroid. `rpe` is the error of the relative poses a fixed time apart, and
+`scale_consistency` the spread of the scales fitted on four equal
+stretches. Every measure refuses trajectories of unequal length, times out
+of order, and values that are not finite.
 """
 
 import numpy as np
 
 
 def centers_from_world_to_cam(E: np.ndarray) -> np.ndarray:
-    """Return the (N, 3) camera centres of (N, 3, 4) or (N, 4, 4) world-to-camera extrinsics."""
+    """Return the (N, 3) camera centres of (N, 3, 4) or (N, 4, 4) world-to-camera extrinsics.
+
+    A world-to-camera extrinsic maps `p_cam = R p_world + t`, so the camera centre is `-R^T t`; the depth
+    models write their extrinsics this way.
+    """
     R, t = E[:, :3, :3], E[:, :3, 3]
     return -np.einsum("nji,nj->ni", R, t)
 
 
 def centers_from_cam_to_world(T: np.ndarray) -> np.ndarray:
-    """Return the (N, 3) camera centres of (N, 4, 4) camera-to-world poses."""
+    """Return the (N, 3) camera centres of (N, 4, 4) camera-to-world poses, which hold the centre as `t`."""
     return T[:, :3, 3].copy()
 
 
@@ -30,20 +32,33 @@ def rot_from_world_to_cam(E: np.ndarray) -> np.ndarray:
     return np.transpose(E[:, :3, :3], (0, 2, 1))
 
 
+def _finite(name: str, *arrays: np.ndarray) -> None:
+    """Refuse an array with a value that is not finite; a missing pose would otherwise become a NaN score."""
+    for arr in arrays:
+        if not np.isfinite(arr).all():
+            raise ValueError(f"{name} holds {int((~np.isfinite(arr)).sum())} values that are not finite")
+
+
 def umeyama(src: np.ndarray, dst: np.ndarray) -> tuple[float, np.ndarray, np.ndarray]:
     """Solve `dst ≈ s R src + t` by least squares (Umeyama 1991).
+
+    A monocular depth model knows no scale, so its trajectory is compared only after this fit. `R` is a
+    rotation, never a reflection. A trajectory that lies in one plane is the exception the fit cannot tell:
+    its mirror image is reached by a rotation too, and is fitted at zero error.
 
     Returns:
         (scale, (3, 3) rotation, (3,) translation). Source points that all coincide give scale 0 and the
         identity, which is what a camera that never moves gets.
 
     Raises:
-        ValueError: the inputs are not two (N, 3) arrays of one shape, or hold fewer than 3 points.
+        ValueError: the inputs are not two (N, 3) arrays of one shape, hold fewer than 3 points, or hold a
+            value that is not finite.
     """
     if src.shape != dst.shape or src.ndim != 2 or src.shape[1] != 3:
         raise ValueError(f"two (N, 3) arrays are needed, not {src.shape} and {dst.shape}")
     if len(src) < 3:
         raise ValueError(f"{len(src)} points; a similarity fit needs 3")
+    _finite("the centres", src, dst)
     mu_s, mu_d = src.mean(0), dst.mean(0)
     a, b = src - mu_s, dst - mu_d
     var_s = float((a ** 2).sum(1).mean())
@@ -67,6 +82,10 @@ def gt_span(gt_c: np.ndarray) -> float:
 def ate(est_c: np.ndarray, gt_c: np.ndarray) -> dict:
     """Fit the estimate to the truth by a similarity, and return the RMSE of the centres over the truth's span.
 
+    The span is the denominator because of what it makes of a camera that never moves: the fit puts it at
+    the truth's centroid, its RMSE is the span itself, and it scores exactly 1.0. So a trajectory below 1.0
+    carries information, and no threshold has to be chosen.
+
     Args:
         est_c: (N, 3) estimated camera centres.
         gt_c: (N, 3) true camera centres, in mm.
@@ -75,7 +94,8 @@ def ate(est_c: np.ndarray, gt_c: np.ndarray) -> dict:
         `ate_rel` (the measure), `ate_mm`, `span_mm`, `scale`, `err_mm` (per frame) and `n`.
 
     Raises:
-        ValueError: the two have different numbers of frames, or the truth does not move.
+        ValueError: the two have different numbers of frames, `umeyama` refuses them, or the truth does not
+            move.
     """
     if len(est_c) != len(gt_c):
         raise ValueError(f"{len(est_c)} estimated frames against {len(gt_c)} true ones")
@@ -98,21 +118,36 @@ def rpe(est_c: np.ndarray, est_R: np.ndarray, gt_c: np.ndarray, gt_R: np.ndarray
     """Return the error of the relative poses `dt` seconds apart, a local measure of the trajectory.
 
     ATE follows one large failure; RPE does not. The translations take the one scale `ate`'s fit found.
+    Frame `i` is paired with the first frame at least `dt` seconds after it.
 
     Args:
-        est_c, est_R: the estimated camera centres and camera-to-world rotations.
-        gt_c, gt_R: the true ones.
-        times: each frame's time in seconds, ascending.
+        est_c: (N, 3) estimated camera centres.
+        est_R: (N, 3, 3) estimated camera-to-world rotations.
+        gt_c: (N, 3) true camera centres.
+        gt_R: (N, 3, 3) true camera-to-world rotations.
+        times: (N,) each frame's time in seconds, never decreasing.
         scale: the scale of `ate`'s fit.
         dt: the time between the two frames of a pair.
 
     Returns:
         `rpe_trans_rel` (the RMSE of the relative translations over their RMS), `rpe_rot_deg` (the median
         rotation error) and `n_pairs`. With fewer than 3 pairs, both errors are NaN.
+
+    Raises:
+        ValueError: the five arrays do not describe one number of frames, `times` decreases somewhere, or a
+            value is not finite.
     """
+    n = len(times)
+    shapes = {"est_c": (n, 3), "est_R": (n, 3, 3), "gt_c": (n, 3), "gt_R": (n, 3, 3), "times": (n,)}
+    for name, arr in zip(shapes, (est_c, est_R, gt_c, gt_R, times)):
+        if arr.shape != shapes[name]:
+            raise ValueError(f"{name} has shape {arr.shape}; {shapes[name]} is needed for {n} frames")
+        _finite(name, arr)
+    if np.any(np.diff(times) < 0):
+        raise ValueError("times decrease somewhere; the pairs are found by searching them in order")
     j = np.searchsorted(times, times + dt)
-    i = np.arange(len(times))
-    ok = j < len(times)
+    i = np.arange(n)
+    ok = j < n
     i, j = i[ok], j[ok]
     if len(i) < 3:
         return dict(rpe_trans_rel=float("nan"), rpe_rot_deg=float("nan"), n_pairs=len(i))
@@ -137,6 +172,9 @@ def scale_consistency(est_c: np.ndarray, gt_c: np.ndarray, n_parts: int = 4) -> 
     Returns:
         `scale_ratio` (largest over smallest) and `scales`. NaN when the sequence is shorter than 4 frames a
         stretch, or a stretch's fitted scale is 0.
+
+    Raises:
+        ValueError: `umeyama` refuses a stretch.
     """
     n = len(gt_c)
     if n < n_parts * 4:
