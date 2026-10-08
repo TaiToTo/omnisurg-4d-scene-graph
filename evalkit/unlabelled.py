@@ -3,8 +3,9 @@
 Every view removes background, so no other key sees a region that runs from
 a labelled organ into unlabelled tissue. This key counts it instead.
 `docs/evaluation.md` defines the key ("What each key is, per frame") and
-says why background is removed ("Views"). The key reads no GT class, only
-where the GT is unlabelled. It is a reference value, and no verdict reads it.
+says why background is removed ("Background"). The key reads no GT class,
+only where the GT is unlabelled. It is a reference value, and no verdict
+reads it.
 
 `docs/figures/unlabelled_share.png` shows this on a drawn scene, with the
 numbers the module gives for it.

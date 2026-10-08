@@ -2,11 +2,12 @@
 
 `summarize_clip` averages the per-frame keys of `evalkit.frame` over the
 clip's GT frames, view by view. Each mean covers only the frames on which
-its key is defined, and the number of those frames is kept beside it. The
-excluded frames are counted, and the pixel and object counts are summed. A
-clip with no scored frame is refused. `time_IoU` is passed in, because it
-pools every tracked frame, GT or not, and the entry point computes it. PQ is
-not stored; `pq` gives it per frame. Pilot mode does not use this summary.
+its key is defined, and the summary records the number of those frames.
+The excluded frames are counted, and the pixel and object counts are
+summed. A clip with no scored frame is refused. `time_IoU` is passed in.
+It pools every tracked frame, GT or not, so the entry point computes it.
+PQ is not stored; `pq` gives it per frame. Pilot mode does not call
+`summarize_clip`.
 """
 from __future__ import annotations
 

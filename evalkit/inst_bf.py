@@ -28,8 +28,9 @@ class InstanceBoundary:
             None when no hit has one, which includes a frame with no hit.
         scores: One entry per hit, in the order of `InstanceScores.hits`:
             the hit's boundary score, or None when its GT object has no
-            boundary pixel within the scored pixels. Pilot mode reads them
-            to apply the pilot evaluator's own zeros and its own F.
+            boundary pixel within the scored pixels. Pilot mode reads these
+            entries to score such a hit 0 and to compute F as the pilot
+            evaluator did.
         n_hits: The hits of the frame.
         n_entered: The hits that entered the mean.
     """
