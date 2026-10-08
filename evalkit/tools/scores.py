@@ -38,9 +38,7 @@ PILOT_EVAL_CODE_SHA = "1f8a813a5be31dd204fe4130a1799053411c41166f19821f80ca30d3a
 # All or none: a JSON with a part of them is refused.
 EVALUATOR_FIELDS = ("class_set", "views", "pilot", "input_shas", "versions", "propagation")
 
-# The propagation rule of a condition with no tracker. It may be compared
-# with a condition of either rule, because the paper compares tracking with
-# per-frame segmentation. No two other rules are compared.
+# The rule of a condition with no tracker; it may be compared with either rule.
 PER_FRAME = "per_frame"
 
 # The pilot evaluator's four domains, which its JSONs score in place of views.
@@ -128,7 +126,7 @@ def is_pilot_json(summary: Mapping) -> bool:
     return not present
 
 
-def propagation_of(summary: Mapping) -> str | None:
+def propagation_rule_of(summary: Mapping) -> str | None:
     """Return the propagation rule a JSON records, or None for a pilot JSON, which records none.
 
     Raises:
@@ -162,7 +160,7 @@ def check_one_rule(summaries: Mapping[str, Mapping]) -> str | None:
     """
     by_rule: dict[str, list[str]] = {}
     for tag, summary in summaries.items():
-        rule = propagation_of(summary)
+        rule = propagation_rule_of(summary)
         if rule is not None:
             by_rule.setdefault(rule, []).append(tag)
     rules = sorted(set(by_rule) - {PER_FRAME})
@@ -391,7 +389,7 @@ def check_comparable(
         )
     # The rule the predictions were propagated under. A difference between
     # two rules would look like a difference between the methods.
-    rule_a, rule_b = propagation_of(a), propagation_of(b)
+    rule_a, rule_b = propagation_rule_of(a), propagation_rule_of(b)
     if rule_a != rule_b and PER_FRAME not in (rule_a, rule_b):
         raise ValueError(
             "two conditions propagated under different rules cannot be compared: the difference\n"

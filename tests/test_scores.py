@@ -127,7 +127,7 @@ def test_an_evaluator_json_without_a_rule_is_neither_kind():
 
 
 def test_a_pilot_json_records_no_rule_and_two_of_them_compare_as_before():
-    assert scores.propagation_of(pilot_json()) is None
+    assert scores.propagation_rule_of(pilot_json()) is None
     assert "propagation" not in check_comparable(pilot_json(), pilot_json())
 
 
