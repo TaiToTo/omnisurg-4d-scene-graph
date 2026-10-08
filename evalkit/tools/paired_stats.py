@@ -39,6 +39,7 @@ import numpy as np
 from evalkit.tools.scores import (
     PILOT_SIGNS,
     check_comparable,
+    check_one_rule,
     defined_clips,
     is_pilot_json,
     load_scores,
@@ -291,8 +292,8 @@ def compare_pair(ja: dict, jb: dict, drop: Sequence[str] = (), allow_legacy_code
     Returns:
         `n_clips`, `n_videos`, `dropped_videos`, `eval_code`, `population`,
         `metrics` (key to its statistics; a key absent from the JSONs or
-        defined on no common clip is left out), and `versions_differ` when
-        the check reports it.
+        defined on no common clip is left out), and `propagation` and
+        `versions_differ` when the check reports them.
 
     Raises:
         ValueError: The two JSONs are not comparable, `drop` names a video
@@ -325,8 +326,12 @@ def compare_pair(ja: dict, jb: dict, drop: Sequence[str] = (), allow_legacy_code
     out = dict(n_clips=len(clips), n_videos=int(len(set(vids))), dropped_videos=sorted(drop),
                # What it was measured with stays with the result.
                eval_code=chk["eval_code"], population=chk["population"], metrics=res)
-    if "versions_differ" in chk:
-        out["versions_differ"] = chk["versions_differ"]
+    # Copy the two fields the check returns only sometimes: `propagation`
+    # (absent for pilot JSONs) and `versions_differ` (absent when the
+    # versions match).
+    for k in ("propagation", "versions_differ"):
+        if k in chk:
+            out[k] = chk[k]
     return out
 
 
@@ -372,24 +377,46 @@ def main() -> None:
     ap.add_argument("--out", default="", help="Write the statistics of every pair to this JSON.")
     args = ap.parse_args()
 
+    # Every pair's two JSONs, read before any is compared.
     drop = {v.strip() for v in args.drop_video.split(",") if v.strip()}
-    out = {}
+    pairs, loaded = [], {}
     for pair in [p.strip() for p in args.pairs.split(",") if p.strip()]:
         try:
             base, sep, cond = pair.partition(":")
             if not (sep and base and cond) or ":" in cond:
                 raise ValueError("--pairs takes <base>:<cond>")
-            ja, jb = load_json(base, args.eval_dir), load_json(cond, args.eval_dir)
-            out[pair] = compare_pair(ja, jb, drop, allow_legacy_code=args.allow_legacy_code)
+            for tag in (base, cond):
+                if tag not in loaded:
+                    loaded[tag] = load_json(tag, args.eval_dir)
         except (ValueError, OSError) as e:
             raise SystemExit(f"{pair}: {e}") from e
-        _print_pair(base, cond, out[pair], keys_of(ja))
+        pairs.append((pair, base, cond))
+
+    # One rule for the whole run, because all its pairs go into one JSON.
+    # Checking each pair misses a mix: a per_frame condition paired once
+    # with each rule passes both checks.
+    try:
+        rule = check_one_rule(loaded)
+    except ValueError as e:
+        raise SystemExit(f"--pairs: {e}") from e
+
+    # The statistics of each pair, printed as they come.
+    out = {}
+    for pair, base, cond in pairs:
+        try:
+            out[pair] = compare_pair(loaded[base], loaded[cond], drop, allow_legacy_code=args.allow_legacy_code)
+        except ValueError as e:
+            raise SystemExit(f"{pair}: {e}") from e
+        _print_pair(base, cond, out[pair], keys_of(loaded[base]))
 
     if args.out:
         os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
+        head = {"n_boot": N_BOOT, "seed": SEED, "seed_scheme": SEED_SCHEME}
+        # A pilot JSON records no rule, so none is written.
+        if rule is not None:
+            head["propagation"] = rule
         with open(args.out, "w", encoding="utf-8") as f:
-            json.dump({"n_boot": N_BOOT, "seed": SEED, "seed_scheme": SEED_SCHEME, "pairs": out}, f,
-                      indent=1, allow_nan=False)
+            json.dump({**head, "pairs": out}, f, indent=1, allow_nan=False)
         print(f"\n→ {args.out}")
 
 
