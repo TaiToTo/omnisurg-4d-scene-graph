@@ -2,9 +2,9 @@
 
 The values are the pilot evaluator's, derived from each scene's areas for the
 metric guide; pilot mode must give them, so they are kept rather than derived
-again under the evaluator's rules. Then the clip: how the pilot averaged,
-what it wrote where nothing was defined, the order it read the frames in, and
-the frames it scored.
+again under the evaluator's rules. The tests on a clip check how the pilot
+averaged, what it wrote where nothing was defined, the order it read the
+frames in, and the frames it scored.
 """
 import json
 import math
@@ -42,7 +42,7 @@ def test_exact():
 
 @pytest.mark.parametrize("k", [1, 2, 3, 4, 10])
 def test_shifted_boundary(k):
-    """F1_50 ignores the shift; SQ and mIoU see it; the boundary counts the columns within 2 px."""
+    """F1_50 ignores the shift; SQ and mIoU fall with it; the boundary counts the columns within 2 px."""
     f = frame(S.shifted(k))
     iou1, iou2 = S.HALF / (S.HALF + k), (S.HALF - k) / S.HALF
     assert f["inst"]["full"]["f1_50"] == 1.0
@@ -71,7 +71,7 @@ def test_merged_classes():
 
 
 def test_gap_without_region():
-    """The class map is background in the gap, so its boundary sits 5 px from the true one."""
+    """The class map is background in the gap, so its boundary is 5 px from the true one."""
     f = frame(S.gap(10))
     assert f["inst"]["full"]["f1_50"] == 1.0
     assert f["boundary_f"] == 0.0
@@ -104,7 +104,7 @@ def test_time_iou():
 
 
 def test_the_pilot_s_colours_read_hepatic_vein_s_real_colour_as_background(tmp_path):
-    """The pilot drew Hepatic Vein as (0, 255, 0), which no mask holds, and read the
+    """The pilot read (0, 255, 0), which no mask holds, as Hepatic Vein, and read the
     mask's (0, 50, 128) and the region line's white as background."""
     rgb = np.zeros((6, 4, 3), np.uint8)
     rgb[:2], rgb[2:4], rgb[4:] = (0, 50, 128), (0, 255, 0), (255, 255, 255)
@@ -164,7 +164,7 @@ def test_the_frames_come_in_file_name_order_as_the_pilot_read_them(tmp_path):
 
 
 def test_a_mask_the_viewer_wrote_is_not_scored_as_gt(tmp_path):
-    # The pilot's data root held the annotated masks only; the viewer's masks, marked by seg_provenance, are
+    # The pilot's data root held the annotated masks only; the viewer's masks, marked by `seg_provenance`, are
     # not among the frames it scored.
     pilot_clip_dir(tmp_path, [f"label_{i:04d}.npy" for i in range(3)])
     path = tmp_path / "data" / "c" / MANIFEST

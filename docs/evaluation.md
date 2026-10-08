@@ -630,8 +630,7 @@ pilot evaluator's numbers.
     objects, and regions of at least that size as predicted objects;
   - the pixels whose depth is not finite or not above `DEPTH_MIN` masked
     out and counted, where normal mode refuses the frame;
-  - frames in file order for `time_IoU`, and as GT frames every frame with
-    a prediction whose mask file exists, the manifest unread;
+  - frames in file order for `time_IoU`;
   - the pilot evaluator's values in place of undefined ones, zeros where it
     wrote zeros and None where it wrote None: a frame with no class enters
     the `mIoU` mean as 0; a clip on which no frame has a GT object in a
@@ -651,7 +650,8 @@ pilot evaluator's numbers.
 - Every difference in the normal mode then comes from a rule this document
   changes, and is listed.
 - A score made in pilot mode is marked as such and never enters a comparison
-  with a normal one.
+  with a normal one. So pilot mode scores a condition that holds no
+  propagation rule, and records its `propagation` as `neither`.
 - Pilot mode exists for this check alone. It is removed from the evaluator
   once the check has passed and before the evaluator is frozen, so the
   frozen evaluator has one mode.

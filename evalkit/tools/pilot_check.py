@@ -3,9 +3,10 @@
 The verification of `docs/evaluation.md`, "Checked against the pilot
 evaluator". For each condition, matched by tag, the pilot evaluator's
 JSON and this evaluator's pilot-mode JSON (`evalkit.evaluate --pilot`)
-must hold the same value, None included, for every pair of keys in
-`SHARED`, and the same number of frames behind each, `COUNTS`, with no
-tolerance. The result names the evaluator's sha, the one the freeze
+must hold, with no tolerance:
+- the same value, None included, for every pair of keys in `SHARED`;
+- the same number of frames behind each key, for every pair in `COUNTS`.
+The result names the evaluator's `eval_code_sha`, the one the freeze
 records. The check runs where the pilot evaluator and its scores are.
 
 Usage:
@@ -56,7 +57,7 @@ def _shared() -> tuple[tuple[str, str], ...]:
 
 
 # `(pilot key, evaluator key)` for every key the two evaluators share. A key the
-# evaluator replaced (`inst_F1_75`, `PQ`, the counts) is not compared: the replacement is the point.
+# evaluator replaced (`inst_F1_75`, `PQ`, the counts outside `COUNTS`) is not compared: the replacement is the point.
 SHARED = _shared()
 
 
@@ -75,7 +76,7 @@ def _counts() -> tuple[tuple[str, str], ...]:
 
 # `(pilot count, evaluator key)`: the frames behind each shared key, which the
 # evaluator's row holds under `n_frames`. A clip mean rounded to four decimals
-# can absorb a frame left out or added; its count cannot.
+# can stay the same when a frame is left out or added; the count cannot.
 COUNTS = _counts()
 
 
@@ -101,7 +102,7 @@ def diff_shared(pilot: Mapping, ours: Mapping) -> list[str]:
     Returns:
         One line per difference: a clip only one side scored, a shared key
         or count the evaluator's row lacks, or a value or count that is not
-        equal. Empty when every one is equal on every clip.
+        equal. Empty when every value and count is equal on every clip.
 
     Raises:
         ValueError: `pilot` is not the pilot evaluator's (another sha, or

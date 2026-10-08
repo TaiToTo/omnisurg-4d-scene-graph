@@ -86,12 +86,15 @@ Where they and this document differ, this document holds.
     numbers. Pilot mode is `python -m evalkit.evaluate --pilot`, which
     scores each clip through `evalkit/pilot_clip.py`; it is not a script of
     its own. Once the check has passed, everything only pilot mode uses is
-    removed: `evalkit/pilot.py`, `evalkit/pilot_clip.py`, the entry point's
-    `--pilot`, and the `pilot` arguments of `evalkit/scored.py` and
-    `evalkit/inst_bf.py`. The normal-mode tests must still pass, and then
-    the evaluator is frozen. Moving pilot mode out of `evalkit/` was the
-    alternative. It could then be deleted at any time, but the check would
-    reach a driver of its own and never the entry point.
+    removed:
+    - `evalkit/pilot.py` and `evalkit/pilot_clip.py`;
+    - the entry point's `--pilot`;
+    - the `pilot` arguments of `evalkit/scored.py` and `evalkit/inst_bf.py`.
+
+    The normal-mode tests must still pass, and then the evaluator is frozen.
+    Moving pilot mode out of `evalkit/` was the alternative. It could then be
+    deleted at any time, but the check would reach a driver of its own and
+    never the entry point.
 12. **Two propagation rules, and no seed chosen from GT.** Every tracked
     condition the paper reports is measured under the two propagation rules
     `docs/evaluation.md` defines: `forward_from_first`, the causal setting,

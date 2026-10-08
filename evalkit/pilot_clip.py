@@ -1,13 +1,13 @@
-"""Pilot mode: one clip read, scored and averaged by the pilot evaluator's rules.
+"""Read, score and average one clip by the pilot evaluator's rules, in pilot mode.
 
 Pilot mode exists for the check against the pilot evaluator and is removed
-before the freeze. It reads what the pilot read: every `label_<i>.npy` in
-file-name order, the mask of each GT frame the manifest's flags give, a
-colour mask through the pilot's own colours, and the pixels with valid
-depth. The pilot read a mask wherever its file was, but its data root held
-the annotated masks only, so the flags give the frames it scored. Each
-frame is scored with the evaluator's modules under the pilot's objects and
-domains (`evalkit.pilot`), with the pilot's arithmetic where it differs.
+before the freeze. This module reads what the pilot evaluator read:
+- every `label_<i>.npy`, in file-name order;
+- the mask of each GT frame that the manifest's flags give;
+- a colour mask, mapped to ids by the pilot's own colours;
+- the pixels with valid depth.
+Each frame is scored with the evaluator's modules under the pilot's objects
+and domains (`evalkit.pilot`), with the pilot's arithmetic where it differs.
 The clip is averaged and rounded as the pilot did. The row holds the keys
 `evalkit.tools.pilot_check` compares, spelled the evaluator's way.
 """
@@ -57,7 +57,7 @@ _F_EPSILON = 1e-9
 
 
 def _pilot_gt(mask_dir: Path, i: int, shape: tuple[int, int]) -> tuple[np.ndarray, Path] | None:
-    """Frame `i`'s GT ids at `shape`, as the pilot read them, and the file; None without a mask."""
+    """Return frame `i`'s GT ids at `shape`, as the pilot read them, and the file; None without a mask."""
     colour = mask_dir / f"{i:06d}_color_mask.png"
     if colour.is_file():
         bgr = cv2.imread(str(colour))
@@ -89,7 +89,7 @@ def _pilot_f(score: BoundaryScore | None) -> float:
 
 
 def pilot_frame(gt: np.ndarray, regions: np.ndarray, valid: np.ndarray, instrument_ids: frozenset[int]) -> dict:
-    """One frame's values by the pilot's rules, unrounded.
+    """Score one frame by the pilot's rules, and return its values unrounded.
 
     Returns:
         `miou`, `boundary_f` and `boundary_r_raw` on the `full` domain;
@@ -143,7 +143,7 @@ def pilot_frame(gt: np.ndarray, regions: np.ndarray, valid: np.ndarray, instrume
 
 
 def pilot_time_iou(regions: Sequence[np.ndarray], valid: Sequence[np.ndarray]) -> float:
-    """`time_IoU` as the pilot computed it: ids in its set order, and 0 where nothing is pooled."""
+    """Compute `time_IoU` as the pilot did: ids in its set order, and 0 where nothing is pooled."""
     values = []
     for t in range(len(regions) - 1):
         a, b = regions[t], regions[t + 1]
@@ -168,7 +168,7 @@ def _rounded(value: float | None) -> float | None:
 
 
 def pilot_row(clip: str, frames: list[tuple[int, dict]], time_iou: float) -> dict:
-    """The clip's row: each key averaged over its frames as the pilot did, rounded, with the counts.
+    """Build the clip's row: each key averaged over its frames as the pilot did, rounded, with the counts.
 
     Args:
         clip: The clip's name.
@@ -227,7 +227,7 @@ def score_pilot_clip(data_root: str | Path, tracks_root: str | Path, tag: str, c
     """Score one clip in pilot mode.
 
     Returns:
-        The clip's row and the sha of each input read.
+        The clip's row and the hash of each input read.
 
     Raises:
         FileNotFoundError: The manifest, the depth or the prediction directory is missing.
@@ -239,6 +239,8 @@ def score_pilot_clip(data_root: str | Path, tracks_root: str | Path, tag: str, c
     frames_listed = json.loads((clip_dir / MANIFEST).read_text(encoding="utf-8"))["frames"]
     with_mask = {i for i in range(len(frames_listed))
                  if (clip_dir / MASK_DIR / f"{i:06d}{MASK_SUFFIX[dataset]}").is_file()}
+    # The pilot evaluator read every mask file, but its data root held the annotated masks only. The flags
+    # give those frames, also on a copy that holds the viewer's masks as well.
     gt_set = set(gt_frames(frames_listed, GT_FLAG[dataset], with_mask, clip))
     with np.load(clip_dir / DEPTH_FILE) as z:
         depth = np.asarray(z["depth"], dtype=np.float32)
@@ -250,7 +252,7 @@ def score_pilot_clip(data_root: str | Path, tracks_root: str | Path, tag: str, c
     if not label_paths:
         raise ValueError(f"{clip}: no label_*.npy in {label_dir}")
 
-    # Every predicted frame in file order; the ones with a mask are scored.
+    # Every predicted frame in file order; the GT frames among them are scored.
     regions, valids, frames, mask_paths = [], [], [], []
     for p in label_paths:
         i = int(p.name[len("label_"):-len(".npy")])

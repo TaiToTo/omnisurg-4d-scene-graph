@@ -5,8 +5,10 @@ in every view (`evalkit.frame`), pools `time_IoU` over every frame with a
 prediction, and averages over the frames (`evalkit.clip`). The JSON holds
 what `docs/evaluation.md` records with every score, one row per clip, and
 the per-frame values, with the condition's propagation rule as its tracker
-recorded it. A clip that cannot be scored stops the run, and no JSON is
-written: a population is scored whole or not at all.
+recorded it. With `--pilot`, `evalkit.pilot_clip` reads and scores each
+clip by the pilot evaluator's rules instead. A clip that cannot be scored
+stops the run, and no JSON is written: a population is scored whole or not
+at all.
 
 Usage:
     python -m evalkit.evaluate --dataset cholecseg8k --clips clips.txt \\
@@ -164,7 +166,8 @@ def condition_rule(tracks_root: str | Path, tag: str, clips: Sequence[str], stat
         tag: The condition's directory name under each clip.
         clips: The population.
         stated: The rule the caller states, for a condition whose labels carry no `seed_info.json`.
-        pilot: Pilot mode, which records `NO_RULE` where normal mode refuses for want of a rule.
+        pilot: Record `NO_RULE` for a record that holds no rule, and for no record and no statement, where
+            normal mode refuses both.
 
     Raises:
         ValueError: The stated rule is not one; a clip's record holds no rule (`rule_of_seed_info`); some
