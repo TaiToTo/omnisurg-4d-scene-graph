@@ -20,8 +20,8 @@ import pytest
 
 META = Path(__file__).resolve().parent.parent / "atlas120k_meta"
 
-# Anything that looks like a filesystem path on a development machine. The
-# workbench's manifests carried one such path when they were copied.
+# Anything that looks like a filesystem path on a development machine.
+# `videos.json` carried one such path when it was copied.
 MACHINE_PATH = re.compile(r"/(home|var/autofs|mnt|Users)/")
 # Any CJK character, including the full-width punctuation the workbench's notes
 # used around dates: the notes were translated on the way in, and a fresh copy

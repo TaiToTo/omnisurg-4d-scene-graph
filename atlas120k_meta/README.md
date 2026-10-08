@@ -19,10 +19,17 @@ clip. Nothing is excluded on a score. Crop rectangles select nothing. A clip
 with a cut in its recording is used whole. `pipeline/extract_atlas120k.py`
 applies the rule.
 
-`videos/videos.json` is the inventory of the release's tree, made by an
-earlier extraction of it (96 videos, 438 clips; stride 3 annotated frames, at
-least 15 of them, a clip with a mask gap dropped whole). The overlap check
-below reads it.
+A cut is a scene change in the mp4, judged by eye in the workbench. Two of
+the 315 clips contain cuts: `cholecystectomy__1ud3syYKD3A__gt_0001` contains
+six, and `cholecystectomy__Bj13QcLRCVc__gt_0001` contains one candidate left
+undecided. No measurement of the paper reads the cuts.
+
+`videos/videos.json` is the inventory of the release's tree: all 100 videos
+and their 502 clips. An earlier extraction wrote it, so its `keep`,
+`dropped` and count fields follow that extraction's rule (stride 3
+annotated frames, at least 15 of them, a clip with a mask gap dropped
+whole), not the paper's. The overlap check below reads only `native_range`
+and `n_native`.
 
 Some clips of the release overlap:
 
@@ -55,15 +62,17 @@ whose ranges intersect, and checks the population against them.
 | `frame_ratio.json` | per video, the measured ratio between the clip index's frame numbers and the mp4's (1, 2, 3 or 4), with the frame pair it was matched on and their pixel difference; all 97 videos | `outputs/crop_cuts/_align2.json` |
 | `videos/videos.json` | the 100-video tree: per video its mp4, clips, frame counts, why any was dropped | `ipcai2027_experiment/task22_atlas100/out/manifest/videos.json` |
 
-Clip names: `<procedure>__<video>__gt_<n>` in the population files and the
-depth manifest, `<procedure>/<video>/clip_<n>` as `key` elsewhere.
+Clip names: `<procedure>__<video>__gt_<n>` in `clips.txt` and
+`depth_manifest.json`, `<procedure>/<video>/clip_<n>` as `key` in
+`crop_rects.json`. `videos.json` gives `procedure`, `video` and `clip` as
+separate fields.
 
 The files are byte copies of the workbench's, except that an absolute path
-(`atlas_root` in `videos.json`) was removed and free-text `note` fields were
-translated from Japanese. Nothing reads the notes. The workbench's other
-files about this tree (the cut marks, the audits of the earlier extraction,
-its clip lists) are not carried for now. No measurement of the paper reads
-them. `docs/porting.md` lists them under "Not carried for now".
+(`atlas_root` in `videos.json`) was removed and the eight `note` fields of
+`crop_rects.json` were translated from Japanese. Nothing reads the notes.
+The workbench's other files about this tree (the cut marks, the audits of
+the earlier extraction, its clip lists) are not carried for now. No
+measurement of the paper reads them.
 
 `frame_ratio.json` is the exception: it was assembled from the measurement's
 output, which was git-ignored in the workbench and is no longer on disk. The
