@@ -23,7 +23,7 @@ def depth_to_colormap(depth: np.ndarray, cmap: str = "Spectral", percentile: flo
     Returns:
         (H, W, 3) uint8 RGB.
     """
-    # Imported here so that the module imports without the extra; the stages set the Agg backend first.
+    # Imported here so that the module imports without the extra. Only the colormap tables are used, no backend.
     import matplotlib
 
     disp = np.zeros_like(depth)

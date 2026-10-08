@@ -6,7 +6,7 @@ readers, two conditions on the same inputs must be comparable, and one on
 another GT must not. A run that fails writes nothing. The JSON records the
 condition's propagation rule as every clip's `seed_info.json` gives it. A
 seed that holds no rule, a seed from the GT among them, and a record on some
-clips but not on the others are refused.
+clips but not on the others are refused, in pilot mode too.
 """
 import json
 import shutil
@@ -39,8 +39,9 @@ def write_condition(tmp_path, tag, regions_of=lambda gt: gt.copy(), clips=CLIPS,
                        seed_info=seed_info)
 
 
-def score(tmp_path, tag, data="data", clips=CLIPS, propagation=None):
-    return score_condition("cholecseg8k", None, clips, tmp_path / data, tmp_path / "tracks", tag, propagation)
+def score(tmp_path, tag, data="data", clips=CLIPS, propagation=None, pilot=False):
+    return score_condition("cholecseg8k", None, clips, tmp_path / data, tmp_path / "tracks", tag, propagation,
+                           pilot=pilot)
 
 
 def test_a_perfect_prediction_scores_one_on_every_key_and_the_tools_read_the_json(tmp_path):
@@ -157,10 +158,11 @@ def test_the_json_records_the_rule_each_clip_s_seed_info_gives(tmp_path, info, r
     ({"seed_source": "sam", "seed_frame": 1, "frames": [0, 1, 2]}, "lacks the seed frame, bidir"),
     ({"seed_source": "sam", "seed_frame": 1, "bidir": True, "frames": "all"}, "lacks the seed frame, bidir"),
 ])
-def test_a_seed_that_holds_no_rule_is_refused(tmp_path, info, why):
+@pytest.mark.parametrize("pilot", [False, True])
+def test_a_seed_that_holds_no_rule_is_refused(tmp_path, info, why, pilot):
     write_condition(tmp_path, "c", seed_info=info)
     with pytest.raises(ValueError, match=f"holds no propagation rule: .*{why}"):
-        score(tmp_path, "c")
+        score(tmp_path, "c", pilot=pilot)
 
 
 def test_a_record_on_some_clips_and_none_on_the_others_is_refused(tmp_path):
@@ -170,6 +172,8 @@ def test_a_record_on_some_clips_and_none_on_the_others_is_refused(tmp_path):
         score(tmp_path, "c")
     with pytest.raises(ValueError, match="on every clip or on none"):
         score(tmp_path, "c", propagation="both_ways_from_centre")
+    with pytest.raises(ValueError, match="on every clip or on none"):
+        score(tmp_path, "c", pilot=True)
 
 
 def test_two_rules_in_one_condition_are_refused(tmp_path):
@@ -185,8 +189,31 @@ def test_a_statement_that_contradicts_the_records_is_refused(tmp_path):
         score(tmp_path, "c", propagation="forward_from_first")
 
 
-def test_labels_without_a_record_need_the_rule_stated(tmp_path):
+@pytest.mark.parametrize("pilot", [False, True])
+def test_labels_without_a_record_need_the_rule_stated(tmp_path, pilot):
     write_condition(tmp_path, "c", seed_info=None)
     with pytest.raises(ValueError, match="state the rule with --propagation"):
-        score(tmp_path, "c")
-    assert score(tmp_path, "c", propagation="per_frame")["propagation"] == "per_frame"
+        score(tmp_path, "c", pilot=pilot)
+    assert score(tmp_path, "c", propagation="per_frame", pilot=pilot)["propagation"] == "per_frame"
+
+
+@pytest.mark.parametrize("order", [CLIPS, CLIPS[::-1]])
+def test_pilot_mode_refuses_a_gt_seed_beside_a_clip_without_a_record_in_either_order(tmp_path, order):
+    # Every clip is read before the condition's rule is settled, so the population's order cannot hide a refusal.
+    write_condition(tmp_path, "c", clips=CLIPS[:1], seed_info={"seed_source": "gt", "seed_frame": 1,
+                                                               "bidir": True, "frames": [0, 1, 2]})
+    write_condition(tmp_path, "c", clips=CLIPS[1:], seed_info=None)
+    with pytest.raises(ValueError, match="not from the tracker's own masks"):
+        score(tmp_path, "c", clips=list(order), pilot=True)
+
+
+def test_pilot_mode_refuses_a_record_it_cannot_parse(tmp_path):
+    write_condition(tmp_path, "c", seed_info=None)
+    for clip in CLIPS:
+        (tmp_path / "tracks" / clip / "c" / "seed_info.json").write_text("{", encoding="utf-8")
+    with pytest.raises(ValueError, match="holds no propagation rule: Expecting"):
+        score(tmp_path, "c", pilot=True)
+    for clip in CLIPS:
+        (tmp_path / "tracks" / clip / "c" / "seed_info.json").write_bytes(b"\xff\xfe{")
+    with pytest.raises(ValueError, match="holds no propagation rule: 'utf-8' codec"):
+        score(tmp_path, "c", pilot=True)

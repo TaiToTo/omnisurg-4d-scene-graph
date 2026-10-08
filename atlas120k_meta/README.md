@@ -10,12 +10,14 @@ count in a directory name.
 
 `clips.txt` lists the **315 clips from 91 videos** the paper measures. The
 rule, fixed before the extraction ran: from the 97 videos with an mp4 and a
-clip index, take one frame every 0.52 s and keep the longest run of
-consecutive annotated frames if it has at least 8. Of the 494 clips in the
-index, 167 were too short after thinning (six videos lost every clip), 10
-have no mask, and 2 are duplicates of another clip. Nothing is excluded on a
-score. Crop rectangles and cut marks select nothing: a clip with a cut is
-used whole.
+clip index, split each clip into runs of consecutive annotated frames, take
+one frame every 0.52 s, and keep every run that still has at least 8. A clip
+with two kept runs would give two clips, `s1` and `s2`; none of the 315 is
+one. Of the 494 clips in the index, 167 were too short after thinning (six
+videos lost every clip), 10 have no mask, and 2 are duplicates of another
+clip. Nothing is excluded on a score. Crop rectangles and cut marks select
+nothing: a clip with a cut is used whole. `pipeline/extract_atlas120k.py`
+applies the rule.
 
 `videos/` is an earlier extraction of the same tree (96 videos, 438 clips;
 stride 3 annotated frames, at least 15 of them, a clip with a mask gap dropped
@@ -77,10 +79,69 @@ workbench's `surgical_core/atlas/frame_ratio.py` carries all 97 video names
 and, for the 14 ratios above 1, the ratio and its `diff` as constants; the
 frame pair each video was matched on, and the `diff` of the 83 at ratio 1,
 exist only here. The ratios follow the dataset's own sampling rule,
-`max(1, int(fps / 15))` (see the reader's docstring). The reader's
+`max(1, int(fps / 15))` (see "Frame ratios" below). The reader's
 `verify_against_bundled` checks a ratio against the pixels but does not find
 one: re-measuring a video means calling it once per candidate ratio and
 keeping the one that matches.
+
+## Crop rectangles
+
+A rectangle is judged per clip, not per video. The automatic recipe
+estimates one rectangle per video from a sample of its frames. When all 494
+clips of the 97 videos were checked by eye, that rectangle was wrong for 305
+of them. In seven videos the rectangle changes within one mp4, because the
+recording conditions switch mid-video. Neither case fits a per-video
+rectangle, so each clip was judged, and `crop_rects.json` is that judgement.
+
+Each entry is what the judging tool wrote:
+
+    {"procedure": ..., "video": ..., "clip": "clip_0001",
+     "rect": [x, y, w, h], "verdict": "ok" | "ng" | "skip", ...}
+
+`verdict` is one of:
+
+- `ok`: the recipe's rectangle was accepted;
+- `ng`: a person redrew the rectangle;
+- `skip`: the clip is not to be used.
+
+For `ok` and `ng`, `rect` is the rectangle to use.
+
+## Frame ratios
+
+The frame numbers in a clip index are not the mp4's frame numbers. In 14 of
+the 97 videos the annotation numbers frames at a lower rate than the mp4,
+and `mp4_frame = native_frame * ratio`. The measured ratios are 2, 3 and 4.
+Code that reads the bundled `images/frame_NNNNNN.jpg` uses the number as a
+key, and nothing goes wrong. Code that decodes the mp4 by frame number
+silently gets the wrong frame: a real frame, from another moment.
+
+### How the ratio was measured
+
+For each video, the bundled JPEG of one frame of its first clip was matched
+against the mp4 by mean absolute pixel difference, scanning from the start
+or seeking to each candidate ratio. A match differs by 0.7 to 1.9 (the two
+compressions). A miss differs by 20 to 190, so there is no ambiguity. The
+ratio was checked at three points of each video, early, middle and late, for
+all 14 videos and 17 controls with ratio 1. It held at every point.
+
+### Where the ratio comes from
+
+The dataset's extraction script (`download/process_atlas120k.py` in the
+ATLAS repository) walks the mp4 and keeps every `max(1, int(fps / 15))`-th
+frame. It numbers the kept frames from zero, whether or not they fall in the
+surgical section. The division truncates, so 60.00 fps gives 4, 59.94 and
+50.00 give 3, 30.00 gives 2, and 29.97, 25, 23.98 and 15 give 1. The 14
+videos above ratio 1 are exactly those at 30.00 fps or more, and the
+measured ratios agree with the sampling rule for all 97. The dataset's
+README says "15 fps", which is loose: a 29.97 fps video is kept at its
+native rate.
+
+`frame_ratio.json` is a measurement rather than the sampling rule applied,
+because the rule's input is not under our control. The mp4 on disk is
+whatever the download produced, not necessarily the file the authors
+sampled. The fps OpenCV reports can also fall on either side of the
+truncation for a video near 30 fps. The sampling rule says which videos to
+suspect and what to expect; the pixels say what is.
 
 ## Who reads these
 
