@@ -7,9 +7,9 @@ driver to count. It takes each view's scored pixels once, and passes the
 same GT, region map and mask to every metric module. A key is None on a
 frame its metric is not defined on. The counts behind every key are kept for
 the clip driver. `time_IoU` is per clip and is not computed here. Pilot mode
-is to run through the entry point too, with the pilot evaluator's rules
-(`docs/evaluation.md`, "Checked against the pilot evaluator"). It shares the
-metric modules, not `score_frame`.
+runs through the entry point too, and `evalkit.pilot_clip` scores its frames
+with the pilot evaluator's rules (`docs/evaluation.md`, "Checked against the
+pilot evaluator"). It shares the metric modules, not `score_frame`.
 """
 from __future__ import annotations
 

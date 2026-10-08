@@ -31,9 +31,9 @@ class BoundaryScore:
             of a GT boundary pixel.
         recall: The share of GT boundary pixels within the tolerance of a
             predicted boundary pixel.
-        f: Their harmonic mean; 0 when both are 0. Pilot mode is to compute
-            the pilot evaluator's own F from `precision` and `recall`
-            (`docs/porting.md`, "Pilot mode's own rules").
+        f: Their harmonic mean; 0 when both are 0. Pilot mode does not read
+            it: `evalkit.pilot_clip` computes the pilot evaluator's own F
+            from `precision` and `recall`.
     """
 
     precision: float

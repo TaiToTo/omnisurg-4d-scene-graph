@@ -4,8 +4,8 @@ The pipeline gives regions without classes, so `mIoU` and `boundary_F` need
 a class for each region. Each region takes the class that most of its scored
 pixels have in the GT. `docs/evaluation.md` defines the class map and its
 ties ("Naming the regions: the class map"), and says why `mIoU` over it is
-an oracle value. Pilot mode is to take the same vote over the `full` domain
-of `evalkit.pilot`, where background pixels vote too.
+an oracle value. Pilot mode takes the same vote over the `full` domain of
+`evalkit.pilot`, where background pixels vote too.
 
 `docs/figures/class_map.png` shows this on a drawn scene, with the numbers
 the module gives for it.
@@ -93,10 +93,10 @@ class ClassScores:
 
     Attributes:
         miou: The mean of `ious`, summed in class id order; None when no
-            class is present. Pilot mode is to average `ious` itself
-            (`docs/porting.md`, "Pilot mode's own rules"). The pilot
-            evaluator's `np.mean` in set order can differ from `miou` in the
-            last bit.
+            class is present. Pilot mode does not read it:
+            `evalkit.pilot_clip` averages the IoUs as the pilot evaluator
+            did, with `np.mean` in set order, which can differ from `miou`
+            in the last bit.
         ious: Each class present in the GT or the class map, over the scored
             pixels, to its IoU.
     """

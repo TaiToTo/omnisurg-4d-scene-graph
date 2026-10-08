@@ -28,9 +28,9 @@ class InstanceBoundary:
             None when no hit has one, which includes a frame with no hit.
         scores: One entry per hit, in the order of `InstanceScores.hits`:
             the hit's boundary score, or None when its GT object has no
-            boundary pixel within the scored pixels. Pilot mode is to read
-            these entries and apply the pilot evaluator's rules for such a
-            hit (`docs/porting.md`, "Pilot mode's own rules").
+            boundary pixel within the scored pixels. `evalkit.pilot_clip`
+            reads these entries and applies the pilot evaluator's zero and
+            its F to them.
         n_hits: The hits of the frame.
         n_entered: The hits that entered the mean.
     """

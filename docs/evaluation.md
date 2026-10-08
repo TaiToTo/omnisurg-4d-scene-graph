@@ -659,17 +659,27 @@ pilot evaluator's numbers.
     hit to average; a frame whose GT boundary is empty scores 0 on the
     boundary metrics rather than being left out; and a clip on which
     `time_IoU` pools nothing writes 0 for it.
-- Pilot mode takes the GT frames from the frame manifest too. On the data
-  the pilot evaluator scored, its mask files were exactly these frames.
-- On the 38 conditions already scored, pilot mode must reproduce every key it
-  shares with the pilot evaluator — the metrics table names them, and their
-  per-domain variants — at zero tolerance: the values written must be equal.
-  Ties are broken as the pilot evaluator breaks them. The check runs where the
-  pilot evaluator and its scores are, and takes their paths as arguments.
+- Pilot mode reads a clip as normal mode does, and refuses every input
+  normal mode refuses. The pilot evaluator accepted some faulty inputs
+  silently, a frame with two prediction files among them; pilot mode does
+  not, because a fault in the data is not a rule to reproduce. So the GT
+  frames come from the frame manifest too. On the data the pilot evaluator
+  scored, its mask files were exactly these frames.
+- On the 38 conditions already scored, apart from those that hold neither
+  propagation rule, pilot mode must reproduce every key it shares with the
+  pilot evaluator — the metrics table names them, and their per-domain
+  variants — at zero tolerance: the values written must be equal, and so
+  must the number of frames behind each. Ties are broken as the pilot
+  evaluator breaks them. The check runs where the pilot evaluator and its
+  scores are, and takes their paths as arguments.
 - Every difference in the normal mode then comes from a rule this document
   changes, and is listed.
 - A score made in pilot mode is marked as such and never enters a comparison
   with a normal one.
+- Pilot mode reads a condition's propagation rule as normal mode does. So it
+  refuses a condition that holds neither rule, a condition seeded from GT
+  among them, and the check leaves such a condition out by name. The paper
+  reports none of them, and the other conditions run the same metric code.
 - Pilot mode exists for this check alone. It is removed from the evaluator
   once the check has passed and before the evaluator is frozen, so the
   frozen evaluator has one mode.
