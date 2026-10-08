@@ -6,14 +6,12 @@ which the `recon3d` extra installs. It imports them only when a model is
 built, so importing the module needs neither.
 """
 
-import os
-import sys
 from collections.abc import Sequence
 from pathlib import Path
 
 import numpy as np
 
-from recon3d_wrapper import Reconstruction
+from recon3d_wrapper import Reconstruction, select_gpu
 
 DEFAULT_MODEL_ID = "depth-anything/DA3-LARGE"
 
@@ -38,19 +36,6 @@ def world_to_camera(extrinsics: np.ndarray) -> np.ndarray:
     if not np.allclose(extrinsics[:, 3, :], [0.0, 0.0, 0.0, 1.0]):
         raise ValueError("extrinsics are (N, 4, 4) but not homogeneous: the last row is not (0, 0, 0, 1)")
     return extrinsics[:, :3, :]
-
-
-def select_gpu(gpu: int | None) -> None:
-    """Select the GPU to use, through `CUDA_VISIBLE_DEVICES`. None leaves the environment as it is.
-
-    Raises:
-        RuntimeError: torch is already imported. The variable would then have no effect.
-    """
-    if gpu is None:
-        return
-    if "torch" in sys.modules:
-        raise RuntimeError("torch is already imported, so CUDA_VISIBLE_DEVICES cannot select the GPU")
-    os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
 
 
 class DA3:

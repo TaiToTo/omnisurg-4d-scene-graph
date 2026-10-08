@@ -11,15 +11,13 @@ neither.
 
 import contextlib
 import math
-import os
-import sys
 from collections.abc import Sequence
 from pathlib import Path
 
 import numpy as np
 from PIL import Image
 
-from recon3d_wrapper import Reconstruction
+from recon3d_wrapper import Reconstruction, select_gpu
 
 MODEL_REPO = "yyfz233/Pi3X"
 
@@ -28,6 +26,9 @@ DEFAULT_PIXEL_LIMIT = 255_000
 
 # The side of the model's patch. A resized frame's sides are multiples of it.
 PATCH = 14
+
+# The devices the backend takes. "auto" picks one of the other two; `autocast_dtype` knows no third.
+DEVICES = ("auto", "cpu", "cuda")
 
 
 def c2w_to_extrinsics(poses_c2w: np.ndarray) -> np.ndarray:
@@ -122,6 +123,7 @@ class Pi3X:
         pixel_limit: the most pixels a frame keeps after resizing.
 
     Raises:
+        ValueError: a device other than "auto", "cpu" and "cuda". It would fail only after the weights had loaded.
         RuntimeError: `gpu` is given after torch was imported. `CUDA_VISIBLE_DEVICES` would then have no effect.
     """
 
@@ -129,10 +131,9 @@ class Pi3X:
 
     def __init__(self, device: str = "auto", gpu: int | None = None,
                  pixel_limit: int = DEFAULT_PIXEL_LIMIT) -> None:
-        if gpu is not None:
-            if "torch" in sys.modules:
-                raise RuntimeError("torch is already imported, so CUDA_VISIBLE_DEVICES cannot select the GPU")
-            os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
+        if device not in DEVICES:
+            raise ValueError(f"device {device!r} is not one of {', '.join(DEVICES)}; pass a GPU's index as gpu")
+        select_gpu(gpu)
         # Imported here, not at the top: CUDA_VISIBLE_DEVICES takes effect only before torch's first import.
         import torch
         from pi3.models.pi3x import Pi3X as Net

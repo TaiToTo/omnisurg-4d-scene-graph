@@ -1,7 +1,8 @@
 """Check the reconstruction interface and the DA3 wrapper's own logic, without weights.
 
-The interface refuses shapes that are not one sequence. The wrapper cuts
-homogeneous extrinsics, selects the GPU and picks the device.
+The interface refuses shapes that are not one sequence. `select_gpu`
+writes the GPU into the environment. The DA3 wrapper cuts homogeneous
+extrinsics and picks the device.
 
 The torch test skips without the `recon3d` extra; the install job runs it.
 """
@@ -12,8 +13,8 @@ import sys
 import numpy as np
 import pytest
 
-from recon3d_wrapper import Reconstruction
-from recon3d_wrapper.da3 import DA3, select_gpu, world_to_camera
+from recon3d_wrapper import Reconstruction, select_gpu
+from recon3d_wrapper.da3 import DA3, world_to_camera
 
 
 def parts(n=2, h=6, w=8):

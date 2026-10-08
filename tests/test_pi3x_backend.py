@@ -94,6 +94,14 @@ def test_a_gpu_chosen_after_torch_is_imported_is_refused(monkeypatch):
         Pi3X(gpu=0)
 
 
+@pytest.mark.parametrize("device", ["mps", "cuda:1", ""])
+def test_a_device_without_a_precision_is_refused_before_torch_is_imported(monkeypatch, device):
+    monkeypatch.delitem(sys.modules, "torch", raising=False)
+    with pytest.raises(ValueError, match="is not one of auto, cpu, cuda"):
+        Pi3X(device=device)
+    assert "torch" not in sys.modules
+
+
 def test_the_cpu_runs_float32_and_cuda_the_workbenchs_reduced_precision():
     # On the CPU, bfloat16 fails in upstream's camera head: "lu_cpu" is not implemented for BFloat16.
     assert autocast_dtype("cpu") is None

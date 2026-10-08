@@ -4,10 +4,12 @@ A backend is built with its settings. Its `reconstruct(image_paths)` returns
 a `Reconstruction`: depth, confidence, intrinsics and world-to-camera
 extrinsics for the frames, and world points from a model that predicts them.
 The backends are DA3, in `recon3d_wrapper.da3`, and Pi3X, in
-`recon3d_wrapper.pi3x`. This package imports neither, so nothing here needs
-torch.
+`recon3d_wrapper.pi3x`. Both select their GPU through `select_gpu`. This
+package imports neither backend, so nothing here needs torch.
 """
 
+import os
+import sys
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -49,6 +51,19 @@ class Reconstruction:
         wrong = [f"{k} {getattr(self, k).shape}, not {v}" for k, v in expected.items() if getattr(self, k).shape != v]
         if wrong:
             raise ValueError(f"not one sequence of {n} frames: " + "; ".join(wrong))
+
+
+def select_gpu(gpu: int | None) -> None:
+    """Select the GPU to use, through `CUDA_VISIBLE_DEVICES`. None leaves the environment as it is.
+
+    Raises:
+        RuntimeError: torch is already imported. The variable would then have no effect.
+    """
+    if gpu is None:
+        return
+    if "torch" in sys.modules:
+        raise RuntimeError("torch is already imported, so CUDA_VISIBLE_DEVICES cannot select the GPU")
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
 
 
 class Reconstructor(Protocol):
