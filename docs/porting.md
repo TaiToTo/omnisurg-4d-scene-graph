@@ -487,11 +487,15 @@ Every command takes those paths as arguments.
     clouds are far above the line, so step 5's byte check on the
     workbench's GPU machine does not answer it. `project.backproject`
     computes in the same order, through `cam_to_world`, but no stage calls
-    `project.backproject`: in the workbench, only two analyses of view
-    consistency call it (`view_consistency.py`, `camera_motion.py`), and
-    their point sets can be small. If they are ported and their check finds
-    a difference, the choice is between restoring the workbench's order and
-    accepting a documented non-bit-equality — made then, not found later.
+    `project.backproject`. In the workbench, the view-consistency analysis
+    (`view_consistency.py`, `camera_motion.py`, `export_03b_figs.py`),
+    `track_sam3_3d.py` and `legacy/pipeline.py` call it, none of them on
+    the paper's path, and each passes it a whole frame, far above the line
+    too. So no measured number shows the difference; only a frame as small
+    as the tests' does. If one of those callers is ported and its check
+    finds a difference, the choice is between restoring the workbench's
+    order and accepting a documented non-bit-equality — made then, not
+    found later.
 16. **Whether the geometry path has to be fast.** The depth stage
     back-projects each frame once when a clip is exported, with
     `backproject_depth`, `cam_to_world` and `world_to_gltf`, and writes the
@@ -509,11 +513,9 @@ Every command takes those paths as arguments.
     such array of points holds about 50 MB at 1080p. On float32 points the
     world transform measured 2.5 times faster. `backproject_depth` and
     `backproject` rebuild the pixel grid on every call, although a clip's
-    resolution is fixed. That rebuild is a few per cent of the time.
-    `backproject` also back-projects every frame it is given; only the
-    view-consistency analyses call it, not the export. None of this is
-    worth changing while the port lasts. float32 changes the output, and
-    the pipeline port asks each stage to match the workbench
+    resolution is fixed. That rebuild is a few per cent of the time. None
+    of this is worth changing while the port lasts. float32 changes the
+    output, and the pipeline port asks each stage to match the workbench
     byte for byte. The byte check reads the GLB files too. Decide once the
     stages match, and decide with it whether a viewer ever recomputes
     geometry or only reads what the export wrote. The functions are in
