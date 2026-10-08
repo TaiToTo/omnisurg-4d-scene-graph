@@ -1,4 +1,4 @@
-"""SAM 3's video tracker, seeded with one binary mask per object on one frame.
+"""Run SAM 3's video tracker, seeded with one binary mask per object on one frame.
 
 The tracker is `transformers`' `Sam3TrackerVideoModel`, the part of the
 `facebook/sam3` checkpoint that takes point, box and mask prompts and keeps
@@ -129,10 +129,10 @@ class Sam3VideoInstanceSession:
     def _presence_logit(self, obj_idx: int, frame_idx: int):
         """Return an object's presence logit on a frame, or None where the session holds none.
 
-        The frames propagated to hold their outputs as non-conditioning ones, and those are read. A frame with no
-        such output gives None, without looking among the conditioning outputs: so the prompted frame, whose
-        outputs are conditioning ones, has no score, and its objects are painted in the order the tracker lists
-        them. The workbench's labels were made this way. The conditioning outputs are read only where a
+        The session stores a propagated frame's outputs as non-conditioning outputs, and those are read. A frame
+        with no such output gives None, without looking among the conditioning outputs: so the prompted frame,
+        whose outputs are conditioning ones, has no score, and its objects are painted in the order the tracker
+        lists them. The workbench's labels were made this way. The conditioning outputs are read only where a
         non-conditioning output lacks the logit.
         """
         for conditioning in (False, True):

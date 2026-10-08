@@ -15,7 +15,8 @@ def camera_normals(depth, K):
 
     Each pixel is back-projected into camera space and the normal is the
     cross product of the horizontal and vertical tangent vectors, taken by
-    central differences. `normal_map` and `geom_edge_map` start from this.
+    central differences. `normal_map` and `geom_edge_map` are computed from
+    these normals.
 
     Args:
         depth: (H, W) depth. 0 and NaN are invalid.
@@ -62,12 +63,12 @@ def normal_map(depth, K):
 # 1 - cos to the neighbour is 1, the strongest possible crease, and the depth
 # gradient looks like a step at the rim of a hole. Measured on one CholecSeg8k
 # frame, 57.6 % of the pixels with edge > 0.5 were the outer 2 pixels of the
-# image. By default that ring is zeroed (`mask_ring=True`), as every
-# condition made since the ring was masked had it. Labels made before were
-# made from inputs with the ring in, and are reproduced with
-# `mask_ring=False`. The setting is an argument, not a module flag, so that
-# one process cannot run two settings under one record: a stage passes it
-# and records the value it passed.
+# image. By default that ring is zeroed (`mask_ring=True`), as in every
+# condition made since the ring was masked. Labels made before the ring was
+# masked came from inputs with the ring in; `mask_ring=False` reproduces
+# them. The setting is an argument, not a module flag, so that one process
+# cannot run two settings under one record: a stage passes it and records
+# the value it passed.
 #
 # The underlying `normal_map` keeps the same ring, and that was measured and
 # left alone on purpose. On the border the tangent is 0, so the normal is 0,

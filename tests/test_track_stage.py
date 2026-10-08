@@ -55,7 +55,7 @@ class StandInTracker:
 
 
 def _clip(tmp_path, hole=False, name="VID01_s15_80_crop"):
-    """A clip of `N` frames with DA3 depth: a slope, with a hole when asked."""
+    """Write a clip of `N` frames with DA3 depth, a slope with a hole when asked, and return its directory."""
     d = tmp_path / "clips" / name
     (d / "input_images").mkdir(parents=True)
     (d / "exports" / "mini_npz").mkdir(parents=True)
