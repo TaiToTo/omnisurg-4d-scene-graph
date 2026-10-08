@@ -5,7 +5,7 @@ address, once pushed to a public repository, is harvested, and removing it
 means rewriting history. The check reads:
 
 - every tracked file;
-- the author, committer and message of every commit in HEAD's history;
+- the author, committer and message of every commit HEAD or a tag reaches;
 - the tagger and message of every annotated tag.
 
 In CI on a pull request, HEAD is the pull request merged into main. The run
