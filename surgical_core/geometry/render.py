@@ -35,9 +35,9 @@ def depth_to_colormapped(gray01, cmap="viridis"):
     return (colored[:, :, :3] * 255).astype(np.uint8)
 
 
-# The modes `sam_input_image` accepts, in one place: the inputs the paper's conditions ran. Pass this to
-# argparse as the choices: when callers each kept their own literal list, one of them was extended and the other
-# was not, and a whole propagation stage failed on every clip after the per-frame stage had passed.
+# This tuple lists, in one place, the modes `sam_input_image` accepts: the inputs the paper's conditions ran.
+# Pass it to argparse as the choices: when callers each kept their own literal list, one of them was extended and
+# the other was not, and a whole propagation stage failed on every clip after the per-frame stage had passed.
 SAM_INPUT_MODES = ("depth", "normal", "normal_edge", "rgb", "rgb_edge")
 
 
@@ -47,8 +47,8 @@ def uses_geom_edge(mode):
     For the provenance record: `edge_ring_masked` records the `mask_ring`
     the edges were made with, so writing True or False for an input that
     burns no edges (`rgb`, `normal`, `depth`) would read as "made with that
-    setting". For those inputs the record writes `None`, and this is how it
-    tells.
+    setting". For those inputs the record writes `None`, and a stage calls
+    `uses_geom_edge` to tell them apart.
 
     Args:
         mode: one of `SAM_INPUT_MODES`.
