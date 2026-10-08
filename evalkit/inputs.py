@@ -61,7 +61,8 @@ class ClipInputs:
         gt: Each index with a GT mask to its (H, W) int32 mask ids.
             Read-only.
         regions: Each index with a prediction to its (H, W) int32 region
-            map, -1 for no region. Read-only.
+            map, -1 for no region, in the order of the files' names.
+            Read-only.
         shas: Each input's sha256: `gt_masks`, `depth`, `crop`, `frames`,
             and `predictions`, the one that is the condition's own.
     """
@@ -153,7 +154,7 @@ def _resized(arr: np.ndarray, shape: tuple[int, int]) -> np.ndarray:
 
 
 def _labels(label_dir: Path, n: int, clip: str) -> dict[int, Path]:
-    """Map each frame index with a prediction to its file.
+    """Map each frame index with a prediction to its file, in the order of the files' names.
 
     Raises:
         FileNotFoundError: The condition has no directory for this clip.

@@ -659,8 +659,12 @@ pilot evaluator's numbers.
     hit to average; a frame whose GT boundary is empty scores 0 on the
     boundary metrics rather than being left out; and a clip on which
     `time_IoU` pools nothing writes 0 for it.
-- Pilot mode takes the GT frames from the frame manifest too. On the data
-  the pilot evaluator scored, its mask files were exactly these frames.
+- Pilot mode reads a clip as normal mode does, and refuses every input
+  normal mode refuses. The pilot evaluator accepted some faulty inputs
+  silently, a frame with two prediction files among them; pilot mode does
+  not, because a fault in the data is not a rule to reproduce. So the GT
+  frames come from the frame manifest too. On the data the pilot evaluator
+  scored, its mask files were exactly these frames.
 - On the 38 conditions already scored, pilot mode must reproduce every key it
   shares with the pilot evaluator — the metrics table names them, and their
   per-domain variants — at zero tolerance: the values written must be equal,

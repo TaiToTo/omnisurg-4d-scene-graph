@@ -1,11 +1,10 @@
-"""Read, score and average one clip by the pilot evaluator's rules, in pilot mode.
+"""Score and average one clip by the pilot evaluator's rules, in pilot mode.
 
 Pilot mode exists for the check against the pilot evaluator and is removed
-before the freeze. This module reads what the pilot evaluator read:
-- every `label_<i>.npy`, in file-name order;
-- the mask of each GT frame that the manifest's flags give;
-- a colour mask, mapped to ids by the pilot's own colours;
-- the pixels with valid depth.
+before the freeze. It reads a clip with `evalkit.inputs.read_clip`, so it
+refuses every input normal mode refuses. Two things it then takes the
+pilot's way: CholecSeg8k's GT colours, by the pilot's own colour table; and
+the predicted frames, in the order of their file names.
 Each frame is scored with the evaluator's modules under the pilot's objects
 and domains (`evalkit.pilot`), with the pilot's arithmetic where it differs.
 The clip is averaged and rounded as the pilot did. The row holds the keys
@@ -13,18 +12,17 @@ The clip is averaged and rounded as the pilot did. The row holds the keys
 """
 from __future__ import annotations
 
-import json
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from types import MappingProxyType
 
 import cv2
 import numpy as np
-from PIL import Image
 
 from evalkit.boundary import BoundaryScore, boundary_pixels, boundary_score
+from evalkit.classes import ClassTable
 from evalkit.classmap import class_map
-from evalkit.inputs import DEPTH_FILE, GT_FLAG, MANIFEST, MASK_DIR, MASK_SUFFIX, depth_sha, gt_frames, sha_of_files
+from evalkit.inputs import MASK_DIR, MASK_SUFFIX, read_clip
 from evalkit.inst_bf import instance_boundary_f
 from evalkit.keys import metric_key
 from evalkit.objects import instance_scores
@@ -56,29 +54,20 @@ PILOT_DECIMALS = 4
 _F_EPSILON = 1e-9
 
 
-def _pilot_gt(mask_dir: Path, i: int, shape: tuple[int, int]) -> tuple[np.ndarray, Path] | None:
-    """Return frame `i`'s GT ids at `shape`, as the pilot read them, and the file; None without a mask."""
-    colour = mask_dir / f"{i:06d}_color_mask.png"
-    if colour.is_file():
-        bgr = cv2.imread(str(colour))
-        if bgr is None:
-            raise ValueError(f"{colour}: not a readable image")
-        rgb = cv2.resize(cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB), (shape[1], shape[0]),
-                         interpolation=cv2.INTER_NEAREST)
-        palette, index = np.unique(rgb.reshape(-1, 3), axis=0, return_inverse=True)
-        ids = np.array([PILOT_CHOLEC_COLOURS.get(tuple(int(c) for c in p), PILOT_BACKGROUND) for p in palette],
-                       dtype=np.int32)
-        return ids[index.ravel()].reshape(shape), colour
-    index_mask = mask_dir / f"{i:06d}_class.png"
-    if index_mask.is_file():
-        with Image.open(index_mask) as image:
-            if image.mode not in ("P", "L"):
-                raise ValueError(f"{index_mask}: mode {image.mode} holds no class ids")
-            ids = np.asarray(image, dtype=np.int32)
-        if ids.shape != shape:
-            ids = cv2.resize(ids, (shape[1], shape[0]), interpolation=cv2.INTER_NEAREST)
-        return ids, index_mask
-    return None
+def _pilot_colours(path: Path, shape: tuple[int, int]) -> np.ndarray:
+    """Return a CholecSeg8k colour mask's ids at `shape`, read by the pilot evaluator's colours.
+
+    Raises:
+        ValueError: OpenCV cannot read the mask.
+    """
+    bgr = cv2.imread(str(path))
+    if bgr is None:
+        raise ValueError(f"{path}: not a readable image")
+    rgb = cv2.resize(cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB), (shape[1], shape[0]), interpolation=cv2.INTER_NEAREST)
+    palette, index = np.unique(rgb.reshape(-1, 3), axis=0, return_inverse=True)
+    ids = np.array([PILOT_CHOLEC_COLOURS.get(tuple(int(c) for c in p), PILOT_BACKGROUND) for p in palette],
+                   dtype=np.int32)
+    return ids[index.ravel()].reshape(shape)
 
 
 def _pilot_f(score: BoundaryScore | None) -> float:
@@ -172,7 +161,8 @@ def pilot_row(clip: str, frames: list[tuple[int, dict]], time_iou: float) -> dic
 
     Args:
         clip: The clip's name.
-        frames: Each GT frame's number and `pilot_frame` values, in file order.
+        frames: Each GT frame's number in the source video and its `pilot_frame` values, in the order of
+            the label files' names.
         time_iou: The clip's `pilot_time_iou`.
     """
     values = [v for _, v in frames]
@@ -223,54 +213,33 @@ def _frame_values(v: dict) -> dict:
 
 
 def score_pilot_clip(data_root: str | Path, tracks_root: str | Path, tag: str, clip: str,
-                     dataset: str) -> tuple[dict, dict[str, str]]:
+                     table: ClassTable) -> tuple[dict, dict[str, str]]:
     """Score one clip in pilot mode.
 
     Returns:
-        The clip's row and the hash of each input read.
+        The clip's row and the hash of each input read, as normal mode records them.
 
     Raises:
-        FileNotFoundError: The manifest, the depth or the prediction directory is missing.
-        ValueError: The manifest leaves a frame's GT unknown (`evalkit.inputs.gt_frames`); the condition has
-            no prediction for the clip; a label file names a frame outside the depth; no predicted frame is a
-            GT frame; or a mask is not readable.
+        FileNotFoundError, ValueError, KeyError: `read_clip` refuses the clip's inputs, or OpenCV cannot read a
+            colour mask.
     """
-    clip_dir = Path(data_root) / clip
-    frames_listed = json.loads((clip_dir / MANIFEST).read_text(encoding="utf-8"))["frames"]
-    with_mask = {i for i in range(len(frames_listed))
-                 if (clip_dir / MASK_DIR / f"{i:06d}{MASK_SUFFIX[dataset]}").is_file()}
-    # The pilot evaluator read every mask file, but its data root held the annotated masks only. The flags
-    # give those frames, even on a copy that also holds the viewer's masks.
-    gt_set = set(gt_frames(frames_listed, GT_FLAG[dataset], with_mask, clip))
-    with np.load(clip_dir / DEPTH_FILE) as z:
-        depth = np.asarray(z["depth"], dtype=np.float32)
-    shape = depth.shape[1:]
-    label_dir = Path(tracks_root) / clip / tag
-    if not label_dir.is_dir():
-        raise FileNotFoundError(f"{clip}: no prediction directory {label_dir}")
-    label_paths = sorted(label_dir.glob("label_*.npy"), key=lambda p: p.name)
-    if not label_paths:
-        raise ValueError(f"{clip}: no label_*.npy in {label_dir}")
+    # The clip's inputs, read and checked as normal mode reads them.
+    inputs = read_clip(data_root, tracks_root, tag, clip, table)
+    shape = inputs.depth.shape[1:]
 
-    # Every predicted frame in file order; the GT frames among them are scored.
-    regions, valids, frames, mask_paths = [], [], [], []
-    for p in label_paths:
-        i = int(p.name[len("label_"):-len(".npy")])
-        if not 0 <= i < depth.shape[0]:
-            raise ValueError(f"{clip}: {p.name} names frame {i}, outside the depth's {depth.shape[0]} frames")
-        r = np.load(p).astype(np.int32)
-        if r.shape != shape:
-            r = cv2.resize(r, (shape[1], shape[0]), interpolation=cv2.INTER_NEAREST)
-        valid = valid_depth(depth[i], pilot=True)
-        regions.append(r)
-        valids.append(valid)
-        gt = _pilot_gt(clip_dir / MASK_DIR, i, shape) if i in gt_set else None
-        if gt is not None:
-            frames.append((i, pilot_frame(gt[0], r, valid, PILOT_INSTRUMENT_IDS[dataset])))
-            mask_paths.append(gt[1])
-    if not frames:
-        raise ValueError(f"{clip}: no predicted frame is a GT frame")
+    # The GT the pilot's way: CholecSeg8k's colours by the pilot's table; ATLAS-120k's ids, which the pilot
+    # read as they are.
+    if table.dataset == "cholecseg8k":
+        mask_dir = Path(data_root) / clip / MASK_DIR
+        gt = {i: _pilot_colours(mask_dir / f"{i:06d}{MASK_SUFFIX[table.dataset]}", shape) for i in inputs.gt}
+    else:
+        gt = dict(inputs.gt)
 
-    shas = {"gt_masks": sha_of_files(mask_paths), "depth": depth_sha(depth),
-            "predictions": sha_of_files(label_paths)}
-    return pilot_row(clip, frames, pilot_time_iou(regions, valids)), shas
+    # The predicted frames in the order of their file names, as the pilot read them; the GT frames among them
+    # are scored.
+    order = list(inputs.regions)
+    valid = {i: valid_depth(inputs.depth[i], pilot=True) for i in order}
+    frames = [(inputs.numbers[i], pilot_frame(gt[i], inputs.regions[i], valid[i], PILOT_INSTRUMENT_IDS[table.dataset]))
+              for i in order if i in gt]
+    time_iou = pilot_time_iou([inputs.regions[i] for i in order], [valid[i] for i in order])
+    return pilot_row(clip, frames, time_iou), dict(inputs.shas)

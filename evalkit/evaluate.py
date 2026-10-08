@@ -5,10 +5,10 @@ in every view (`evalkit.frame`), pools `time_IoU` over every frame with a
 prediction, and averages over the frames (`evalkit.clip`). The JSON holds
 what `docs/evaluation.md` records with every score, one row per clip, and
 the per-frame values, with the condition's propagation rule as its tracker
-recorded it. With `--pilot`, `evalkit.pilot_clip` reads and scores each
-clip by the pilot evaluator's rules instead. A clip that cannot be scored
-stops the run, and no JSON is written: a population is scored whole or not
-at all.
+recorded it. With `--pilot`, each clip is read the same way and scored by
+the pilot evaluator's rules instead (`evalkit.pilot_clip`). A clip that
+cannot be scored stops the run, and no JSON is written: a population is
+scored whole or not at all.
 
 Usage:
     python -m evalkit.evaluate --dataset cholecseg8k --clips clips.txt \\
@@ -216,18 +216,20 @@ def score_condition(dataset: str, class_set: str | None, clips: Sequence[str],
         pilot: Score by the pilot evaluator's rules.
 
     Raises:
-        ValueError, KeyError, FileNotFoundError: The condition's propagation rule is unknown
-            (`condition_rule`), or a clip's inputs cannot be read or scored. Nothing is returned for the
-            others.
+        ValueError, KeyError, FileNotFoundError: Pilot mode is asked for a class set other than `original`;
+            the condition's propagation rule is unknown (`condition_rule`); or a clip's inputs cannot be read
+            or scored. Nothing is returned for the others.
     """
     table = load_table(dataset, class_set)
     check_table(table)
+    if pilot and table.class_set != "original":
+        raise ValueError("pilot mode scores the original ids, as the pilot evaluator did")
     rule = condition_rule(tracks_root, tag, clips, propagation, pilot=pilot)
     sha = eval_code_sha()
     rows, shas = [], {}
     for clip in clips:
         if pilot:
-            row, shas[clip] = score_pilot_clip(data_root, tracks_root, tag, clip, table.dataset)
+            row, shas[clip] = score_pilot_clip(data_root, tracks_root, tag, clip, table)
             rows.append(row)
             continue
         inputs = read_clip(data_root, tracks_root, tag, clip, table)
@@ -265,8 +267,6 @@ def main(argv: Sequence[str] | None = None) -> None:
                     help="score by the pilot evaluator's rules, for the check against it")
     args = ap.parse_args(argv)
     clips = read_population(args.clips)
-    if args.pilot and args.class_set not in (None, "original"):
-        raise ValueError("pilot mode scores the original ids, as the pilot evaluator did")
     summary = score_condition(args.dataset, args.class_set, clips, args.data_root, args.tracks_root, args.tag,
                               args.propagation, pilot=args.pilot)
     write_scores(summary, args.out)

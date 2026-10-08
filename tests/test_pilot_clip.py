@@ -4,7 +4,8 @@ The values are the pilot evaluator's, derived from each scene's areas for the
 metric guide; pilot mode must give them, so they are kept rather than derived
 again under the evaluator's rules. The tests on a clip check how the pilot
 averaged, what it wrote where nothing was defined, the order it read the
-frames in, and the frames it scored.
+frames in, the frames it scored, and the inputs it refuses as normal mode
+does.
 """
 import json
 import math
@@ -16,10 +17,11 @@ import pytest
 import clip_dirs as C
 import scenes as S
 from evalkit.evaluate import score_condition
+from evalkit.classes import load_table
 from evalkit.inputs import MANIFEST
 from evalkit.keys import CLIP_METRICS, FRAME_METRICS, metric_key
 from evalkit.pilot import PILOT_DOMAINS, PILOT_MIN_CC_PX
-from evalkit.pilot_clip import _pilot_gt, pilot_frame, pilot_row, pilot_time_iou, score_pilot_clip
+from evalkit.pilot_clip import _pilot_colours, pilot_frame, pilot_row, pilot_time_iou, score_pilot_clip
 from evalkit.tools.pilot_check import SHARED
 
 TOOLS = frozenset({5, 9})
@@ -109,9 +111,14 @@ def test_the_pilot_s_colours_read_hepatic_vein_s_real_colour_as_background(tmp_p
     rgb = np.zeros((6, 4, 3), np.uint8)
     rgb[:2], rgb[2:4], rgb[4:] = (0, 50, 128), (0, 255, 0), (255, 255, 255)
     cv2.imwrite(str(tmp_path / "000000_color_mask.png"), cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR))
-    ids, _ = _pilot_gt(tmp_path, 0, (6, 4))
+    ids = _pilot_colours(tmp_path / "000000_color_mask.png", (6, 4))
     assert (ids[:2] == 0).all() and (ids[2:4] == 11).all() and (ids[4:] == 0).all()
-    assert _pilot_gt(tmp_path, 1, (6, 4)) is None
+
+
+def test_a_colour_mask_opencv_cannot_read_is_refused(tmp_path):
+    (tmp_path / "000000_color_mask.png").write_bytes(b"not a png")
+    with pytest.raises(ValueError, match="not a readable image"):
+        _pilot_colours(tmp_path / "000000_color_mask.png", (6, 4))
 
 
 def test_where_nothing_is_defined_the_row_holds_what_the_pilot_wrote():
@@ -142,6 +149,9 @@ def test_every_key_written_is_the_evaluator_s_and_holds_what_pilot_check_compare
     assert {ours for _, ours in SHARED} == written
 
 
+CHOLEC = load_table("cholecseg8k")
+
+
 def pilot_clip_dir(tmp_path, names):
     gt = [C.two_organs(cut=8 + 4 * i) for i in range(len(names))]
     C.write_clip(tmp_path / "data", "c", gt)
@@ -152,54 +162,102 @@ def pilot_clip_dir(tmp_path, names):
     return gt
 
 
+def score(tmp_path, table=CHOLEC):
+    return score_pilot_clip(tmp_path / "data", tmp_path / "tracks", "t", "c", table)
+
+
+def edit_manifest(tmp_path, change):
+    path = tmp_path / "data" / "c" / MANIFEST
+    m = json.loads(path.read_text())
+    change(m["frames"])
+    path.write_text(json.dumps(m))
+
+
 def test_the_frames_come_in_file_name_order_as_the_pilot_read_them(tmp_path):
     names = [f"label_{i}.npy" for i in range(11)]
     gt = pilot_clip_dir(tmp_path, names)
-    row, shas = score_pilot_clip(tmp_path / "data", tmp_path / "tracks", "t", "c", "cholecseg8k")
+    row, shas = score(tmp_path)
     order = sorted(range(11), key=lambda i: f"label_{i}.npy")      # 0, 1, 10, 2, ...
-    assert [f["frame"] for f in row["frames"]] == order
+    assert [f["frame"] for f in row["frames"]] == [100 + 15 * i for i in order]   # the source video's numbers
     ones = [np.ones((20, 30), bool)] * 11
     assert row["time_IoU"] == round(pilot_time_iou([gt[i] for i in order], ones), 4)
-    assert set(shas) == {"gt_masks", "depth", "predictions"}
+    assert set(shas) == {"gt_masks", "depth", "crop", "frames", "predictions"}
 
 
 def test_a_mask_the_viewer_wrote_is_not_scored_as_gt(tmp_path):
     # The pilot's data root held the annotated masks only; the viewer's masks, marked by `seg_provenance`, are
     # not among the frames it scored.
     pilot_clip_dir(tmp_path, [f"label_{i:04d}.npy" for i in range(3)])
-    path = tmp_path / "data" / "c" / MANIFEST
-    m = json.loads(path.read_text())
-    m["frames"][1].update(is_anchor=False, seg_provenance="sam3_gt_propagated")
-    path.write_text(json.dumps(m))
-    row, _ = score_pilot_clip(tmp_path / "data", tmp_path / "tracks", "t", "c", "cholecseg8k")
-    assert [f["frame"] for f in row["frames"]] == [0, 2]
+    edit_manifest(tmp_path, lambda frames: frames[1].update(is_anchor=False, seg_provenance="sam3_gt_propagated"))
+    row, _ = score(tmp_path)
+    assert [f["frame"] for f in row["frames"]] == [100, 130]
 
 
 def test_a_mask_the_manifest_does_not_flag_is_refused(tmp_path):
     pilot_clip_dir(tmp_path, [f"label_{i:04d}.npy" for i in range(3)])
-    path = tmp_path / "data" / "c" / MANIFEST
-    m = json.loads(path.read_text())
-    m["frames"][1]["has_seg_mask"] = False
-    path.write_text(json.dumps(m))
+    edit_manifest(tmp_path, lambda frames: frames[1].update(has_seg_mask=False))
     with pytest.raises(ValueError, match="frame 1 is flagged has_seg_mask=False but its mask is there"):
-        score_pilot_clip(tmp_path / "data", tmp_path / "tracks", "t", "c", "cholecseg8k")
+        score(tmp_path)
 
 
-def test_a_clip_whose_predicted_frames_are_not_gt_frames_is_refused(tmp_path):
+def test_a_clip_with_no_gt_frame_is_refused(tmp_path):
     pilot_clip_dir(tmp_path, [f"label_{i:04d}.npy" for i in range(2)])
-    path = tmp_path / "data" / "c" / MANIFEST
-    m = json.loads(path.read_text())
-    for f in m["frames"]:
-        f.update(is_anchor=False, seg_provenance="sam3_gt_propagated")
-    path.write_text(json.dumps(m))
-    with pytest.raises(ValueError, match="no predicted frame is a GT frame"):
-        score_pilot_clip(tmp_path / "data", tmp_path / "tracks", "t", "c", "cholecseg8k")
+    edit_manifest(tmp_path, lambda frames: [f.update(is_anchor=False, seg_provenance="sam3_gt_propagated")
+                                            for f in frames])
+    with pytest.raises(ValueError, match="no frame is a GT frame"):
+        score(tmp_path)
+
+
+def test_a_gt_frame_without_a_prediction_is_refused(tmp_path):
+    # The pilot scored the GT frames that had a prediction; normal mode skips none, and neither does pilot mode.
+    pilot_clip_dir(tmp_path, [f"label_{i:04d}.npy" for i in range(3)])
+    (tmp_path / "tracks" / "c" / "t" / "label_0001.npy").unlink()
+    with pytest.raises(ValueError, match=r"GT frames \[1\] have no prediction"):
+        score(tmp_path)
 
 
 def test_a_label_outside_the_depth_is_refused(tmp_path):
     pilot_clip_dir(tmp_path, ["label_0000.npy", "label_0009.npy"])
     with pytest.raises(ValueError, match="names frame 9"):
-        score_pilot_clip(tmp_path / "data", tmp_path / "tracks", "t", "c", "cholecseg8k")
+        score(tmp_path)
+
+
+def test_two_files_for_one_frame_are_refused(tmp_path):
+    # The pilot read both and scored the frame twice.
+    pilot_clip_dir(tmp_path, ["label_0000.npy", "label_0001.npy", "label_1.npy"])
+    with pytest.raises(ValueError, match="frame 1 has two predictions"):
+        score(tmp_path)
+
+
+def test_a_prediction_that_is_not_an_integer_map_is_refused(tmp_path):
+    # The pilot cast it to int32 and scored what was left.
+    pilot_clip_dir(tmp_path, [f"label_{i:04d}.npy" for i in range(2)])
+    np.save(tmp_path / "tracks" / "c" / "t" / "label_0001.npy", np.full((20, 30), 2.7, np.float32))
+    with pytest.raises(ValueError, match="not an \\(H, W\\) integer map"):
+        score(tmp_path)
+
+
+def test_a_manifest_that_disagrees_with_the_depth_is_refused(tmp_path):
+    pilot_clip_dir(tmp_path, [f"label_{i:04d}.npy" for i in range(3)])
+    edit_manifest(tmp_path, lambda frames: frames.append(
+        dict(seq_idx=3, native_frame=145, timestamp_sec=1.8, has_seg_mask=False, is_anchor=False)))
+    with pytest.raises(ValueError, match="the manifest lists 4 frames"):
+        score(tmp_path)
+
+
+def test_an_atlas120k_clip_reads_its_id_masks_and_its_one_tool_class(tmp_path):
+    """Tools/camera (id 1) on a third of the frame, Liver (id 12) on the rest, and one predicted region over both.
+    In `full` the region hits the liver only; in `tissue` the tool is removed, and the region hits the one
+    object left. CholecSeg8k's tool ids would leave the tool in `tissue`, and the black colour mask the viewer
+    wrote beside the id mask, read instead, would leave no GT object."""
+    ids = np.full((40, 60), 12, np.int32)
+    ids[:, :20] = 1
+    C.write_clip(tmp_path / "data", "c", [ids], dataset="atlas120k")
+    cv2.imwrite(str(tmp_path / "data" / "c" / "seg_masks" / "000000_color_mask.png"), np.zeros((80, 120, 3), np.uint8))
+    C.write_labels(tmp_path / "tracks", "c", "t", {0: np.zeros((40, 60), np.int32)})
+    row, _ = score(tmp_path, load_table("atlas120k"))
+    assert row["F1_50/full"] == round(2 / 3, 4)
+    assert row["F1_50/tissue"] == 1.0
 
 
 def test_a_pilot_mode_json_says_so_and_scores_the_pilot_s_domains(tmp_path):
@@ -207,3 +265,8 @@ def test_a_pilot_mode_json_says_so_and_scores_the_pilot_s_domains(tmp_path):
     summary = score_condition("cholecseg8k", None, ["c"], tmp_path / "data", tmp_path / "tracks", "t", pilot=True)
     assert summary["pilot"] is True and summary["views"] == list(PILOT_DOMAINS)
     assert summary["per_clip"][0]["F1_50/labeled_tissue"] == 1.0
+
+
+def test_pilot_mode_refuses_a_class_set_other_than_the_original_ids(tmp_path):
+    with pytest.raises(ValueError, match="pilot mode scores the original ids"):
+        score_condition("atlas120k", "benchmark", ["c"], tmp_path, tmp_path, "t", pilot=True)
