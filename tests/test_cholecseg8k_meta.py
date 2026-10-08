@@ -1,8 +1,8 @@
-"""The CholecSeg8k metadata files agree with one another, and carry nothing private.
+"""Check that the CholecSeg8k metadata files agree with one another and carry nothing private.
 
-Every clip of the population names a window that has a crop rectangle,
-every rectangle belongs to a clip of the population, and the rectangles are
-read by the crop stage's own reader.
+- The population is 27 windows of 17 videos.
+- Every clip of the population has a crop rectangle, and no other clip has one.
+- The crop stage's own reader accepts the rectangles.
 """
 
 import re

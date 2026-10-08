@@ -1,8 +1,11 @@
-"""The CholecSeg8k crop, on a clip made up for the test, and the rectangles it reads.
+"""Test the CholecSeg8k crop on a clip made up for the test, and the rectangles it reads.
 
-Each refusal is planted and watched: a rectangle that is not one, a clip
-without one, an image of another size, and a cut clip left by an
-earlier run.
+Each refusal has a test that plants its fault:
+
+- a malformed rectangle;
+- a clip without a rectangle;
+- an image of another size;
+- a cut clip left by an earlier run.
 """
 
 import json

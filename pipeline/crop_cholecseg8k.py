@@ -1,10 +1,14 @@
 """Cut CholecSeg8k clips to the rectangle inside the endoscope's view of their video.
 
-For a clip `<clip>`, it writes `<clip>_crop` beside it: every image of
-`input_images/` and every colour mask of `seg_masks/`, cut to the video's
-rectangle; the frame manifest, with each frame's `image_size` and the
-rectangle as `crop_info`; and the rectangle again as `crop_info.json`. The
-rectangles are data, one per clip, in `cholecseg8k_meta/crop_rects.json`.
+The rectangles are data, one per clip, in `cholecseg8k_meta/crop_rects.json`.
+For a clip `<clip>`, the stage writes `<clip>_crop` in the same directory,
+holding:
+
+- every image of `input_images/` and every colour mask of `seg_masks/`, cut
+  to the clip's rectangle;
+- the frame manifest, with each frame's `image_size` and the rectangle as
+  `crop_info`;
+- the rectangle again as `crop_info.json`.
 
 Usage:
     python -m pipeline.crop_cholecseg8k --input-dir /path/to/clips --rects cholecseg8k_meta/crop_rects.json \\
