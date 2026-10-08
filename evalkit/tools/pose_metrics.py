@@ -5,9 +5,10 @@ first fitted to the true ones by one similarity transform (Umeyama: rotation,
 translation and one scale), and the error is the RMSE of the fitted centres.
 `ate` divides it by the true trajectory's RMS radius about its centroid, so
 a camera that never moves scores exactly 1.0: below 1.0, the poses carry
-information. Only `ate_rel` decides; `rpe` and `scale_consistency` explain.
-The model's extrinsics are world-to-camera and the camera centre is
-`-R^T t`; a camera-to-world pose holds the centre as its translation.
+information. Only `ate_rel` decides the result; `rpe` and
+`scale_consistency` help explain it. The model's extrinsics are
+world-to-camera and the camera centre is `-R^T t`; a camera-to-world pose
+holds the centre as its translation.
 """
 
 import numpy as np
@@ -33,7 +34,7 @@ def umeyama(src: np.ndarray, dst: np.ndarray) -> tuple[float, np.ndarray, np.nda
     """Solve `dst ≈ s R src + t` by least squares (Umeyama 1991).
 
     Returns:
-        (scale, (3, 3) rotation, (3,) translation). Points that collapse onto one give scale 0 and the
+        (scale, (3, 3) rotation, (3,) translation). Source points that all coincide give scale 0 and the
         identity, which is what a camera that never moves gets.
 
     Raises:
@@ -94,9 +95,9 @@ def _angle_deg(R: np.ndarray) -> np.ndarray:
 
 def rpe(est_c: np.ndarray, est_R: np.ndarray, gt_c: np.ndarray, gt_R: np.ndarray, times: np.ndarray,
         scale: float, dt: float = 1.0) -> dict:
-    """Return the error of the relative poses `dt` seconds apart, which judges the trajectory locally.
+    """Return the error of the relative poses `dt` seconds apart, a local measure of the trajectory.
 
-    ATE follows one large failure; this does not. The translations take the one scale `ate`'s fit found.
+    ATE follows one large failure; RPE does not. The translations take the one scale `ate`'s fit found.
 
     Args:
         est_c, est_R: the estimated camera centres and camera-to-world rotations.
@@ -115,7 +116,7 @@ def rpe(est_c: np.ndarray, est_R: np.ndarray, gt_c: np.ndarray, gt_R: np.ndarray
     i, j = i[ok], j[ok]
     if len(i) < 3:
         return dict(rpe_trans_rel=float("nan"), rpe_rot_deg=float("nan"), n_pairs=len(i))
-    # Frame j's position seen from frame i's camera: the world difference turned back by i's rotation.
+    # Frame j's position in frame i's camera axes: the world difference rotated by the transpose of i's rotation.
     d_gt = np.einsum("nji,nj->ni", gt_R[i], gt_c[j] - gt_c[i])
     d_est = np.einsum("nji,nj->ni", est_R[i], est_c[j] - est_c[i]) * scale
     e = np.linalg.norm(d_est - d_gt, axis=1)
@@ -130,12 +131,12 @@ def rpe(est_c: np.ndarray, est_R: np.ndarray, gt_c: np.ndarray, gt_R: np.ndarray
 def scale_consistency(est_c: np.ndarray, gt_c: np.ndarray, n_parts: int = 4) -> dict:
     """Fit each of `n_parts` equal stretches on its own, and return how far their scales spread.
 
-    Near 1, the trajectory is solved at one scale throughout. A model that joins chunks of a sequence breaks
-    here first.
+    A `scale_ratio` near 1 says that the trajectory has one scale throughout. A model that solves a sequence
+    chunk by chunk fails this measure first.
 
     Returns:
         `scale_ratio` (largest over smallest) and `scales`. NaN when the sequence is shorter than 4 frames a
-        stretch, or a stretch collapses.
+        stretch, or a stretch's fitted scale is 0.
     """
     n = len(gt_c)
     if n < n_parts * 4:

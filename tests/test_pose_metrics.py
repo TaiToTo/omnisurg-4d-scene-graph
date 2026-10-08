@@ -1,8 +1,10 @@
 """The trajectory measures, on trajectories whose answer is known.
 
-A similar copy of the truth scores 0, a camera that never moves exactly
-1.0, the truth read backwards or mirrored badly; a uniform scale keeps the
-scale ratio at 1 and a stretch that grows moves it off.
+- A similar copy of the truth scores 0.
+- A camera that never moves scores exactly 1.0.
+- The truth read backwards, or mirrored, scores badly.
+- A uniform scale keeps the scale ratio at 1; a scale that grows along the
+  trajectory moves the ratio off 1.
 """
 
 import numpy as np
