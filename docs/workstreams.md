@@ -75,15 +75,15 @@ say, in the form a session starting cold needs.
 
 ## Not now: blocked on a decision
 
-`track_metrics` and `kmerge` wait on a decision not yet made; started before
-it, they would be ported twice. The tracking stage and the per-frame
+`track_metrics` waits on a decision not yet made: ported before the
+decision, it would be ported twice. The tracking stage and the per-frame
 segmentation stage wait on decisions too, and the stages after tracking wait
 on the tracking stage. The questions are named as `docs/porting.md` heads
 them.
 
 | piece | waits for |
 |---|---|
-| `track_metrics`, `kmerge` | "Identity metrics and merge cost" |
+| `track_metrics` | "Identity metrics and merge cost" |
 | the tracking stage: `track_sam3.py`, `sam3_wrapper/` and their helpers | "The seed frame chosen from GT", "The edge ring as a process-wide flag", and `track_metrics`, whose seed helpers it imports |
 | the per-frame segmentation stage: `run_per_frame_seg.py`, `geom_blend.py` | "The edge ring as a process-wide flag" |
 | the export stages and the viewer | the tracking stage, whose output they read |
