@@ -4,8 +4,9 @@ A prediction equal to the GT must score one, or zero for the variation of
 information, on every key in every view. The JSON must pass the tools' own
 readers, two conditions on the same inputs must be comparable, and one on
 another GT must not. A run that fails writes nothing. The JSON records the
-condition's propagation rule as each clip's `seed_info.json` gives it, and a
-condition whose seed holds no rule is refused.
+condition's propagation rule as every clip's `seed_info.json` gives it. A
+seed that holds no rule, a seed from the GT among them, and a record on some
+clips but not on the others are refused.
 """
 import json
 import shutil
@@ -23,9 +24,10 @@ from evalkit.tools.scores import check_comparable, check_rows, load_scores, metr
 
 CLIPS = ["VID01_a", "VID02_b"]
 
-# What the tracker records for a seed on the centre of three frames, carried both ways.
-BOTH_WAYS = {"seed_source": "auto", "seed_frame": 1, "bidir": True, "frames": [0, 1, 2]}
-FORWARD = {"seed_source": "auto", "seed_frame": 0, "bidir": False, "frames": [0, 1, 2]}
+# What the tracker records for a seed from its own masks on the centre of three frames, carried both
+# ways, and on the first frame, carried forward.
+BOTH_WAYS = {"seed_source": "sam", "seed_frame": 1, "bidir": True, "frames": [0, 1, 2]}
+FORWARD = {"seed_source": "sam", "seed_frame": 0, "bidir": False, "frames": [0, 1, 2]}
 
 
 def write_condition(tmp_path, tag, regions_of=lambda gt: gt.copy(), clips=CLIPS, data="data", seed_info=BOTH_WAYS):
@@ -145,15 +147,29 @@ def test_the_json_records_the_rule_each_clip_s_seed_info_gives(tmp_path, info, r
     assert summary["propagation"] == rule
 
 
-@pytest.mark.parametrize("info", [
-    {"seed_source": "gt", "seed_frame": 2, "bidir": True, "frames": [0, 1, 2]},
-    {"seed_source": "auto", "seed_frame": 1, "bidir": False, "frames": [1, 2]},
-    {"seed_source": "auto", "seed_frame": 1, "frames": [0, 1, 2]},
+@pytest.mark.parametrize("info, why", [
+    ({"seed_source": "gt", "seed_frame": 1, "bidir": True, "frames": [0, 1, 2]}, "not from the tracker's own masks"),
+    ({"seed_source": "external", "seed_frame": 1, "bidir": True, "frames": [0, 1, 2]}, "not from the tracker's own masks"),
+    ({"seed_frame": 1, "bidir": True, "frames": [0, 1, 2]}, "names no seed_source"),
+    ({"seed_source": "sam", "seed_frame": 2, "bidir": True, "frames": [0, 1, 2]}, "the centre of the labelled frames is 1"),
+    ({"seed_source": "sam", "seed_frame": 0, "bidir": True, "frames": [0, 1, 2]}, "the centre of the labelled frames is 1"),
+    ({"seed_source": "sam", "seed_frame": 1, "bidir": False, "frames": [1, 2]}, "the rule starts on frame 0"),
+    ({"seed_source": "sam", "seed_frame": 1, "frames": [0, 1, 2]}, "lacks the seed frame, bidir"),
+    ({"seed_source": "sam", "seed_frame": 1, "bidir": True, "frames": "all"}, "lacks the seed frame, bidir"),
 ])
-def test_a_seed_that_holds_no_rule_is_refused(tmp_path, info):
+def test_a_seed_that_holds_no_rule_is_refused(tmp_path, info, why):
     write_condition(tmp_path, "c", seed_info=info)
-    with pytest.raises(ValueError, match="holds no propagation rule"):
+    with pytest.raises(ValueError, match=f"holds no propagation rule: .*{why}"):
         score(tmp_path, "c")
+
+
+def test_a_record_on_some_clips_and_none_on_the_others_is_refused(tmp_path):
+    write_condition(tmp_path, "c", clips=CLIPS[:1])
+    write_condition(tmp_path, "c", clips=CLIPS[1:], seed_info=None)
+    with pytest.raises(ValueError, match="on every clip or on none"):
+        score(tmp_path, "c")
+    with pytest.raises(ValueError, match="on every clip or on none"):
+        score(tmp_path, "c", propagation="both_ways_from_centre")
 
 
 def test_two_rules_in_one_condition_are_refused(tmp_path):

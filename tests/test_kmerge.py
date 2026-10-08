@@ -14,7 +14,7 @@ import evalkit.tools.kmerge as KM
 from evalkit.evaluate import condition_rule, score_condition
 from evalkit.tools.kmerge import kmerge, merge_condition
 
-BOTH_WAYS = {"seed_source": "auto", "seed_frame": 1, "bidir": True, "frames": [0, 1, 2]}
+BOTH_WAYS = {"seed_source": "sam", "seed_frame": 1, "bidir": True, "frames": [0, 1, 2]}
 
 
 def test_the_smallest_region_joins_the_neighbour_it_shares_most_boundary_with():
