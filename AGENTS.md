@@ -32,8 +32,8 @@ byte**, ever, including "while we are tidying up anyway".
 `eval_code_sha` is what makes two measurements comparable. Change a frozen file
 and every number measured before becomes incomparable with every number
 measured after — silently, because nothing crashes. `compare_eval.py` refuses
-to mix scores across shas, and that refusal is the only thing standing between
-us and a plausible-looking wrong table.
+scores whose `eval_code_sha` differs, and that refusal is the only thing
+standing between us and a plausible-looking wrong table.
 
 The pilot measurements were scored by the *pilot evaluator* (`eval_code_sha =
 1f8a813a…`). It stays frozen in the private workbench and is not part of this
@@ -120,6 +120,16 @@ against.
 - **Say what a thing does first, in a plain sentence.** Start with the
   subject and the verb; one idea per sentence; the reason follows in its
   own sentence.
+- **One word, one meaning.** A word that names one thing in a document
+  names nothing else there.
+- **The verb says what the code does**: compare, refuse, include; never an
+  image such as "sit beside" or "meet".
+- **Each sentence reads on its own**: no verb left out, no pronoun far from
+  its noun.
+- **A field, a function or a file goes in backticks; anything else is a plain
+  word**, never a shorthand such as "sha" for a hash.
+- **Parallel items go in a list; a chain of reasons stays in sentences.**
+- **A new case updates every list of cases.**
 - **A module's header is short**: what the module does, in at most twelve
   lines, then how to run it. No history, no glossary, no defence of choices.
 - **A term is defined once**, in its area's specification or in the one
