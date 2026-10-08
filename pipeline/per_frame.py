@@ -1,12 +1,14 @@
 """Run the per-frame segmentation stage: cut every frame of each clip into regions, with nothing carried between frames.
 
-It is the tracking stage's seed, made on every frame: SAM's automatic mask
-generator, prompted with one of the segmenter inputs, then the regions under
-`--seed-min-area` pixels dropped. Region `r` is written as `r + 1`, the id
-the tracker would give it, and -1 is no region. Ids do not follow an object
-from frame to frame, so a measure over time means nothing here. A clip's
-labels go to `<tracks-root>/<clip>/track_rgb_<tag>/label_NNNN.npy`, beside
-`seed_info.json`; the directory is named as the tracking stage's are.
+The stage makes the tracking stage's seed on every frame. SAM's automatic
+mask generator cuts each frame, prompted with one of the segmenter inputs,
+and the regions under `--seed-min-area` pixels are dropped. Region `r` is
+written as `r + 1`, the id the tracker would give it; a pixel in no region
+is written as -1. Ids do not follow an object from frame to frame, so a
+measure over time means nothing here. The stage writes a clip's labels,
+`label_NNNN.npy`, and `seed_info.json` to
+`<tracks-root>/<clip>/track_rgb_<tag>/`, a directory named as the tracking
+stage's are.
 
 Usage:
     python -m pipeline.per_frame --input-dir /path/to/clips --tracks-root /path/to/tracks --tag <tag> \\
@@ -51,7 +53,10 @@ def run_per_frame(clip_dir: Path, tracks_root: Path, tag: str, segmenter, sam_in
 
     Raises:
         FileNotFoundError: a bundle or an image is missing.
-        ValueError: the mode or the depth source is unknown, or the labels exist and `overwrite` is false.
+        ValueError: one of these:
+            - the mode or the depth source is unknown
+            - the labels exist and `overwrite` is false
+            - Pi3X's depth has another number of frames than DA3's
     """
     # Check the settings, and refuse labels an earlier run left.
     uses_geom_edge(sam_input)
@@ -77,7 +82,8 @@ def run_per_frame(clip_dir: Path, tracks_root: Path, tag: str, segmenter, sam_in
             labels[m] = oid
         np.save(lab_dir / f"label_{i:04d}.npy", labels)
 
-    # Record how the labels were made, with the workbench's keys and order; `seed_topk` names an option it had.
+    # Record how the labels were made, with the workbench's keys and order; `seed_topk` names an option the
+    # workbench had.
     seed_input = dict(produced_by="sam", cache_path=None, points_per_side=points_per_side,
                       seed_sam_kwargs=SEED_SAM_KWARGS, seed_edge_gain=edge_gain, seed_smooth=SMOOTH,
                       edge_ring_masked=mask_ring if uses_geom_edge(sam_input) else None)
