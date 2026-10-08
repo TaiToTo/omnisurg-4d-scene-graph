@@ -113,6 +113,17 @@ Where they and this document differ, this document holds.
     mixes two rules, as they refuse two shas. A condition with no tracker
     has no rule and may sit beside either, since propagation against
     per-frame segmentation is itself a comparison the paper makes.
+13. **The camera trajectory measures are hashed on their own.** `ate_rel`
+    decides the StereoMIS result, so the code that computes it is under the
+    freeze rule like the evaluator, and `eval_code_sha` does not cover it:
+    the two results are measured and frozen at their own times, and a
+    change to one must not make the other's scores incomparable. When the
+    StereoMIS scorer is ported, `pose_metrics` moves out of `tools/` into a
+    package of its own, hashed as `code_sha` hashes the evaluator (each
+    file's path and content, each preceded by its length), and every
+    StereoMIS score records that hash and is compared only with scores
+    whose hash matches. Until then `pose_metrics` is a module under
+    `tools/`, tested, and nothing scores with it.
 
 ## What moves
 
@@ -153,6 +164,7 @@ copy to read the RGB clips, and the ported copies read `evalkit.classes`.
 | `surgical_core/viewer/labels.py`, `palette.py` | `surgical_core/viewer/` | `extract/03-metrics` (#3) | English only. `label_table_of` and `cholec_gt_table` move to a new `gt_tables.py`, the one viewer module that imports `evalkit`; `labels.py` builds its table from plain data, so a video with no class table gets one too. The rest of `surgical_core/viewer` is below, under "Not yet extracted anywhere". |
 | `kmerge.py` | `ipcai2027_experiment/scripts/kmerge.py` | `extract/04-kmerge` (#5) | Ported as `evalkit/tools/kmerge.py`, outside `eval_code_sha`. It merges a condition's predictions down to K and writes them as a condition of their own, which the evaluator scores and `compare_eval` compares, so it computes no metric; `kmerge.json` records the source and the sha256 of its predictions, so a source re-tracked after the merge is told apart. Its merge equals the workbench's `kmerge_sequence` on 590 maps. It differs from the workbench in what it reads: it merges every frame that has a prediction, where the workbench merged every fifth; and it refuses a frame with a pixel without valid depth, or with a region id below -1, as the evaluator does, where the workbench dropped the labels of such pixels and merged on. Not carried for now: its scoring with the pilot's instance metrics, the curve over K, the `matched` K, `--pairs`, and the merges by threshold and by geometry (`tmerge_sequence`, `kgeo_sequence`). |
 | `surgical_core/geometry/` | `depth_sam_tracking_experiment/geometry.py` | `extract/04-kmerge` (#5) | English only. Shared by the pipeline and the toolkit. |
+| `pose_metrics.py` | `ipcai2027_experiment/scripts/pose_metrics.py` | — | Ported as `evalkit/tools/pose_metrics.py`, to be hashed on its own ("The camera trajectory measures are hashed on their own"). It measures an estimated camera trajectory against StereoMIS's: `ate` after one similarity fit, `rpe` and `scale_consistency`; `ate_rel` decides the result. Its values equal the workbench's on 1200 random, planar and static trajectories. It refuses what the workbench let through: trajectories of unequal length, times out of order and values that are not finite. Not carried for now, with the rest of the StereoMIS result: `stereomis_io.py` (calibration, rectified frames, the measured offsets between video, ground truth and depth), `pose_controls.py` (the static camera, constant motion and stereo visual odometry the result is read against), `summarize_20.py` and `run_20.sh` (the run and its table), and `d4d_pose.py` (the D4D check of the same result). None of StereoMIS's data is on the development machine, so they are checked on the workbench's GPU machine when they move. |
 | `condition_inventory.py` | `ipcai2027_experiment/scripts/condition_inventory.py` | `extract/05-inventory` (#4) | It reads `eval_code_sha`, `eval_code_tag` and `eval_version` from score JSONs. "One ruler" is now what `docs/evaluation.md` calls comparable: `eval_code_sha`, dataset, class set, view and mode all equal, and one propagation rule. The provenance fields now include `bidir`, whether the tracker ran both ways. |
 | `check_env.py` | `ipcai2027_experiment/atlas97/scripts/check_env97.py` | `extract/05-inventory` (#4) | Not carried (decision 4). |
 | `reeval_diff.py` | — (written in the earlier repository) | `extract/06-rescore` (#6) | Ported as `evalkit/tools/pilot_check.py`, the check against the pilot evaluator, run in the workbench. The earlier repository's version insists the sha equals the pilot's and diffs `eval_code_sha` with everything else; `pilot_check` works the other way round: the shas differ by construction, only the keys the two evaluators share are compared, and those must be equal. |
@@ -167,6 +179,8 @@ Tests come with the file they test:
   the port of `kmerge` leaves out: its averaging by clip, and the root it
   read clips from. `tests/test_kmerge.py` tests the merge.
 - `test_condition_inventory_roots.py` comes with `condition_inventory`.
+- `pose_metrics` has no test in the workbench; its `selftest` is
+  `tests/test_pose_metrics.py`, with the values worked out by hand.
 
 All of these are in `$OMNISURG_SOURCE/depth_sam_tracking_experiment/tests/`,
 apart from the two tests of `kmerge` and `test_condition_inventory_roots.py`,
