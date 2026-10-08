@@ -3,10 +3,14 @@
 - The population is 27 windows of 17 videos.
 - Every clip of the population has a crop rectangle, and no other clip has one.
 - The crop stage's own reader accepts the rectangles.
+- No file carries a machine path, an email address or untranslated text, and the pattern that looks for
+  them finds each one.
 """
 
 import re
 from pathlib import Path
+
+import pytest
 
 from pipeline.crop_cholecseg8k import load_rects
 
@@ -31,7 +35,22 @@ def test_every_clip_of_the_population_has_a_rectangle_and_no_other_does():
     assert set(rects) == {c.removesuffix("_crop") for c in _clips()}
 
 
-def test_no_file_carries_a_path_a_name_or_untranslated_text():
+def test_no_file_carries_a_path_an_email_address_or_untranslated_text():
     for p in sorted(META.iterdir()):
         hits = PRIVATE.findall(p.read_text(encoding="utf-8"))
         assert not hits, (p.name, hits)
+
+
+@pytest.mark.parametrize("text", [
+    "root: /Users/someone/outputs/cholec_gt",
+    "/home/someone/data", "/mnt/data", "/var/autofs/data",
+    "someone@example.com",
+    "crop は全クリップ均一",
+    "ＶＩＤ０１",
+])
+def test_the_private_pattern_finds_what_it_is_for(text):
+    assert PRIVATE.search(text), text
+
+
+def test_the_private_pattern_passes_the_metadata_s_own_words():
+    assert not PRIVATE.search("VID01_s15_80_crop  y0 y1 x0 x1 src_h src_w  cholec80 video01.mp4")
