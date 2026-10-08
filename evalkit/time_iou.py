@@ -16,10 +16,10 @@ follow time. Pilot mode orders them by file name instead, and that too is
 the caller's.
 
 Pilot mode is to order the frames exactly as the pilot evaluator did, by
-`sorted()` of the `label_*.npy` file names, which is the names'
-lexicographic order and not the frame numbers' order unless the numbers are
-zero-padded. This metric reads no GT and no view, so the entry point
-computes it once per clip.
+`sorted()` of the `label_*.npy` file names. That sorts the names as text,
+so `label_10` comes before `label_2` unless the numbers are zero-padded.
+This metric reads no GT and no view, so the entry point computes it once
+per clip.
 
 `docs/figures/time_iou.png` shows this on a drawn scene, with the numbers the module
 gives for it.

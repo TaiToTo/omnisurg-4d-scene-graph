@@ -2,12 +2,12 @@
 
 Conditions that cut a frame into different numbers of regions are not
 compared on instance metrics as they are: more regions lose on them
-whatever their boundaries. Merged to one K, they are. The rule was fixed
-before any result: the region of least area is absorbed into the
-neighbour it shares the longest boundary with, until K are left. It reads
-areas and adjacency only, so it favours no input. The merged predictions
-are scored by the evaluator like any other condition, and compared with
-`compare_eval`.
+whatever their boundaries. Merged to one K, they can be compared. The rule
+was fixed before any result: the region of least area is merged into the
+neighbour it shares the longest boundary with, until K are left. The rule
+reads areas and adjacency only, so it favours no input. The merged
+predictions are scored by the evaluator like any other condition, and
+compared with `compare_eval`.
 
 Usage:
     python -m evalkit.tools.kmerge --dataset atlas120k --clips atlas120k_meta/clips.txt \\
@@ -37,9 +37,9 @@ DEFAULT_K = 10
 def fill_seams(labels: np.ndarray) -> np.ndarray:
     """Give each unlabelled pixel the label of the nearest labelled one, for measuring adjacency only.
 
-    Tracked regions are often parted by a seam of unlabelled pixels one wide, and across it two regions that
-    touch are not 4-neighbours. Without the fill a region can look isolated and stop the merge. The merged map
-    keeps its unlabelled pixels.
+    Tracked regions are often parted by a seam of unlabelled pixels one pixel wide, and across it two regions
+    that touch are not 4-neighbours. Without the fill a region can have no neighbour and stop the merge. The
+    merged map keeps its unlabelled pixels.
     """
     known = labels >= 0
     if not known.any() or known.all():
@@ -77,9 +77,10 @@ def region_adjacency(labels: np.ndarray) -> tuple[dict[int, int], dict[int, dict
 def kmerge(labels: np.ndarray, k: int) -> np.ndarray:
     """Merge the regions of one frame down to `k`, and return the merged map.
 
-    The region of least area is absorbed into the neighbour it shares the longest boundary with; ties go to the
-    lower id, then to the smaller neighbour. A merged region keeps the id of the region that absorbed it. A map
-    of `k` regions or fewer is returned as it is.
+    The region of least area is merged into the neighbour it shares the longest boundary with, and takes that
+    neighbour's id. Of two regions of least area, the lower id is merged first. Of two neighbours that share
+    the longest boundary, the one of smaller area takes the region. A map of `k` regions or fewer is returned
+    as it is.
 
     Args:
         labels: An (H, W) integer map, -1 for no region.
@@ -125,7 +126,7 @@ def kmerge(labels: np.ndarray, k: int) -> np.ndarray:
 
 def merge_condition(dataset: str, clips: Sequence[str], data_root: str | Path, tracks_root: str | Path, tag: str,
                     out_tag: str, k: int = DEFAULT_K, overwrite: bool = False) -> None:
-    """Merge every frame of a condition and write it under `out_tag`.
+    """Merge every frame of a condition, and write the merged condition under `out_tag`.
 
     Each prediction is read as the evaluator reads it, at the shape of the clip's depth, and the merged map is
     written at that shape, under the source file's name. The clip's `seed_info.json`, if any, is copied with
@@ -142,7 +143,7 @@ def merge_condition(dataset: str, clips: Sequence[str], data_root: str | Path, t
     tracks_root = Path(tracks_root)
     table = load_table(dataset)
 
-    # Refuse merged predictions an earlier run left before anything is written.
+    # Before anything is written, refuse merged predictions an earlier run left.
     held = [c for c in clips if (tracks_root / c / out_tag).exists()]
     if held and not overwrite:
         raise ValueError(f"{out_tag} already exists for {held}; pass --overwrite to replace it")
@@ -153,7 +154,7 @@ def merge_condition(dataset: str, clips: Sequence[str], data_root: str | Path, t
         src = tracks_root / clip / tag
         names = {int(p.stem.split("_")[1]): p.name for p in src.glob("label_*.npy")}
 
-        # Merge each frame and write it, with the seed's record and this tool's.
+        # Merge each frame and write it, then copy `seed_info.json` and write `kmerge.json`.
         dst = tracks_root / clip / out_tag
         if dst.exists():
             shutil.rmtree(dst)
@@ -170,7 +171,7 @@ def merge_condition(dataset: str, clips: Sequence[str], data_root: str | Path, t
 
 def main(argv: Sequence[str] | None = None) -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--dataset", required=True, help="cholecseg8k or atlas120k; its class table reads the GT.")
+    ap.add_argument("--dataset", required=True, help="cholecseg8k or atlas120k; the GT is read with its class table.")
     ap.add_argument("--clips", required=True, help="The population file, one clip per line.")
     ap.add_argument("--data-root", required=True, help="The directory holding one directory per clip.")
     ap.add_argument("--tracks-root", required=True, help="The directory holding each clip's conditions.")

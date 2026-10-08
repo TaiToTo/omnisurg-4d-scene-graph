@@ -144,7 +144,7 @@ copy to read the RGB clips, and the ported copies read `evalkit.classes`.
 | `track_metrics.py` | `depth_sam_tracking_experiment/track_metrics.py` | `extract/03-metrics` (#3) | It imports `BACKGROUND`, `_gt_idmap` and `_load_depth` from the pilot's `eval_track`; they come from the evaluator instead. `MIN_AREA` is removed (decision 5). Whether it is part of the evaluator waits on open question 1; if it is, it moves to the table above. |
 | `surgical_core/clip_time.py` | `surgical_core/clip_time.py` | `extract/03-metrics` (#3) | English only. |
 | `surgical_core/viewer/labels.py`, `palette.py` | `surgical_core/viewer/` | `extract/03-metrics` (#3) | English only. `label_table_of` and `cholec_gt_table` move to a new `gt_tables.py`, the one viewer module that imports `evalkit`; `labels.py` builds its table from plain data, so a video with no class table gets one too. The rest of `surgical_core/viewer` is below, under "Not yet extracted anywhere". |
-| `kmerge.py` | `ipcai2027_experiment/scripts/kmerge.py` | `extract/04-kmerge` (#5) | Ported as `evalkit/tools/kmerge.py`, outside `eval_code_sha`. It merges a condition's predictions down to K and writes them as a condition of their own, which the evaluator scores and `compare_eval` compares, so it computes no metric. Its merge rule is the workbench's `kmerge_sequence`, equal to it on 590 maps. Not carried for now: its scoring with the pilot's instance metrics, the curve over K, the `matched` K, `--pairs`, and the merges by threshold and by geometry (`tmerge_sequence`, `kgeo_sequence`). |
+| `kmerge.py` | `ipcai2027_experiment/scripts/kmerge.py` | `extract/04-kmerge` (#5) | Ported as `evalkit/tools/kmerge.py`, outside `eval_code_sha`. It merges a condition's predictions down to K and writes them as a condition of their own, which the evaluator scores and `compare_eval` compares, so it computes no metric. Its merge equals the workbench's `kmerge_sequence` on 590 maps. Not carried for now: its scoring with the pilot's instance metrics, the curve over K, the `matched` K, `--pairs`, and the merges by threshold and by geometry (`tmerge_sequence`, `kgeo_sequence`). |
 | `surgical_core/geometry/` | `depth_sam_tracking_experiment/geometry.py` | `extract/04-kmerge` (#5) | English only. Shared by the pipeline and the toolkit. |
 | `condition_inventory.py` | `ipcai2027_experiment/scripts/condition_inventory.py` | `extract/05-inventory` (#4) | It reads `eval_code_sha`, `eval_code_tag` and `eval_version` from score JSONs. "One ruler" is now what `docs/evaluation.md` calls comparable: sha, dataset, class set, view and mode all equal. |
 | `check_env.py` | `ipcai2027_experiment/atlas97/scripts/check_env97.py` | `extract/05-inventory` (#4) | Not carried (decision 4). |
@@ -324,9 +324,10 @@ Every command takes those paths as arguments.
      quarter of frames, and zero tolerance is the promise, so the driver
      averages `ious` the pilot's way (`evalkit/classmap.py`).
    - `time_IoU`: the pilot ordered frames by `sorted()` of the `label_*.npy`
-     names, lexicographic, not numeric unless zero-padded; the driver orders
-     them that way in pilot mode, and writes the one per-clip value under
-     every view (`evalkit/time_iou.py`).
+     names, which sorts them as text: `label_10` before `label_2`, unless
+     the numbers are zero-padded. The driver orders them that way in pilot
+     mode, and writes the one per-clip value under every view
+     (`evalkit/time_iou.py`).
    - `EXTRA_IGNORE`: the pilot removed those ids too, from the command line,
      recorded in each score as `extra_ignore`. Every score in the workbench
      that records it has it empty, but those are the workshop's; confirm on
@@ -518,3 +519,25 @@ Every command takes those paths as arguments.
     geometry or only reads what the export wrote. The functions are in
     `surgical_core/geometry/camera.py` and
     `surgical_core/geometry/project.py`.
+18. **Conditions seeded from GT.** A seed frame is scored like any other
+    frame, because the paper's conditions are seeded from the pipeline's own
+    masks. Which of the 38 conditions were seeded from GT instead, and
+    whether such a condition is scored on its seed frame or enters a table
+    at all, is settled before step 3, on the machine that holds the
+    predictions. The `seed_source` that each
+    condition's `seed_info.json` records says where its seed came from;
+    where it does not tell, the command that made the condition does.
+    The workshop's oracle row, GT instrument masks painted onto a
+    condition's labels, is one; the viewer's `gt_tracked` track, one GT
+    frame carried by SAM 3, is another candidate. What the tracking stage
+    does with such a seed is "The seed frame chosen from GT".
+19. **Masks that are not GT under the GT's name.** The viewer's step writes
+    SAM 3 masks into `seg_masks/` as `<i>_color_mask.png`, told apart from
+    the annotation only by the frame manifest's `is_anchor` and
+    `seg_provenance`, and the two VID25 clips still hold such masks from
+    before their re-extraction, on frames the frame manifest marks as having
+    none. The evaluator reads the flags and refuses the VID25 clips until
+    those files are removed. When the pipeline is ported (step 5), decide
+    whether a mask that is not annotation moves out of `seg_masks/` or takes
+    a name of its own, so that the distinction is in the file and not only in
+    the frame manifest.

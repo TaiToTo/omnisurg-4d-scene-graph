@@ -1,14 +1,15 @@
-"""One clip's inputs, read from the pipeline's directories: frames, GT masks, depth and predictions.
+"""Read one clip's inputs: its frames, GT masks, depth and predictions.
 
-Under `<data_root>/<clip>/`, `frame_manifest.json` lists the frames in the
-order the pipeline processed them and says which are GT frames
-(`docs/evaluation.md`, "Which frames"). Frame `i` has its depth in
-`exports/mini_npz/results.npz` as `depth[i]` and, on a GT frame, its mask,
-already cut to the endoscope's rectangle, in `seg_masks/<i:06d><suffix>`. Under
-`<tracks_root>/<clip>/<tag>/`, `label_<i>.npy` is the prediction for frame
-`i`. Masks and predictions of another shape are resized to the depth map's
-with nearest neighbour. Every input read is fingerprinted, so that a score
-says what it was computed from.
+The inputs sit in three places:
+- `<data_root>/<clip>/frame_manifest.json` lists the frames in the order
+  the pipeline processed them, and marks the GT frames (`docs/evaluation.md`,
+  "Which frames").
+- `<data_root>/<clip>/exports/mini_npz/results.npz` holds the depth, frame
+  `i` as `depth[i]`. `seg_masks/<i:06d><suffix>` beside it holds a GT
+  frame's mask, already cut to the endoscope's rectangle.
+- `<tracks_root>/<clip>/<tag>/label_<i>.npy` is the prediction for frame `i`.
+A mask or prediction of another shape is resized to the depth map's, with
+nearest neighbour. Every input is fingerprinted, so a score says what it read.
 """
 from __future__ import annotations
 
@@ -90,12 +91,12 @@ def _sha_of_json(value) -> str:
 
 
 def depth_sha(depth: np.ndarray) -> str:
-    """The depth's fingerprint: the sha256 of its float32 values, as `atlas120k_meta/depth_manifest.json` records it."""
+    """Return the depth's fingerprint: the sha256 of its float32 values, as `atlas120k_meta/depth_manifest.json` records it."""
     return hashlib.sha256(np.ascontiguousarray(depth, dtype=np.float32).tobytes()).hexdigest()
 
 
 def _time_order(frames: list[dict], clip: str) -> list[int]:
-    """The frames' indexes in time order: by `timestamp_sec`, or by frame number where the dataset gives no time.
+    """Return the frames' indexes in time order: by `timestamp_sec`, or by frame number where the dataset gives no time.
 
     Raises:
         ValueError: Some frames have a timestamp and some do not, or two
@@ -151,7 +152,7 @@ def _resized(arr: np.ndarray, shape: tuple[int, int]) -> np.ndarray:
 
 
 def _labels(label_dir: Path, n: int, clip: str) -> dict[int, Path]:
-    """Each frame index with a prediction to its file.
+    """Map each frame index with a prediction to its file.
 
     Raises:
         FileNotFoundError: The condition has no directory for this clip.
