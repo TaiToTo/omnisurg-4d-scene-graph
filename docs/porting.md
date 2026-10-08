@@ -313,7 +313,7 @@ Every command takes those paths as arguments.
    the 14 clips re-extracted under "CholecSeg8k clips whose frames run out
    of order" can, and so can depth made again under "Depth made by two
    versions of the depth stage".
-4. **Pilot mode's own rules.** Six places where pilot mode must not read
+4. **Pilot mode's own rules.** Seven places where pilot mode must not read
    the evaluator's tables or helpers, each noted where it was found and
    collected here so the pilot-mode driver settles them in one go:
    - ATLAS-120k typing: the pilot evaluator knew one type, Tools/camera;
@@ -349,6 +349,15 @@ Every command takes those paths as arguments.
      (`docs/evaluation.md`, "Which frames"). On a copy that also holds the
      viewer's masks, reading every mask file would score frames the pilot
      never did.
+   - The boundary F: `boundary_score` returns None for a frame whose GT
+     boundary is empty, and `instance_boundary_f` returns None for such a
+     hit and leaves it out of `inst_BF`; both compute F as 2·p·r / (p + r).
+     The pilot wrote 0 for such a frame and for such a hit, and its F had a
+     `1e-9` in the denominator: 2·p·r / (p + r + 1e-9). The driver reads the
+     `precision` and `recall` of each frame and of each hit's entry in
+     `InstanceBoundary.scores`, and applies the pilot's zeros and the
+     pilot's F, rather than counting boundary pixels a second time
+     (`evalkit/boundary.py`, `evalkit/inst_bf.py`).
 5. **Boundary dilation before the freeze.** `evalkit/boundary.py` dilates
    with `cv2.dilate`; a numpy shift-or over the (2·tol + 1)² offsets agrees
    on every mask tried, borders included. The question is whether a hashed
