@@ -551,9 +551,10 @@ uses it.
   changed type is a new evaluator
 - the dataset, the class set (`original`, or for ATLAS-120k also
   `benchmark`), the view, and whether the score was made in pilot mode
-- the sha of every input read, per clip: the GT masks, the depth maps (as
-  `atlas120k_meta/depth_manifest.json` fingerprints them), the crop
-  rectangle, the frames in time order, and the predictions
+- a sha256 hash of every input read, per clip, as `input_shas`: the GT
+  masks, the depth maps (as `atlas120k_meta/depth_manifest.json`
+  fingerprints them), the crop rectangle, the frames in time order, and the
+  predictions
 - the name of the directory the predictions were read from, as
   `track_dir_name`, which is how `condition_inventory` matches a score to
   its labels; a score that does not say what it scored cannot be inventoried
@@ -561,8 +562,8 @@ uses it.
   above)
 - the Python, numpy, OpenCV and Pillow versions
 
-The pilot evaluator's JSONs recorded none of the input shas, the propagation
-rule and the versions.
+The pilot evaluator's JSONs recorded no input hashes, propagation rule or
+versions.
 
 A score JSON holds those fields, `clips` (the population, in its order),
 and one row per clip under `per_clip`. A row holds the clip's name, every
@@ -584,9 +585,9 @@ is not enough on its own: pilot mode and the normal mode share it, and so do
 the views.
 
 The check against the pilot evaluator, below, is not a comparison under this
-rule: the two shas differ by construction. It is a verification, run by its
-own script outside `compare_eval`, that this evaluator in pilot mode writes the
-pilot evaluator's numbers.
+rule: the two `eval_code_sha` differ by construction. It is a verification,
+run by its own script outside `compare_eval`, that this evaluator in pilot
+mode writes the pilot evaluator's numbers.
 
 ### Terms the tools read a score with
 
@@ -594,7 +595,7 @@ pilot evaluator's numbers.
   clip, under `per_clip`. A *key* is one column of the rows: the evaluator
   writes `metric/view` (`F1_50/geometric`) and `time_IoU` once per clip; a
   *pilot JSON*, one the pilot evaluator wrote, is told apart by holding none
-  of the class set, views, mode, input shas, versions and propagation rule
+  of the class set, views, mode, input hashes, versions and propagation rule
   (`scores.EVALUATOR_FIELDS`) and keeps the pilot evaluator's spellings
   (`inst_F1_50`, `inst_F1_50_tissue`, with the domain after an underscore).
   A JSON this evaluator writes in pilot mode is not a pilot JSON.
@@ -664,7 +665,8 @@ pilot evaluator's numbers.
 ## Why the pilot evaluator was replaced
 
 The pilot evaluator cannot be corrected in place: any changed byte moves its
-sha. Three kinds of problem make correcting it worth a new evaluator.
+`eval_code_sha`. Three kinds of problem make correcting it worth a new
+evaluator.
 
 ### 1. The metrics overlap
 

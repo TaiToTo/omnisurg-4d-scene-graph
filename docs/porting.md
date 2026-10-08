@@ -242,7 +242,7 @@ while the evaluator is built and reviewed is worked out in `docs/workstreams.md`
    - on the pilot's score JSONs, it writes the same bytes as the workbench
      version (the bootstrap is seeded). This holds for every tool. The
      pilot's JSONs lack the fields the evaluator now writes (class set, view,
-     mode, input shas, versions, propagation rule); a tool reads them all the
+     mode, input hashes, versions, propagation rule); a tool reads them all the
      same, taking the missing fields as the pilot evaluator's, and raises
      when a JSON has some of the fields but not all. Dropping this check
      would let a tool lose behaviour the workbench version had without
