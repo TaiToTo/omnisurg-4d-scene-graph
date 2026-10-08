@@ -173,10 +173,11 @@ The workbench tests that touch the ported modules are counted in
 
 ### Not yet extracted anywhere
 
-From the take list in `repo_migration_plan.md`, checked against what the
-paper's conditions ran: the workbench's run scripts and the documents its
-claims are written in. Within a file, only the paths those runs exercise
-move; the rest is listed under "Not carried for now" below.
+This list comes from the take list in `repo_migration_plan.md`, checked
+against what the paper's conditions ran: the workbench's run scripts and the
+documents its claims are written in. Within a file, only the code paths
+those runs exercise move; the rest is listed under "Not carried for now"
+below.
 
 - **Pipeline.**
   - Depth: `scripts/run_cholec_depth.py`, run with `--no-border-inpaint`;
@@ -207,8 +208,8 @@ move; the rest is listed under "Not carried for now" below.
     `track_sam3.py`, `sam3d_core.py` (`num_to_natural` and `get_sam`),
     `loaders.py` (`CholecGtLoader`), `depth_source.py` (DA3 and the `pi3`
     swap), `viz_common.py` and `sam_env.py`. From
-    `ipcai2027_experiment/scripts/`: `run_per_frame_seg.py`, whose inputs
-    pass through `geom_blend.py` to the five modes unchanged, and
+    `ipcai2027_experiment/scripts/`: `run_per_frame_seg.py`, for whose five
+    modes `geom_blend.py` returns the input unchanged, and
     `run_conditions.py`, which runs every tracked condition. From
     `seg_quality_experiment/scripts/`: `run_track_conditions.py`, whose
     `MODES` hold the operating point's flags (`--seed_auto --bidir
@@ -261,10 +262,10 @@ move; the rest is listed under "Not carried for now" below.
 
 This section lists what the port leaves out for now: what the paper's
 numbers do not use, and experiments whose numbers the paper does not report
-until they are ported (decision 1). It is left out because the port is short
-of time, not thrown away. Each entry says where it lives in the workbench, so
-that a later pull request can port it. What had reached this repository
-before it was left out stays in its history.
+until they are ported ("The paper is measured here"). It is left out because
+the port is short of time, not thrown away. Each entry says where its code is
+in the workbench, so that a later pull request can port it. Git history keeps
+what had been merged here before it was left out.
 
 - **D4D** (`d4d_io.py`, `d4d_depth.py`, `d4d_predicate.py`, `d4d_verdict.py`,
   `d4d_pose.py`, `d4d_seed.py`, `d4d_population.py`, `d4d_census.py`, in
@@ -279,7 +280,8 @@ before it was left out stays in its history.
   so it is scored again with the evaluator once ported.
 - **View consistency** (`view_consistency.py`, `camera_motion.py`): whether
   a boundary stays on the same place of the tissue when the camera moves.
-  No input beat RGB there, and every input's boundaries sat near the GT's.
+  No input beat RGB there, and the boundaries of every input were close to
+  the GT's.
   These are the only callers of `project.backproject`.
 - **Blended inputs** of `geom_blend.py` (`Terms`, `blend`, `SPECS` and the
   rest of the blend machinery), and the flattened RGB bases of
@@ -289,26 +291,30 @@ before it was left out stays in its history.
 
 - **Fourteen segmenter inputs and `rgb_refl`.** Of the twenty modes of
   `sam_input_image`, the paper's conditions ran `rgb`, `depth`, `normal`,
-  `normal_edge` and `rgb_edge`. `rgb_edge_shade`, `rgb_shade` and
-  `shade_only` ran in a shortlist sweep; `rgb_nedge`, `rgb_dedge`,
-  `refl_edge`, `refl_shade`, `refl_edge_shade`, `normal_shade`,
-  `depth_edge`, `depth_shade`, `edge_only`, `rgb_shading` and `rgb_normal`
-  only in catalogue sweeps (`ipcai2027_experiment/scripts/chain_arm_catalog.sh`,
-  `chain_shortlist.sh`, `chain_resume_arms.sh`); `rgb_refl` appears in one
-  caveat of a draft. With them go `pseudo_normal_from_rgb`, `relight_rgb`,
-  `color_retinex` and the composition table. They live in the workbench's
-  geometry module of the tracking experiment.
+  `normal_edge` and `rgb_edge`. The other fifteen are left out:
+
+  - `rgb_edge_shade`, `rgb_shade` and `shade_only` ran in a shortlist sweep;
+  - `rgb_nedge`, `rgb_dedge`, `refl_edge`, `refl_shade`, `refl_edge_shade`,
+    `normal_shade`, `depth_edge`, `depth_shade`, `edge_only`, `rgb_shading`
+    and `rgb_normal` ran only in catalogue sweeps
+    (`ipcai2027_experiment/scripts/chain_arm_catalog.sh`,
+    `chain_shortlist.sh`, `chain_resume_arms.sh`);
+  - `rgb_refl` appears in one caveat of a draft.
+
+  With them go `pseudo_normal_from_rgb`, `relight_rgb`, `color_retinex` and
+  the composition table. They are in the workbench's
+  `depth_sam_tracking_experiment/geometry.py`.
 - **Label transfer and warping.** `project_labels`,
   `project_labels_region` and `warp_labels`, which only the workbench's
   `legacy/pipeline.py` calls.
-- **ATLAS-120k files the paper does not read.** The cut marks
-  (`experiment/crop_necessity/marks/*.jsonl`), read by a review page; a clip
-  with a cut is used whole. The audits and clip lists of the earlier
-  96-video, 438-clip extraction
-  (`ipcai2027_experiment/task22_atlas100/out/{manifest,audit}/`, all but
-  `videos.json`).
-- **Paths inside the files that move.** Each was never run for a reported
-  number:
+- **ATLAS-120k files the paper does not read.**
+  - The cut marks (`experiment/crop_necessity/marks/*.jsonl`), read by a
+    review page. A clip with a cut is used whole.
+  - The audits and clip lists of the earlier 96-video, 438-clip extraction
+    (`ipcai2027_experiment/task22_atlas100/out/{manifest,audit}/`, all but
+    `videos.json`).
+- **Code paths inside the files that move.** Each was never run for a
+  reported number:
   - `track_sam3.py`: seeding from instrument masks (`--instrument_*`), the
     seed cache, `--seed_frame`, `--stride`, `--max_frames`, `--seed_topk`,
     the choice of the seed frame from GT (`--seed_inst_thresh` below 1),
@@ -329,22 +335,26 @@ before it was left out stays in its history.
     estimates from the frames (`detect_content_rect` and the three
     `refine_rect_*` steps), which a confirmed rectangle replaces on every
     clip of the release; reading the frames from the mp4 by number, which
-    only a clip without the release's JPEGs takes, or one padded past its
-    annotation (`--gt-pad-factor`); and `--gt-stride`,
+    the script does only for a clip without the release's JPEGs or for one
+    padded past its annotation (`--gt-pad-factor`); and `--gt-stride`,
     `--keep-duplicates`, `--dry-run` and `--no-clean`;
   - `plan_atlas97_population.py`: the reason it plans for each clip of the
     index. The ported stage records each clip's reason in its report and
     checks only the clips written against the population;
   - `run_per_frame_seg.py`: `--point_grids_dir`, `--frames gt`, `--smooth`.
 - **`extract_cholec_frames.py`**, which no condition ran.
-- **Conditions seeded from GT masks.** `track_sam3.py --seed_source gt`,
-  which seeds on `track_metrics.pick_seed_frame` with the regions of
-  `track_metrics.gt_instances`; the ATLAS-120k conditions made that way,
-  `t12_gtseed` on five inputs and `t12_paste`; and
-  `ipcai2027_experiment/atlas97/scripts/make_paste_floor.py`, which makes
-  the latter. They measure how well propagation keeps an object given a
-  perfect seed, a reference value (decision 13). If the paper reports
-  them, the numbers come from the workbench's code.
+- **Conditions seeded from GT masks.**
+  - `track_sam3.py --seed_source gt`, which seeds on
+    `track_metrics.pick_seed_frame` with the regions of
+    `track_metrics.gt_instances`;
+  - the ATLAS-120k conditions made that way, `t12_gtseed` on five inputs and
+    `t12_paste`;
+  - `ipcai2027_experiment/atlas97/scripts/make_paste_floor.py`, which makes
+    `t12_paste`.
+
+  These conditions measure how well propagation keeps an object given a
+  perfect seed, a reference value ("No measure over time carries a star").
+  If the paper reports them, the numbers come from the workbench's code.
 
 What stays behind is listed in `repo_migration_plan.md`, in the section on
 what stays.
@@ -398,10 +408,10 @@ while the evaluator is built and reviewed is worked out in `docs/workstreams.md`
    Predictions made again from output that is not the workbench's, the
    exceptions above, are scored as in step 3, after the evaluator's check
    against the pilot evaluator. The conditions under `forward_from_first`
-   (decision 12) are new measurement, not a port: every tracked condition
-   of the workbench ran both ways from the centre (`--bidir`). They are
-   made on the GPU machine once the tracking stage is ported, and scored as
-   in step 3.
+   ("Two propagation rules, and no seed chosen from GT") are new
+   measurement, not a port: every tracked condition of the workbench ran
+   both ways from the centre (`--bidir`). They are made on the GPU machine
+   once the tracking stage is ported, and scored as in step 3.
 6. **Prepare the release.**
    - An English README, `docs/data_contract.md`, the `atlas120k_meta/` README
      and `CITATION.cff`.
