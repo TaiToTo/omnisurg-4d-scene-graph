@@ -1,9 +1,9 @@
-"""The ATLAS-120k extraction, on a release made up for the test.
+"""Test the ATLAS-120k extraction on a release made up for the test.
 
 The release holds one video: a synthetic mp4 whose frames all look
-different, its JPEGs, and clips that between them take every way a clip of
-the index can go: kept, split at a gap, a duplicate, too short, without
-masks. Each refusal is planted and watched.
+different, its JPEGs, and one clip for each outcome a clip of the index can
+have: kept, split at a gap, a duplicate, too short, without a mask
+directory, without masks. Each refusal has a test that plants its fault.
 """
 
 import json

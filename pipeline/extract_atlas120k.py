@@ -1,4 +1,4 @@
-"""Cut the annotated clips of ATLAS-120k videos into the clip directories the pipeline reads.
+"""Extract the annotated clips of ATLAS-120k videos into the clip directories the pipeline reads.
 
 Each clip of a video's `clip_index.json` is split into runs of consecutive
 annotated frames, and each run is thinned to one frame every `--step-sec`
@@ -87,8 +87,8 @@ def stride_for(step_sec: float, fps: float, ratio: int) -> int:
 def contiguous_runs(frames: list[int]) -> list[list[int]]:
     """Split ascending frame numbers into the runs whose numbers step by one.
 
-    A clip of the index is not always continuous in time: seven skip frames, one by 2,266 (76 s). Thinning
-    across the gap would put two frames 76 s apart next to each other.
+    A clip of the index is not always continuous in time: seven clips skip frames, one of them by 2,266 frames
+    (76 s). Thinning across the gap would put two frames 76 s apart next to each other.
     """
     runs = [[frames[0]]]
     for a, b in zip(frames, frames[1:]):
@@ -125,7 +125,7 @@ def target_size(w: int, h: int, long_side: int) -> tuple[int, int]:
 def check_size(arr: np.ndarray, src_size: tuple[int, int], where: str) -> None:
     """Refuse an image whose size is not the mp4's.
 
-    The rectangles are in the mp4's pixels. On a smaller image numpy cuts a slice short without an error, and the
+    The rectangles are in the mp4's pixels. On a smaller image numpy shortens a slice without an error, and the
     frame and its mask would come from different regions.
 
     Raises:
@@ -169,7 +169,8 @@ def verify_ratio(ratios: FrameRatios, procedure: str, video: str, mp4: Path, gt_
     """Check the video's frame ratio against the pixels of one of its JPEGs.
 
     The ratio sets the stride, so a wrong one changes the step two to four times over without an error. The
-    check takes the first frame, in the first clip that has one, late enough for the ratios to be told apart.
+    check reads the first frame numbered `MIN_NATIVE_FRAME` or later that has a JPEG, in clip order. An earlier
+    frame cannot tell the ratios apart.
 
     Raises:
         RuntimeError: no frame of the video can be checked, or `verify_against_bundled` refuses the ratio.
@@ -241,7 +242,7 @@ def extract_video(atlas_root: Path, procedure: str, video: str, out: Path, rects
                    out_clips=[], n_picked=[], dropped_frames=0, duplicate_of=[])
         rows.append(row)
 
-        # A clip without masks, or whose files leave no frame, is recorded and passed over. Whether the
+        # A clip without masks, or whose files leave no frame, is recorded and skipped. Whether the
         # release holds the clip's JPEGs is decided on its first frame; where it does, a frame needs both files.
         src = gt_dir / clip
         mask_dir = next((src / d for d in MASK_DIRS if (src / d).is_dir()), None)
@@ -307,7 +308,7 @@ def extract_video(atlas_root: Path, procedure: str, video: str, out: Path, rects
 
 def write_clip(clip_dir: Path, picked: list[int], mask_dir: Path, img_dir: Path, digits: int, rect: Rect,
                long_side: int, src_size: tuple[int, int], table: ClassTable, meta: dict) -> None:
-    """Write one clip's frames, masks and manifest. Every frame of the clip has GT and is an anchor.
+    """Write one clip's frames, masks and manifest. Every frame of the clip has ground truth and is an anchor.
 
     `meta` holds the manifest's keys before `crop`; its `out_size` is filled in here. The keys and their order
     are the workbench's, so that a clip extracted here equals one extracted there, byte for byte.
@@ -355,7 +356,8 @@ def main() -> None:
     ap.add_argument("--min-frames", type=int, default=8, help="The fewest frames a clip may have once thinned.")
     ap.add_argument("--long-side", type=int, default=854, help="The longer side of a written frame.")
     ap.add_argument("--step-tol", type=float, default=0.20,
-                    help="How far, as a fraction of --step-sec, the step a stride gives may fall from it.")
+                    help="The largest difference allowed between the stride's step and --step-sec, as a fraction of "
+                         "--step-sec.")
     ap.add_argument("--overwrite", action="store_true",
                     help="Replace the clips and report an earlier extraction of a video left.")
     args = ap.parse_args()
