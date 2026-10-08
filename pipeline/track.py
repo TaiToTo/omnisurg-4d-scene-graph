@@ -1,14 +1,15 @@
 """Run the tracking stage: cut one frame of each clip into regions, and carry them to every other frame with SAM 3.
 
 SAM's automatic mask generator cuts the seed frame, prompted with one of the
-segmenter inputs (`--sam-input`), or `--seed-labels` gives its regions;
-regions under `--seed-min-area` pixels are dropped. SAM 3's video tracker carries each region, as one object, through
-the clip shown as `--track-base` frames, and each frame's objects become one
-label map, the higher presence score on top. `both_ways_from_centre` seeds
-the middle frame and carries both ways; `forward_from_first` seeds frame 0
-and carries forwards. A clip's labels go to
-`<tracks-root>/<clip>/track_<track-base>_<tag>/label_NNNN.npy`, with
-`seed_info.json`, and a montage of them to `<tracks-root>/<clip>/viz/`.
+segmenter inputs (`--sam-input`); `--seed-labels` gives the regions instead.
+Regions under `--seed-min-area` pixels are dropped. SAM 3's video tracker
+carries each region, as one object, through the clip, which it sees as
+`--track-base` images. Each frame's objects are painted into one label map,
+the higher presence score on top. `both_ways_from_centre` seeds the middle
+frame and carries both ways; `forward_from_first` seeds frame 0 and carries
+forwards. The stage writes a clip's labels, `label_NNNN.npy`, and
+`seed_info.json` to `<tracks-root>/<clip>/track_<track-base>_<tag>/`. It
+writes a montage of the labels to `<tracks-root>/<clip>/viz/`.
 
 Usage:
     python -m pipeline.track --input-dir /path/to/clips --tracks-root /path/to/tracks --tag <tag> \\
@@ -36,7 +37,7 @@ DEPTH_SOURCES = ("da3", "pi3")
 BUNDLE = Path("exports", "mini_npz", "results.npz")
 PI3X_BUNDLE = Path("exports", "mini_npz", "results__pi3x.npz")
 
-# The automatic mask generator's settings for the seed, beside `points_per_side`.
+# The automatic mask generator's settings for the seed, other than `points_per_side`.
 SEED_SAM_MODEL_TYPE = "vit_h"
 SEED_SAM_KWARGS = dict(pred_iou_thresh=0.8, stability_score_thresh=0.8, min_mask_region_area=100)
 
@@ -50,7 +51,7 @@ MONTAGE_COLS = 3
 
 
 class SeedSegmenter:
-    """SAM's automatic mask generator, loaded once.
+    """Load SAM's automatic mask generator once.
 
     Args:
         checkpoint: the SAM ViT-H weights, `sam_vit_h_4b8939.pth`.
@@ -90,10 +91,10 @@ def paint_masks(masks: list[np.ndarray], shape: tuple[int, int]) -> np.ndarray:
 def read_seed_labels(seed_labels: str, clip: str, frame: int, shape: tuple[int, int]) -> np.ndarray:
     """Return the seed regions made outside the stage, numbered 0..K-1 in the order of their ids.
 
-    The file is `label_<frame:04d>.npy` in `seed_labels` with `{clip}` replaced by the clip's name, such as a
-    condition `evalkit.tools.kmerge` wrote; without `{clip}`, in `<seed_labels>/<clip>/`. The regions are
-    numbered again so that the tracker's ids are 1..K whatever ids the file holds, as the workbench's seed files,
-    numbered 0..K-1 when written, gave them.
+    The file is `label_<frame:04d>.npy` in `seed_labels`, with `{clip}` replaced by the clip's name; such a
+    directory can be a condition that `evalkit.tools.kmerge` wrote. Without `{clip}`, the file is in
+    `<seed_labels>/<clip>/`. The regions are numbered again, so that the tracker's ids are 1..K whatever ids the
+    file holds. The workbench's seed files were numbered 0..K-1 when written, so they gave the same ids.
 
     Raises:
         FileNotFoundError: the file is missing, as when the seeds were made for another seed frame.
@@ -129,7 +130,7 @@ def seed_masks(labels: np.ndarray, min_area: int) -> tuple[list[np.ndarray], lis
 def collapse(result: FrameResult, shape: tuple[int, int]) -> np.ndarray:
     """Return one frame's objects as an (H, W) int16 label map, the higher presence score painted last.
 
-    A missing score counts as the lowest, so such objects go under the others.
+    A missing score counts as the lowest, so such objects are painted under the others.
     """
     labels = np.full(shape, -1, dtype=np.int16)
     scores = np.nan_to_num(np.asarray(result.scores, dtype=float), nan=-1e9)
@@ -141,9 +142,9 @@ def collapse(result: FrameResult, shape: tuple[int, int]) -> np.ndarray:
 def read_clip(clip_dir: Path, depth_source: str) -> tuple[np.ndarray, np.ndarray]:
     """Return the clip's (N, H, W) float32 depth and (N, 3, 3) float64 intrinsics, from the chosen depth stage.
 
-    Pi3X's depth is resized to DA3's grid with the nearest neighbour, its intrinsics scaled alike, and its depth
-    scaled to DA3's median: the normals' normalisation has an absolute floor, so depth of another magnitude would
-    flatten them.
+    Pi3X's depth is resized to DA3's grid with the nearest neighbour, and its intrinsics are scaled alike. Its
+    depth is then scaled to DA3's median: the normals' normalisation has an absolute floor, so depth of another
+    magnitude would flatten them.
 
     Raises:
         FileNotFoundError: a bundle is missing.
@@ -255,9 +256,14 @@ def run_track(clip_dir: Path, tracks_root: Path, tag: str, rule: str, segmenter,
         overwrite: replace the condition's labels and montage when the clip already has them.
 
     Raises:
-        FileNotFoundError: a bundle or an image is missing.
-        ValueError: a mode, the rule or the depth source is unknown; the condition's labels exist and `overwrite`
-            is false; no seed region is left; or the tracker carries no frame.
+        FileNotFoundError: a bundle, an image or the seed labels are missing.
+        ValueError: one of these:
+            - a mode, the rule or the depth source is unknown
+            - the condition's labels exist and `overwrite` is false
+            - Pi3X's depth has another number of frames than DA3's
+            - the seed labels are of another shape or hold no region
+            - no seed region is left
+            - the tracker carries no frame
     """
     # Check the settings, and refuse labels an earlier run left.
     for mode in (sam_input, track_base):
@@ -341,8 +347,9 @@ def main() -> None:
     ap.add_argument("--track-base", required=True, choices=SAM_INPUT_MODES, help="The tracker's input mode.")
     ap.add_argument("--sam-ckpt", help="The SAM ViT-H weights, sam_vit_h_4b8939.pth. Needed without --seed-labels.")
     ap.add_argument("--seed-labels",
-                    help="Seed regions made outside the stage: a directory whose {clip} is the clip's name, such as "
-                         "'<tracks-root>/{clip}/<merged tag>', or one holding <clip>/label_<frame>.npy.")
+                    help="Seed regions made outside the stage: a directory path with {clip} in it, replaced by the "
+                         "clip's name, such as '<tracks-root>/{clip}/<merged tag>', or a directory holding "
+                         "<clip>/label_<frame>.npy.")
     ap.add_argument("--depth-source", default="da3", choices=DEPTH_SOURCES,
                     help="The depth the normals and edges come from.")
     ap.add_argument("--points-per-side", type=int, default=24, help="The mask generator's grid.")
@@ -350,8 +357,8 @@ def main() -> None:
     ap.add_argument("--seed-edge-gain", type=float, default=0.85, help="How dark the seed input's edges are.")
     ap.add_argument("--seed-no-smooth", action="store_true", help="Do not smooth the seed input's normals.")
     ap.add_argument("--keep-edge-ring", action="store_true",
-                    help="Keep the edges' ring along the image border and around invalid depth, as the labels "
-                         "made before it was masked had it.")
+                    help="Keep the edges' ring along the image border and around invalid depth, as in the "
+                         "labels made before the ring was masked.")
     ap.add_argument("--model-id", default=DEFAULT_MODEL_ID, help="SAM 3's Hugging Face model id.")
     ap.add_argument("--device", default="auto", help="auto, cuda or cpu. auto takes CUDA when there is one.")
     ap.add_argument("--gpu", type=int, default=None,

@@ -84,8 +84,8 @@ tracking stage. The questions are named as `docs/porting.md` heads them.
 | `track_metrics`, `kmerge` | "Identity metrics and merge cost" |
 | the export stages and the viewer | the tracking stage, whose output they read |
 
-The ported tracking stage reads no GT. The rule places the seed, on the
-middle frame or on frame 0, and no seed comes from GT masks. Its check links
+The ported tracking stage reads no GT. Its propagation rule places the seed
+on the middle frame or on frame 0, and no seed comes from GT masks. Its check links
 the workbench's stored `results.npz` in, so it does not wait on the depth
 stages.
 
