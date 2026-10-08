@@ -1,38 +1,14 @@
-"""Boundaries: where a label map changes, and how well two sets of boundaries agree.
+"""Mark where a label map changes, and score how well two sets of boundaries agree.
 
-Three of the evaluator's metrics read boundaries: `boundary_F` compares the
-class map's boundaries with the GT's, `boundary_R_raw` asks how much of the
-GT's boundary the regions recover before any class is assigned, and
-`inst_BF` compares the contour of each paired object. All three use the same
-two steps, defined here once: mark the boundary pixels of a label map, then
-count how many of one map's boundary pixels lie within `BOUNDARY_TOL_PX` of
-the other's.
-
-A boundary pixel is a scored pixel whose left, right, upper or lower
-neighbour is a scored pixel with another label. Both sides of an edge are
-marked, so a boundary is 2 px wide. An edge against a pixel that is not
-scored (invalid depth, ignored, background, or a class the view leaves out)
-is not a boundary: a region is neither rewarded nor penalised for where it
-ends against them. A pixel with no label (a region map's -1, say) is a
-label like any other: an edge against it, between two scored pixels, is a
-boundary, as it was for the pilot evaluator.
-
-The tolerance is a square dilation by `BOUNDARY_TOL_PX`. Because the GT marks
-both sides of its edge, a predicted pixel `BOUNDARY_TOL_PX` + 1 px from the
-GT edge still reaches the GT pixel on its own side; so an edge shifted by
-`BOUNDARY_TOL_PX` px scores 1, one shifted by `BOUNDARY_TOL_PX` + 1 px scores
-1/2 (only its near column is within reach), and one further off scores 0.
-
-The pilot evaluator marked boundaries on the whole map and then dropped the
-invalid pixels, so its edge against background counted as a boundary. Pilot
-mode gets that by passing no `scored` mask to `boundary_pixels` and masking
-the result itself. Its F had a `1e-9` in the denominator and it wrote 0
-where this module returns None; pilot mode takes both from the `precision`
-and `recall` returned here, 2·p·r / (p + r + 1e-9), rather than counting
-boundary pixels a second time.
-
-`docs/figures/boundary.png` and `docs/figures/boundary_tolerance.png` show this on a drawn scene, with the numbers the module
-gives for it.
+`boundary_F`, `boundary_R_raw` and `inst_BF` are all computed with
+`boundary_pixels` and `boundary_score`. `boundary_pixels` marks the boundary
+pixels of a label map over the scored pixels. `boundary_score` returns the
+precision, recall and F of a predicted boundary against a GT boundary,
+within `tol` pixels, `BOUNDARY_TOL_PX` by default. `docs/evaluation.md`
+defines a boundary pixel and the tolerance ("Boundaries: `boundary_F`,
+`boundary_R_raw`"). `docs/figures/boundary.png` shows the boundary pixels
+on a drawn scene, and `docs/figures/boundary_tolerance.png` shows the
+tolerance.
 """
 from __future__ import annotations
 
@@ -41,8 +17,8 @@ from dataclasses import dataclass
 import cv2
 import numpy as np
 
-# The pilot evaluator's value for its main boundary keys. What it allows is
-# given with the boundary definition above.
+# The pilot evaluator's value for its main boundary keys. `docs/evaluation.md`
+# says what it allows ("Boundaries: `boundary_F`, `boundary_R_raw`").
 BOUNDARY_TOL_PX = 2
 
 
@@ -55,7 +31,9 @@ class BoundaryScore:
             of a GT boundary pixel.
         recall: The share of GT boundary pixels within the tolerance of a
             predicted boundary pixel.
-        f: Their harmonic mean; 0 when both are 0.
+        f: Their harmonic mean; 0 when both are 0. Pilot mode is to compute
+            the pilot evaluator's own F from `precision` and `recall`
+            (`docs/porting.md`, "Pilot mode's own rules").
     """
 
     precision: float
@@ -86,7 +64,8 @@ def boundary_pixels(labels: np.ndarray, scored: np.ndarray | None = None) -> np.
 
     Args:
         labels: An (H, W) integer or bool label map: GT classes, a class map,
-            region ids or one object's mask.
+            region ids or one object's mask. A region map's -1 (no region)
+            is a label like any other, as it was for the pilot evaluator.
         scored: An (H, W) bool mask of the pixels the metric scores. An edge
             between a scored pixel and one that is not is not a boundary.
             None scores every pixel, which is what pilot mode wants.
