@@ -7,7 +7,7 @@ surgery — built by composing foundation models, with no task-specific training
 
 ## Install
 
-The evaluation toolkit needs Python 3.12 or newer and nothing else:
+The evaluation toolkit needs Python 3.12 or newer; `pip` brings the rest:
 
 ```bash
 pip install -e .
@@ -15,9 +15,10 @@ pip install -e .
 
 The pipeline needs a Linux machine with an NVIDIA GPU and its driver, and
 Python 3.12. Python 3.12 is the newest Python it supports, because Depth
-Anything 3 requires `numpy` below 2; on a newer Python the install fails
-while resolving packages, without saying so. A machine without a GPU can run
-the depth stage slowly; `docs/pipeline.md` gives the steps.
+Anything 3 requires `numpy` below 2. On a newer Python the install fails
+while resolving packages, and the error does not name the Python version as
+the reason. A machine without a GPU can run the depth stage slowly;
+`docs/pipeline.md` gives the steps.
 
 ```bash
 git clone https://github.com/TaiToTo/omnisurg-4d-scene-graph.git

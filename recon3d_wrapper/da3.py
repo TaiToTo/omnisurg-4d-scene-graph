@@ -1,9 +1,9 @@
 """Run Depth Anything 3 behind the `Reconstructor` interface.
 
 The model loads once and then reconstructs any number of sequences. The
-module depends on the upstream `depth_anything_3` package and on torch, the
-`recon3d` extra. It imports them only when a model is built, so importing
-the module needs neither.
+module depends on the upstream `depth_anything_3` package and on torch,
+which the `recon3d` extra installs. It imports them only when a model is
+built, so importing the module needs neither.
 """
 
 import os
@@ -25,7 +25,7 @@ def world_to_camera(extrinsics: np.ndarray) -> np.ndarray:
     """Return the (N, 3, 4) world-to-camera part of the extrinsics DA3 returns.
 
     The version the extra installs returns (N, 3, 4); other versions return (N, 4, 4) homogeneous matrices, whose
-    last row is (0, 0, 0, 1) and carries nothing. The interface holds the (N, 3, 4) part of either.
+    last row is (0, 0, 0, 1) and carries nothing. `Reconstruction` holds the (N, 3, 4) part of either.
 
     Raises:
         ValueError: the matrices are neither (N, 4, 4) with that last row nor (N, 3, 4).
@@ -38,6 +38,19 @@ def world_to_camera(extrinsics: np.ndarray) -> np.ndarray:
     if not np.allclose(extrinsics[:, 3, :], [0.0, 0.0, 0.0, 1.0]):
         raise ValueError("extrinsics are (N, 4, 4) but not homogeneous: the last row is not (0, 0, 0, 1)")
     return extrinsics[:, :3, :]
+
+
+def select_gpu(gpu: int | None) -> None:
+    """Select the GPU to use, through `CUDA_VISIBLE_DEVICES`. None leaves the environment as it is.
+
+    Raises:
+        RuntimeError: torch is already imported. The variable would then have no effect.
+    """
+    if gpu is None:
+        return
+    if "torch" in sys.modules:
+        raise RuntimeError("torch is already imported, so CUDA_VISIBLE_DEVICES cannot select the GPU")
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
 
 
 class DA3:
@@ -55,10 +68,7 @@ class DA3:
 
     def __init__(self, model_id: str = DEFAULT_MODEL_ID, device: str = "auto", gpu: int | None = None,
                  process_res: int = DEFAULT_PROCESS_RES) -> None:
-        if gpu is not None:
-            if "torch" in sys.modules:
-                raise RuntimeError("torch is already imported, so CUDA_VISIBLE_DEVICES cannot select the GPU")
-            os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
+        select_gpu(gpu)
         # Imported here, not at the top: CUDA_VISIBLE_DEVICES takes effect only before torch's first import.
         import torch
         from depth_anything_3.api import DepthAnything3

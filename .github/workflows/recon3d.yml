@@ -28,6 +28,8 @@ permissions:
 jobs:
   install:
     runs-on: ubuntu-24.04
+    # The install takes about four minutes; a stuck download should not hold the runner for hours.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
         with:
@@ -40,7 +42,7 @@ jobs:
 
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libgl1 libglib2.0-0t64
 
-      # The README's step, word for word.
+      # Run the README's step, word for word.
       - run: pip install -e ".[recon3d]"
 
       # Import the backends, the upstream models and the stages. A package can

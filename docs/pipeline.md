@@ -7,81 +7,57 @@ segments through time, and export what the viewer reads. Each stage is a
 module of `pipeline` and runs as `python -m pipeline.<stage>`. Each stage
 reads what the earlier stages wrote into the clip.
 
-The stages are moving here one at a time from the research workbench where
-they were measured. A stage counts as moved once it writes the same files as
-the workbench's stage, byte for byte. The depth stage is the first.
-
 ## A clip
 
 A clip is a directory with these files:
 
 - `input_images/`: the frames as PNG files. Their names sort in time order.
-- `frame_manifest.json`: what the extraction recorded about the clip. Its
-  `dataset` key names the dataset, and `frames` lists each frame's place in
-  the source video. A manifest without `dataset` belongs to CholecSeg8k.
-- `crop_info.json`, for a CholecSeg8k clip only: the rectangle that the
-  frames were cut to. The rectangle lies inside the endoscope's view, so the
-  frames hold no black border. It gives `x0`, `x1`, `y0` and `y1` in the
-  source frame, which is `src_w` by `src_h` pixels. All clips of one video
-  share one rectangle.
+- `frame_manifest.json`: the clip's record, written by the stage that cut
+  the clip from its dataset. Its `dataset` key names the dataset; a
+  manifest without one belongs to CholecSeg8k.
+- `crop_info.json`, for a CholecSeg8k clip only: the rectangle inside the
+  endoscope's view that the frames were cut to.
 
 ## The depth stage
 
 ```bash
-python -m pipeline.depth --input-dir /path/to/clips --clips <clip> [--device auto] [--gpu N] [--process-res 504] [--overwrite] [--no-glb]
+python -m pipeline.depth --input-dir /path/to/clips [--clips <clip> ...] [--gpu N] [--overwrite] [--no-glb]
 ```
 
-The stage runs Depth Anything 3 (`recon3d_wrapper.da3`) on all frames of a
-clip in one call. It first resizes each frame to `--process-res` pixels on
-its longest side, 504 unless told otherwise. It writes these files into the
-clip:
+The stage runs Depth Anything 3 (DA3) on all frames of a clip in one call.
+DA3 is the model whose depth the later stages read. Another reconstruction
+model runs as a stage of its own and writes into the same directories, under
+a `__<model>` suffix. The stage first resizes each frame to 504 pixels on its
+longest side (`--process-res`). It writes into the clip:
 
 - `depth_raw/depth_NNNNNN.npy`: one depth map per frame.
-- `depth_vis/NNNN.jpg`: each depth map as an image. Near is warm and far is
-  cool; each frame is normalised on its own.
-- `exports/mini_npz/results.npz`: the bundle that the later stages read. It
-  holds `depth` (N, H, W), `conf` (N, H, W), `extrinsics` (N, 3, 4) from
-  world to camera, and `intrinsics` (N, 3, 3), all as float32.
-- `pc_vis/frame_NNNN.glb`: one point cloud per frame, in glTF's frame. Each
-  cloud is centred on its centroid and coloured by its frame. A frame with
-  no usable depth gets no cloud. `--no-glb` skips the clouds, since only the
-  viewer reads them.
-- `depth_info` in the manifest: `model`, `process_res`, `depth_shape`,
-  `depth_range`, `conf_range` and `border_inpaint`. `border_inpaint` is
-  always false.
+- `depth_vis/NNNN.jpg`: each depth map as an image, near warm and far cool.
+- `exports/mini_npz/results.npz`: what the later stages read: `depth`
+  (N, H, W), `conf` (N, H, W), `extrinsics` (N, 3, 4) from world to camera
+  and `intrinsics` (N, 3, 3), all float32.
+- `pc_vis/frame_NNNN.glb`: one point cloud per frame, for the viewer.
+  `--no-glb` skips them.
+- `depth_info` in the manifest: the model, the resolution and the ranges.
 
-The stage refuses a CholecSeg8k clip that has no `crop_info.json`. Its frames
-would still hold the black border around the endoscope's view, and the model
-would see it. It refuses a clip that already holds the stage's output, and
-says what is there. `--overwrite` replaces that output: the stage removes its
-own files, the ones named above, and writes them again, so a run on fewer
-frames leaves no file of a frame it no longer writes. The later stages count
-a clip's frames by the files in `depth_raw/`. Every other file in those
-directories stays: what another depth source wrote under a `__<source>`
-suffix, and what the later stages wrote under their own names. The stage also refuses a model result that is not one
-frame per image, before it writes anything.
+The stage refuses:
 
-`--gpu N` selects a GPU through `CUDA_VISIBLE_DEVICES`. Without it, the
-stage leaves that variable as it is, so a GPU chosen outside stays chosen.
+- a CholecSeg8k clip without `crop_info.json`;
+- a clip that already holds the stage's output. `--overwrite` replaces the
+  stage's own files and leaves every other file.
+
+`python -m pipeline.depth --help` lists the options.
 
 ### Without a CUDA GPU
 
-The stage also runs on a CPU, slowly. The steps here are not run in CI; the
-one-command install above is. On a laptop, four frames take about a
-minute and 6 GB of memory, and both grow faster than the number of frames.
-DA3 lists `xformers` as a dependency, and `xformers` installs only next to
-CUDA. DA3-LARGE does not use it. On a machine without CUDA, install DA3
-without its dependencies, then add the ones it imports:
+The stage runs on a CPU, slowly: four frames take about a minute and 6 GB
+on a laptop. DA3 depends on `xformers`, which installs only with CUDA, so
+install DA3 without its dependencies and add the ones it imports:
 
 ```bash
 pip install -e ".[render]" torch torchvision
 pip install --no-deps "depth-anything-3 @ git+https://github.com/ByteDance-Seed/Depth-Anything-3.git"
 pip install "numpy<2" addict einops evo huggingface_hub imageio moviepy==1.0.3 omegaconf plyfile pycolmap safetensors
 ```
-
-These packages are the ones that loading and running DA3 imports. The rest
-of its list (`open3d`, a web server, `e3nn`) serves parts of DA3 that the
-stage does not run.
 
 ## The Pi3X stage
 
