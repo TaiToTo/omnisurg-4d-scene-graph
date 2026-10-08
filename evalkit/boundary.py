@@ -1,13 +1,14 @@
 """Mark where a label map changes, and score how well two sets of boundaries agree.
 
-`boundary_F`, `boundary_R_raw` and `inst_BF` all read boundaries through
-these two steps. `boundary_pixels` marks a scored pixel whose left, right,
-upper or lower neighbour is a scored pixel with another label. Both sides of
-an edge are marked, and an edge against a pixel that is not scored is no
-boundary. `boundary_score` counts the boundary pixels of one map within
-`BOUNDARY_TOL_PX` of the other's. `docs/evaluation.md` defines the rule and
-its tolerance ("What each key is, per frame"). `docs/figures/boundary.png`
-and `docs/figures/boundary_tolerance.png` show it on a drawn scene.
+`boundary_F`, `boundary_R_raw` and `inst_BF` are all computed with
+`boundary_pixels` and `boundary_score`. `boundary_pixels` marks a scored
+pixel whose left, right, upper or lower neighbour is a scored pixel with
+another label. Both sides of an edge are marked, and an edge against a
+pixel that is not scored is no boundary. `boundary_score` counts the
+boundary pixels of one map within `BOUNDARY_TOL_PX` of the other's.
+`docs/evaluation.md` defines the boundary rule and its tolerance ("What
+each key is, per frame"). `docs/figures/boundary.png` and
+`docs/figures/boundary_tolerance.png` show both on a drawn scene.
 """
 from __future__ import annotations
 
@@ -17,7 +18,7 @@ import cv2
 import numpy as np
 
 # The pilot evaluator's value for its main boundary keys. Both sides of an edge are marked, so an edge shifted by
-# BOUNDARY_TOL_PX px scores 1, one shifted by one more pixel scores 1/2, and one further off scores 0.
+# `BOUNDARY_TOL_PX` px scores 1, one shifted by one more pixel scores 1/2, and one further off scores 0.
 BOUNDARY_TOL_PX = 2
 
 
@@ -62,8 +63,8 @@ def boundary_pixels(labels: np.ndarray, scored: np.ndarray | None = None) -> np.
 
     Args:
         labels: An (H, W) integer or bool label map: GT classes, a class map,
-            region ids or one object's mask. A pixel with no label (-1) is a
-            label like any other, as it was for the pilot evaluator.
+            region ids or one object's mask. A region map's -1 (no region)
+            is a label like any other, as it was for the pilot evaluator.
         scored: An (H, W) bool mask of the pixels the metric scores. An edge
             between a scored pixel and one that is not is not a boundary.
             None scores every pixel, which is what pilot mode wants.

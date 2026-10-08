@@ -2,10 +2,10 @@
 
 The pipeline gives regions without classes, so `mIoU` and `boundary_F` need
 a class for each region. Each region takes the class that most of its scored
-pixels have in the GT. `docs/evaluation.md` defines this class map and its
-ties ("Naming the regions: the class map"), and says why it is an oracle
-value. Pilot mode takes the same vote over its own `scored` mask, the
-`full` domain, where background votes too.
+pixels have in the GT. `docs/evaluation.md` defines the class map and its
+ties ("Naming the regions: the class map"), and says why `mIoU` over it is
+an oracle value. Pilot mode takes the same vote over its own `scored` mask,
+the `full` domain, where background votes too.
 
 `docs/figures/class_map.png` shows this on a drawn scene, with the numbers
 the module gives for it.
