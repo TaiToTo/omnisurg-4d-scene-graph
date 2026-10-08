@@ -318,7 +318,7 @@ def test_the_command_prints_a_shrunken_population_with_its_videos(tmp_path):
 
 
 def test_the_command_refuses_a_run_whose_pairs_hold_two_rules(tmp_path):
-    # Each pair passes through the per-frame condition; the run's one JSON would hold both rules.
+    # Both pairs share the per-frame condition and pass; the run's one JSON would hold two rules.
     for tag, rule in (("pf", "per_frame"), ("both", "both_ways_from_centre"), ("fwd", "forward_from_first")):
         j = evaluator_scores(tag, 0.0, 5)
         j["propagation"] = rule

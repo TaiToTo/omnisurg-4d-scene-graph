@@ -32,9 +32,9 @@ PROV_NAME = "seed_info.json"
 
 # The provenance fields that tell one condition from another. `clip` and
 # `tag` say where the labels are, not what made them; of `frames`, which is
-# that clip's own frame numbers, only the kind is kept. `bidir`, which way
-# the tracker ran, is one: a tag tracked both ways on some clips and
-# forward on others mixes two propagation rules.
+# that clip's own frame numbers, only the kind is kept. `bidir` says
+# whether the tracker ran both ways. A tag tracked both ways on some clips
+# and forward on others mixes two propagation rules.
 PROV_KEYS = ("sam_input", "depth_source", "seed_source", "track_base",
              "seed_min_area", "seed_topk", "point_grids", "bidir")
 SEED_KEYS = ("points_per_side", "seed_edge_gain", "seed_smooth",
@@ -186,8 +186,9 @@ def comparable_groups(evals: dict) -> tuple[list[list[str]], list[tuple[str, str
 
     Each tag joins the first group whose every member it is comparable
     with, and starts one when there is none. Every member, not the first
-    alone: the check is not transitive, since a pilot JSON that records no
-    domain is comparable with one of either domain.
+    alone: the check is not transitive. A pilot JSON that records no domain
+    is comparable with one of either domain, and a `per_frame` condition
+    with one of either propagation rule.
 
     Returns:
         The groups, each a sorted list of tags, largest first; and, per tag
@@ -222,7 +223,7 @@ def _refusal(evals: dict, group: list[str], tag: str) -> tuple[str, str] | None:
 
 
 def describe_group(summaries: Mapping[str, dict]) -> str:
-    """One line saying what a group's scores were measured with, under which rule, and on how many clips.
+    """Describe in one line what a group's scores were measured with, under which rule, and on how many clips.
 
     Args:
         summaries: The group's score JSONs, by tag.

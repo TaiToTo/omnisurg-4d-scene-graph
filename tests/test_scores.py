@@ -139,7 +139,7 @@ def test_one_table_holds_one_rule_besides_per_frame():
 
 
 def test_a_table_whose_pairs_each_pass_but_that_holds_two_rules_is_refused():
-    # Each pair through the per-frame condition passes on its own; the table does not.
+    # Both pairs share the per-frame condition and pass; the table holds two rules and fails.
     tables = {"both": evaluator_json(), "pf": evaluator_json(propagation=scores.PER_FRAME),
               "fwd": evaluator_json(propagation=FORWARD)}
     check_comparable(tables["pf"], tables["both"])

@@ -1,10 +1,10 @@
 """One reader for every score JSON: its clips, its rows, its keys, and the ruler it was measured with.
 
-Every tool reads scores through this module, so the rule of
-`docs/evaluation.md` ("Recorded with every score") is checked in one
-place. `check_comparable` refuses a pair unless everything that must
-match does: `eval_code_sha`, dataset, class set, views, mode, the clip
-population, the GT and depth each clip was scored against, and the
+Every tool reads scores through this module, so the conditions for
+comparable scores (`docs/evaluation.md`, "Recorded with every score") are
+checked in one place. `check_comparable` refuses a pair unless everything
+that must match does: `eval_code_sha`, dataset, class set, views, mode, the
+clip population, the GT and depth each clip was scored against, and the
 propagation rule. Library versions are reported instead of refused.
 
 Two kinds of JSON arrive. The evaluator's carry every field in
@@ -38,9 +38,9 @@ PILOT_EVAL_CODE_SHA = "1f8a813a5be31dd204fe4130a1799053411c41166f19821f80ca30d3a
 # All or none: a JSON with a part of them is refused.
 EVALUATOR_FIELDS = ("class_set", "views", "pilot", "input_shas", "versions", "propagation")
 
-# The propagation rule of a condition with no tracker. It may sit beside a
-# condition of any rule, since propagation against per-frame segmentation
-# is a comparison the paper makes; two other rules never meet.
+# The propagation rule of a condition with no tracker. It may be compared
+# with a condition of either rule, because the paper compares tracking with
+# per-frame segmentation. No two other rules are compared.
 PER_FRAME = "per_frame"
 
 # The pilot evaluator's four domains, which its JSONs score in place of views.
@@ -129,7 +129,7 @@ def is_pilot_json(summary: Mapping) -> bool:
 
 
 def propagation_of(summary: Mapping) -> str | None:
-    """The propagation rule a JSON's predictions were made under; None for a pilot JSON, which records none.
+    """Return the propagation rule a JSON records, or None for a pilot JSON, which records none.
 
     Raises:
         ValueError: The JSON has some of the evaluator's fields but not
@@ -144,11 +144,11 @@ def propagation_of(summary: Mapping) -> str | None:
 
 
 def check_one_rule(summaries: Mapping[str, Mapping]) -> str | None:
-    """The one propagation rule that conditions going into one table hold besides `per_frame`.
+    """Return the one propagation rule of a table's conditions, `per_frame` aside.
 
-    A pair at a time is not enough: a `per_frame` condition is comparable
-    with a condition of either rule, so pairs that each pass can still put
-    two rules in one table.
+    Checking each pair is not enough. A `per_frame` condition is comparable
+    with a condition of either rule, so two pairs can each pass and still
+    put two rules in one table.
 
     Args:
         summaries: The score JSONs that go into one table, by tag.
@@ -388,12 +388,12 @@ def check_comparable(
             f"  cond: dataset={rb.dataset!r} pilot={rb.pilot} class_set={rb.class_set!r} views={list(rb.views)}"
         )
     # The rule the predictions were propagated under. A difference between
-    # two rules would pass for a difference between the methods.
+    # two rules would look like a difference between the methods.
     rule_a, rule_b = propagation_of(a), propagation_of(b)
     if rule_a != rule_b and PER_FRAME not in (rule_a, rule_b):
         raise ValueError(
             "two conditions propagated under different rules cannot be compared: the difference\n"
-            "  between them would carry the difference between the rules.\n"
+            "  between them would include the difference between the rules.\n"
             f"  base: propagation={rule_a!r}\n  cond: propagation={rule_b!r}\n"
             f"  Compare each with a condition of its own rule, or with a {PER_FRAME!r} one"
         )

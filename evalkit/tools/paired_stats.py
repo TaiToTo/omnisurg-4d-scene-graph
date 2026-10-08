@@ -389,8 +389,9 @@ def main() -> None:
             raise SystemExit(f"{pair}: {e}") from e
         pairs.append((pair, base, cond))
 
-    # One rule for the run: its pairs go into one JSON, and two pairs that
-    # each pass through a per-frame condition can still hold two rules.
+    # One rule for the whole run, because all its pairs go into one JSON.
+    # Checking each pair misses a mix: a per_frame condition paired once
+    # with each rule passes both checks.
     try:
         rule = check_one_rule(loaded)
     except ValueError as e:

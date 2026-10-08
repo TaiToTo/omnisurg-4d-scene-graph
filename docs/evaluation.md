@@ -573,21 +573,33 @@ the frames each key's mean covers, by key; the scored and excluded frames;
 predicted objects, hits and hits that entered `inst_BF`, per view. Its
 `frames` keeps every GT frame's values, by frame number, in time order.
 
-Two scores are comparable only when their `eval_code_sha`, dataset, class set,
-view and mode match, they cover the same clips, they read the same GT masks
-and depth maps, and they share a propagation rule. A difference between two
-rules would pass for a difference between the methods. `per_frame` is the
-exception: it may sit beside either rule, since that comparison is one the
-paper makes. The conditions of one table therefore hold one rule besides
-`per_frame`. `compare_eval` refuses any other pair and `paired_stats` any
-other table; both report a difference in versions. The same `eval_code_sha`
-is not enough on its own: pilot mode and the normal mode share it, and so do
-the views.
+Two scores are comparable only when all of these hold:
 
-The check against the pilot evaluator, below, is not a comparison under this
-rule: the two `eval_code_sha` differ by construction. It is a verification,
-run by its own script outside `compare_eval`, that this evaluator in pilot
-mode writes the pilot evaluator's numbers.
+- their `eval_code_sha`, dataset, class set, view and mode match;
+- they cover the same clips;
+- they read the same GT masks and depth maps;
+- they share a propagation rule, or one of them is `per_frame`.
+
+The same `eval_code_sha` is not enough on its own. Pilot mode and the
+normal mode share it, and so do the views.
+
+Conditions under two different propagation rules are never compared. The
+difference between the rules would look like a difference between the
+methods. A `per_frame` condition is the exception: it may be compared with
+a condition of either rule. The paper compares tracking with per-frame
+segmentation. So one table holds one rule, plus any `per_frame` conditions.
+
+The tools enforce this:
+
+- `compare_eval` refuses a pair that is not comparable.
+- `paired_stats` refuses such a pair too, and a table that holds two rules
+  other than `per_frame`.
+- Both report a difference in library versions but do not refuse it.
+
+The check against the pilot evaluator, below, is not bound by these
+conditions: the two `eval_code_sha` differ by construction. Its own script,
+outside `compare_eval`, verifies that this evaluator in pilot mode writes the
+pilot evaluator's numbers.
 
 ### Terms the tools read a score with
 
@@ -603,7 +615,7 @@ mode writes the pilot evaluator's numbers.
   `eval_code_sha`, dataset, mode, class set, views, and for a pilot JSON its
   domain. Two scores are *comparable* when they share a ruler, cover the
   same clips, read the same GT masks and depth maps, and share a
-  propagation rule, `per_frame` aside, the rule above.
+  propagation rule unless one of them is `per_frame`.
 - A *tag* is a condition's name on disk: the directory under each clip that
   holds its labels, and separately the name of its score JSON; the score
   names the label directory it read in `track_dir_name`.
