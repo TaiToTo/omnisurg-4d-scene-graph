@@ -146,7 +146,7 @@ copy to read the RGB clips, and the ported copies read `evalkit.classes`.
 | `surgical_core/viewer/labels.py`, `palette.py` | `surgical_core/viewer/` | `extract/03-metrics` (#3) | English only. `label_table_of` and `cholec_gt_table` move to a new `gt_tables.py`, the one viewer module that imports `evalkit`; `labels.py` builds its table from plain data, so a video with no class table gets one too. The rest of `surgical_core/viewer` is below, under "Not yet extracted anywhere". |
 | `kmerge.py` | `ipcai2027_experiment/scripts/kmerge.py` | `extract/04-kmerge` (#5) | It imports the pilot's `eval_track`, and borrows `verdict` and `video_of` from `paired_stats`. Waits on open question 1. |
 | `surgical_core/geometry/` | `depth_sam_tracking_experiment/geometry.py` | `extract/04-kmerge` (#5) | English only. Shared by the pipeline and the toolkit. |
-| `condition_inventory.py` | `ipcai2027_experiment/scripts/condition_inventory.py` | `extract/05-inventory` (#4) | It reads `eval_code_sha`, `eval_code_tag` and `eval_version` from score JSONs. "One ruler" is now what `docs/evaluation.md` calls comparable: sha, dataset, class set, view and mode all equal. |
+| `condition_inventory.py` | `ipcai2027_experiment/scripts/condition_inventory.py` | `extract/05-inventory` (#4) | It reads `eval_code_sha`, `eval_code_tag` and `eval_version` from score JSONs. "One ruler" is now what `docs/evaluation.md` calls comparable: `eval_code_sha`, dataset, class set, view and mode all equal, and one propagation rule. The provenance fields now include `bidir`, whether the tracker ran both ways. |
 | `check_env.py` | `ipcai2027_experiment/atlas97/scripts/check_env97.py` | `extract/05-inventory` (#4) | Not carried (decision 4). |
 | `reeval_diff.py` | — (written in the earlier repository) | `extract/06-rescore` (#6) | Ported as `evalkit/tools/pilot_check.py`, the check against the pilot evaluator, run in the workbench. The earlier repository's version insists the sha equals the pilot's and diffs `eval_code_sha` with everything else; `pilot_check` works the other way round: the shas differ by construction, only the keys the two evaluators share are compared, and those must be equal. |
 
@@ -242,10 +242,11 @@ while the evaluator is built and reviewed is worked out in `docs/workstreams.md`
    - on the pilot's score JSONs, it writes the same bytes as the workbench
      version (the bootstrap is seeded). This holds for every tool. The
      pilot's JSONs lack the fields the evaluator now writes (class set, view,
-     mode, input shas, versions); a tool reads them all the same, taking the
-     missing fields as the pilot evaluator's, and raises when a JSON has
-     some of the fields but not all. Dropping this check would let a tool
-     lose behaviour the workbench version had without anyone noticing;
+     mode, input hashes, versions, propagation rule); a tool reads them all the
+     same, taking the missing fields as the pilot evaluator's, and raises
+     when a JSON has some of the fields but not all. Dropping this check
+     would let a tool lose behaviour the workbench version had without
+     anyone noticing;
    - what only the evaluator's JSONs carry is checked by a self-test that
      plants the fault: `compare_eval` refuses a mix of shas, and a mix of
      modes or class sets under one sha; `condition_inventory` reports a
@@ -518,7 +519,7 @@ Every command takes those paths as arguments.
     geometry or only reads what the export wrote. The functions are in
     `surgical_core/geometry/camera.py` and
     `surgical_core/geometry/project.py`.
-18. **Conditions seeded from GT.** A seed frame is scored like any other
+17. **Conditions seeded from GT.** A seed frame is scored like any other
     frame, because the paper's conditions are seeded from the pipeline's own
     masks. Which of the 38 conditions were seeded from GT instead, and
     whether such a condition is scored on its seed frame or enters a table
@@ -530,7 +531,7 @@ Every command takes those paths as arguments.
     condition's labels, is one; the viewer's `gt_tracked` track, one GT
     frame carried by SAM 3, is another candidate. What the tracking stage
     does with such a seed is "The seed frame chosen from GT".
-19. **Masks that are not GT under the GT's name.** The viewer's step writes
+18. **Masks that are not GT under the GT's name.** The viewer's step writes
     SAM 3 masks into `seg_masks/` as `<i>_color_mask.png`, told apart from
     the annotation only by the frame manifest's `is_anchor` and
     `seg_provenance`, and the two VID25 clips still hold such masks from
@@ -540,3 +541,20 @@ Every command takes those paths as arguments.
     whether a mask that is not annotation moves out of `seg_masks/` or takes
     a name of its own, so that the distinction is in the file and not only in
     the frame manifest.
+19. **Which commit of Depth Anything 3 the `recon3d` extra pins.** The extra
+    names the repository at its head, so two installs can get two versions.
+    The commit to pin is the one the workbench ran on its GPU machine. pip
+    recorded it there, in the `direct_url.json` of that install. The extra
+    is pinned once that record has been read.
+20. **A constraints file from the GPU machine.** The pipeline was measured
+    with the package versions on the workbench's GPU machine. A constraints
+    file lists them, so that `pip install -e ".[recon3d]" -c <file>` gives
+    another machine the same versions. Once that machine's environment has
+    been read, the file is written from it and added beside `pyproject.toml`.
+    Until then the extra alone says what a machine needs.
+21. **A clip with no usable depth in any frame.** The point-cloud stage
+    skips a frame with no usable depth, as the workbench does, because the
+    data can hold such a frame. A clip with no usable depth in any frame
+    gets no cloud, no manifest entry and a count of 0, and the run exits 0.
+    No real clip has done this; a bundle with no depth at all is more likely
+    a broken bundle than data. Decide whether the stage refuses such a clip.

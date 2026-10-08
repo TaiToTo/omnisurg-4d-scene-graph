@@ -27,13 +27,10 @@ HEADER_LINES = 12
 # shortened; a module that is short and still listed fails the ratchet.
 STILL_LONG = frozenset({
     "evalkit/boundary.py",
-    "evalkit/classes.py",
     "evalkit/classmap.py",
     "evalkit/code_sha.py",
-    "evalkit/frame.py",
     "evalkit/objects.py",
     "evalkit/pilot.py",
-    "evalkit/scored.py",
     "evalkit/time_iou.py",
     "evalkit/tools/paired_stats.py",
     "evalkit/tools/scores.py",
