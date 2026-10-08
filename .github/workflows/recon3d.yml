@@ -40,7 +40,7 @@ jobs:
 
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libgl1 libglib2.0-0t64
 
-      # The README's step, word for word.
+      # Run the README's step, word for word.
       - run: pip install -e ".[recon3d]"
 
       # Import the backend, the upstream model and the stage. A package can

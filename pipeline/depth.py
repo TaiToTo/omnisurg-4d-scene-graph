@@ -1,13 +1,14 @@
 """Run the depth stage: estimate depth for every frame of each clip, and write it with its images and point clouds.
 
-A clip is a directory that holds `frame_manifest.json` and `input_images/`.
-The stage writes `depth_raw/depth_NNNNNN.npy`, `depth_vis/NNNN.jpg`,
+The stage reads a clip's `frame_manifest.json` and `input_images/`. It
+writes `depth_raw/depth_NNNNNN.npy`, `depth_vis/NNNN.jpg`,
 `exports/mini_npz/results.npz` and `pc_vis/frame_NNNN.glb`, and adds
 `depth_info` to the manifest. The bundle `results.npz` holds depth,
-confidence, intrinsics and world-to-camera extrinsics. A CholecSeg8k clip
-must already be cut to the endoscope's view; the stage refuses one that has
-no `crop_info.json`. A clip that already holds the stage's output is refused
-unless `--overwrite` is given, which removes that output first.
+confidence, intrinsics and world-to-camera extrinsics. The stage refuses:
+
+- a CholecSeg8k clip not cut to the endoscope's view (no `crop_info.json`);
+- a clip that already holds the stage's output, unless `--overwrite` is
+  given, which removes that output first.
 
 Usage:
     python -m pipeline.depth --input-dir /path/to/clips [--clips <clip> ...] [--device auto] [--gpu N]
@@ -38,8 +39,8 @@ DEFAULT_DATASET = "cholec_gt"
 UNCROPPED_DATASETS = frozenset({"atlas120k"})
 
 # The stage's own files in a clip, by the directory or file that holds them. The later stages and other depth
-# sources write beside them, under a `__<source>` suffix (`depth_vis/NNNN__pi3x.jpg`) or another name
-# (`pc_vis/graph_frame_NNNN.json`), so the stage names its files exactly, never a directory.
+# sources write into the same directories, under a `__<source>` suffix (`depth_vis/NNNN__pi3x.jpg`) or another
+# name (`pc_vis/graph_frame_NNNN.json`), so the stage names its files exactly, never a directory.
 OWN_FILES = {"depth_raw": r"depth_\d+\.npy", "depth_vis": r"\d+\.jpg", "pc_vis": r"frame_\d+\.glb"}
 BUNDLE = "exports/mini_npz/results.npz"
 
@@ -73,7 +74,7 @@ def existing_output(clip_dir: Path, manifest: dict) -> list[str]:
 
     Each entry names a directory with its count of the stage's files, or the bundle and `depth_info` with their
     keys. The keys tell which version of the stage wrote them: a `ray_map` in the bundle marks a branch of the
-    workbench's stage that this one does not reproduce.
+    workbench's stage that this stage does not reproduce.
     """
     held = []
     for name, files in own_files(clip_dir).items():
@@ -90,10 +91,10 @@ def existing_output(clip_dir: Path, manifest: dict) -> list[str]:
 
 
 def remove_output(clip_dir: Path) -> None:
-    """Remove the stage's own files from the clip, so that a run writes every such file the clip then holds.
+    """Remove the stage's own files from the clip, and leave every other file.
 
     A run on fewer frames would otherwise leave the earlier run's files for the frames it no longer writes, and
-    the later stages count a clip's frames by the files in `depth_raw/`. Every other file stays.
+    the later stages count a clip's frames by the files in `depth_raw/`.
     """
     for files in own_files(clip_dir).values():
         for path in files:
@@ -171,7 +172,7 @@ def run_depth(clip_dir: Path, model: Reconstructor, process_res: int, write_glb:
             gltf_pts = world_to_gltf(cam_to_world(backproject_depth(depth[i], rec.intrinsics[i]), R, t))
             valid = valid_depth_mask(depth[i].reshape(-1))
             if not valid.any():
-                # A frame can hold no usable depth. The viewer shows no cloud for it; the other frames stand.
+                # A frame can hold no usable depth. The viewer shows no cloud for it; the other frames still get theirs.
                 print(f"  frame {i:04d}: no usable depth, no point cloud")
                 continue
             write_point_cloud_glb(clip_dir / "pc_vis" / f"frame_{i:04d}.glb", gltf_pts[valid],
@@ -216,7 +217,7 @@ def main() -> None:
         raise SystemExit(f"no clip under {root}")
     model = DA3(device=args.device, gpu=args.gpu, process_res=args.process_res)
     print(f"{model.model_id} on {model.device}, {len(clips)} clip(s)")
-    # Run every clip, even after one fails. Any error, the GPU running out of memory among them, counts as the
+    # Run every clip, even after one fails. Any error, the GPU running out of memory included, counts as the
     # failure of that clip alone; on a run of 40 clips the rest would otherwise stay undone. The run lists each
     # failure and exits non-zero.
     failed = []

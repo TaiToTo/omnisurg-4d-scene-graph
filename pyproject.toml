@@ -44,9 +44,9 @@ tools = ["scipy", "matplotlib"]
 # The depth stage needs the render extra, Depth Anything 3 and torch. DA3
 # pins numpy below 2, and no numpy below 2 supports a Python newer than 3.12,
 # so this extra installs on Python 3.12 only. DA3 is named by its repository
-# for now. It gets pinned to the commit the GPU machine ran, once that commit
-# is read from the machine's install. DA3 imports `addict` without declaring
-# it, so the extra declares it.
+# for now. It gets pinned to the commit the workbench's GPU machine ran, once
+# that commit is read from the machine's install. DA3 imports `addict`
+# without declaring it, so the extra declares it.
 recon3d = [
     "omnisurg-4d-scene-graph[render]",
     "torch",
@@ -61,7 +61,7 @@ Homepage = "https://github.com/TaiToTo/omnisurg-4d-scene-graph"
 # `evalkit`, the stages in `pipeline`, and the models in `recon3d_wrapper`.
 # A stage runs as `python -m pipeline.<stage>`. The packages are installed
 # rather than run from the clone. A stage then runs the same from any
-# directory, and no script edits `sys.path` to find the others.
+# directory, and no script edits `sys.path` to find the other packages.
 [tool.setuptools.packages.find]
 include = ["surgical_core*", "evalkit*", "pipeline*", "recon3d_wrapper*"]
 

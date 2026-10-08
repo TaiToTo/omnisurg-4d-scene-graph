@@ -21,7 +21,7 @@ from recon3d_wrapper import Reconstruction
 class StandIn:
     """Return a fixed depth ramp at (H, W), confidence 1, and a camera that moves along x.
 
-    `returns` makes it answer with that many frames, whatever the number of images.
+    `returns` makes it return that many frames, whatever the number of images.
     """
 
     model_id = "stand-in"
@@ -182,8 +182,10 @@ OTHERS = ("depth_vis/{:04d}__pi3x.jpg", "pc_vis/frame_{:04d}__pi3x.glb", "pc_vis
 
 
 def plant_others(clip, n=3):
-    """Write what the other depth source and the later stages leave beside the DA3 stage's files, in the same
-    directories: under a `__<source>` suffix, and under names of their own with no suffix."""
+    """Write the files that another depth source and the later stages write into the depth stage's directories.
+
+    They carry a `__<source>` suffix, or names of their own with no suffix.
+    """
     for i in range(n):
         for rel in OTHERS:
             path = clip / rel.format(i)

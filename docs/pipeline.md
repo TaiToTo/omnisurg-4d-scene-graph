@@ -12,9 +12,9 @@ reads what the earlier stages wrote into the clip.
 A clip is a directory with these files:
 
 - `input_images/`: the frames as PNG files. Their names sort in time order.
-- `frame_manifest.json`: what the stage that cut the clip from its dataset
-  recorded about it. Its `dataset` key names the dataset; a manifest
-  without one belongs to CholecSeg8k.
+- `frame_manifest.json`: the clip's record, written by the stage that cut
+  the clip from its dataset. Its `dataset` key names the dataset; a
+  manifest without one belongs to CholecSeg8k.
 - `crop_info.json`, for a CholecSeg8k clip only: the rectangle inside the
   endoscope's view that the frames were cut to.
 
@@ -26,8 +26,8 @@ python -m pipeline.depth --input-dir /path/to/clips [--clips <clip> ...] [--gpu 
 
 The stage runs Depth Anything 3 (DA3) on all frames of a clip in one call.
 DA3 is the model whose depth the later stages read. Another reconstruction
-model runs as a stage of its own and writes beside DA3's files, under a
-`__<model>` suffix. The stage first resizes each frame to 504 pixels on its
+model runs as a stage of its own and writes into the same directories, under
+a `__<model>` suffix. The stage first resizes each frame to 504 pixels on its
 longest side (`--process-res`). It writes into the clip:
 
 - `depth_raw/depth_NNNNNN.npy`: one depth map per frame.
@@ -39,15 +39,18 @@ longest side (`--process-res`). It writes into the clip:
   `--no-glb` skips them.
 - `depth_info` in the manifest: the model, the resolution and the ranges.
 
-The stage refuses a CholecSeg8k clip without `crop_info.json`, since the
-model would see the black border. It refuses a clip that already holds its
-output; `--overwrite` replaces the stage's own files and leaves every other
-file. `python -m pipeline.depth --help` lists the options.
+The stage refuses:
+
+- a CholecSeg8k clip without `crop_info.json`;
+- a clip that already holds the stage's output. `--overwrite` replaces the
+  stage's own files and leaves every other file.
+
+`python -m pipeline.depth --help` lists the options.
 
 ### Without a CUDA GPU
 
 The stage runs on a CPU, slowly: four frames take about a minute and 6 GB
-on a laptop. DA3 depends on `xformers`, which installs only next to CUDA, so
+on a laptop. DA3 depends on `xformers`, which installs only with CUDA, so
 install DA3 without its dependencies and add the ones it imports:
 
 ```bash

@@ -1,4 +1,4 @@
-"""Define the interface that every reconstruction model answers to.
+"""Define the interface that every reconstruction model implements.
 
 A backend is built with its settings. Its `reconstruct(image_paths)` returns
 a `Reconstruction`: depth, confidence, intrinsics and world-to-camera
