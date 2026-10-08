@@ -32,15 +32,13 @@ from evalkit.clip import ClipScores, ScoredFrame, summarize_clip
 from evalkit.code_sha import eval_code_sha, hashed_files
 from evalkit.frame import score_frame
 from evalkit.inputs import ClipInputs, read_clip
-from evalkit.keys import CLIP_METRICS, FRAME_METRICS, metric_key
+from evalkit.keys import FRAME_METRICS, metric_key
 from evalkit.pilot import PILOT_DOMAINS
 from evalkit.pilot_clip import score_pilot_clip
 from evalkit.scored import valid_depth
 from evalkit.time_iou import time_iou
 
-(TIME_KEY,) = CLIP_METRICS
-
-# The propagation rules `docs/evaluation.md` defines.
+# The propagation rules `docs/evaluation.md` defines ("Propagation rule").
 PROPAGATION_RULES = ("both_ways_from_centre", "forward_from_first", "per_frame")
 
 # The record a tracker or the per-frame stage writes beside a condition's labels.
@@ -66,7 +64,7 @@ def check_table(table: ClassTable) -> None:
 
 
 def read_population(path: str | Path) -> list[str]:
-    """The clips listed in `path`, one per line, in its order.
+    """Read the population: the clips listed in `path`, one per line, in its order.
 
     Raises:
         ValueError: The file lists no clip, or one clip twice.
@@ -97,11 +95,11 @@ def _number(value):
 
 
 def clip_row(clip: str, scores: ClipScores) -> dict:
-    """One clip's row of the score JSON: the means, the counts behind them, and the per-frame values."""
+    """Build one clip's row of the score JSON: the means, the counts behind them, and the per-frame values."""
     views = scores.views
     row: dict = {"clip": clip}
     row.update({metric_key(m, v): _number(views[v].means[m]) for v in VIEWS for m in FRAME_METRICS})
-    row[TIME_KEY] = _number(scores.time_iou)
+    row["time_IoU"] = _number(scores.time_iou)
     row["n_frames"] = {metric_key(m, v): int(views[v].n_frames[m]) for v in VIEWS for m in FRAME_METRICS}
     row["n_scored_frames"] = scores.n_scored_frames
     row["n_excluded_frames"] = scores.n_excluded_frames
@@ -118,34 +116,48 @@ def clip_row(clip: str, scores: ClipScores) -> dict:
 
 
 def versions() -> dict[str, str]:
-    """The versions of Python and of the three libraries a hashed module may use."""
+    """Return the versions of Python and of the three libraries a hashed module may use."""
     return {"python": platform.python_version(), "numpy": np.__version__,
             "opencv": cv2.__version__, "pillow": PIL.__version__}
 
 
-def rule_of_seed_info(info: dict) -> str | None:
-    """Return the propagation rule a clip's `seed_info.json` records, or None when it holds none.
+def rule_of_seed_info(info: dict) -> str:
+    """Return the propagation rule a clip's `seed_info.json` records.
 
-    The per-frame stage records `seed_source` `per_frame`. The tracker records `bidir`, the seed frame and the
-    frames it labelled: `both_ways_from_centre` seeds on the centre of those frames and carries both ways;
-    `forward_from_first` seeds on frame 0 and carries forward. A seed chosen anywhere else, from the GT for one,
-    holds neither rule.
+    The per-frame stage records `seed_source` `per_frame`. The tracker records `seed_source` `sam`, `bidir`,
+    the seed frame and the frames it labelled: a seed on the centre of those frames carried both ways is
+    `both_ways_from_centre`, and a seed on frame 0 carried forward is `forward_from_first`.
+
+    Raises:
+        ValueError: The record names no `seed_source`; the seed came from elsewhere, the GT for one; the
+            tracker's record is incomplete; or the seed sits on neither the centre nor the first frame.
     """
-    if info.get("seed_source") == "per_frame":
+    source = info.get("seed_source")
+    if source is None:
+        raise ValueError("the record names no seed_source")
+    if source == "per_frame":
         return "per_frame"
-    frames, seed = info.get("frames"), info.get("seed_frame")
-    if not frames or seed is None or "bidir" not in info:
-        return None
-    if info["bidir"] and seed == frames[len(frames) // 2]:
+    if source != "sam":
+        raise ValueError(f"the seed came from {source!r}, not from the tracker's own masks; "
+                         "such a condition holds neither rule, wherever its seed sits")
+    frames, seed, bidir = info.get("frames"), info.get("seed_frame"), info.get("bidir")
+    if not isinstance(frames, list) or not frames or seed is None or bidir is None:
+        raise ValueError("the tracker's record lacks the seed frame, bidir, or the list of frames it labelled")
+    if bidir:
+        centre = frames[len(frames) // 2]
+        if seed != centre:
+            raise ValueError(f"the seed is on frame {seed}, carried both ways, "
+                             f"and the centre of the labelled frames is {centre}")
         return "both_ways_from_centre"
-    if not info["bidir"] and seed == 0 and frames[0] == 0:
-        return "forward_from_first"
-    return None
+    if seed != 0 or frames[0] != 0:
+        raise ValueError(f"the seed is on frame {seed}, carried forward, and the labelled frames start at "
+                         f"{frames[0]}; the rule starts on frame 0")
+    return "forward_from_first"
 
 
 def condition_rule(tracks_root: str | Path, tag: str, clips: Sequence[str], stated: str | None = None,
                    *, pilot: bool = False) -> str:
-    """Return the condition's propagation rule, as each clip's `seed_info.json` records it or as stated.
+    """Return the condition's propagation rule, as every clip's `seed_info.json` records it or as stated.
 
     Args:
         tracks_root: The directory holding one directory per clip.
@@ -155,22 +167,29 @@ def condition_rule(tracks_root: str | Path, tag: str, clips: Sequence[str], stat
         pilot: Pilot mode, which records `NO_RULE` where normal mode refuses for want of a rule.
 
     Raises:
-        ValueError: A clip's record holds no rule; two clips hold two rules; the stated rule is not one or
-            contradicts the records; or neither records nor a statement give one.
+        ValueError: The stated rule is not one; a clip's record holds no rule (`rule_of_seed_info`); some
+            clips have a record and some have none; two clips hold two rules; the statement contradicts
+            the records; or neither records nor a statement give one.
     """
     if stated is not None and stated not in PROPAGATION_RULES:
         raise ValueError(f"{stated!r} is no propagation rule; one of {PROPAGATION_RULES}")
-    found = {}
+    found, without = {}, []
     for clip in clips:
         path = Path(tracks_root) / clip / tag / SEED_INFO
-        if path.is_file():
-            rule = rule_of_seed_info(json.loads(path.read_text(encoding="utf-8")))
-            if rule is None:
-                if pilot:
-                    return NO_RULE
-                raise ValueError(f"{clip}: {tag}'s {SEED_INFO} holds no propagation rule; a seed off the "
-                                 "centre and off the first frame is neither rule")
-            found[clip] = rule
+        if not path.is_file():
+            without.append(clip)
+            continue
+        try:
+            found[clip] = rule_of_seed_info(json.loads(path.read_text(encoding="utf-8")))
+        except ValueError as e:
+            # Pilot mode records no rule for a record that holds none, and refuses one it cannot parse.
+            if pilot and not isinstance(e, json.JSONDecodeError):
+                return NO_RULE
+            raise ValueError(f"{clip}: {tag}'s {SEED_INFO} holds no propagation rule: {e}") from None
+    # All or none: a record on some clips says nothing about the others.
+    if found and without:
+        raise ValueError(f"{tag}: {sorted(found)} have a {SEED_INFO} and {without} have none; "
+                         "a condition records its rule on every clip or on none")
     rules = set(found.values()) | ({stated} if stated else set())
     if len(rules) > 1:
         raise ValueError(f"{tag}: the clips and the statement give {sorted(rules)}; a condition has one rule")
