@@ -228,8 +228,11 @@ def describe_group(summaries: Mapping[str, dict]) -> str:
     Args:
         summaries: The group's score JSONs, by tag.
     """
+    # The members are comparable with one another, so the first one's ruler
+    # and clips stand for the group.
     first = next(iter(summaries.values()))
     r, rule = ruler(first), check_one_rule(summaries)
+    # A pilot JSON records no rule, so none is printed.
     return (f"sha={str(r.eval_code_sha)[:8]} pilot={r.pilot} class_set={r.class_set} "
             f"views={list(r.views)} dataset={r.dataset} n_clips={len(clips_of(first))}"
             + (f" propagation={rule}" if rule is not None else ""))

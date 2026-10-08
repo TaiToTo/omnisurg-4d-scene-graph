@@ -174,6 +174,8 @@ def check_one_rule(summaries: Mapping[str, Mapping]) -> str | None:
         )
     if rules:
         return rules[0]
+    # Only `per_frame` is left, or nothing: `per_frame` when some JSON
+    # records it, None when every JSON is a pilot JSON.
     return PER_FRAME if by_rule else None
 
 
@@ -430,6 +432,7 @@ def check_comparable(
         _check_extra_ignores(a, b, clips)
     if not pilot_a:
         _check_inputs(a, b, clips)
+        # The pair's rule is the tracked one; it is `per_frame` only when both are.
         out["propagation"] = rule_b if rule_a == PER_FRAME else rule_a
         va, vb = a["versions"] or {}, b["versions"] or {}
         differ = {k: (va.get(k), vb.get(k)) for k in sorted(set(va) | set(vb)) if va.get(k) != vb.get(k)}

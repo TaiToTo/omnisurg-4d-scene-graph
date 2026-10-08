@@ -326,6 +326,9 @@ def compare_pair(ja: dict, jb: dict, drop: Sequence[str] = (), allow_legacy_code
     out = dict(n_clips=len(clips), n_videos=int(len(set(vids))), dropped_videos=sorted(drop),
                # What it was measured with stays with the result.
                eval_code=chk["eval_code"], population=chk["population"], metrics=res)
+    # Copy the two fields the check returns only sometimes: `propagation`
+    # (absent for pilot JSONs) and `versions_differ` (absent when the
+    # versions match).
     for k in ("propagation", "versions_differ"):
         if k in chk:
             out[k] = chk[k]
@@ -409,6 +412,7 @@ def main() -> None:
     if args.out:
         os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
         head = {"n_boot": N_BOOT, "seed": SEED, "seed_scheme": SEED_SCHEME}
+        # A pilot JSON records no rule, so none is written.
         if rule is not None:
             head["propagation"] = rule
         with open(args.out, "w", encoding="utf-8") as f:

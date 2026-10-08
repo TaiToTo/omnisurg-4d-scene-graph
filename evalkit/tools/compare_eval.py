@@ -151,6 +151,9 @@ def compare(a: dict, b: dict, allow_subset: bool = False, allow_legacy_code: boo
     # The summary, from the check, the means and the wins.
     out = dict(n_clips=len(clips), population=chk["population"], eval_code=chk["eval_code"],
                clips=clips, wins=wins, metrics=deltas)
+    # Copy the two fields the check returns only sometimes: `propagation`
+    # (absent for pilot JSONs) and `versions_differ` (absent when the
+    # versions match).
     for k in ("propagation", "versions_differ"):
         if k in chk:
             out[k] = chk[k]
@@ -232,6 +235,7 @@ def main() -> None:
     ia, ib = rows_of(a), rows_of(b)
 
     # The table: every key's aligned means, its difference and its direction.
+    # A pilot JSON records no rule, so none is printed.
     rule = f", propagation={res['propagation']}" if "propagation" in res else ""
     print(f"=== {args.cond} vs {args.base} ({len(clips)} clips, "
           f"population={res['population']}, eval_code={res['eval_code']}{rule}) ===")
