@@ -65,3 +65,11 @@ def test_each_mode_computes_the_normals_at_most_once(mode, monkeypatch):
     depth, K, gray01, rgb = _inputs()
     render.sam_input_image(mode, depth, K, gray01, rgb)
     assert len(calls) <= 1, f"{mode} computed the normals {len(calls)} times"
+
+
+def test_normals_of_another_depth_are_refused():
+    from surgical_core.geometry import normals
+    depth, K, _, _ = _inputs()
+    other = normals.camera_normals(depth[:-1, :-1], K)
+    with pytest.raises(ValueError, match="not the depth's"):
+        normals.geom_edge_map(depth, K, normals=other)

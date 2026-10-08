@@ -134,6 +134,9 @@ def geom_edge_map(depth, K, normal_thresh=0.3, depth_thresh=0.04, parts="both",
     Returns:
         (H, W) float edge strength, 0 where invalid.
 
+    Raises:
+        ValueError: `normals` is given and its shapes are not the depth's, so it was computed from another depth.
+
     Note:
         The ring is 2 pixels wide to match the crease term: the normals are
         central differences, so they are 0 or NaN on the outer pixel and the
@@ -143,7 +146,13 @@ def geom_edge_map(depth, K, normal_thresh=0.3, depth_thresh=0.04, parts="both",
         with `parts="depth"` the outer 2 pixels of real steps are lost too.
         That is the conservative side, so the two are kept equal.
     """
-    n, m = camera_normals(depth, K) if normals is None else normals
+    if normals is None:
+        n, m = camera_normals(depth, K)
+    else:
+        n, m = normals
+        if n.shape != (*depth.shape, 3) or m.shape != depth.shape:
+            raise ValueError(f"the normals given are {n.shape} with a mask {m.shape}, not the depth's {depth.shape}; "
+                             "they were computed from another depth")
     H, W = depth.shape
     nf = np.nan_to_num(n)
     # Normal discontinuity: 1 - cos to the right and lower neighbour, large at

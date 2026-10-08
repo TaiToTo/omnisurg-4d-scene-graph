@@ -4,7 +4,9 @@ A change that moves one pixel of one input mode changes a measured
 condition, and nothing else would notice. The hashes in
 `render_outputs.sha256.json` were recorded from the code on `main` before
 the unused modes were removed. Each mode runs at both edge gains the
-conditions used, with and without smoothing, on one synthetic frame.
+conditions used, with and without smoothing, on one synthetic frame. A
+failure also follows a change in numpy, OpenCV or matplotlib, whose
+versions the file records under `recorded_with`.
 
 Usage:
     python -m tests.test_render_outputs_are_pinned > tests/render_outputs.sha256.json
@@ -14,17 +16,23 @@ import hashlib
 import json
 from pathlib import Path
 
+import cv2
 import numpy as np
 import pytest
 
-pytest.importorskip("matplotlib")
+matplotlib = pytest.importorskip("matplotlib")
 
 from surgical_core.geometry import render  # noqa: E402
 
 PINNED = Path(__file__).with_name("render_outputs.sha256.json")
 
-# The modes the paper's conditions ran.
-MODES = ("depth", "normal", "normal_edge", "rgb", "rgb_edge")
+# The key under which the file records the versions the hashes were made with.
+RECORDED_WITH = "recorded_with"
+
+
+def versions() -> dict:
+    """Return the versions of the libraries whose arithmetic the hashes depend on."""
+    return {"numpy": np.__version__, "opencv": cv2.__version__, "matplotlib": matplotlib.__version__}
 
 
 def inputs(h=48, w=64):
@@ -48,7 +56,7 @@ def inputs(h=48, w=64):
 def cases():
     """Return every mode at each edge gain, with and without smoothing, as (key, keyword arguments)."""
     return [(f"{mode} edge_gain={gain} smooth={smooth}", {"mode": mode, "edge_gain": gain, "smooth": smooth})
-            for mode in MODES for gain in (0.85, 1.0) for smooth in (True, False)]
+            for mode in render.SAM_INPUT_MODES for gain in (0.85, 1.0) for smooth in (True, False)]
 
 
 def sha(img):
@@ -63,14 +71,18 @@ def render_case(kwargs):
 
 
 def test_every_case_is_pinned_and_nothing_else():
-    assert sorted(json.loads(PINNED.read_text())) == sorted(key for key, _ in cases())
+    pinned = json.loads(PINNED.read_text())
+    assert RECORDED_WITH in pinned
+    assert sorted(k for k in pinned if k != RECORDED_WITH) == sorted(key for key, _ in cases())
 
 
 @pytest.mark.parametrize("key, kwargs", cases(), ids=[key for key, _ in cases()])
 def test_the_mode_renders_the_pinned_bytes(key, kwargs):
+    pinned = json.loads(PINNED.read_text())
     got = sha(render_case(kwargs))
-    assert got == json.loads(PINNED.read_text())[key], f"{key} rendered {got}"
+    assert got == pinned[key], f"{key} rendered {got}; recorded with {pinned[RECORDED_WITH]}, now {versions()}"
 
 
 if __name__ == "__main__":
-    print(json.dumps({key: sha(render_case(kwargs)) for key, kwargs in cases()}, indent=2, sort_keys=True))
+    print(json.dumps({RECORDED_WITH: versions(), **{key: sha(render_case(kwargs)) for key, kwargs in cases()}},
+                     indent=2, sort_keys=True))
