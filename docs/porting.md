@@ -135,11 +135,12 @@ Where they and this document differ, this document holds.
     that track is an open question ("The GT track of `track_metrics`"). The
     workbench pre-registered two definitions under the name `hold_mean`: one
     per condition, in `track_metrics`, and one over the GT tracks that every
-    compared condition registered, in `summarize_track16`. The tool carries
-    at most one of them under that name, and the other under a name of its
-    own, because a different denominator is a different metric: in the
-    workbench, moving the denominator once flipped a result's sign. Which
-    one keeps the name is settled with the tool's GT track.
+    compared condition picked a region for on the seed frame, in
+    `summarize_track16`. The tool carries at most one of them under that
+    name, and the other under a name of its own, because a different
+    denominator is a different metric: in the workbench, moving the
+    denominator once flipped a result's sign. Which one keeps the name is
+    settled with the tool's GT track.
 15. **`kmerge` is a tool.** `kmerge` is ported under `evalkit/tools/`,
     outside `eval_code_sha`. It changes predictions, not metrics: it merges
     a condition's regions down to K and writes them as a condition of their
@@ -597,8 +598,16 @@ Every command takes those paths as arguments.
    - if components, the linking rule: the IoU threshold, how many missed
      observations a track survives, and which pixels make an observation
      now that no size cut applies;
-   - how time is counted, in observations as the workbench did or in
-     seconds, since the GT frames are not evenly spaced;
+   - whether a gap in a track is counted in observations, as the
+     workbench's linking rule and re-entry counted it, or in seconds, since
+     the GT frames are not evenly spaced; hold's time offsets were in
+     seconds already;
+   - which frame hold starts from when the seed frame has no GT. The
+     workbench's `track_metrics` refused such a clip, and
+     `summarize_track16` started from the GT frame nearest in time, up to
+     5.6 s away; that happened on 14 of the 27 CholecSeg8k clips. A
+     condition segmented frame by frame has no seed frame, and
+     `summarize_track16` gave it the seed frame of a tracked condition;
    - which of the two pre-registered `hold_mean` definitions keeps the name
      ("No measure over time carries a star");
    - what hold means under forward propagation (`forward_from_first`),

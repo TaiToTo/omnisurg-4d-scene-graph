@@ -16,7 +16,8 @@ help explain the answers.
   With no training, for how many frames does a region picked out once keep
   covering the same thing? *Decided by:* no key, since no measure over time
   carries a star. `time_IoU` is reported for reference; it rewards coarse
-  regions.
+  regions. Measures of identity, such as hold and IDF1, are reported for
+  reference too, by a tool outside the evaluator.
 - **Given no example at all, what input makes the regions' boundaries fall
   where the labelled classes' boundaries are?** The image, the 3D shape from
   depth, or both; and for which classes and which procedures, since the
@@ -31,9 +32,9 @@ help explain the answers.
 
 ![The three questions on a drawn scene. Q1: a region picked out in one frame follows the gallbladder for two frames, then leaves it. Q2: the regions' boundaries against the GT's class boundaries, found and missed, giving boundary_R_raw. Q3: regions matched to the GT's objects, two hits and one extra region, giving F1_50 and SQ](../docs/figures/three_questions.png)
 
-The three questions on a drawn scene. No key decides the first, so its
-panel is an illustration; the numbers in the other two are what the modules
-give on the scene.
+The three questions on a drawn scene. No key decides how far the regions
+can be followed, so its panel is an illustration; the numbers in the other
+two are what the modules give on the scene.
 
 Each question is put as a comparison: the pipeline in one configuration,
 a *condition*, against another. A claim gets a star when the video-level
@@ -50,14 +51,14 @@ conditions vary what the pipeline is given, the image, the depth or both.
 
 ## The map
 
-![The evaluator at a glance: a clip's inputs; one frame, scored in three views; one clip, each key's mean over its frames; one condition, one score file; two conditions, the key that decides the second and the third question](../docs/figures/evalkit_overview.png)
+![The evaluator at a glance: a clip's inputs; one frame, scored in three views; one clip, each key's mean over its frames; one condition, one score file; two conditions, the keys that decide the questions about boundaries and structure](../docs/figures/evalkit_overview.png)
 
 Six steps, from a clip's inputs to the three questions: steps 2 to 5 score
 one condition, and step 6 compares two.
 
 The same steps, part by part: what each part computes, and the module that
 holds it. Arrows say what is computed from what; Q2 and Q3 mark the parts
-that hold the key deciding those questions above, and the first question has
-none. What a module returns is in its docstring.
+that hold the key deciding those questions above, and Q1 has none. What a
+module returns is in its docstring.
 
 ![The evaluator, part by part: a clip's inputs; scored pixels and the keys of one frame in one view; one frame in every view; one clip; one score file per condition; the tools that compare two conditions](../docs/figures/evaluator_map.png)
