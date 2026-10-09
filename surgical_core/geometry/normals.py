@@ -63,12 +63,12 @@ def normal_map(depth, K):
 # 1 - cos to the neighbour is 1, the strongest possible crease, and the depth
 # gradient looks like a step at the rim of a hole. Measured on one CholecSeg8k
 # frame, 57.6 % of the pixels with edge > 0.5 were the outer 2 pixels of the
-# image. By default that ring is zeroed (`mask_ring=True`), as in every
-# condition made since the ring was masked. Labels made before the ring was
-# masked came from inputs with the ring in; `mask_ring=False` reproduces
-# them. The setting is an argument, not a module flag, so that one process
-# cannot run two settings under one record: a stage passes it and records
-# the value it passed.
+# image. `mask_ring=True` zeroes that ring, and every condition made since
+# the ring was masked passed True. Labels made before the ring was masked
+# came from inputs with the ring in; `mask_ring=False` reproduces them.
+# `mask_ring` has no default, in this module and in `render`. A stage passes
+# it at every call and records the value it passed, so the record and the
+# image read one value, and a call that leaves it out raises.
 #
 # The underlying `normal_map` keeps the same ring, and that was measured and
 # left alone on purpose. On the border the tangent is 0, so the normal is 0,
@@ -106,8 +106,8 @@ def edge_reliable_mask(m):
     return r
 
 
-def geom_edge_map(depth, K, normal_thresh=0.3, depth_thresh=0.04, parts="both",
-                  mask_ring=True, normals=None):
+def geom_edge_map(depth, K, normal_thresh=0.3, depth_thresh=0.04, parts="both", *,
+                  mask_ring, normals=None):
     """Geometric edge strength in [0, 1] from normal discontinuity and depth steps.
 
     Large at real geometric boundaries (organ creases, occlusion steps), small
@@ -131,8 +131,10 @@ def geom_edge_map(depth, K, normal_thresh=0.3, depth_thresh=0.04, parts="both",
         (H, W) float edge strength, 0 where invalid.
 
     Raises:
-        ValueError: `mask_ring` is not a bool. `None` once meant "follow the
-            module flag", which no longer exists.
+        ValueError: one of these:
+            - `mask_ring` is not a bool, `None` included.
+            - `normals` is given and its shapes are not the depth's, so it was
+              computed from another depth.
 
     Note:
         The ring is 2 pixels wide to match the crease term: the normals are
@@ -145,7 +147,13 @@ def geom_edge_map(depth, K, normal_thresh=0.3, depth_thresh=0.04, parts="both",
     """
     if not isinstance(mask_ring, bool):
         raise ValueError(f"mask_ring is True or False, not {mask_ring!r}")
-    n, m = camera_normals(depth, K) if normals is None else normals
+    if normals is None:
+        n, m = camera_normals(depth, K)
+    else:
+        n, m = normals
+        if n.shape != (*depth.shape, 3) or m.shape != depth.shape:
+            raise ValueError(f"the normals given are {n.shape} with a mask {m.shape}, not the depth's {depth.shape}; "
+                             "they were computed from another depth")
     H, W = depth.shape
     nf = np.nan_to_num(n)
     # Normal discontinuity: 1 - cos to the right and lower neighbour, large at
@@ -172,7 +180,7 @@ def geom_edge_map(depth, K, normal_thresh=0.3, depth_thresh=0.04, parts="both",
     return edge
 
 
-def normal_edge_map(depth, K, edge_gain=0.85, smooth=True, mask_ring=True):
+def normal_edge_map(depth, K, edge_gain=0.85, smooth=True, *, mask_ring):
     """The normal image with the geometric edges burnt in as dark lines.
 
     Smoothing removes the speckle that depth noise puts into the normals,
@@ -184,7 +192,8 @@ def normal_edge_map(depth, K, edge_gain=0.85, smooth=True, mask_ring=True):
         K: (3, 3) intrinsics.
         edge_gain: how dark the edge line is, 0 to 1; 1 makes it nearly black.
         smooth: bilateral-filter the normal image first.
-        mask_ring: zero the edges' ring, as `geom_edge_map` does.
+        mask_ring: passed to `geom_edge_map`, which zeroes the ring when it
+            is True.
 
     Returns:
         (H, W, 3) uint8, black where invalid.
@@ -199,7 +208,7 @@ def normal_edge_map(depth, K, edge_gain=0.85, smooth=True, mask_ring=True):
     return img
 
 
-def burn_geom_edge(base, depth, K, edge_gain=0.85, normals=None, mask_ring=True):
+def burn_geom_edge(base, depth, K, edge_gain=0.85, normals=None, *, mask_ring):
     """Burn the same geometric edges into any 3-channel image.
 
     The edge comes from `geom_edge_map`, from depth and intrinsics alone, so
@@ -214,7 +223,8 @@ def burn_geom_edge(base, depth, K, edge_gain=0.85, normals=None, mask_ring=True)
         K: (3, 3) intrinsics.
         edge_gain: how dark the edge line is, 0 to 1.
         normals: `camera_normals(depth, K)`, when the caller has it already.
-        mask_ring: zero the edges' ring, as `geom_edge_map` does.
+        mask_ring: passed to `geom_edge_map`, which zeroes the ring when it
+            is True.
 
     Returns:
         (H, W, 3) uint8.

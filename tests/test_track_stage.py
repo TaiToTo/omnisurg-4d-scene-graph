@@ -116,7 +116,7 @@ def test_the_edge_ring_setting_reaches_the_seed_and_the_tracker(tmp_path):
     depth, K = read_clip(clip, "da3")
     rgb = np.array(Image.open(clip / "input_images" / "000002.png").convert("RGB"))
     assert np.array_equal(seg.images[0], sam_input_image("normal_edge", depth[2], K[2], None, rgb, mask_ring=False))
-    assert not np.array_equal(seg.images[0], sam_input_image("normal_edge", depth[2], K[2], None, rgb))
+    assert not np.array_equal(seg.images[0], sam_input_image("normal_edge", depth[2], K[2], None, rgb, mask_ring=True))
     assert np.array_equal(trk.frames[2], sam_input_image("rgb_edge", depth[2], K[2], None, rgb, mask_ring=False))
     assert json.loads((lab_dir / "seed_info.json").read_text())["seed_input"]["edge_ring_masked"] is False
 

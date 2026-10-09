@@ -1,8 +1,6 @@
 # Evaluation — specification
 
-**Status: agreed, not yet implemented.** Nothing here is frozen yet. One thing
-is still undecided: how to score consistency over time (the last point of the
-summary).
+**Status: agreed, not yet implemented.** Nothing here is frozen yet.
 
 ## Summary
 
@@ -30,13 +28,14 @@ robot-assisted videos of 14 procedures, 42 classes) and CholecSeg8k
   merges them into 30 classes; those are scored too, for comparison with the
   benchmark, as reference values only.
 - **Ten metrics, three questions.** The paper asks three questions of the
-  regions, and each is judged on its own *primary* metric: how far a region
-  picked out in one frame can be followed (not decided yet, the last point
-  below); what input puts the regions' boundaries where the GT's class
-  boundaries are, judged on `boundary_R_raw` in each view; and how much of
-  the labelled structure the regions hold, judged on `F1_50` (objects found,
-  with every extra region counted against it) and `SQ` (how well the found
-  ones fit), in the geometric view.
+  regions. Two are judged on a *primary* metric of their own: what input
+  puts the regions' boundaries where the GT's class boundaries are, judged
+  on `boundary_R_raw` in each view; and how much of the labelled structure
+  the regions hold, judged on `F1_50` (objects found, with every extra region
+  counted against it) and `SQ` (how well the found ones fit), in the
+  geometric view. The third, how far a region picked out in one frame can be
+  followed, is answered with reference values only ("Consistency over time:
+  reference values only", below).
 - **Regions are named from the GT.** Each region takes the class most of its
   pixels have in the GT, so the class-map metric `mIoU` is an oracle value,
   kinder than any real classifier would get.
@@ -50,11 +49,12 @@ robot-assisted videos of 14 procedures, 42 classes) and CholecSeg8k
   by an earlier evaluator, the *pilot evaluator* (`eval_code_sha = 1f8a813a…`),
   which stays frozen in the private research workbench. Run with its rules
   (*pilot mode*), this evaluator must reproduce its scores exactly.
-- **Not decided yet: consistency over time.** The pilot evaluator's `time_IoU`
-  is kept as a reference value only, because coarse regions score well on it.
-  Measures of whether a tracked thing keeps its identity — hold, IDF1, ID
-  switches, fragmentation — are candidates; the evaluator does not compute
-  them yet.
+- **Consistency over time: reference values only.** The pilot evaluator's
+  `time_IoU` is kept, as a reference value only: coarse regions score well
+  on it. Measures of whether a tracked thing keeps its identity — hold, IDF1,
+  ID switches, fragmentation, re-entry — are computed by a tool outside the
+  evaluator and reported as reference values too. No measure over time
+  carries a star.
 
 The rest of the document gives the rules in full, then why the pilot evaluator
 was replaced, then the class tables.
@@ -65,7 +65,7 @@ Scoring runs in six steps. The evaluator reads a clip's inputs, scores a
 frame in one view and then in all three, averages each key over the clip, and
 writes one score file per condition. The tools then compare two conditions.
 
-![Scoring in six steps on a drawn scene: a clip's inputs; one frame, scored in each of three views (steps 2 and 3); one clip, each key's mean over its frames; one condition, one score file; two conditions, the key that decides each question.](figures/evalkit_overview.png)
+![Scoring in six steps on a drawn scene: a clip's inputs; one frame, scored in each of three views (steps 2 and 3); one clip, each key's mean over its frames; one condition, one score file; two conditions, the keys that decide the questions about boundaries and structure.](figures/evalkit_overview.png)
 
 The second figure shows the same steps part by part. Each box names, in its
 corner, the module or package that holds the part, so a rule below can be
@@ -441,12 +441,12 @@ diagnostics and never get a star.
 ### Primary metrics
 
 The paper asks three questions, each as a comparison between two
-conditions, and judges each on its own key, on each dataset's own labels
-(the `original` class set):
+conditions, and judges two of them on a key of their own, on each dataset's
+own labels (the `original` class set):
 
 | question | primary metric | view |
 |---|---|---|
-| Given one frame as an example, how far can the regions be followed? | not decided yet (below) | — |
+| Given one frame as an example, how far can the regions be followed? | none: reference values only (below) | — |
 | Given no example, what input puts the regions' boundaries where the GT's class boundaries are? | `boundary_R_raw` | each of the three |
 | Given no GT, how much of the labelled structure is already in the regions? | `F1_50` and `SQ` | geometric |
 
@@ -465,7 +465,7 @@ The set is kept as small as the claims allow. The evaluator computes every
 metric in the table; which of them the paper reports is settled before any
 score of this evaluator is seen.
 
-### Consistency over time: not decided yet
+### Consistency over time: reference values only
 
 `time_IoU` is kept only as a reference value and never gets a star. It uses no
 GT, and the workbench measured three faults in it:
@@ -478,19 +478,36 @@ GT, and the workbench measured three faults in it:
 
 `temporal_f1`, built to close the second fault, keeps the first.
 
-The candidates measure identity against the GT, and come from the workbench's
-`track_metrics`: hold (whether the region picked on the frame tracking starts
-from still covers the same GT thing seconds later), IDF1, ID switches,
-fragmentation and re-entry. Choosing among them also means deciding what a GT
-track is: the datasets carry no ids for individual things, and the workbench
-links each class's connected components over time. That is a second object
-definition, finer than the whole-class object used above, and adopting a
-candidate means saying how the two live side by side.
+The measures of identity against the GT come from the workbench's
+`track_metrics`: hold (whether the region picked on the seed frame still
+covers the same GT thing on the GT frames seconds before or after it), IDF1,
+ID switches, fragmentation and re-entry. The evaluator computes none of
+them. Each needs a GT track, and the datasets carry no ids for individual
+things, so a GT track would be a second object definition, in addition to
+the whole-class object used above. The workbench also measured a fault in
+four of them, and the fifth depends on how the GT track is linked:
 
-Until that is settled, the evaluator computes no temporal measure but
-`time_IoU`, and that one is a reference value. The candidates exist in the
-workbench and are not reported. A measure that is to carry a star has to join
-the evaluator before it is frozen.
+- two of hold's pre-registered denominators gave one comparison opposite
+  signs: `hold_mean` averages over the GT tracks the condition picked a
+  region for on the seed frame, and `hold_all_mean` over every GT track
+  present on that frame, counting a track without a region as 0;
+- IDF1 rises when regions merge;
+- ID switches cannot tell a tracker from a floor that never moves: one mask
+  pasted on every frame scores close to zero;
+- re-entry counts a gap of at most three observations in a GT track, not a
+  return to the field of view, and it leaves out every gap whose two ends
+  are not both matched: about a third of the gaps for a tracker in the
+  workbench, and nine in ten for the pasted floor, which then scored 1.0 on
+  the rest;
+- fragmentation changes with how the GT track is linked, so its value is a
+  property of the track definition as much as of the condition.
+
+So a tool outside the evaluator, `evalkit/tools/track_metrics`, computes the
+measures of identity, and they are reported as reference values: in a table
+that carries no star. The tool's GT track is an open question
+(`docs/porting.md`, "The GT track of `track_metrics`"). A measure that is to
+carry a star would have to be computed by the evaluator before the
+evaluator is frozen, and none is.
 
 ## Rules that keep the numbers honest
 
@@ -551,9 +568,10 @@ uses it.
   changed type is a new evaluator
 - the dataset, the class set (`original`, or for ATLAS-120k also
   `benchmark`), the view, and whether the score was made in pilot mode
-- the sha of every input read, per clip: the GT masks, the depth maps (as
-  `atlas120k_meta/depth_manifest.json` fingerprints them), the crop
-  rectangle, the frames in time order, and the predictions
+- a sha256 hash of every input read, per clip, as `input_shas`: the GT
+  masks, the depth maps (as `atlas120k_meta/depth_manifest.json`
+  fingerprints them), the crop rectangle, the frames in time order, and the
+  predictions
 - the name of the directory the predictions were read from, as
   `track_dir_name`, which is how `condition_inventory` matches a score to
   its labels; a score that does not say what it scored cannot be inventoried
@@ -561,7 +579,8 @@ uses it.
   above)
 - the Python, numpy, OpenCV and Pillow versions
 
-The pilot evaluator's JSONs recorded neither the input shas nor the versions.
+The pilot evaluator's JSONs recorded no input hashes, propagation rule or
+versions.
 
 A score JSON holds those fields, `clips` (the population, in its order),
 and one row per clip under `per_clip`. A row holds the clip's name, every
@@ -571,15 +590,32 @@ the frames each key's mean covers, by key; the scored and excluded frames;
 predicted objects, hits and hits that entered `inst_BF`, per view. Its
 `frames` keeps every GT frame's values, by frame number, in time order.
 
-Two scores are comparable only when their `eval_code_sha`, dataset, class set,
-view and mode match, they cover the same clips, and they read the same GT masks
-and depth maps. `compare_eval` refuses any other pair, and reports a difference
-in versions. The same `eval_code_sha` is not enough on its own: pilot mode and
-the normal mode share it, and so do the views.
+Two scores are comparable only when all of these hold:
 
-The check against the pilot evaluator, below, is not a comparison under this
-rule: the two shas differ by construction. It is a verification, run by its
-own script outside `compare_eval`, that this evaluator in pilot mode writes the
+- their `eval_code_sha`, dataset, class set, view and mode match;
+- they cover the same clips;
+- they read the same GT masks and depth maps;
+- they share a propagation rule, or one of them is `per_frame`.
+
+The same `eval_code_sha` is not enough on its own. Pilot mode and the
+normal mode share it, and so do the views.
+
+Conditions under two different propagation rules are never compared. The
+difference between the rules would look like a difference between the
+methods. A `per_frame` condition is the exception: it may be compared with
+a condition of either rule. The paper compares tracking with per-frame
+segmentation. So one table holds one rule, plus any `per_frame` conditions.
+
+The tools enforce this:
+
+- `compare_eval` refuses a pair that is not comparable.
+- `paired_stats` refuses such a pair too, and a table that holds two rules
+  other than `per_frame`.
+- Both report a difference in library versions but do not refuse it.
+
+The check against the pilot evaluator, below, is not bound by these
+conditions: the two `eval_code_sha` differ by construction. Its own script,
+outside `compare_eval`, verifies that this evaluator in pilot mode writes the
 pilot evaluator's numbers.
 
 ### Terms the tools read a score with
@@ -588,14 +624,15 @@ pilot evaluator's numbers.
   clip, under `per_clip`. A *key* is one column of the rows: the evaluator
   writes `metric/view` (`F1_50/geometric`) and `time_IoU` once per clip; a
   *pilot JSON*, one the pilot evaluator wrote, is told apart by holding none
-  of the class set, views, mode, input shas and versions
+  of the class set, views, mode, input hashes, versions and propagation rule
   (`scores.EVALUATOR_FIELDS`) and keeps the pilot evaluator's spellings
   (`inst_F1_50`, `inst_F1_50_tissue`, with the domain after an underscore).
   A JSON this evaluator writes in pilot mode is not a pilot JSON.
 - A *ruler* is what a score was measured with, as `scores.Ruler` holds it:
   `eval_code_sha`, dataset, mode, class set, views, and for a pilot JSON its
   domain. Two scores are *comparable* when they share a ruler, cover the
-  same clips and read the same GT masks and depth maps, the rule above.
+  same clips, read the same GT masks and depth maps, and share a
+  propagation rule unless one of them is `per_frame`.
 - A *tag* is a condition's name on disk: the directory under each clip that
   holds its labels, and separately the name of its score JSON; the score
   names the label directory it read in `track_dir_name`.
@@ -639,17 +676,27 @@ pilot evaluator's numbers.
     hit to average; a frame whose GT boundary is empty scores 0 on the
     boundary metrics rather than being left out; and a clip on which
     `time_IoU` pools nothing writes 0 for it.
-- Pilot mode takes the GT frames from the frame manifest too. On the data
-  the pilot evaluator scored, its mask files were exactly these frames.
-- On the 38 conditions already scored, pilot mode must reproduce every key it
-  shares with the pilot evaluator — the metrics table names them, and their
-  per-domain variants — at zero tolerance: the values written must be equal.
-  Ties are broken as the pilot evaluator breaks them. The check runs where the
-  pilot evaluator and its scores are, and takes their paths as arguments.
+- Pilot mode reads a clip as normal mode does, and refuses every input
+  normal mode refuses. The pilot evaluator accepted some faulty inputs
+  silently, a frame with two prediction files among them; pilot mode does
+  not, because a fault in the data is not a rule to reproduce. So the GT
+  frames come from the frame manifest too. On the data the pilot evaluator
+  scored, its mask files were exactly these frames.
+- On the 38 conditions already scored, apart from those that hold neither
+  propagation rule, pilot mode must reproduce every key it shares with the
+  pilot evaluator — the metrics table names them, and their per-domain
+  variants — at zero tolerance: the values written must be equal, and so
+  must the number of frames behind each. Ties are broken as the pilot
+  evaluator breaks them. The check runs where the pilot evaluator and its
+  scores are, and takes their paths as arguments.
 - Every difference in the normal mode then comes from a rule this document
   changes, and is listed.
 - A score made in pilot mode is marked as such and never enters a comparison
   with a normal one.
+- Pilot mode reads a condition's propagation rule as normal mode does. So it
+  refuses a condition that holds neither rule, a condition seeded from GT
+  among them, and the check leaves such a condition out by name. The paper
+  reports none of them, and the other conditions run the same metric code.
 - Pilot mode exists for this check alone. It is removed from the evaluator
   once the check has passed and before the evaluator is frozen, so the
   frozen evaluator has one mode.
@@ -657,7 +704,8 @@ pilot evaluator's numbers.
 ## Why the pilot evaluator was replaced
 
 The pilot evaluator cannot be corrected in place: any changed byte moves its
-sha. Three kinds of problem make correcting it worth a new evaluator.
+`eval_code_sha`. Three kinds of problem make correcting it worth a new
+evaluator.
 
 ### 1. The metrics overlap
 

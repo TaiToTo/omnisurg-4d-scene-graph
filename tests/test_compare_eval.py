@@ -46,7 +46,7 @@ def evaluator_scores(pilot=False, class_set="original", views=("all", "tissue", 
                  time_IoU=0.5) for c in clips]
     return dict(eval_code_sha=SHA, dataset="atlas120k", pilot=pilot, class_set=class_set, views=list(views),
                 clips=clips, input_shas={c: {"gt_masks": "g", "depth": "d", "predictions": "p"} for c in clips},
-                versions={"numpy": "2.0.0"}, per_clip=rows)
+                versions={"numpy": "2.0.0"}, propagation="both_ways_from_centre", per_clip=rows)
 
 
 # What the workbench's compare_eval wrote on `base` (shift 0, seed 5) against
@@ -255,6 +255,23 @@ def test_the_command_takes_the_key_and_says_which_way_it_moved(tmp_path):
     assert (j["key"], j["sign"], j["wins"]) == ("VI_split/tissue", -1, 0)
     r = run(tmp_path, a, b, "--key", "time_IoU")
     assert r.returncode != 0 and "reference value" in r.stderr and "Traceback" not in r.stderr
+
+
+def test_two_propagation_rules_are_refused_and_the_rule_is_carried_into_the_summary():
+    b = evaluator_scores()
+    b["propagation"] = "forward_from_first"
+    with pytest.raises(ValueError, match="different rules"):
+        CE.compare(evaluator_scores(), b)
+    b["propagation"] = "per_frame"
+    assert CE.compare(evaluator_scores(), b)["propagation"] == "both_ways_from_centre"
+    assert "propagation" not in CE.compare(pilot_scores("base", 0.0, 5), pilot_scores("cond", 0.03, 6))
+
+
+def test_the_command_stops_on_two_propagation_rules(tmp_path):
+    b = evaluator_scores(shift=0.1)
+    b["propagation"] = "forward_from_first"
+    r = run(tmp_path, evaluator_scores(), b)
+    assert r.returncode != 0 and "different rules" in r.stderr and "Traceback" not in r.stderr
 
 
 def test_differing_versions_are_carried_into_the_summary():

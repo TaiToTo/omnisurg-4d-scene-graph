@@ -26,7 +26,7 @@ def _inputs(h=24, w=32):
 @pytest.mark.parametrize("mode", render.SAM_INPUT_MODES)
 def test_every_listed_mode_renders(mode):
     depth, K, gray01, rgb = _inputs()
-    img = render.sam_input_image(mode, depth, K, gray01, rgb)
+    img = render.sam_input_image(mode, depth, K, gray01, rgb, mask_ring=True)
     assert img.shape == (*depth.shape, 3) and img.dtype == np.uint8, mode
 
 
@@ -35,14 +35,14 @@ def test_unknown_mode_is_refused():
     condition could run as depth under another name."""
     depth, K, gray01, rgb = _inputs()
     with pytest.raises(ValueError, match="unknown input mode 'depht'"):
-        render.sam_input_image("depht", depth, K, gray01, rgb)
+        render.sam_input_image("depht", depth, K, gray01, rgb, mask_ring=True)
 
 
 def test_a_mode_burns_edges_in_exactly_when_its_gain_changes_it():
     depth, K, gray01, rgb = _inputs()
     for mode in render.SAM_INPUT_MODES:
-        off = render.sam_input_image(mode, depth, K, gray01, rgb, edge_gain=0.0)
-        on = render.sam_input_image(mode, depth, K, gray01, rgb, edge_gain=0.85)
+        off = render.sam_input_image(mode, depth, K, gray01, rgb, edge_gain=0.0, mask_ring=True)
+        on = render.sam_input_image(mode, depth, K, gray01, rgb, edge_gain=0.85, mask_ring=True)
         assert render.uses_geom_edge(mode) == (not np.array_equal(off, on)), mode
 
 
@@ -63,5 +63,13 @@ def test_each_mode_computes_the_normals_at_most_once(mode, monkeypatch):
 
     monkeypatch.setattr(normals, "camera_normals", counting)
     depth, K, gray01, rgb = _inputs()
-    render.sam_input_image(mode, depth, K, gray01, rgb)
+    render.sam_input_image(mode, depth, K, gray01, rgb, mask_ring=True)
     assert len(calls) <= 1, f"{mode} computed the normals {len(calls)} times"
+
+
+def test_normals_of_another_depth_are_refused():
+    from surgical_core.geometry import normals
+    depth, K, _, _ = _inputs()
+    other = normals.camera_normals(depth[:-1, :-1], K)
+    with pytest.raises(ValueError, match="not the depth's"):
+        normals.geom_edge_map(depth, K, normals=other, mask_ring=True)

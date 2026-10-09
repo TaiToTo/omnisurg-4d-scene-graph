@@ -78,6 +78,7 @@ HASHED_MODULES = (
     "keys.py",
     "objects.py",
     "pilot.py",
+    "pilot_clip.py",
     "scored.py",
     "time_iou.py",
     "unlabelled.py",
