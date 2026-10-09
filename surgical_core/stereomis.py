@@ -95,7 +95,8 @@ class Calib:
 
         self.size = (int(g("StereoLeft", "res_x")), int(g("StereoLeft", "res_y")))
         R = np.array([g("StereoRight", f"R_{i}") for i in range(9)]).reshape(3, 3)
-        T = np.array([g("StereoRight", f"T_{i}") for i in range(3)])
+        # A column vector, which OpenCV 5 needs: its stereoRectify refuses a 1-D translation.
+        T = np.array([g("StereoRight", f"T_{i}") for i in range(3)]).reshape(3, 1)
         self._Kl, self._dl = intrinsics("StereoLeft"), distortion("StereoLeft")
         self._Kr, self._dr = intrinsics("StereoRight"), distortion("StereoRight")
         # With alpha 0 the rectified views keep no black border. P1's shipped frames (`video_frames/`) are rectified
