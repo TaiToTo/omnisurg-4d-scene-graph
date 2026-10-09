@@ -165,7 +165,7 @@ copy to read the RGB clips, and the ported copies read `evalkit.classes`.
 | `surgical_core/viewer/labels.py`, `palette.py` | `surgical_core/viewer/` | `extract/03-metrics` (#3) | English only. `label_table_of` and `cholec_gt_table` move to a new `gt_tables.py`, the one viewer module that imports `evalkit`; `labels.py` builds its table from plain data, so a video with no class table gets one too. The rest of `surgical_core/viewer` is below, under "Not yet extracted anywhere". |
 | `kmerge.py` | `ipcai2027_experiment/scripts/kmerge.py` | `extract/04-kmerge` (#5) | Ported as `evalkit/tools/kmerge.py`, outside `eval_code_sha`. It merges a condition's predictions down to K and writes them as a condition of their own, which the evaluator scores and `compare_eval` compares, so it computes no metric; `kmerge.json` records the source and the sha256 of its predictions, so a source re-tracked after the merge is told apart. Its merge equals the workbench's `kmerge_sequence` on 590 maps. It differs from the workbench in what it reads: it merges every frame that has a prediction, where the workbench merged every fifth; and it refuses a frame with a pixel without valid depth, or with a region id below -1, as the evaluator does, where the workbench dropped the labels of such pixels and merged on. Not carried for now: its scoring with the pilot's instance metrics, the curve over K, the `matched` K, `--pairs`, and the merges by threshold and by geometry (`tmerge_sequence`, `kgeo_sequence`). |
 | `surgical_core/geometry/` | `depth_sam_tracking_experiment/geometry.py` | `extract/04-kmerge` (#5) | English only. Shared by the pipeline and the toolkit. |
-| `pose_metrics.py` | `ipcai2027_experiment/scripts/pose_metrics.py` | — | Ported as `evalkit/tools/pose_metrics.py`, to be hashed on its own ("The camera trajectory measures are hashed on their own"). It measures an estimated camera trajectory against StereoMIS's: `ate` after one similarity fit, `rpe` and `scale_consistency`; `ate_rel` decides the result. Its values equal the workbench's on 1200 random, planar and static trajectories. It refuses what the workbench let through: trajectories of unequal length, times out of order and values that are not finite. Not carried for now, with the rest of the StereoMIS result: `stereomis_io.py` (calibration, rectified frames, the measured offsets between video, ground truth and depth), `pose_controls.py` (the static camera, constant motion and stereo visual odometry the result is read against), `summarize_20.py` and `run_20.sh` (the run and its table), and `d4d_pose.py` (the D4D check of the same result). None of StereoMIS's data is on the development machine, so they are checked on the workbench's GPU machine when they move. |
+| `pose_metrics.py` | `ipcai2027_experiment/scripts/pose_metrics.py` | — | Ported as `evalkit/tools/pose_metrics.py`, to be hashed on its own ("The camera trajectory measures are hashed on their own"). It measures an estimated camera trajectory against StereoMIS's: `ate` after one similarity fit, `rpe` and `scale_consistency`; `ate_rel` decides the result. Its values equal the workbench's on 1200 random, planar and static trajectories. It refuses what the workbench let through: trajectories of unequal length, times out of order and values that are not finite. The rest of the StereoMIS result is listed under "Not yet extracted anywhere": `stereomis_io.py` (calibration, rectified frames, the measured offsets between video, ground truth and depth), `pose_controls.py` (the static camera, constant motion and stereo visual odometry the result is read against), and `summarize_20.py` and `run_20.sh` (the run and its table). `d4d_pose.py`, the D4D check of the same result, is listed there with D4D. None of StereoMIS's data is on the development machine, so they are checked on the workbench's GPU machine when they move. |
 | `condition_inventory.py` | `ipcai2027_experiment/scripts/condition_inventory.py` | `extract/05-inventory` (#4) | It reads `eval_code_sha`, `eval_code_tag` and `eval_version` from score JSONs. "One ruler" is now what `docs/evaluation.md` calls comparable: `eval_code_sha`, dataset, class set, view and mode all equal, and one propagation rule. The provenance fields now include `bidir`, whether the tracker ran both ways. |
 | `check_env.py` | `ipcai2027_experiment/atlas97/scripts/check_env97.py` | `extract/05-inventory` (#4) | Not carried (decision 4). |
 | `reeval_diff.py` | — (written in the earlier repository) | `extract/06-rescore` (#6) | Ported as `evalkit/tools/pilot_check.py`, the check against the pilot evaluator, run in the workbench. The earlier repository's version insists the sha equals the pilot's and diffs `eval_code_sha` with everything else; `pilot_check` works the other way round: the shas differ by construction, only the keys the two evaluators share are compared, and those must be equal. |
@@ -285,6 +285,25 @@ below.
     `--max-points 60000`. That flag thins the point cloud written to the
     GLB, and with it `glb_centroid`, `n_vertices` and `median_vertices`; the
     depth and the poses in the npz do not change.
+  - D4D, from `ipcai2027_experiment/scripts/`: the front/behind relation,
+    scored against D4D's structured-light surfaces, and the camera
+    trajectory, scored against D4D's optical tracker.
+    - `d4d_io.py` reads D4D through the upstream loader `d4d.loader`,
+      which the port depends on and does not copy.
+    - `d4d_census.py` and `d4d_population.py` fix the population from the
+      inputs alone, before any score is read.
+    - `d4d_depth.py` makes depth on the frames the GT was taken at, and
+      `d4d_seed.py` makes the seed regions on the same frames.
+      `d4d_seed.py` copies the tracking stage's seed step instead of
+      importing it, and records the sha256 of `track_sam3.py`'s source,
+      which no longer matches once the tracking stage is ported.
+    - `d4d_predicate.py` scores the front/behind relation, and
+      `d4d_verdict.py` compares it with the area floor.
+    - `d4d_pose.py` scores the trajectory with `pose_metrics` and
+      `pose_controls`.
+
+    D4D's data is on the workbench's GPU machine only, so the D4D scripts
+    are checked there.
   - What the viewer reads, and no score does: `export_viewer_dataset.py`
     and `build_temporal_graph.py`, which build the graphs;
     `export_instrument_mask.py`; `run_atlas_pipeline.sh`, which made the
@@ -329,13 +348,6 @@ The first list holds experiments the manuscript reports. Their numbers come
 from this repository once they are ported ("The paper is measured here"),
 and not before.
 
-- **D4D** (`d4d_io.py`, `d4d_depth.py`, `d4d_predicate.py`, `d4d_verdict.py`,
-  `d4d_pose.py`, `d4d_seed.py`, `d4d_population.py`, `d4d_census.py`, in
-  `ipcai2027_experiment/scripts/`). It holds the 3D predicate of depth and
-  the camera trajectory against D4D's optical tracker, so those results
-  wait on it. Its data is on the GPU machine only. `d4d_seed.py` records the
-  sha256 of `track_sam3.py`'s source, which no longer matches once the
-  tracking stage is ported.
 - **LapEx** (`lapex_extract.py`, `lapex_kcurve.py` and `lapex_02b02c.py`,
   in `ipcai2027_experiment/scripts/`), the third population of the
   granularity result, which the manuscript reports and does not release.
@@ -534,6 +546,8 @@ The data these steps read stays in the workbench:
   stages, with one CholecSeg8k clip from `outputs/cholec_gt`;
 - `outputs/stereomis` and `outputs/stereomis_masked`, which `run_20.sh`
   reads and writes;
+- `outputs/d4d_pose` and `ipcai2027_experiment/out/09`, which the D4D
+  scripts read and write;
 - `outputs/lapex`, which is not released;
 - the determinism measurement's JSON (`measure_determinism.py --json-out`);
 - the predictions under `ipcai2027_experiment/atlas97/out/`;
