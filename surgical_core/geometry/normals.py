@@ -63,13 +63,12 @@ def normal_map(depth, K):
 # 1 - cos to the neighbour is 1, the strongest possible crease, and the depth
 # gradient looks like a step at the rim of a hole. Measured on one CholecSeg8k
 # frame, 57.6 % of the pixels with edge > 0.5 were the outer 2 pixels of the
-# image. By default that ring is zeroed. Labels made before the ring was
-# masked were made from inputs with the ring in; to reproduce them, set
-# `surgical_core.geometry.normals.EDGE_MASK_RING = False`, in this module
-# (not per call: the provenance record reads this flag, and a per-call
-# override would make it lie). The package does not re-export the flag: an
-# import copies a value, so a package copy could be set to False while
-# `geom_edge_map` kept reading True from here.
+# image. `mask_ring=True` zeroes that ring, and every condition made since
+# the ring was masked passed True. Labels made before the ring was masked
+# came from inputs with the ring in; `mask_ring=False` reproduces them.
+# `mask_ring` has no default, in this module and in `render`. A stage passes
+# it at every call and records the value it passed, so the record and the
+# image read one value, and a call that leaves it out raises.
 #
 # The underlying `normal_map` keeps the same ring, and that was measured and
 # left alone on purpose. On the border the tangent is 0, so the normal is 0,
@@ -85,7 +84,6 @@ def normal_map(depth, K):
 # Fixing it would mean regenerating every normal-based and edge-based
 # condition. GPU time is not spent on an effect that could not be measured;
 # measure these two again first.
-EDGE_MASK_RING = True
 EDGE_RING_PX = 2
 
 
@@ -108,8 +106,8 @@ def edge_reliable_mask(m):
     return r
 
 
-def geom_edge_map(depth, K, normal_thresh=0.3, depth_thresh=0.04, parts="both",
-                  mask_ring=None, normals=None):
+def geom_edge_map(depth, K, normal_thresh=0.3, depth_thresh=0.04, parts="both", *,
+                  mask_ring, normals=None):
     """Geometric edge strength in [0, 1] from normal discontinuity and depth steps.
 
     Large at real geometric boundaries (organ creases, occlusion steps), small
@@ -126,16 +124,17 @@ def geom_edge_map(depth, K, normal_thresh=0.3, depth_thresh=0.04, parts="both",
         parts: `"both"` (the default), `"normal"` (creases only) or
             `"depth"` (steps only), to tell which cue is doing the work.
         mask_ring: whether to zero the ring along the image border and
-            around invalid pixels. `None` follows `EDGE_MASK_RING`. Reproduce
-            old labels by setting `normals.EDGE_MASK_RING`, not this
-            argument: the provenance record reads the flag.
+            around invalid pixels, True or False.
         normals: `camera_normals(depth, K)`, when the caller has it already.
 
     Returns:
         (H, W) float edge strength, 0 where invalid.
 
     Raises:
-        ValueError: `normals` is given and its shapes are not the depth's, so it was computed from another depth.
+        ValueError: one of these:
+            - `mask_ring` is not a bool, `None` included.
+            - `normals` is given and its shapes are not the depth's, so it was
+              computed from another depth.
 
     Note:
         The ring is 2 pixels wide to match the crease term: the normals are
@@ -146,6 +145,8 @@ def geom_edge_map(depth, K, normal_thresh=0.3, depth_thresh=0.04, parts="both",
         with `parts="depth"` the outer 2 pixels of real steps are lost too.
         That is the conservative side, so the two are kept equal.
     """
+    if not isinstance(mask_ring, bool):
+        raise ValueError(f"mask_ring is True or False, not {mask_ring!r}")
     if normals is None:
         n, m = camera_normals(depth, K)
     else:
@@ -174,13 +175,12 @@ def geom_edge_map(depth, K, normal_thresh=0.3, depth_thresh=0.04, parts="both",
     edge = {"normal": en, "depth": ed}.get(parts, np.maximum(en, ed))
     edge = np.array(edge, dtype=float)
     edge[~m] = 0
-    ring = EDGE_MASK_RING if mask_ring is None else mask_ring
-    if ring:
+    if mask_ring:
         edge[~edge_reliable_mask(m)] = 0
     return edge
 
 
-def normal_edge_map(depth, K, edge_gain=0.85, smooth=True):
+def normal_edge_map(depth, K, edge_gain=0.85, smooth=True, *, mask_ring):
     """The normal image with the geometric edges burnt in as dark lines.
 
     Smoothing removes the speckle that depth noise puts into the normals,
@@ -192,6 +192,8 @@ def normal_edge_map(depth, K, edge_gain=0.85, smooth=True):
         K: (3, 3) intrinsics.
         edge_gain: how dark the edge line is, 0 to 1; 1 makes it nearly black.
         smooth: bilateral-filter the normal image first.
+        mask_ring: passed to `geom_edge_map`, which zeroes the ring when it
+            is True.
 
     Returns:
         (H, W, 3) uint8, black where invalid.
@@ -201,12 +203,12 @@ def normal_edge_map(depth, K, edge_gain=0.85, smooth=True):
     base[~m] = 0
     if smooth:
         base = cv2.bilateralFilter(base, d=5, sigmaColor=40, sigmaSpace=5)
-    img = burn_geom_edge(base, depth, K, edge_gain, normals=(n, m))
+    img = burn_geom_edge(base, depth, K, edge_gain, normals=(n, m), mask_ring=mask_ring)
     img[~m] = 0
     return img
 
 
-def burn_geom_edge(base, depth, K, edge_gain=0.85, normals=None):
+def burn_geom_edge(base, depth, K, edge_gain=0.85, normals=None, *, mask_ring):
     """Burn the same geometric edges into any 3-channel image.
 
     The edge comes from `geom_edge_map`, from depth and intrinsics alone, so
@@ -221,10 +223,12 @@ def burn_geom_edge(base, depth, K, edge_gain=0.85, normals=None):
         K: (3, 3) intrinsics.
         edge_gain: how dark the edge line is, 0 to 1.
         normals: `camera_normals(depth, K)`, when the caller has it already.
+        mask_ring: passed to `geom_edge_map`, which zeroes the ring when it
+            is True.
 
     Returns:
         (H, W, 3) uint8.
     """
-    edge = geom_edge_map(depth, K, normals=normals)
+    edge = geom_edge_map(depth, K, normals=normals, mask_ring=mask_ring)
     img = base.astype(np.float32) * (1.0 - edge_gain * edge)[..., None]
     return np.clip(img, 0, 255).astype(np.uint8)
