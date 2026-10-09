@@ -1,9 +1,8 @@
 """`surgical_core.geometry.camera`: pixels to camera, world and glTF space, exactly, and `project.backproject` on it.
 
-A sign or a transpose wrong here moves every point cloud and every warped
-label without an error, so each transform is pinned against its formula,
-and the round trip through `project.project_world_to_frame` lands back on
-the pixel grid.
+A sign or a transpose wrong here moves every point cloud without an error,
+so each transform is pinned against its formula, and a round trip through
+`project.project_world_to_frame` must give back the pixel grid.
 """
 
 import numpy as np

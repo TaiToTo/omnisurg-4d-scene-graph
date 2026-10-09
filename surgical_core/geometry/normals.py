@@ -131,8 +131,11 @@ def geom_edge_map(depth, K, normal_thresh=0.3, depth_thresh=0.04, parts="both",
         (H, W) float edge strength, 0 where invalid.
 
     Raises:
-        ValueError: `mask_ring` is not a bool. `None` once meant "follow the
-            module flag", which no longer exists.
+        ValueError: one of these:
+            - `mask_ring` is not a bool. `None` once meant "follow the module
+              flag", which no longer exists.
+            - `normals` is given and its shapes are not the depth's, so it was
+              computed from another depth.
 
     Note:
         The ring is 2 pixels wide to match the crease term: the normals are
@@ -145,7 +148,13 @@ def geom_edge_map(depth, K, normal_thresh=0.3, depth_thresh=0.04, parts="both",
     """
     if not isinstance(mask_ring, bool):
         raise ValueError(f"mask_ring is True or False, not {mask_ring!r}")
-    n, m = camera_normals(depth, K) if normals is None else normals
+    if normals is None:
+        n, m = camera_normals(depth, K)
+    else:
+        n, m = normals
+        if n.shape != (*depth.shape, 3) or m.shape != depth.shape:
+            raise ValueError(f"the normals given are {n.shape} with a mask {m.shape}, not the depth's {depth.shape}; "
+                             "they were computed from another depth")
     H, W = depth.shape
     nf = np.nan_to_num(n)
     # Normal discontinuity: 1 - cos to the right and lower neighbour, large at

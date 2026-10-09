@@ -36,7 +36,9 @@ jobs:
       # opencv-python links against libGL and glib even when nothing is drawn.
       # The runner image happens to ship both today; installing them here keeps
       # the run from depending on that, and records what a bare machine needs.
-      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libgl1 libglib2.0-0t64
+      # FFmpeg converts the one ATLAS-120k video OpenCV cannot decode; its tests
+      # skip without it, so it is installed here to make them run.
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libgl1 libglib2.0-0t64 ffmpeg
 
       # No extras: the evaluation toolkit has to install and run without the
       # pipeline's dependencies.
@@ -65,7 +67,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libgl1 libglib2.0-0t64
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libgl1 libglib2.0-0t64 ffmpeg
       - run: pip install -e ".[render,tools]" pytest
       - run: python -c "import surgical_core.geometry.render, scipy.stats, matplotlib, trimesh"
       - run: pytest
