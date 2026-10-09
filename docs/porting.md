@@ -242,6 +242,18 @@ Each stage is described in `docs/pipeline.md`.
   checks the clips it writes against `atlas120k_meta/clips.txt`, in place
   of `run_atlas97_extract.sh`, `plan_atlas97_population.py` and
   `verify_atlas97_population.py` from `experiment/crop_necessity/`.
+- `ipcai2027_experiment/task22_atlas100/scripts/prepare_video_root.py`,
+  which converts the one AV1 video of the population (`rarp/NitKIjCcS7U`)
+  to H.264, is `pipeline/prepare_atlas120k_videos.py`.
+- `experiment/crop_necessity/run_atlas97_depth.sh` is
+  `pipeline/depth_population.py`. The driver skips a clip by `depth_info`,
+  which the stage writes last, where the script skipped one by its bundle,
+  which the stage writes first; it passes `--device cuda`, where the
+  script left the device at `auto`; and it refuses, before anything runs,
+  a clip with depth at another model or resolution than the stage runs
+  at, and, after the run, a bundle of another version of the stage and a
+  population made at more than one setting, where the script counted the
+  depth maps alone.
 
 ### Not yet extracted anywhere
 
@@ -252,11 +264,6 @@ those runs exercise move; the rest is listed under "Not carried for now"
 below.
 
 - **Pipeline.**
-  - Beside the ATLAS-120k extraction: `run_atlas97_depth.sh` from
-    `experiment/crop_necessity/`, and
-    `ipcai2027_experiment/task22_atlas100/scripts/prepare_video_root.py`,
-    which converts the one AV1 video of the population
-    (`rarp/NitKIjCcS7U`) to H.264.
   - CholecSeg8k extraction: `scripts/extract_cholec_track.py`, which
     `depth_sam_tracking_experiment/run_all17_pipeline.sh` runs before the
     crop and the depth stage. `extract_cholec_frames.py`, which the take
@@ -484,6 +491,10 @@ The second list holds what the paper's numbers do not use.
     (`--gt-pad-factor`); and `--gt-stride`, `--keep-duplicates`,
     `--dry-run` and `--no-clean`;
   - `run_per_frame_seg.py`: `--point_grids_dir`, `--frames gt`, `--smooth`.
+  - `run_atlas97_depth.sh`: its `setsid nohup` wrapping and timestamped
+    log lines, which belong to the shell it was run from, and
+    `--overwrite`, so that no clip of a population is replaced without
+    someone looking at it.
 - **`scripts/extract_cholec_frames.py`**, which no condition ran.
 
 What stays behind is listed in `repo_migration_plan.md`, in the section on
