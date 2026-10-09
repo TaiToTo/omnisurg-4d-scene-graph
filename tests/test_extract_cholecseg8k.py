@@ -14,10 +14,14 @@ import cv2
 import numpy as np
 import pytest
 
+import pipeline.extract_cholecseg8k as extract_cholecseg8k
 from pipeline.extract_cholecseg8k import extract_clip, parse_clip, unannotated_natives
 
 N_FRAMES = 200
 SIZE = (64, 48)
+
+# The capture class as OpenCV ships it; a test replaces `cv2.VideoCapture` itself.
+VideoCapture = cv2.VideoCapture
 
 # Video 1 is numbered at its own rate. Video 25 is numbered at 30 frames a second, so CholecSeg8k number s is
 # native frame 60 + (s - 60) * 5 / 6. A stride of 6 numbers is 5 native frames, so no frame falls between two.
@@ -85,6 +89,57 @@ def _manifest(out: Path, clip: str) -> dict:
     return json.loads((out / clip / "frame_manifest.json").read_text())
 
 
+class _FaultyCapture:
+    """A video capture whose `read` fails at one frame, and whose frame count can be overridden."""
+
+    fail_at: int | None = None
+    only_after_seek: bool = False
+    frame_count: int | None = None
+
+    def __init__(self, path: str):
+        self._cap = VideoCapture(path)
+        self._sought = None
+
+    def set(self, prop, value):
+        if prop == cv2.CAP_PROP_POS_FRAMES:
+            self._sought = int(value)
+        return self._cap.set(prop, value)
+
+    def get(self, prop):
+        if prop == cv2.CAP_PROP_FRAME_COUNT and self.frame_count is not None:
+            return float(self.frame_count)
+        return self._cap.get(prop)
+
+    def read(self):
+        at = int(self._cap.get(cv2.CAP_PROP_POS_FRAMES))
+        sought, self._sought = self._sought, None
+        if at == self.fail_at and (not self.only_after_seek or sought == at):
+            return False, None
+        return self._cap.read()
+
+    def __getattr__(self, name):
+        return getattr(self._cap, name)
+
+
+@pytest.fixture
+def faulty_capture(monkeypatch):
+    """Replace the extractor's video capture with one whose faults the test sets; return the class."""
+    class Capture(_FaultyCapture):
+        pass
+    monkeypatch.setattr(extract_cholecseg8k.cv2, "VideoCapture", Capture)
+    return Capture
+
+
+def _grey_source(tmp_path: Path, natives: dict[int, int]) -> dict:
+    """Write a video whose frame i is grey level i, annotate it as video 2, and return the roots."""
+    roots = dict(seg8k_root=tmp_path / "CholecSeg8k", videos_root=tmp_path / "videos", out=tmp_path / "out")
+    roots["videos_root"].mkdir()
+    grey = [np.full((SIZE[1], SIZE[0], 3), i, np.uint8) for i in range(N_FRAMES)]
+    decoded = _write_video(roots["videos_root"] / "video02.mp4", grey)
+    _annotate(roots["seg8k_root"], 2, decoded, natives)
+    return roots
+
+
 def test_a_clip_numbered_at_the_video_rate_keeps_its_numbers(source):
     roots, decoded = source
     extract_clip(**roots, clip="VID01_s6_60", count=10)
@@ -122,6 +177,12 @@ def test_the_rate_is_carried_between_and_past_the_annotated_frames():
     # first rate and 38.5 at the second.
     annotated = {0: 0, 30: 26, 60: 50}
     assert unannotated_natives([0, 15, 30, 45, 60, 75, 90], annotated) == {15: 13, 45: 38, 75: 63, 90: 75}
+
+
+def test_a_half_rounds_up_however_the_rate_divides():
+    # 123 frames over 150 numbers put number 75 at frame 61.5; in floating point 75 * (123 / 150) falls short of
+    # it, and would round down.
+    assert unannotated_natives([75], {0: 0, 150: 123}) == {75: 62}
 
 
 def test_a_rate_neither_numbering_gives_is_refused():
@@ -165,16 +226,47 @@ def test_a_mask_without_its_image_is_refused(source):
         extract_clip(**roots, clip="VID01_s6_60", count=10)
 
 
-def test_a_match_on_the_edge_of_the_window_is_refused(tmp_path):
+def test_a_match_on_the_upper_edge_of_the_window_is_refused(tmp_path):
     # Frame i is grey level i, so the image of frame 75 differs by 5 from frame 70, the last frame the search
     # for number 10 reads.
-    roots = dict(seg8k_root=tmp_path / "CholecSeg8k", videos_root=tmp_path / "videos", out=tmp_path / "out")
-    roots["videos_root"].mkdir()
-    grey = [np.full((SIZE[1], SIZE[0], 3), i, np.uint8) for i in range(N_FRAMES)]
-    decoded = _write_video(roots["videos_root"] / "video02.mp4", grey)
-    _annotate(roots["seg8k_root"], 2, decoded, {10: 75, 16: 81})
-    with pytest.raises(ValueError, match="on the edge of"):
+    roots = _grey_source(tmp_path, {10: 75, 16: 81})
+    with pytest.raises(ValueError, match="matched frame 70, on the edge of"):
         extract_clip(**roots, clip="VID02_s6_10", count=2)
+
+
+def test_a_match_on_the_lower_edge_of_the_window_is_refused(tmp_path):
+    # The search for number 190 reads frames 2 to 199, so the image of frame 0 differs by 2 from frame 2, the
+    # first frame read.
+    roots = _grey_source(tmp_path, {190: 0, 196: 196})
+    with pytest.raises(ValueError, match="matched frame 2, on the edge of"):
+        extract_clip(**roots, clip="VID02_s6_190", count=2)
+
+
+def test_a_frame_that_cannot_be_decoded_inside_the_window_is_refused(source, faulty_capture):
+    # The search for number 60 reads frames 0 to 120. Were frame 100 skipped, the search would go on and the
+    # image of number 102 would still match frame 102.
+    roots, _ = source
+    faulty_capture.fail_at = 100
+    with pytest.raises(RuntimeError, match="cannot read frame 100 while matching"):
+        extract_clip(**roots, clip="VID01_s6_60", count=10)
+
+
+def test_a_video_without_a_frame_count_is_refused(source, faulty_capture):
+    roots, _ = source
+    faulty_capture.frame_count = 0
+    with pytest.raises(RuntimeError, match="reports 0 frames"):
+        extract_clip(**roots, clip="VID01_s6_60", count=10)
+
+
+def test_a_gap_frame_that_cannot_be_decoded_is_refused_and_leaves_nothing(source, faulty_capture, monkeypatch):
+    # Number 90 of video 1 has no mask, so frame 90 is read once, after a seek to it, when the clip is written.
+    roots, _ = source
+    faulty_capture.fail_at, faulty_capture.only_after_seek = 90, True
+    with pytest.raises(RuntimeError, match="cannot read frame 90 of"):
+        extract_clip(**roots, clip="VID01_s6_60", count=10)
+    assert list(roots["out"].iterdir()) == []
+    monkeypatch.undo()
+    extract_clip(**roots, clip="VID01_s6_60", count=10)
 
 
 def test_an_earlier_clip_is_refused_unless_replaced(source):
@@ -188,7 +280,20 @@ def test_an_earlier_clip_is_refused_unless_replaced(source):
     assert not stale.exists()
 
 
-def test_a_name_that_is_not_a_window_is_refused():
+def test_a_refused_clip_leaves_the_earlier_clip_in_place(source):
+    roots, _ = source
+    extract_clip(**roots, clip="VID01_s6_60", count=10)
+    before = sorted(p.name for p in (roots["out"] / "VID01_s6_60").rglob("*"))
+    chunk = roots["seg8k_root"] / "video01" / "video01_00060"
+    cv2.imwrite(str(chunk / "frame_66_endo.png"), np.full((SIZE[1], SIZE[0], 3), 7, np.uint8))
+    with pytest.raises(ValueError, match="matches no video frame"):
+        extract_clip(**roots, clip="VID01_s6_60", count=10, overwrite=True)
+    assert sorted(p.name for p in (roots["out"] / "VID01_s6_60").rglob("*")) == before
+    assert [p.name for p in roots["out"].iterdir()] == ["VID01_s6_60"]
+
+
+def test_a_name_that_is_not_a_clip_is_refused():
     assert parse_clip("VID25_s15_162") == (25, 15, 162)
-    with pytest.raises(ValueError, match="expected VID"):
-        parse_clip("VID25_s15_162_crop")
+    for name in ("VID25_s15_162_crop", "VID1_s6_60"):
+        with pytest.raises(ValueError, match="expected VID"):
+            parse_clip(name)
