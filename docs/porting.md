@@ -151,6 +151,25 @@ Where they and this document differ, this document holds.
     components of at least 300 px, is not carried for now: under the
     evaluator a GT object is a whole class, and that K would need a
     definition of its own.
+16. **CholecSeg8k clips are cropped to the endoscope's circle.** Every
+    CholecSeg8k clip is cropped to its rectangle in
+    `cholecseg8k_meta/crop_rects.json`. The rectangle lies inside the circle
+    fitted to the cholec80 video. The workbench's clips were cropped to
+    other rectangles. `run_all17_pipeline.sh` ran
+    `crop_cholec_frames.py --method circle` on the GPU machine's host
+    without `--source-root`. The script found no video there, and fell back
+    to a rectangle found on each clip's own frames. Those rectangles differ
+    from the table's on all 27 clips, by up to 59 px. The pilot scored those
+    clips, and AE-CAI reports them. So the 27 clips are cropped again and
+    run again from the crop stage on. Their scores are new measurement: the
+    results are compared with the pilot's, and the files are not. The crop
+    stage itself is compared with the workbench byte for byte, given the
+    workbench's rectangles as its table. On all 27 clips its images, masks
+    and `crop_info.json` then equal the workbench's, and so does every
+    manifest key the stage writes. AE-CAI keeps its clips. They stay in the
+    workbench's `outputs/cholec_gt`, which nothing here writes to. Each of
+    them holds depth, so the crop stage refuses to replace one even with
+    `--overwrite`.
 
 ## What moves
 
@@ -242,6 +261,14 @@ Each stage is described in `docs/pipeline.md`.
   checks the clips it writes against `atlas120k_meta/clips.txt`, in place
   of `run_atlas97_extract.sh`, `plan_atlas97_population.py` and
   `verify_atlas97_population.py` from `experiment/crop_necessity/`.
+- `scripts/crop_cholec_frames.py --method circle` is
+  `pipeline/crop_cholecseg8k.py`. The stage reads each clip's rectangle
+  from `cholecseg8k_meta/crop_rects.json` and fits no circle ("CholecSeg8k
+  clips are cropped to the endoscope's circle"). It refuses what the script
+  cropped anyway: a clip without a manifest, a manifest that does not list
+  one frame per image, and an image whose size is not the rectangle's
+  frame. It also refuses to replace a cropped clip that holds a later
+  stage's output.
 
 ### Not yet extracted anywhere
 
@@ -261,12 +288,6 @@ below.
     `depth_sam_tracking_experiment/run_all17_pipeline.sh` runs before the
     crop and the depth stage. `extract_cholec_frames.py`, which the take
     list named, ran in no condition.
-  - `crop_cholec_frames.py` cuts each CholecSeg8k video to a rectangle
-    inside the endoscope's view, with `--method circle`. Ported, it reads
-    the rectangle as data, one per clip in `cholecseg8k_meta/crop_rects.json`
-    beside the 27 clips' list, as the ATLAS-120k crop rectangles below are
-    data. The depth stage then neither detects nor fills a border
-    (`docs/workstreams.md`, "No endoscope border in the depth stage").
   - Segmentation and tracking, from `depth_sam_tracking_experiment/`:
     `track_sam3.py`, `sam3d_core.py` (`num_to_natural` and `get_sam`),
     `loaders.py` (`CholecGtLoader`), `depth_source.py` (DA3 and the `pi3`
@@ -526,6 +547,10 @@ while the evaluator is built and reviewed is worked out in `docs/workstreams.md`
      placed 1 to 3 s late ("CholecSeg8k clips whose frames run out of
      order"), which the ported extractor converts or refuses, and which are
      then re-extracted and re-run.
+   - Every CholecSeg8k clip from the crop stage on, cropped to the circle's
+     rectangle ("CholecSeg8k clips are cropped to the endoscope's circle").
+     The crop stage is compared with the workbench given the workbench's
+     rectangles.
    - In the ATLAS-120k extraction, a frame that the stage shrinks. OpenCV's
      area resize rounds differently from one build to another: between the
      development machine and the GPU machine's clips, about one pixel in ten

@@ -6,8 +6,8 @@ swapped are told apart. Each refusal has a test that plants its fault:
 - a malformed rectangle;
 - a clip without a rectangle, without a manifest, or without an image;
 - a manifest that does not list one frame per image;
-- an image or a mask of another size;
-- a cropped clip left by an earlier run.
+- an image or a mask of another size, or an image whose data is cut short;
+- a cropped clip left by an earlier run, or one that holds a later stage's output.
 
 The command's own checks are run through `main`.
 """
@@ -150,13 +150,43 @@ def test_an_earlier_crop_is_refused_unless_replaced(clip):
     assert len(list((dst / "input_images").iterdir())) == 3
 
 
-def test_a_run_that_fails_after_overwrite_was_asked_leaves_the_earlier_crop(clip):
+def truncate(path):
+    """Cut an image's data short and keep its header, so that its size reads right and it fails to decode."""
+    data = path.read_bytes()
+    path.write_bytes(data[:len(data) // 2])
+
+
+@pytest.mark.parametrize("plant, error, said", [
+    (lambda p: write_image(p, w=W, h=20), ValueError, "000002.png is 40x20"),
+    (truncate, OSError, "truncated"),
+])
+def test_a_run_that_fails_after_overwrite_was_asked_leaves_the_earlier_crop(clip, plant, error, said):
     dst = crop_clip(clip, {"VID07_s15_80": RECT})
     before = {p.relative_to(dst): p.read_bytes() for p in dst.rglob("*") if p.is_file()}
-    write_image(clip / "input_images" / "000002.png", w=W, h=20)
-    with pytest.raises(ValueError, match="000002.png is 40x20"):
+    plant(clip / "input_images" / "000002.png")
+    with pytest.raises(error, match=said):
         crop_clip(clip, {"VID07_s15_80": RECT}, overwrite=True)
     assert {p.relative_to(dst): p.read_bytes() for p in dst.rglob("*") if p.is_file()} == before
+    assert not (clip.parent / "VID07_s15_80_crop.part").exists()
+
+
+def test_a_crop_that_holds_a_later_stage_s_output_is_refused_even_with_overwrite(clip):
+    dst = crop_clip(clip, {"VID07_s15_80": RECT})
+    (dst / "depth_raw").mkdir()
+    (dst / "depth_raw" / "depth_000000.npy").write_bytes(b"depth")
+    with pytest.raises(ValueError, match="holds depth_raw, which a later stage wrote; remove .* by hand"):
+        crop_clip(clip, {"VID07_s15_80": RECT}, overwrite=True)
+    assert (dst / "depth_raw" / "depth_000000.npy").read_bytes() == b"depth"
+    assert len(list((dst / "input_images").iterdir())) == 3
+
+
+def test_a_part_left_by_a_run_that_was_killed_is_replaced(clip):
+    part = clip.parent / "VID07_s15_80_crop.part"
+    (part / "input_images").mkdir(parents=True)
+    (part / "input_images" / "000099.png").write_bytes(b"left by a killed run")
+    dst = crop_clip(clip, {"VID07_s15_80": RECT})
+    assert not part.exists()
+    assert sorted(p.name for p in (dst / "input_images").iterdir()) == ["000000.png", "000001.png", "000002.png"]
 
 
 @pytest.mark.parametrize("bad", [

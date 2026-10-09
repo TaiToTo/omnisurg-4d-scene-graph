@@ -24,14 +24,16 @@ import numpy as np
 from PIL import Image
 
 SUFFIX = "_crop"
+PART = ".part"
 RECT_KEYS = ("y0", "y1", "x0", "x1", "src_h", "src_w")
+OUTPUTS = ("input_images", "seg_masks", "frame_manifest.json", "crop_info.json")
 
 
 def load_rects(path: str) -> dict[str, dict[str, int]]:
     """Read the rectangles, keyed by clip, and refuse one that does not lie inside its frame.
 
     Raises:
-        ValueError: a rectangle lacks a key, holds a key or a value that is not one of its integers, or is empty
+        ValueError: a rectangle's keys are not `RECT_KEYS`, a value is not an integer, or the rectangle is empty
             or reaches past its frame.
     """
     rects = json.loads(Path(path).read_text())
@@ -65,17 +67,35 @@ def crop_image(path: Path, dst: Path, rect: dict[str, int]) -> None:
     Image.fromarray(img[rect["y0"]:rect["y1"], rect["x0"]:rect["x1"]]).save(dst)
 
 
+def write_cropped(dst: Path, images: list[Path], masks: list[Path], manifest: dict, rect: dict[str, int]) -> None:
+    """Write the cropped images and masks into `dst`, then the manifest with the new size, then the rectangle."""
+    (dst / "input_images").mkdir(parents=True)
+    for p in images:
+        crop_image(p, dst / "input_images" / p.name, rect)
+    if masks:
+        (dst / "seg_masks").mkdir()
+    for p in masks:
+        crop_image(p, dst / "seg_masks" / p.name, rect)
+    for f in manifest["frames"]:
+        f["image_size"] = [rect["x1"] - rect["x0"], rect["y1"] - rect["y0"]]
+    manifest["crop_info"] = {k: rect[k] for k in RECT_KEYS}
+    with open(dst / "frame_manifest.json", "w") as f:
+        json.dump(manifest, f, indent=2)
+    with open(dst / "crop_info.json", "w") as f:
+        json.dump({k: rect[k] for k in RECT_KEYS}, f)
+
+
 def crop_clip(clip_dir: Path, rects: dict[str, dict[str, int]], overwrite: bool = False) -> Path:
     """Crop one clip and return the directory it was written to.
 
-    The clip is left as it was until every check has passed: nothing is written, and a cropped clip an
-    earlier run left is not removed, before every image has been checked.
+    The cropped clip is written as `<clip>_crop.part` and renamed when every file is written. A run that fails
+    leaves the clip, and a cropped clip an earlier run left, as they were.
 
     Raises:
         FileNotFoundError: the clip has no manifest or no image.
         KeyError: the clip has no rectangle.
         ValueError: the manifest does not list one frame per image, an image or a mask is not the frame's size,
-            or the cropped clip exists and `overwrite` is false.
+            the cropped clip exists and `overwrite` is false, or the cropped clip holds a later stage's output.
     """
     # Read the clip and its rectangle.
     manifest_path = clip_dir / "frame_manifest.json"
@@ -91,7 +111,7 @@ def crop_clip(clip_dir: Path, rects: dict[str, dict[str, int]], overwrite: bool 
     masks = sorted((clip_dir / "seg_masks").glob("*_color_mask.png"))
 
     # Check that the manifest lists one frame per image, that every image and mask is the frame's size, and
-    # that no cropped clip is in the way.
+    # that an earlier cropped clip may be replaced.
     frames = manifest.get("frames")
     if not isinstance(frames, list) or len(frames) != len(images):
         n = len(frames) if isinstance(frames, list) else "no"
@@ -101,26 +121,26 @@ def crop_clip(clip_dir: Path, rects: dict[str, dict[str, int]], overwrite: bool 
     dst = clip_dir.parent / f"{clip_dir.name}{SUFFIX}"
     if dst.exists() and not overwrite:
         raise ValueError(f"{dst} exists; pass --overwrite to replace it")
+    # A later stage's output, such as depth, is not this stage's to remove, even when asked to overwrite.
+    later = sorted(p.name for p in dst.iterdir() if p.name not in OUTPUTS) if dst.exists() else []
+    if later:
+        raise ValueError(f"{dst} holds {', '.join(later)}, which a later stage wrote; remove {dst} by hand to "
+                         f"crop {clip_dir.name} again")
 
-    # Remove the earlier cropped clip, now that every check has passed, and crop the images and the masks.
+    # Write the cropped clip under a temporary name. A run that fails removes it.
+    part = dst.with_name(dst.name + PART)
+    if part.exists():
+        shutil.rmtree(part)
+    try:
+        write_cropped(part, images, masks, manifest, rect)
+    except BaseException:
+        shutil.rmtree(part, ignore_errors=True)
+        raise
+
+    # Replace the earlier cropped clip with the new one.
     if dst.exists():
         shutil.rmtree(dst)
-    (dst / "input_images").mkdir(parents=True)
-    for p in images:
-        crop_image(p, dst / "input_images" / p.name, rect)
-    if masks:
-        (dst / "seg_masks").mkdir()
-    for p in masks:
-        crop_image(p, dst / "seg_masks" / p.name, rect)
-
-    # Write the manifest with each frame's new size and the rectangle. Write the rectangle again on its own.
-    for f in frames:
-        f["image_size"] = [rect["x1"] - rect["x0"], rect["y1"] - rect["y0"]]
-    manifest["crop_info"] = {k: rect[k] for k in RECT_KEYS}
-    with open(dst / "frame_manifest.json", "w") as f:
-        json.dump(manifest, f, indent=2)
-    with open(dst / "crop_info.json", "w") as f:
-        json.dump({k: rect[k] for k in RECT_KEYS}, f)
+    part.rename(dst)
     print(f"  {dst.name}: {len(images)} images, {len(masks)} masks, "
           f"y[{rect['y0']}:{rect['y1']}] x[{rect['x0']}:{rect['x1']}]")
     return dst

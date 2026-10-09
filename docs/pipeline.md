@@ -109,11 +109,13 @@ python -m pipeline.crop_cholecseg8k --input-dir /path/to/clips --rects cholecseg
     --clips VID01_s15_80 [VID25_s15_162 ...] [--overwrite]
 ```
 
-The stage crops a CholecSeg8k clip to the rectangle inside the endoscope's
-view, the rectangle `cholecseg8k_meta/crop_rects.json` gives the clip. It
-reads the clip `python -m pipeline.extract_cholecseg8k` wrote, named
-`VID<nn>_s15_<start>` as the table's keys are, and writes
-`VID<nn>_s15_<start>_crop` beside it. Into the cropped clip it writes:
+The stage crops a CholecSeg8k clip to its rectangle in
+`cholecseg8k_meta/crop_rects.json`. The rectangle lies inside the
+endoscope's circle; the README of `cholecseg8k_meta/` says how it was
+found. The stage reads the clip that `python -m pipeline.extract_cholecseg8k`
+wrote, named `VID<nn>_s15_<start>` as the table's keys are. It writes
+`VID<nn>_s15_<start>_crop` in the same directory. Into the cropped clip it
+writes:
 
 - `input_images/`: every frame, cropped to the rectangle.
 - `seg_masks/`: every colour mask, cropped to the rectangle.
@@ -131,13 +133,16 @@ The stage refuses:
   run before any clip is cropped;
 - a clip without an image;
 - a manifest that does not list one frame per image;
-- a frame or a mask whose size is not the frame's the rectangle was found
-  on;
-- a cropped clip that already exists, unless `--overwrite` is given, which
-  removes it first.
+- a frame or a mask whose size is not `src_w` × `src_h`, the size of the
+  frames the rectangle was found on;
+- a cropped clip that already exists, unless `--overwrite` is given;
+- a cropped clip that holds anything a later stage wrote, such as
+  `depth_raw/`, even with `--overwrite`. Such a clip is removed by hand.
 
-A refused clip is left as it was: the stage writes and removes nothing
-until every check has passed.
+The stage writes the cropped clip as `<clip>_crop.part` and renames it when
+every file is written. Only then does `--overwrite` remove the earlier
+cropped clip. A run that fails, on a refusal or while it writes, leaves the
+clip and an earlier cropped clip as they were.
 
 `python -m pipeline.crop_cholecseg8k --help` lists the options.
 
