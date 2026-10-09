@@ -1,0 +1,307 @@
+# The pipeline
+
+The pipeline turns a clip of surgical video into the geometry that a 4D
+scene graph is built on. It runs in stages. An extraction stage cuts the
+clips from a dataset's release, one stage per dataset. The depth stage
+estimates depth and camera poses for every frame. Later stages segment the frames, track the segments
+through time, and export what the viewer reads. Each stage is a module of
+`pipeline` and runs as `python -m pipeline.<stage>`. Each stage reads what
+the earlier stages wrote into the clip.
+
+## A clip
+
+A clip is a directory with these files:
+
+- `input_images/`: the frames as PNG files. Their names sort in time order.
+- `seg_masks/`: the ground-truth masks of the frames that have one. An
+  ATLAS-120k mask holds the class id of each pixel, as `NNNNNN_class.png`.
+  A CholecSeg8k mask holds the class colour of each pixel, as
+  `NNNNNN_color_mask.png`.
+- `frame_manifest.json`: the clip's record, written by the stage that cut
+  the clip from its dataset. Its `dataset` key names the dataset; a
+  manifest without one belongs to CholecSeg8k.
+- `crop_info.json`, for a CholecSeg8k clip only: the rectangle inside the
+  endoscope's view that the frames were cut to.
+
+## The ATLAS-120k extraction stage
+
+```bash
+python -m pipeline.extract_atlas120k --atlas-root /path/to/ATLAS --out /path/to/clips \
+    --clip-rects atlas120k_meta/crop_rects.json --frame-ratios atlas120k_meta/frame_ratio.json \
+    [--videos <procedure>/<video> ...] [--population atlas120k_meta/clips.txt] [--overwrite]
+```
+
+The stage cuts the annotated clips of ATLAS-120k videos from the release,
+the way the paper's 315 clips were cut. `--atlas-root` holds the release's
+`atlas120k/` and the videos' `raw_data/`. For each clip of a video's
+`clip_index.json`, the stage splits the clip into runs of consecutive
+annotated frames, thins each run to one frame every 0.52 s, and writes each
+run that still has 8 frames or more as `<procedure>__<video>__gt_<n>`. A
+clip with two such runs becomes two clips, `s1` and `s2`; none of the 315
+is one. A run with the frames and rectangle of one already written is not
+written again. Into each clip it writes:
+
+- `input_images/`: the release's JPEGs, cut to the clip's confirmed
+  rectangle (`atlas120k_meta/crop_rects.json`) and resized to a long side
+  of 854.
+- `seg_masks/`: the class ids, read through the evaluator's class table.
+- `frame_manifest.json`: every frame has ground truth and is an anchor.
+
+Each video also gets `<procedure>__<video>__extract_report.json`, one row
+per clip of its index, saying whether the clip was kept, split, a duplicate,
+too short, or without masks. With no `--videos`, the stage extracts every
+video whose frame ratio was measured. With `--population`, it refuses a
+video whose clips written are not the population's clips of that video.
+
+The stage refuses:
+
+- a video whose frame ratio was not measured, or whose ratio fails the
+  pixel check against one of its JPEGs;
+- a stride whose step is more than 20 % off 0.52 s;
+- a kept clip with no confirmed rectangle, or for which the release holds
+  no JPEGs;
+- a frame or a mask whose size is not the mp4's;
+- a mask with an id or a colour the class table lacks;
+- a video that already has output, unless `--overwrite` is given, which
+  removes the video's clips and report first;
+- clips written that are not the population's.
+
+A refused video is left as it was: the stage writes and removes nothing
+until every check has passed, apart from the class table's, which is made
+while a mask is written.
+
+`python -m pipeline.extract_atlas120k --help` lists the options.
+
+### A video OpenCV cannot decode
+
+```bash
+python -m pipeline.prepare_atlas120k_videos --src /path/to/ATLAS --dst /path/to/ATLAS_h264
+```
+
+One video of the 97, `rarp/NitKIjCcS7U`, is AV1, which some builds of
+OpenCV cannot decode. This command builds a second root for the extraction
+to take as `--atlas-root`. Its `atlas120k/` is a symlink to the release's.
+Under its `raw_data/`, every H.264 video is a symlink to the release's
+file, and every other video is converted to H.264 with FFmpeg, keeping its
+size, frame rate and frame count. `video_root.json` records what was done
+to each video, with the `--crf` a conversion was made at. The command
+refuses:
+
+- a release without `atlas120k/` or without an mp4;
+- a video with no video stream, or whose stream does not say how many
+  frames it has, since a conversion is checked by that count;
+- a converted video whose size, frame rate or frame count is not the
+  source's, that is not H.264, or that OpenCV cannot read a frame from;
+- a converted video that is already there, unless `video_root.json`
+  records it at the `--crf` given;
+- a path in the new root that is already something else.
+
+A converted video that is already there is checked, not made again. A
+conversion is written under a temporary name and moved into place when
+FFmpeg has finished, so a run that stops leaves no partial video. The
+extraction's output does not depend on the conversion: it reads the frames
+from the release's JPEGs, and takes from the mp4 only its frame rate and
+size, which the conversion keeps. Its frame ratio check does read the
+converted pixels, and allows for the compression.
+
+## The CholecSeg8k extraction stage
+
+```bash
+python -m pipeline.extract_cholecseg8k --seg8k-root /path/to/CholecSeg8k --videos-root /path/to/cholec80/videos \
+    --out /path/to/clips --clips VID01_s15_80 [VID25_s15_162 ...] [--count 30] [--overwrite]
+```
+
+The stage extracts the clips named, each `VID<nn>_s<stride>_<start>`:
+`--count` frames of cholec80 video `nn`, numbered in CholecSeg8k from
+`start` in steps of `stride`. `--seg8k-root` holds the release's
+`video<nn>/` directories; `--videos-root` holds cholec80's `video<nn>.mp4`.
+A frame CholecSeg8k annotated takes the image the mask was drawn on, and
+the stage finds the video frame that image is by matching it against the
+video. A frame CholecSeg8k did not annotate is decoded from the video, at
+the frame interpolated between the clip's annotated frames, or carried on
+at their rate past the first or the last. Into each clip it writes:
+
+- `input_images/`: the annotated images and the decoded frames, as PNG.
+- `seg_masks/`: the release's colour masks, on the annotated frames only.
+- `frame_manifest.json`: for each frame its video frame, its CholecSeg8k
+  number where it has one, and whether it is an anchor.
+
+The stage refuses:
+
+- a clip name that is not `VID<nn>_s<stride>_<start>`, before any video
+  is read;
+- a video, or a CholecSeg8k directory, that is missing;
+- a video that cannot be opened or reports no frame count;
+- a mask without the image it was drawn on;
+- an annotated image that is not the video's size, that matches no frame
+  of its search window, or that matches a frame on the window's edge;
+- a video frame that cannot be decoded;
+- a clip with fewer than two annotated frames, or whose annotated frames
+  run at a rate CholecSeg8k numbers no video at;
+- a clip whose frames do not rise in the video;
+- a clip that already exists, unless `--overwrite` is given.
+
+A clip is written under a temporary name and moved into place when it is
+complete. A refused clip leaves the earlier clip as it was. When one clip
+is refused, the others are still extracted, and the failures are listed at
+the end.
+
+`python -m pipeline.extract_cholecseg8k --help` lists the options.
+
+## The depth stage
+
+```bash
+python -m pipeline.depth --input-dir /path/to/clips [--clips <clip> ...] [--gpu N] [--overwrite] [--no-glb]
+```
+
+The stage runs Depth Anything 3 (DA3) on all frames of a clip in one call.
+DA3 is the model whose depth the later stages read. Another reconstruction
+model runs as a stage of its own and writes into the same directories, under
+a `__<model>` suffix. The stage first resizes each frame to 504 pixels on its
+longest side (`--process-res`). It writes into the clip:
+
+- `depth_raw/depth_NNNNNN.npy`: one depth map per frame.
+- `depth_vis/NNNN.jpg`: each depth map as an image, near warm and far cool.
+- `exports/mini_npz/results.npz`: what the later stages read: `depth`
+  (N, H, W), `conf` (N, H, W), `extrinsics` (N, 3, 4) from world to camera
+  and `intrinsics` (N, 3, 3), all float32.
+- `pc_vis/frame_NNNN.glb`: one point cloud per frame, for the viewer.
+  `--no-glb` skips them.
+- `depth_info` in the manifest: the model, the resolution and the ranges.
+
+The stage refuses:
+
+- a CholecSeg8k clip without `crop_info.json`;
+- a clip that already holds the stage's output. `--overwrite` replaces the
+  stage's own files and leaves every other file.
+
+`python -m pipeline.depth --help` lists the options.
+
+### Without a CUDA GPU
+
+The stage runs on a CPU, slowly: four frames take about a minute and 6 GB
+on a laptop. DA3 depends on `xformers`, which installs only with CUDA, so
+install DA3 without its dependencies and add the ones it imports:
+
+```bash
+pip install -e ".[render]" torch torchvision
+pip install --no-deps "depth-anything-3 @ git+https://github.com/ByteDance-Seed/Depth-Anything-3.git"
+pip install "numpy<2" addict einops evo huggingface_hub imageio moviepy==1.0.3 omegaconf plyfile pycolmap safetensors
+```
+
+### Every clip of a population
+
+```bash
+python -m pipeline.depth_population --input-dir /path/to/clips --clips atlas120k_meta/clips.txt [--gpus 0 1 2 3]
+```
+
+The command runs the depth stage on every clip of a population file, one
+process per GPU, on CUDA only, at the stage's default model and resolution,
+and without the point clouds. A clip whose manifest already holds
+`depth_info` is skipped. A clip that holds the bundle without `depth_info`
+is run again; the stage refuses it until its files are removed or
+`pipeline.depth --overwrite` is run on it. Each process writes its output
+to `<input-dir>/_logs/depth_gpu<N>.log`. A driver that is stopped, by
+`kill`, a closed terminal or Ctrl-C, stops its processes with it. The
+command refuses:
+
+- before any process starts: a clip of the population that is not under
+  `--input-dir` or whose manifest cannot be read; a clip whose
+  `depth_info` lacks a key the stage writes, or records another model or
+  resolution than the stage runs at; a GPU listed twice;
+- after the run: a clip of the population that lacks `depth_info` or its
+  bundle, whose bundle cannot be read, holds other keys than the stage
+  writes, or has another number of depth maps than the clip has images,
+  or whose `depth_info` records a filled border (a `ray_map` in the
+  bundle and a filled border each mark another version of the stage);
+- a population whose `depth_info` records more than one model or
+  resolution;
+- a process that exited non-zero; the message names its log.
+
+## The Pi3X stage
+
+```bash
+python -m pipeline.pi3x --input-dir /path/to/clips --clips <clip> [--device auto] [--gpu N] [--overwrite]
+```
+
+The stage reconstructs a clip with a second model, Pi3X
+(`recon3d_wrapper.pi3x`). Pi3X predicts each frame's points and camera pose
+together. The stage resizes each frame to at most 255,000 pixels, with sides
+that are multiples of 14. It writes into DA3's directories, each name
+carrying the suffix `__pi3x`, and leaves DA3's files alone:
+
+- `exports/mini_npz/results__pi3x.npz`: the same four arrays as DA3's
+  bundle.
+- `depth_vis/NNNN__pi3x.jpg`: the depth images, coloured as DA3's are.
+- `pc_vis/frame_NNNN__pi3x.glb`: one point cloud per frame.
+- `geometry_sources.pi3x` in the manifest. Each frame gets its cloud's
+  centroid, its number of points and the camera's axes, under
+  `frames[i].geometry_sources.pi3x`. The run gets its settings, its runtime
+  and the round-trip check.
+
+The round-trip check back-projects the stage's depth through its own poses
+and compares the points with the ones Pi3X predicted. It also computes the
+error under the inverted reading of the poses. The stage refuses:
+
+- a clip that fails the round-trip check. The error must be finite, its
+  99.9th percentile must be under 3 % of the median depth, and the inverted
+  reading's error must be at least ten times larger.
+- a clip whose manifest does not list each frame of `input_images/` once:
+  `seq_idx` must run from 0 to N - 1, and `n_frames` must be N. The stage
+  checks this before the model runs.
+- a clip that already holds the stage's output; the refusal says what is
+  there. `--overwrite` removes the stage's own files and manifest records,
+  never DA3's, and writes them again.
+
+A refused clip is left as it was: the stage writes and removes nothing
+until every check has passed.
+
+`python -m pipeline.pi3x --help` lists the options.
+
+## The tracking stage
+
+```bash
+python -m pipeline.track --input-dir /path/to/clips --tracks-root /path/to/tracks --tag <tag> \
+    --rule both_ways_from_centre --sam-input normal_edge --track-base rgb --sam-ckpt sam_vit_h_4b8939.pth \
+    [--clips <clip> ...] [--seed-labels DIR] [--depth-source pi3] [--keep-edge-ring] [--overwrite]
+```
+
+The stage cuts one frame of each clip into regions and carries them through
+the clip with SAM 3's video tracker (`sam3_wrapper`). SAM's automatic mask
+generator cuts the seed frame, prompted with the `--sam-input` image;
+`--seed-labels` reads the regions from a directory instead. The rule places
+the seed:
+
+- `both_ways_from_centre` seeds the middle frame and carries both ways.
+- `forward_from_first` seeds frame 0 and carries forwards.
+
+The stage reads the depth stage's bundle, and Pi3X's with
+`--depth-source pi3`. It reads no GT. It writes, for each clip:
+
+- `<tracks-root>/<clip>/track_<track-base>_<tag>/label_NNNN.npy`: one
+  label map per frame, at the depth's resolution, -1 where no object is.
+- `seed_info.json` beside the labels: the seed frame, whether the stage
+  carried both ways (`bidir`), the frames labelled and the settings the
+  seed was made with.
+- `<tracks-root>/<clip>/viz/montage_track_<track-base>_<tag>.png`: every
+  frame's labels, one colour per object.
+
+The stage refuses:
+
+- a missing image or a missing bundle.
+- an unknown input mode, rule or depth source.
+- seed regions from `--seed-labels` that are missing, of another shape than
+  the depth, or empty.
+- Pi3X depth with another number of frames than DA3's.
+- a seed frame with no region of `--seed-min-area` pixels or more.
+- a condition an earlier run left, unless `--overwrite` is given.
+
+A clip that fails keeps the labels an earlier run left: the stage replaces
+them only once it has written every file. The stage runs every clip and
+exits with an error if one failed.
+
+The stage needs the `track` extra: `pip install -e ".[track]"`. The SAM
+ViT-H weights, `sam_vit_h_4b8939.pth`, are downloaded by hand; SAM 3's
+weights, `facebook/sam3`, download from Hugging Face on first use.
+
+`python -m pipeline.track --help` lists the options.

@@ -129,16 +129,12 @@ class Sam3VideoInstanceSession:
     def _presence_logit(self, obj_idx: int, frame_idx: int):
         """Return an object's presence logit on a frame, or None where the session holds none.
 
-        The session stores a propagated frame's outputs as non-conditioning outputs, and those are read. A frame
-        with no such output gives None, without looking among the conditioning outputs: so the prompted frame,
-        whose outputs are conditioning ones, has no score, and its objects are painted in the order the tracker
-        lists them. The workbench's labels were made this way. The conditioning outputs are read only where a
-        non-conditioning output lacks the logit.
+        Only the non-conditioning outputs are read: the session stores a propagated frame's outputs there. The
+        session returns None for a frame it holds no such output for, the prompted frame among them, whose
+        outputs are conditioning ones. The prompted frame's objects therefore have no score, as in the
+        workbench, whose labels were made this way.
+
+        Raises:
+            KeyError: the session holds an output for the frame without a presence logit.
         """
-        for conditioning in (False, True):
-            try:
-                return self._session.get_output(obj_idx, frame_idx, "object_score_logits",
-                                                is_conditioning_frame=conditioning)
-            except KeyError:
-                continue
-        return None
+        return self._session.get_output(obj_idx, frame_idx, "object_score_logits", is_conditioning_frame=False)

@@ -1,20 +1,13 @@
-"""From frames to one clip: each key's mean, with the frames it covers.
+"""Summarize a clip: each key's mean over the frames it is defined on, and the number of those frames.
 
-The per-frame keys of `evalkit.frame` are averaged over the clip's GT frames,
-view by view, each over the frames it is defined on, and that count is kept
-next to the mean: two conditions can cover different frames, and comparing
-them without the counts once flipped the sign of a pilot result. `time_IoU`
-pools every tracked frame, GT or not, so the entry point computes it and
-passes it in; it is one value for the clip under every view.
-
-Nothing is dropped without a count: the excluded frames are counted out of
-the given ones, and the pixel and object counts are summed. A clip with no
-scored frame is refused. PQ is not stored; `pq` gives it per frame.
-
-This is the normal-mode clip summary. Pilot mode has a driver of its own:
-the pilot evaluator averages with `np.mean`, writes 0 where no frame
-defines a key, and rounds to four decimals, and zero tolerance against its
-scores is the promise, so it does not reuse this composition.
+`summarize_clip` averages the per-frame keys of `evalkit.frame` over the
+clip's GT frames, view by view. Each mean covers only the frames on which
+its key is defined, and the summary records the number of those frames.
+`summarize_clip` counts the frames the excluded marker takes out, and sums
+the pixel and object counts. A clip with no scored frame is refused.
+`time_IoU` is passed in. It pools every tracked frame, GT or not, so the
+entry point computes it. PQ is not stored; `pq` gives it per frame. Pilot
+mode does not call `summarize_clip`.
 """
 from __future__ import annotations
 
@@ -89,7 +82,7 @@ class ClipScores:
 
 
 def pq(scores: ViewScores) -> float | None:
-    """PQ of one frame in one view: `SQ` x `F1_50`, and 0 on a frame with GT objects but no hit.
+    """Return PQ of one frame in one view: `SQ` x `F1_50`, and 0 on a frame with GT objects but no hit.
 
     None on a frame with no GT object, where `F1_50` is not defined either.
     Leaving the no-hit frames out would lift PQ above its usual definition,

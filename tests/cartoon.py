@@ -1,10 +1,10 @@
 """A cartoon of a laparoscopic frame, for explaining the metrics by picture.
 
-A metric guide draws this scene: liver, gallbladder, fat and an instrument,
-and a prediction that gets each of them wrong in one typical way. Its numbers
-are what the evaluator computes when a guide is built, not values worked out
-by hand; the hand-checked arithmetic lives in `scenes.py` and the tests that
-come with the metrics.
+A metric guide, when one is built, is to draw this scene: liver, gallbladder,
+fat and an instrument, and a prediction that gets each of them wrong in one
+typical way. The guide's numbers are to be what the evaluator computes, not
+values worked out by hand; the hand-checked arithmetic lives in `scenes.py`
+and the tests that come with the metrics.
 
 The class ids are the cartoon's own, not a dataset's: the point is the shape
 of each mistake, not the class table.

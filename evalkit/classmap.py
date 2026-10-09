@@ -1,30 +1,14 @@
-"""The class map: regions named from the GT, and `mIoU` over the names.
+"""Name each region from the GT, and compute `mIoU` over the names.
 
 The pipeline gives regions without classes, so `mIoU` and `boundary_F` need
-a class for each region. Each region takes the class most of its scored
-pixels have in the GT: a tie goes to the smaller id, a scored pixel with no
-region has no class, and a region with no scored pixel gets no name. The
-result is the class map.
+a class for each region. Each region takes the class that most of its scored
+pixels have in the GT. `docs/evaluation.md` defines the class map and its
+ties ("Naming the regions: the class map"), and says why `mIoU` over it is
+an oracle value. Pilot mode takes the same vote over the `full` domain of
+`evalkit.pilot`, where background pixels vote too.
 
-The GT decides the names, so no classifier's mistakes enter `mIoU`: it is an
-oracle value, kinder than any real classifier would get, and is reported as
-one. Splitting a class into several regions costs it nothing, since every
-piece votes for the same class; `VI_split` measures splitting.
-
-In pilot mode the vote is the same, but it is taken over the `full` domain,
-where background pixels vote too and a region lying on background is named
-background. That mode passes its own `scored` mask and reads the result
-through its own rules; the vote itself is shared.
-
-`ClassScores.miou` sums the IoUs in class id order and divides; the pilot
-evaluator took `np.mean` over its dict in set order. The two differ in the
-last bit on about a quarter of frames, which the clip mean and the
-four-decimal rounding all but never show, but zero tolerance is the promise:
-the pilot-mode driver averages `ious` itself, the pilot's way, rather than
-read `miou`. The same holds for the clip mean.
-
-`docs/figures/class_map.png` shows this on a drawn scene, with the numbers the module
-gives for it.
+`docs/figures/class_map.png` shows this on a drawn scene, with the numbers
+the module gives for it.
 """
 from __future__ import annotations
 
@@ -108,7 +92,11 @@ class ClassScores:
     """`mIoU` of one frame, with the IoU of every class behind it.
 
     Attributes:
-        miou: The mean of `ious`; None when no class is present.
+        miou: The mean of `ious`, summed in class id order; None when no
+            class is present. Pilot mode does not read it:
+            `evalkit.pilot_clip` averages the IoUs as the pilot evaluator
+            did, with `np.mean` in set order, which can differ from `miou`
+            in the last bit.
         ious: Each class present in the GT or the class map, over the scored
             pixels, to its IoU.
     """
@@ -118,7 +106,7 @@ class ClassScores:
 
 
 def class_scores(gt: np.ndarray, cmap: ClassMap, scored: np.ndarray) -> ClassScores:
-    """IoU per class between the class map and the GT, and their mean.
+    """Compute the IoU per class between the class map and the GT, and their mean.
 
     The classes are those present on a scored pixel in the GT or in the
     class map. Background is not among them, because the caller removed it
