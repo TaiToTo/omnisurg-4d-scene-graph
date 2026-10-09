@@ -77,16 +77,16 @@ say, in the form a session starting cold needs.
 
 `track_metrics` is a tool outside the evaluator ("No measure over time
 carries a star"). It waits on a decision not yet made, its GT track: ported
-before the decision, it would be ported twice. The tracking stage and the
-per-frame segmentation stage wait on decisions too, and the stages after
+before the decision, it would be ported twice. The tracking stage waits on
+decisions too. The per-frame segmentation stage and the stages after
 tracking wait on the tracking stage. The questions are named as
 `docs/porting.md` heads them.
 
 | piece | waits for |
 |---|---|
 | `track_metrics` | "The GT track of `track_metrics`" |
-| the tracking stage: `track_sam3.py`, `sam3_wrapper/` and their helpers | "The seed frame chosen from GT", "The edge ring as a process-wide flag", and `track_metrics`, whose seed helpers it imports |
-| the per-frame segmentation stage: `run_per_frame_seg.py`, `geom_blend.py` | "The edge ring as a process-wide flag" |
+| the tracking stage: `track_sam3.py`, `sam3_wrapper/` and their helpers | "The seed frame chosen from GT", "The edge ring of the tracker's input", and `track_metrics`, whose seed helpers it imports |
+| the per-frame segmentation stage: `run_per_frame_seg.py`, `geom_blend.py` | the tracking stage, whose seed settings, record keys and `masks_from_label_map` it imports |
 | the export stages and the viewer | the tracking stage, whose output they read |
 
 The tracking stage reads GT in two places. With `--seed_auto` and the

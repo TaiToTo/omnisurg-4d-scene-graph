@@ -67,7 +67,7 @@ def sha(img):
 def render_case(kwargs):
     depth, K, gray01, rgb = inputs()
     return render.sam_input_image(kwargs["mode"], depth, K, gray01, rgb, edge_gain=kwargs["edge_gain"],
-                                  smooth=kwargs["smooth"])
+                                  smooth=kwargs["smooth"], mask_ring=True)
 
 
 def test_every_case_is_pinned_and_nothing_else():
