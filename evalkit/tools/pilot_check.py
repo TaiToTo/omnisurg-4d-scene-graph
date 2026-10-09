@@ -2,15 +2,18 @@
 
 The verification of `docs/evaluation.md`, "Checked against the pilot
 evaluator". For each condition, matched by tag, the pilot evaluator's
-JSON and this evaluator's pilot-mode JSON must hold the same value, None
-included, for every pair of keys in `SHARED`, with no tolerance. The
-result names the evaluator's sha, the one the freeze records. The driver
-that writes the pilot-mode JSONs is not here: the check runs where the
-pilot evaluator and its scores are, and takes their paths as arguments.
+JSON and this evaluator's pilot-mode JSON (`evalkit.evaluate --pilot`)
+must hold, with no tolerance:
+- the same value, None included, for every pair of keys in `SHARED`;
+- the same number of frames behind each key, for every pair in `COUNTS`.
+A condition that holds neither propagation rule, which pilot mode refuses,
+is left out by name. The result names the evaluator's `eval_code_sha`, the
+one the freeze records. The check runs where the pilot evaluator and its
+scores are.
 
 Usage:
     python -m evalkit.tools.pilot_check --pilot-dir /path/to/the/pilot/scores \\
-        --eval-dir /path/to/the/pilot_mode/scores
+        --eval-dir /path/to/the/pilot_mode/scores [--leave-out tags.txt]
 """
 from __future__ import annotations
 
@@ -18,7 +21,7 @@ import argparse
 import glob
 import math
 import os
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 
 from evalkit.tools.scores import (
     PILOT_DOMAINS,
@@ -56,8 +59,27 @@ def _shared() -> tuple[tuple[str, str], ...]:
 
 
 # `(pilot key, evaluator key)` for every key the two evaluators share. A key the
-# evaluator replaced (`inst_F1_75`, `PQ`, the counts) is not compared: the replacement is the point.
+# evaluator replaced (`inst_F1_75`, `PQ`, the counts outside `COUNTS`) is not compared: the replacement is the point.
 SHARED = _shared()
+
+
+def _counts() -> tuple[tuple[str, str], ...]:
+    pairs = []
+    for domain in PILOT_DOMAINS:
+        suffix = _pilot_suffix(domain)
+        for pilot, ours in (("n_inst_frames", "F1_50"), ("n_SQ_frames", "SQ"), ("n_BF_frames", "inst_BF")):
+            pairs.append((f"{pilot}{suffix}", metric_key(ours, domain)))
+    for ours in ("mIoU", "boundary_F", "boundary_R_raw"):
+        pairs.append(("n_gt_frames", metric_key(ours, "full")))
+    for ours in ("VI_split", "VI_merge"):
+        pairs.append(("n_vi_frames", metric_key(ours, "labeled")))
+    return tuple(pairs)
+
+
+# `(pilot count, evaluator key)`: the frames behind each shared key, which the
+# evaluator's row holds under `n_frames`. A clip mean rounded to four decimals
+# can stay the same when a frame is left out or added; the count cannot.
+COUNTS = _counts()
 
 
 # No tolerance: whatever width were allowed here is the width a fault in the
@@ -81,8 +103,8 @@ def diff_shared(pilot: Mapping, ours: Mapping) -> list[str]:
 
     Returns:
         One line per difference: a clip only one side scored, a shared key
-        the evaluator's row lacks, or a value that is not equal. Empty when
-        every shared value is equal on every clip.
+        or count the evaluator's row lacks, or a value or count that is not
+        equal. Empty when every value and count is equal on every clip.
 
     Raises:
         ValueError: `pilot` is not the pilot evaluator's (another sha, or
@@ -90,7 +112,7 @@ def diff_shared(pilot: Mapping, ours: Mapping) -> list[str]:
             the pilot's domains; a JSON's `clips` and `per_clip` disagree
             or name a clip twice; neither holds a clip; a pilot row removes
             an `extra_ignore`, which pilot mode scores with none; or a
-            pilot row lacks a shared key.
+            pilot row lacks a shared key or a count.
     """
     # The two JSONs, refused unless one is the pilot evaluator's and the other pilot mode's.
     # Not `scores.check_comparable`: the two shas differ by construction, and it would refuse the pair.
@@ -133,6 +155,15 @@ def diff_shared(pilot: Mapping, ours: Mapping) -> list[str]:
                 out.append(f"{c}.{ok}: missing; the pilot wrote {pk}={ra[pk]!r}")
             elif not _equal(ra[pk], rb[ok]):
                 out.append(f"{c}.{ok}: {rb[ok]!r} != pilot {pk}={ra[pk]!r}")
+        counts = rb.get("n_frames", {})
+        for pk, ok in COUNTS:
+            if pk not in ra:
+                raise ValueError(f"{c}: the pilot evaluator's row lacks the count {pk}, so the frames behind "
+                                 f"{ok} cannot be checked")
+            if ok not in counts:
+                out.append(f"{c}.n_frames[{ok}]: missing; the pilot wrote {pk}={ra[pk]!r}")
+            elif counts[ok] != ra[pk]:
+                out.append(f"{c}.n_frames[{ok}]: {counts[ok]!r} != pilot {pk}={ra[pk]!r}")
     return out
 
 
@@ -144,8 +175,30 @@ def _read(path: str, role: str) -> dict:
         raise ValueError(f"{role} {path} cannot be read: {e}") from e
 
 
-def check_dirs(pilot_dir: str, eval_dir: str) -> tuple[str, dict[str, list[str]]]:
+def read_tags(path: str) -> list[str]:
+    """Read the conditions `path` lists, one tag per line.
+
+    Raises:
+        ValueError: The file lists no tag, or one tag twice.
+    """
+    with open(path, encoding="utf-8") as f:
+        tags = [line.strip() for line in f if line.strip()]
+    if not tags:
+        raise ValueError(f"{path} lists no condition")
+    twice = sorted({t for t in tags if tags.count(t) > 1})
+    if twice:
+        raise ValueError(f"{path} lists {twice} more than once")
+    return tags
+
+
+def check_dirs(pilot_dir: str, eval_dir: str, leave_out: Sequence[str] = ()) -> tuple[str, dict[str, list[str]]]:
     """Diff every condition of `pilot_dir` against the JSON of the same tag in `eval_dir`.
+
+    Args:
+        pilot_dir: The pilot evaluator's score JSONs, one `<tag>.json` per condition.
+        eval_dir: This evaluator's pilot-mode JSONs, by tag.
+        leave_out: The tags the check leaves out: conditions that hold neither propagation rule, which
+            pilot mode refuses.
 
     Returns:
         The evaluator's `eval_code_sha`, read from the pilot-mode JSONs,
@@ -153,14 +206,27 @@ def check_dirs(pilot_dir: str, eval_dir: str) -> tuple[str, dict[str, list[str]]
         A tag the evaluator's directory lacks is a difference of its own.
 
     Raises:
-        ValueError: `pilot_dir` holds no JSON; `eval_dir` holds none of
-            the tags; the pilot-mode JSONs were made by more than one
-            evaluator; a JSON of a pair cannot be read; or a pair cannot
-            be checked.
+        ValueError: `pilot_dir` holds no JSON; a tag left out has no JSON
+            in `pilot_dir`, or has one in `eval_dir`; every tag is left
+            out; `eval_dir` holds none of the other tags; the pilot-mode
+            JSONs were made by more than one evaluator; a JSON of a pair
+            cannot be read; or a pair cannot be checked.
     """
+    # The conditions the pilot evaluator scored, less those left out by name.
     tags = sorted(os.path.basename(p)[:-5] for p in glob.glob(os.path.join(pilot_dir, "*.json")))
     if not tags:
         raise ValueError(f"no score JSON in {pilot_dir}")
+    unknown = sorted(set(leave_out) - set(tags))
+    if unknown:
+        raise ValueError(f"{unknown} are left out, but {pilot_dir} holds no JSON of them")
+    scored = sorted(t for t in leave_out if os.path.exists(os.path.join(eval_dir, f"{t}.json")))
+    if scored:
+        raise ValueError(f"{scored} are left out, but pilot mode scored them, so they hold a propagation rule")
+    tags = [t for t in tags if t not in set(leave_out)]
+    if not tags:
+        raise ValueError(f"every condition of {pilot_dir} is left out, so there is nothing to check")
+
+    # Each pair, diffed.
     out, shas = {}, {}
     for tag in tags:
         theirs = os.path.join(eval_dir, f"{tag}.json")
@@ -191,12 +257,17 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--pilot-dir", required=True, help="The pilot evaluator's score JSONs, one <tag>.json per condition.")
     ap.add_argument("--eval-dir", required=True, help="This evaluator's pilot-mode JSONs of the same conditions, by tag.")
+    ap.add_argument("--leave-out", default=None,
+                    help="The conditions that hold neither propagation rule, one tag per line, which pilot mode refuses.")
     args = ap.parse_args()
     try:
-        sha, result = check_dirs(args.pilot_dir, args.eval_dir)
-    except ValueError as e:
+        leave_out = read_tags(args.leave_out) if args.leave_out else []
+        sha, result = check_dirs(args.pilot_dir, args.eval_dir, leave_out)
+    except (OSError, ValueError) as e:
         raise SystemExit(str(e))
     print(f"pilot mode of evaluator {sha[:16]} against the pilot evaluator {PILOT_EVAL_CODE_SHA[:16]}")
+    if leave_out:
+        print(f"  left out, holding neither propagation rule: {sorted(leave_out)}")
     bad = {t: d for t, d in result.items() if d}
     for tag in sorted(result):
         d = result[tag]

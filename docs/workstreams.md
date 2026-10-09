@@ -75,15 +75,16 @@ say, in the form a session starting cold needs.
 
 ## Not now: blocked on a decision
 
-`track_metrics` and `kmerge` wait on a decision not yet made; started before
-it, they would be ported twice. The tracking stage and the per-frame
-segmentation stage wait on decisions too, and the stages after tracking wait
-on the tracking stage. The questions are named as `docs/porting.md` heads
-them.
+`track_metrics` is a tool outside the evaluator ("No measure over time
+carries a star"). It waits on a decision not yet made, its GT track: ported
+before the decision, it would be ported twice. The tracking stage and the
+per-frame segmentation stage wait on decisions too, and the stages after
+tracking wait on the tracking stage. The questions are named as
+`docs/porting.md` heads them.
 
 | piece | waits for |
 |---|---|
-| `track_metrics`, `kmerge` | "Identity metrics and merge cost" |
+| `track_metrics` | "The GT track of `track_metrics`" |
 | the tracking stage: `track_sam3.py`, `sam3_wrapper/` and their helpers | "The seed frame chosen from GT", "The edge ring as a process-wide flag", and `track_metrics`, whose seed helpers it imports |
 | the per-frame segmentation stage: `run_per_frame_seg.py`, `geom_blend.py` | "The edge ring as a process-wide flag" |
 | the export stages and the viewer | the tracking stage, whose output they read |
@@ -100,12 +101,6 @@ wait on the depth stages: its check links the workbench's stored
 `results.npz` in, as the determinism measurement did. The measurement ran it
 with `--seed_auto` at the default threshold, which reads GT; its check runs
 both sides at the operating point's `--seed_inst_thresh 1.0` instead.
-
-"Identity metrics and merge cost" is not a branch. It is a decision, and
-`docs/evaluation.md` ("Consistency over time") lists what deciding it means.
-A session can prepare it by writing down, for each candidate, the GT-track
-definition it needs and how that coexists with the whole-class object; the
-decision itself is made by the author, in `docs/evaluation.md`.
 
 ## Now: workstreams that can start today
 
@@ -359,9 +354,8 @@ one module. `surgical_core.geometry.project.backproject` already
 back-projects, so one of the two definitions goes. They compute the same
 thing in a different order (`(p - t) @ R` against `(R.T @ (p.T - t)).T`),
 which can move the last bit, so the one that keeps the stages' bytes stays,
-and the other is rebuilt on it with `tests/test_warp_nearest_wins.py` still
-passing. `project_world_to_pixel` is not carried: no stage calls it, and
-`project_world_to_frame` projects already. The workbench's
+and the other is rebuilt on it. `project_world_to_pixel` is not carried: no
+stage calls it, and `project_world_to_frame` projects already. The workbench's
 `pointcloud.valid_depth_mask` is not carried either; this repository's
 replaces it. The viewer modules join `surgical_core.viewer`. The colormap
 needs `matplotlib`, which the `render` extra has; the GLB writer imports

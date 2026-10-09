@@ -1,47 +1,13 @@
-"""The ratio between a clip index's frame numbers and the mp4's.
+"""Read the measured ratio between a clip index's frame numbers and the mp4's.
 
-The frame numbers in `clip_index.json` are not the mp4's frame numbers. In 14
-of the 97 videos the annotation numbers frames at a lower rate than the mp4,
-and `mp4_frame = native_frame * ratio` corrects it; the measured ratios are
-2, 3 and 4.
-
-This is easy to miss. The path that reads the bundled `images/frame_NNNNNN.jpg`
-uses the number as a key and nothing goes wrong. Only the path that decodes
-the mp4 by frame number drifts, and there it drifts silently: the frame that
-comes back is a real frame, from another moment.
-
-How the ratio was measured: for each video, the bundled JPEG of one frame of
-its first clip was matched against the mp4 by mean absolute pixel difference,
-scanning from the start or seeking to each candidate ratio. A match differs
-by 0.7 to 1.9 (the two compressions), a miss by 20 to 190, so there is no
-ambiguity. That the ratio holds over the whole video was checked at three
-points, early, middle and late, for all 14 videos and 17 controls with ratio
-1, with no exception.
-
-Where the ratio comes from: the dataset's extraction script
-(`download/process_atlas120k.py` in the ATLAS repository) walks the mp4 and
-keeps every `max(1, int(fps / 15))`-th frame, numbering the kept frames from
-zero whether or not they fall in the surgical section. The division truncates,
-so 60.00 fps gives 4, 59.94 and 50.00 give 3, 30.00 gives 2, and 29.97, 25,
-23.98 and 15 give 1. The 14 videos above ratio 1 are exactly those at 30.00
-fps or more, and the measured ratios agree with the rule for all 97. The
-README's "15 fps" is loose: a 29.97 fps video is kept at its native rate.
-
-The table is still a measurement rather than the rule applied, because the
-rule's input is not under our control: the mp4 on disk is whatever the
-download produced, not necessarily the file the authors sampled, and the fps
-OpenCV reports can fall on either side of the truncation for a video near
-30 fps. The rule says which videos to suspect and what to expect; the pixels
-say what is.
-
-An unmeasured video is refused, not assumed to be 1. The table lists every
-video that was measured, ratio 1 included, so a video missing from it has an
-unknown ratio and decoding its mp4 by number may read the wrong moment.
-
-The committed measurement is `atlas120k_meta/frame_ratio.json`.
-
-`docs/figures/atlas120k_frame_ratio.png` shows this on a drawn scene, with the numbers the module
-gives for it.
+In 14 of the 97 ATLAS-120k videos, `clip_index.json` numbers frames at a
+lower rate than the mp4, and `mp4_frame = native_frame * ratio`. Reading the
+bundled JPEGs by number is unaffected. Decoding the mp4 by number silently
+returns a real frame from another moment. The measured ratios are in
+`atlas120k_meta/frame_ratio.json`. A video missing from it is refused, not
+assumed to be 1. The README of `atlas120k_meta/` says how the ratios were
+measured and where they come from ("Frame ratios").
+`docs/figures/atlas120k_frame_ratio.png` shows this on a drawn scene.
 """
 
 import json
@@ -124,8 +90,12 @@ class FrameRatios:
     def __len__(self) -> int:
         return len(self._ratios)
 
+    def videos(self) -> list[tuple[str, str]]:
+        """Return the measured videos as `(procedure, video)` pairs, sorted."""
+        return sorted(self._ratios)
+
     def ratio(self, procedure: str, video: str) -> int:
-        """The video's `mp4_frame / native_frame`.
+        """Return the video's `mp4_frame / native_frame`.
 
         Raises:
             KeyError: the video was not measured. Its ratio is unknown, not 1.
