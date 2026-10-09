@@ -24,22 +24,27 @@ frame's pixels (`src_w` × `src_h`, 854 × 480 for all 17 videos). `y1` and
 without `_crop`. The crop stage writes the clip's rectangle into the clip
 as `crop_info.json`, the layout the depth stage requires.
 
-Each rectangle is the largest that lies inside both the frame and the
-endoscope's circle, so the clips of one video share it. The circle was
-fitted to 60 frames sampled across the cholec80 video. Its radius was
-scaled by 0.98 before the rectangle was taken, to keep the rectangle off
-the vignette at the circle's edge. The rectangles were computed with the
-workbench's `fit_endoscope_circle` and `circle_frame_inscribed_rect`, the
-functions its `crop_cholec_frames.py --method circle` crops with. The table
-is per clip, so a clip could be given a rectangle of its own.
+Each rectangle is the one the workbench cropped the clip to. The pilot
+scored those cropped clips, and the AE-CAI workshop paper reports them. The
+workbench found each rectangle on the clip's own 30 frames, as its
+extractor wrote them. It took the largest rectangle inside the pixels whose
+90th-percentile luminance over those frames is at least 15, with the
+workbench's `detect_endoscope_content_mask` and `largest_inscribed_rect`.
+The clips of one video can therefore hold different rectangles. A clip
+whose frames the extraction stage writes differently from the workbench
+keeps its rectangle; the rectangle is not found again on the new frames.
 
-The workbench's own clips, which the pilot scored and AE-CAI reports, were
-cropped to other rectangles. The run that cropped them found no cholec80
-video, so the script fell back to each clip's own 30 frames. It took the
-largest rectangle inside the pixels whose 90th-percentile luminance over
-those frames is at least 15. Those rectangles differ from these on all 27
-clips, by up to 59 px, and the clips of one video differ from one another.
-The measurements here crop every clip to the rectangles in this table.
+Run on the workbench's 27 clips with this table, the crop stage writes the
+workbench's cropped images, masks and `crop_info.json`, byte for byte.
+
+## Why not the endoscope's circle
+
+A circle fitted to the cholec80 video gives other rectangles. The
+workbench's `crop_cholec_frames.py --method circle` takes that rectangle
+when it finds the video, and it found none in the run that cropped these
+clips. The circle's rectangles differ from these on all 27 clips, by up to
+59 px. On VID26 and VID43 the circle is larger than the view, and its
+rectangle holds black corners of 2 to 3.6 % of the crop.
 
 ## Who reads these
 

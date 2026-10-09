@@ -157,7 +157,7 @@ python -m pipeline.crop_cholecseg8k --input-dir /path/to/clips --rects cholecseg
 
 The stage crops a CholecSeg8k clip to its rectangle in
 `cholecseg8k_meta/crop_rects.json`. The rectangle lies inside the
-endoscope's circle; the README of `cholecseg8k_meta/` says how it was
+endoscope's view; the README of `cholecseg8k_meta/` says how it was
 found. The stage reads the clip that `python -m pipeline.extract_cholecseg8k`
 wrote, named `VID<nn>_s15_<start>` as the table's keys are. It writes
 `VID<nn>_s15_<start>_crop` in the same directory. Into the cropped clip it
