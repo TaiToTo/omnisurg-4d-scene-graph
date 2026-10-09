@@ -305,3 +305,47 @@ ViT-H weights, `sam_vit_h_4b8939.pth`, are downloaded by hand; SAM 3's
 weights, `facebook/sam3`, download from Hugging Face on first use.
 
 `python -m pipeline.track --help` lists the options.
+
+## The per-frame segmentation stage
+
+```bash
+python -m pipeline.per_frame --input-dir /path/to/clips --tracks-root /path/to/tracks --tag <tag> \
+    --sam-input normal_edge --sam-ckpt sam_vit_h_4b8939.pth \
+    [--clips <clip> ...] [--depth-source pi3] [--keep-edge-ring] [--overwrite]
+```
+
+The stage cuts every frame of each clip into regions with SAM's automatic
+mask generator, prompted with the `--sam-input` image. It carries nothing
+from one frame to the next, so an id does not follow an object between
+frames. Regions under `--seed-min-area` pixels are dropped.
+
+The stage reads the depth stage's bundle, and Pi3X's with
+`--depth-source pi3`. It reads no GT. It writes, for each clip:
+
+- `<tracks-root>/<clip>/track_rgb_<tag>/label_NNNN.npy`: one label map per
+  frame, at the depth's resolution. Region `r` is written as `r + 1`, the
+  id the tracking stage gives it, and -1 where no region is.
+- `seed_info.json` beside the labels: `seed_source` `per_frame`, which the
+  evaluator reads as the condition's rule, and the settings the labels
+  were made with.
+
+The directory is named as the tracking stage's are, and the evaluator reads
+it the same way.
+
+The stage refuses:
+
+- a missing image or a missing bundle.
+- an unknown input mode or depth source.
+- Pi3X depth with another number of frames than DA3's.
+- a condition an earlier run left, unless `--overwrite` is given.
+- with `--overwrite`, a condition whose `seed_info.json` does not record
+  `seed_source` `per_frame`, such as one the tracking stage wrote.
+
+A clip that fails keeps the labels an earlier run left: the stage replaces
+them only once it has written every file. The stage runs every clip and
+exits with an error if one failed.
+
+The stage needs the `track` extra and the SAM ViT-H weights, as the
+tracking stage does.
+
+`python -m pipeline.per_frame --help` lists the options.
