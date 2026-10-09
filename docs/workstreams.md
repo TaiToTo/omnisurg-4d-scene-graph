@@ -75,17 +75,18 @@ say, in the form a session starting cold needs.
 
 ## Not now: blocked on a decision
 
-`track_metrics` waits on a decision not yet made: ported before the
-decision, it would be ported twice. The tracking stage and the per-frame
-segmentation stage wait on decisions too, and the stages after tracking wait
-on the tracking stage. The questions are named as `docs/porting.md` heads
-them.
+`track_metrics` is a tool outside the evaluator ("No measure over time
+carries a star"). It waits on a decision not yet made, its GT track: ported
+before the decision, it would be ported twice. The tracking stage waits on
+decisions too. The per-frame segmentation stage and the stages after
+tracking wait on the tracking stage. The questions are named as
+`docs/porting.md` heads them.
 
 | piece | waits for |
 |---|---|
-| `track_metrics` | "Identity metrics and merge cost" |
-| the tracking stage: `track_sam3.py`, `sam3_wrapper/` and their helpers | "The seed frame chosen from GT", "The edge ring as a process-wide flag", and `track_metrics`, whose seed helpers it imports |
-| the per-frame segmentation stage: `run_per_frame_seg.py`, `geom_blend.py` | "The edge ring as a process-wide flag" |
+| `track_metrics` | "The GT track of `track_metrics`" |
+| the tracking stage: `track_sam3.py`, `sam3_wrapper/` and their helpers | "The seed frame chosen from GT", "The edge ring of the tracker's input", and `track_metrics`, whose seed helpers it imports |
+| the per-frame segmentation stage: `run_per_frame_seg.py`, `geom_blend.py` | the tracking stage, whose seed settings, record keys and `masks_from_label_map` it imports |
 | the export stages and the viewer | the tracking stage, whose output they read |
 
 The tracking stage reads GT in two places. With `--seed_auto` and the
@@ -100,12 +101,6 @@ wait on the depth stages: its check links the workbench's stored
 `results.npz` in, as the determinism measurement did. The measurement ran it
 with `--seed_auto` at the default threshold, which reads GT; its check runs
 both sides at the operating point's `--seed_inst_thresh 1.0` instead.
-
-"Identity metrics and merge cost" is not a branch. It is a decision, and
-`docs/evaluation.md` ("Consistency over time") lists what deciding it means.
-A session can prepare it by writing down, for each candidate, the GT-track
-definition it needs and how that coexists with the whole-class object; the
-decision itself is made by the author, in `docs/evaluation.md`.
 
 ## Now: workstreams that can start today
 

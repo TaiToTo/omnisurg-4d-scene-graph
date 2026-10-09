@@ -1,9 +1,9 @@
 # The pipeline
 
 The pipeline turns a clip of surgical video into the geometry that a 4D
-scene graph is built on. It runs in stages. The extraction stage cuts the
-clips from a dataset's release. The depth stage estimates depth and camera
-poses for every frame. Later stages segment the frames, track the segments
+scene graph is built on. It runs in stages. An extraction stage cuts the
+clips from a dataset's release, one stage per dataset. The depth stage
+estimates depth and camera poses for every frame. Later stages segment the frames, track the segments
 through time, and export what the viewer reads. Each stage is a module of
 `pipeline` and runs as `python -m pipeline.<stage>`. Each stage reads what
 the earlier stages wrote into the clip.
@@ -15,6 +15,8 @@ A clip is a directory with these files:
 - `input_images/`: the frames as PNG files. Their names sort in time order.
 - `seg_masks/`: the ground-truth masks of the frames that have one. An
   ATLAS-120k mask holds the class id of each pixel, as `NNNNNN_class.png`.
+  A CholecSeg8k mask holds the class colour of each pixel, as
+  `NNNNNN_color_mask.png`.
 - `frame_manifest.json`: the clip's record, written by the stage that cut
   the clip from its dataset. Its `dataset` key names the dataset; a
   manifest without one belongs to CholecSeg8k.
@@ -69,6 +71,82 @@ until every check has passed, apart from the class table's, which is made
 while a mask is written.
 
 `python -m pipeline.extract_atlas120k --help` lists the options.
+
+### A video OpenCV cannot decode
+
+```bash
+python -m pipeline.prepare_atlas120k_videos --src /path/to/ATLAS --dst /path/to/ATLAS_h264
+```
+
+One video of the 97, `rarp/NitKIjCcS7U`, is AV1, which some builds of
+OpenCV cannot decode. This command builds a second root for the extraction
+to take as `--atlas-root`. Its `atlas120k/` is a symlink to the release's.
+Under its `raw_data/`, every H.264 video is a symlink to the release's
+file, and every other video is converted to H.264 with FFmpeg, keeping its
+size, frame rate and frame count. `video_root.json` records what was done
+to each video, with the `--crf` a conversion was made at. The command
+refuses:
+
+- a release without `atlas120k/` or without an mp4;
+- a video with no video stream, or whose stream does not say how many
+  frames it has, since a conversion is checked by that count;
+- a converted video whose size, frame rate or frame count is not the
+  source's, that is not H.264, or that OpenCV cannot read a frame from;
+- a converted video that is already there, unless `video_root.json`
+  records it at the `--crf` given;
+- a path in the new root that is already something else.
+
+A converted video that is already there is checked, not made again. A
+conversion is written under a temporary name and moved into place when
+FFmpeg has finished, so a run that stops leaves no partial video. The
+extraction's output does not depend on the conversion: it reads the frames
+from the release's JPEGs, and takes from the mp4 only its frame rate and
+size, which the conversion keeps. Its frame ratio check does read the
+converted pixels, and allows for the compression.
+
+## The CholecSeg8k extraction stage
+
+```bash
+python -m pipeline.extract_cholecseg8k --seg8k-root /path/to/CholecSeg8k --videos-root /path/to/cholec80/videos \
+    --out /path/to/clips --clips VID01_s15_80 [VID25_s15_162 ...] [--count 30] [--overwrite]
+```
+
+The stage extracts the clips named, each `VID<nn>_s<stride>_<start>`:
+`--count` frames of cholec80 video `nn`, numbered in CholecSeg8k from
+`start` in steps of `stride`. `--seg8k-root` holds the release's
+`video<nn>/` directories; `--videos-root` holds cholec80's `video<nn>.mp4`.
+A frame CholecSeg8k annotated takes the image the mask was drawn on, and
+the stage finds the video frame that image is by matching it against the
+video. A frame CholecSeg8k did not annotate is decoded from the video, at
+the frame interpolated between the clip's annotated frames, or carried on
+at their rate past the first or the last. Into each clip it writes:
+
+- `input_images/`: the annotated images and the decoded frames, as PNG.
+- `seg_masks/`: the release's colour masks, on the annotated frames only.
+- `frame_manifest.json`: for each frame its video frame, its CholecSeg8k
+  number where it has one, and whether it is an anchor.
+
+The stage refuses:
+
+- a clip name that is not `VID<nn>_s<stride>_<start>`, before any video
+  is read;
+- a video, or a CholecSeg8k directory, that is missing;
+- a video that cannot be opened or reports no frame count;
+- a mask without the image it was drawn on;
+- an annotated image that is not the video's size, that matches no frame
+  of its search window, or that matches a frame on the window's edge;
+- a video frame that cannot be decoded;
+- a clip with fewer than two annotated frames, or whose annotated frames
+  run at a rate CholecSeg8k numbers no video at;
+- a clip whose frames do not rise in the video;
+- a clip that already exists, unless `--overwrite` is given.
+
+A clip is written under a temporary name and moved into place when it is
+complete. A refused clip leaves the earlier clip as it was. When one clip
+is refused, the others are still extracted, and the failures are listed at
+the end.
+
+`python -m pipeline.extract_cholecseg8k --help` lists the options.
 
 ## The depth stage
 
