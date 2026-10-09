@@ -284,6 +284,21 @@ def test_one_clip_writes_none_and_not_nan():
     json.dumps(res, allow_nan=False)
 
 
+def test_the_pair_computes_the_keys_it_is_named_and_only_those():
+    a, b = pilot_scores("base", 0.0, 5), pilot_scores("cond", 0.03, 6)
+    for x, y in zip(a["per_clip"], b["per_clip"]):
+        x["inst_F1_50_labeled"], y["inst_F1_50_labeled"] = x["inst_F1_50"], y["inst_F1_50"] + 0.01
+    assert "inst_F1_50_labeled" not in PS.compare_pair(a, b)["metrics"]
+    res = PS.compare_pair(a, b, keys=["inst_F1_50_labeled"])
+    assert list(res["metrics"]) == ["inst_F1_50_labeled"]
+    got = res["metrics"]["inst_F1_50_labeled"]
+    assert got["sign"] == PILOT_SIGNS["inst_F1_50_labeled"]
+    assert got["delta_mean"] == round(WORKBENCH["inst_F1_50"]["delta_mean"] + 0.01, 4)
+    # A key named by mistake is refused, even where no clip defines it.
+    with pytest.raises(KeyError):
+        PS.compare_pair(a, b, keys=["inst_F1_50_labelled"])
+
+
 def test_a_key_defined_on_no_common_clip_is_left_out_not_zeroed():
     a, b = pilot_scores("base", 0.0, 5), pilot_scores("cond", 0.03, 6)
     for r in b["per_clip"]:

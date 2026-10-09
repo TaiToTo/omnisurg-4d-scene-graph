@@ -278,8 +278,9 @@ def _stats_of(va: np.ndarray, vb: np.ndarray, kvids: np.ndarray, sign: int) -> d
     )
 
 
-def compare_pair(ja: dict, jb: dict, drop: Sequence[str] = (), allow_legacy_code: bool = False) -> dict:
-    """The paired statistics of every key between two conditions' score JSONs.
+def compare_pair(ja: dict, jb: dict, drop: Sequence[str] = (), allow_legacy_code: bool = False,
+                 keys: Sequence[str] | None = None) -> dict:
+    """Compute the paired statistics of each key between two conditions' score JSONs.
 
     Args:
         ja: The base condition's JSON.
@@ -288,6 +289,9 @@ def compare_pair(ja: dict, jb: dict, drop: Sequence[str] = (), allow_legacy_code
             them. A subset has fewer videos, so its interval is read for
             its sign only.
         allow_legacy_code: Let through JSONs that record no `eval_code_sha`.
+        keys: The keys to compute; `keys_of(ja)` when None. A pilot key
+            outside `PILOT_KEYS`, such as `inst_F1_50_labeled`, is
+            computed only when named here.
 
     Returns:
         `n_clips`, `n_videos`, `dropped_videos`, `eval_code`, `population`,
@@ -298,10 +302,16 @@ def compare_pair(ja: dict, jb: dict, drop: Sequence[str] = (), allow_legacy_code
     Raises:
         ValueError: The two JSONs are not comparable, `drop` names a video
             the scores do not have, or `drop` leaves no clip.
+        KeyError: A key in `keys` has no direction: on a pilot JSON it is
+            not in `scores.PILOT_SIGNS`, on another it is not a key the
+            evaluator writes.
     """
     # The ruler and the domain are checked, not only the population; the
     # check also settles that the populations are equal (no subset here).
     chk = check_comparable(ja, jb, allow_legacy_code=allow_legacy_code)
+    # The direction of each key is read before any is computed, so that a
+    # key named by mistake is refused even where no clip defines it.
+    signs = {k: sign_of_key(ja, k) for k in (keys_of(ja) if keys is None else keys)}
     a, b = rows_of(ja), rows_of(jb)
     # The subset is taken from the clips the check compared, and after it:
     # taking it first would hide a mismatch, and taking it from the rows
@@ -315,14 +325,14 @@ def compare_pair(ja: dict, jb: dict, drop: Sequence[str] = (), allow_legacy_code
         raise ValueError(f"--drop-video left no clip ({sorted(drop)})")
     vids = [video_of(c) for c in clips]
     res = {}
-    for k in keys_of(ja):
+    for k, sign in signs.items():
         ks = defined_clips(a, b, clips, k)
         if not ks:
             continue
         kvids = np.array([video_of(c) for c in ks])
         va = np.array([a[c][k] for c in ks], dtype=np.float64)
         vb = np.array([b[c][k] for c in ks], dtype=np.float64)
-        res[k] = _stats_of(va, vb, kvids, sign_of_key(ja, k))
+        res[k] = _stats_of(va, vb, kvids, sign)
     out = dict(n_clips=len(clips), n_videos=int(len(set(vids))), dropped_videos=sorted(drop),
                # What it was measured with stays with the result.
                eval_code=chk["eval_code"], population=chk["population"], metrics=res)
