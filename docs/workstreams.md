@@ -77,30 +77,21 @@ say, in the form a session starting cold needs.
 
 `track_metrics` is a tool outside the evaluator ("No measure over time
 carries a star"). It waits on a decision not yet made, its GT track: ported
-before the decision, it would be ported twice. The tracking stage waits on
-decisions too. The per-frame segmentation stage and the stages after
-tracking wait on the tracking stage. The questions are named as
-`docs/porting.md` heads them.
+before the decision, it would be ported twice. The per-frame segmentation
+stage and the stages after tracking wait on the tracking stage. The
+questions are named as `docs/porting.md` heads them.
 
 | piece | waits for |
 |---|---|
 | `track_metrics` | "The GT track of `track_metrics`" |
-| the tracking stage: `track_sam3.py`, `sam3_wrapper/` and their helpers | "The seed frame chosen from GT", "The edge ring of the tracker's input", and `track_metrics`, whose seed helpers it imports |
 | the per-frame segmentation stage: `run_per_frame_seg.py`, `geom_blend.py` | the tracking stage, whose seed settings, record keys and `masks_from_label_map` it imports |
 | the export stages and the viewer | the tracking stage, whose output they read |
 
-The tracking stage reads GT in two places. With `--seed_auto` and the
-default threshold, it chooses the seed frame by how much of each frame the
-GT masks call instrument, reading the mask files through the workbench's
-class tables. With `--seed_source gt`, a condition seeded from GT masks, it
-reads the seed frame's GT through the pilot evaluator's
-`eval_track._gt_idmap`, and takes the seed frame and the GT instances from
-the workbench's `track_metrics` (`pick_seed_frame`, `gt_instances`).
-Whatever class table it reads once ported is `evalkit.classes`. It does not
-wait on the depth stages: its check links the workbench's stored
-`results.npz` in, as the determinism measurement did. The measurement ran it
-with `--seed_auto` at the default threshold, which reads GT; its check runs
-both sides at the operating point's `--seed_inst_thresh 1.0` instead.
+The ported tracking stage reads no GT. Its propagation rule places the seed
+on the middle frame or on frame 0, and no seed comes from GT masks. Its check links
+the workbench's stored `results.npz` in, so it does not wait on the depth
+stages. Where its record holds the ring setting of the tracker's input
+stays open ("The edge ring of the tracker's input").
 
 ## Now: workstreams that can start today
 

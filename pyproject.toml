@@ -56,17 +56,30 @@ recon3d = [
     "pi3 @ git+https://github.com/yyfz/Pi3.git",
     "huggingface_hub",
 ]
+# The tracking stage needs the `render` extra, SAM 3's video tracker from
+# transformers, and SAM's automatic mask generator, which cuts the seed
+# frame. torch, transformers and segment-anything are imported only when the
+# stage builds its models, so the stage's tests run without them. The lower
+# bound of transformers is the version the stage was compared with the
+# workbench on; how the session stores the presence logits may differ below it.
+track = [
+    "omnisurg-4d-scene-graph[render]",
+    "torch",
+    "transformers>=5.19",
+    "segment-anything",
+]
 
 [project.urls]
 Homepage = "https://github.com/TaiToTo/omnisurg-4d-scene-graph"
 
-# The install provides four packages: the libraries `surgical_core` and
-# `evalkit`, the stages in `pipeline`, and the models in `recon3d_wrapper`.
+# The install provides five packages: the libraries `surgical_core` and
+# `evalkit`, the stages in `pipeline`, and the models in `recon3d_wrapper` and
+# `sam3_wrapper`.
 # A stage runs as `python -m pipeline.<stage>`. The packages are installed
 # rather than run from the clone. A stage then runs the same from any
 # directory, and no script edits `sys.path` to find the other packages.
 [tool.setuptools.packages.find]
-include = ["surgical_core*", "evalkit*", "pipeline*", "recon3d_wrapper*"]
+include = ["surgical_core*", "evalkit*", "pipeline*", "recon3d_wrapper*", "sam3_wrapper*"]
 
 # The class tables are data the evaluator reads and hashes, so an install
 # without them would score nothing.

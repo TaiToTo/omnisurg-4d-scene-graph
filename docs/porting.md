@@ -724,11 +724,12 @@ Every command takes those paths as arguments.
     `rgb_edge`, and none of their records holds the setting of the tracker's
     input. They were made on 2026-09-17, after the workbench set
     `EDGE_MASK_RING` to True, and no script of the workbench sets it
-    otherwise, so the ring was most likely zeroed. Decide,
-    before the tracking stage is ported, where its record holds the setting
-    of the tracker's input, and, if the `t12_gtseed` conditions enter the
-    paper ("Conditions seeded from GT"), what their records are taken to
-    say.
+    otherwise, so the ring was most likely zeroed. The ported stage takes
+    the setting as an argument, `--keep-edge-ring`, and writes the
+    workbench's record, so its record holds the setting of the tracker's
+    input in the same cases only. Decide where the record holds that
+    setting, and, if the `t12_gtseed` conditions enter the paper
+    ("Conditions seeded from GT"), what their records are taken to say.
 11. **Depth made by two versions of the depth stage.** On the development
     machine's copy of the workbench, 7 of the 9 CholecSeg8k clips (VID01 and
     VID12) carry depth written by a branch of the depth stage that never
@@ -749,33 +750,7 @@ Every command takes those paths as arguments.
     whether the ported stage follows `main`, and the depth so made is made
     again with every condition on it, or the branch's setting becomes the
     stage's.
-12. **The seed frame chosen from GT.** With `--seed_auto`, the tracking stage
-    seeds on the frame nearest the window's centre among those whose GT masks
-    call at most `--seed_inst_thresh` of it instrument (0.005 by default), or,
-    when there is none, on the frame with the least. It reads each frame's
-    mask file through the workbench's class tables, by the file's presence
-    rather than the GT flag, and counts a frame with no mask as free of
-    instruments. It was added to keep an instrument in the seed frame from
-    splitting one surface into two tracks. With `--seed_inst_thresh 1.0`, the
-    operating point, every frame counts as free and the seed is the centre of
-    the strided frame list, frame N // 2 at stride 1, whatever the GT says;
-    the ported stage keeps that centre and nothing else of the choice ("Two
-    propagation rules, and no seed chosen from GT"). `seed_info.json` records
-    the seed frame but not the rule. What stays open is the conditions
-    seeded from GT masks (`--seed_source gt`). They seed on
-    `track_metrics.pick_seed_frame`, the frame nearest (N − 1)/2 among those
-    with a mask file, and take the seed's regions from
-    `track_metrics.gt_instances`, which drops a component under `MIN_AREA`.
-    That frame can lie several frames from the centre: on the nine 30-frame
-    CholecSeg8k clips of the development machine, counting the annotated
-    frames only, it is frame 10, 14 or 16 where the operating point seeds at
-    15, and it moves with the mask files present. Such a condition cannot
-    seed on the centre when the centre has no GT, so it holds neither rule.
-    Decide, before the tracking stage is ported, whether these conditions
-    stay, under which rule a score records them, and whether their seed keeps
-    the `MIN_AREA` cut that "No minimum object size, anywhere" removes
-    everywhere else.
-13. **Two orders of the world transform.** `cam_to_world` computes
+12. **Two orders of the world transform.** `cam_to_world` computes
     `(p - t) @ R`; the workbench's back-projection computes
     `(R.T @ (p.T - t)).T`. On the development machine the two give the same
     bits only where the BLAS runs the same kernel: under numpy 2.5.3 on
@@ -794,7 +769,7 @@ Every command takes those paths as arguments.
     finds a difference, the choice is between restoring the workbench's
     order and accepting a documented non-bit-equality — made then, not
     found later.
-14. **Whether the geometry path has to be fast.** The depth stage
+13. **Whether the geometry path has to be fast.** The depth stage
     back-projects each frame once when a clip is exported, with
     `backproject_depth`, `cam_to_world` and `world_to_gltf`, and writes the
     points to a GLB file. Nothing waits on it there, so its cost is a batch
@@ -819,7 +794,7 @@ Every command takes those paths as arguments.
     geometry or only reads what the export wrote. The functions are in
     `surgical_core/geometry/camera.py` and
     `surgical_core/geometry/project.py`.
-15. **Conditions seeded from GT.** A seed frame is scored like any other
+14. **Conditions seeded from GT.** A seed frame is scored like any other
     frame, because the paper's conditions are seeded from the pipeline's own
     masks. Which of the 38 conditions were seeded from GT instead, and
     whether such a condition is scored on its seed frame or enters a table
@@ -831,9 +806,11 @@ Every command takes those paths as arguments.
     where it does not tell, the command that made the condition does.
     The workshop's oracle row, GT instrument masks painted onto a
     condition's labels, is one; the viewer's `gt_tracked` track, one GT
-    frame carried by SAM 3, is another candidate. What the tracking stage
-    does with such a seed is "The seed frame chosen from GT".
-16. **Masks that are not GT under the GT's name.** The viewer's step writes
+    frame carried by SAM 3, is another candidate. The ported tracking stage
+    seeds from no GT: the conditions the workbench seeded from GT masks
+    (`--seed_source gt`: `t12_gtseed` on five inputs, and `t12_paste`) stay
+    in the workbench, and what they measured is a reference value.
+15. **Masks that are not GT under the GT's name.** The viewer's step writes
     SAM 3 masks into `seg_masks/` as `<i>_color_mask.png`, told apart from
     the annotation only by the frame manifest's `is_anchor` and
     `seg_provenance`, and the two VID25 clips still hold such masks from
@@ -843,24 +820,24 @@ Every command takes those paths as arguments.
     whether a mask that is not annotation moves out of `seg_masks/` or takes
     a name of its own, so that the distinction is in the file and not only in
     the frame manifest.
-17. **Which commit of Depth Anything 3 the `recon3d` extra pins.** The extra
+16. **Which commit of Depth Anything 3 the `recon3d` extra pins.** The extra
     names the repository at its head, so two installs can get two versions.
     The commit to pin is the one the workbench ran on its GPU machine. pip
     recorded it there, in the `direct_url.json` of that install. The extra
     is pinned once that record has been read.
-18. **A constraints file from the GPU machine.** The pipeline was measured
+17. **A constraints file from the GPU machine.** The pipeline was measured
     with the package versions on the workbench's GPU machine. A constraints
     file lists them, so that `pip install -e ".[recon3d]" -c <file>` gives
     another machine the same versions. Once that machine's environment has
     been read, the file is written from it and added beside `pyproject.toml`.
     Until then the extra alone says what a machine needs.
-19. **A clip with no usable depth in any frame.** The point-cloud stage
+18. **A clip with no usable depth in any frame.** The point-cloud stage
     skips a frame with no usable depth, as the workbench does, because the
     data can hold such a frame. A clip with no usable depth in any frame
     gets no cloud, no manifest entry and a count of 0, and the run exits 0.
     No real clip has done this; a bundle with no depth at all is more likely
     a broken bundle than data. Decide whether the stage refuses such a clip.
-20. **Cuts inside GT clips.** The workbench searched for scene changes only
+19. **Cuts inside GT clips.** The workbench searched for scene changes only
     inside GT clips, at frame pairs whose pixel difference was above 40,
     and judged 40 of those 125 pairs; the other 85 were not looked at, and
     pairs below 40 never were. Of the 315 clips,
@@ -883,3 +860,17 @@ Every command takes those paths as arguments.
     Splitting also makes the cut marks
     (`experiment/crop_necessity/marks/marks_20260913_174731.jsonl`) a file
     a measurement reads, so they would return to `atlas120k_meta/`.
+20. **The order of tied presence scores.** The tracking stage paints each
+    frame's objects in the order of their presence scores, through
+    `np.argsort`. On the prompted frame no object has a score, so all of
+    them tie. `np.argsort` keeps the tracker's order among ties only up to
+    16 objects, and a seed cut at 24 points per side often holds more.
+    Above 16, the order depends on numpy's build and the CPU: on the
+    development machine, under numpy 2.4.6 on arm64, 17 tied objects come
+    out as 0, 14, 13, 12 and so on. The workbench sorted the same way, so
+    the two stages give the same labels on one machine. Where the masks of
+    tied objects overlap, a label of the prompted frame can differ between
+    machines. The tracking stage's byte check on the workbench's GPU
+    machine therefore runs both stages under one numpy on one CPU. Decide
+    whether the stage keeps this sort, or sorts stably and lists the change
+    among the differences from the workbench that the byte check allows.
