@@ -393,3 +393,40 @@ The stage needs the `track` extra and the SAM ViT-H weights, as the
 tracking stage does.
 
 `python -m pipeline.per_frame --help` lists the options.
+
+## A condition on every clip of a population
+
+```bash
+python -m pipeline.condition_population track --input-dir /path/to/clips --clips atlas120k_meta/clips.txt \
+    --tracks-root /path/to/tracks --tag <tag> --rule both_ways_from_centre --sam-input normal_edge \
+    --track-base rgb --seed-edge-gain 1.0 --seed-no-smooth --sam-ckpt sam_vit_h_4b8939.pth [--gpus 0 1 2 3]
+python -m pipeline.condition_population per_frame --input-dir /path/to/clips --clips atlas120k_meta/clips.txt \
+    --tracks-root /path/to/tracks --tag <tag> --sam-input normal_edge --sam-ckpt sam_vit_h_4b8939.pth \
+    [--points-per-side 8] [--depth-source pi3] [--gpus 0 1 2 3]
+```
+
+The command runs one condition of the tracking stage or of the per-frame
+segmentation stage on every clip of a population file. The subcommand names
+the stage. It takes the stage's settings, under the stage's names and with
+its defaults, and gives every one of them to each process. Each clip runs as
+a process of its own, on CUDA only, and each GPU runs one clip at a time.
+Each process writes its output to `<tracks-root>/_logs/<labels>/<clip>.log`,
+after the command it ran. `<labels>` is the name of the directory the stage
+writes a clip's labels to: `track_<track-base>_<tag>` for the tracking stage
+and `track_rgb_<tag>` for the per-frame stage. A clip that already has that
+directory is skipped. A driver that is stopped, by `kill`, a closed terminal
+or Ctrl-C, stops its processes with it. The command refuses:
+
+- before any process starts: a GPU listed twice; SAM weights that are
+  missing, or not given where the stage cuts frames; a clip of the
+  population without the depth the stage reads under `--input-dir`; a clip
+  without its directory of seed labels under `--seed-labels`; a clip whose
+  labels exist and that the check after the run would refuse;
+- after a clip has run: a `seed_info.json` that records other settings than
+  the run gives. The run stops there, and so do the processes still running;
+- after the run: a clip without its `<labels>` directory; a clip whose
+  `seed_info.json` is missing, cannot be read, records other settings or
+  another clip, or, from the tracking stage, does not list every frame or
+  does not place the seed where the rule puts it; a clip with another number
+  of label maps than images;
+- a process that exited non-zero; the message names its log.

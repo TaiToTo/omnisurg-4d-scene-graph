@@ -286,6 +286,23 @@ Each stage is described in `docs/pipeline.md`.
   without a manifest, a manifest that does not list one frame per image,
   and an image whose size is not the rectangle's frame. It also refuses to
   replace a cropped clip that holds a later stage's output.
+- `ipcai2027_experiment/scripts/run_conditions.py`, with the `single` mode
+  of `run_track_conditions.py`, and the dispatcher of `run_per_frame_seg.py`
+  are `pipeline/condition_population.py`. On the paper's conditions, 29 on
+  ATLAS-120k's 315 clips and 14 on CholecSeg8k's 27, each clip's command
+  gives the stage the settings that the clip's command in the workbench's
+  logs gave, read with each script's defaults. The edge ring is in neither
+  command: the workbench set it in a module. On ATLAS-120k, the records of
+  the 29 conditions hold every key the driver checks, with the value it
+  expects, apart from `depth_source` in the tracked conditions and
+  `point_grids` in four per-frame ones, which the workbench's scripts did
+  not yet write. Their labels pass the driver's check on every clip. The
+  driver takes the clips from a population file, where the scripts took
+  every clip with GT. It skips a clip whose labels exist and whose
+  `seed_info.json` records the run's settings, where the scripts skipped a
+  clip by counting its labels. It refuses, before anything runs, labels of
+  other settings or with a frame missing, which the scripts ran again. It
+  passes `--device cuda`, where the scripts left the device at `auto`.
 
 ### Not yet extracted anywhere
 
@@ -327,9 +344,9 @@ below.
     runs the clips it is given, or every clip with depth, in order on one
     device, and refuses labels an earlier run left. Its dispatcher ran one
     clip per GPU, resumed a run by counting its labels, and took every clip
-    with GT unless given `--clips`. The dispatcher is ported in a branch of
-    its own, with `run_conditions.py`, which spreads a tracked condition
-    over the GPUs in the same way.
+    with GT unless given `--clips`. The dispatcher and `run_conditions.py`,
+    which spreads a tracked condition over the GPUs in the same way, are
+    `pipeline/condition_population.py` ("Pipeline stages already ported").
   - The input of one condition: `ipcai2027_experiment/scripts/make_t5_seeds.py`,
     which makes the seeds of the granularity result.
   - The paper's tables: `ipcai2027_experiment/atlas97/scripts/summary97.py`
@@ -525,7 +542,12 @@ The second list holds what the paper's numbers do not use.
     (`--gt-pad-factor`); and `--gt-stride`, `--keep-duplicates`,
     `--dry-run` and `--no-clean`;
   - `run_per_frame_seg.py`: `--point_grids_dir`, `--frames gt`, `--smooth`,
-    and `--seed_topk`, which every run passed as 0.
+    and `--seed_topk`, which every run passed as 0; and its dispatcher's
+    `--force`.
+  - `run_conditions.py` and `run_track_conditions.py`: the `gt_seed` and
+    `consensus` modes, `--force`, and the Hugging Face cache and offline
+    setting they put in each process's environment, which the environment
+    the driver runs in gives instead.
   - `run_atlas97_depth.sh`: its `setsid nohup` wrapping and timestamped
     log lines, which belong to the shell it was run from, and
     `--overwrite`, so that no clip of a population is replaced without
