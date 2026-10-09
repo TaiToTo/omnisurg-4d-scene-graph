@@ -75,12 +75,12 @@ say, in the form a session starting cold needs.
 
 ## Not now: blocked on a decision
 
-`track_metrics` and `kmerge` are decided: tools outside the evaluator
-("No measure over time carries a star", "`kmerge` is a tool").
-`track_metrics` waits on its GT track; `kmerge` waits on nothing and is
-listed under "Now". The tracking stage and the per-frame segmentation stage
-wait on decisions, and the stages after tracking wait on the tracking
-stage. The questions are named as `docs/porting.md` heads them.
+`track_metrics` is a tool outside the evaluator ("No measure over time
+carries a star"). It waits on a decision not yet made, its GT track: ported
+before the decision, it would be ported twice. The tracking stage and the
+per-frame segmentation stage wait on decisions too, and the stages after
+tracking wait on the tracking stage. The questions are named as
+`docs/porting.md` heads them.
 
 | piece | waits for |
 |---|---|
@@ -108,7 +108,6 @@ both sides at the operating point's `--seed_inst_thresh 1.0` instead.
 |---|---|---|---|
 | `evalkit/metric-guide` | a page that shows each metric on the test scenes | E `archive/metric-guide` | anywhere |
 | `docs/short-headers` | the module headers of `main` brought under the cap of `docs/review.md` | this repository | anywhere |
-| `tools/kmerge` | `kmerge` as a tool: a condition's predictions merged down to K, written as a condition of their own | E `extract/04-kmerge`, then W `ipcai2027_experiment/scripts/kmerge.py` | anywhere |
 
 The depth stages can start today too. Their port runs anywhere and their
 check needs W and G; they have a section of their own, at the end.
@@ -355,9 +354,8 @@ one module. `surgical_core.geometry.project.backproject` already
 back-projects, so one of the two definitions goes. They compute the same
 thing in a different order (`(p - t) @ R` against `(R.T @ (p.T - t)).T`),
 which can move the last bit, so the one that keeps the stages' bytes stays,
-and the other is rebuilt on it with `tests/test_warp_nearest_wins.py` still
-passing. `project_world_to_pixel` is not carried: no stage calls it, and
-`project_world_to_frame` projects already. The workbench's
+and the other is rebuilt on it. `project_world_to_pixel` is not carried: no
+stage calls it, and `project_world_to_frame` projects already. The workbench's
 `pointcloud.valid_depth_mask` is not carried either; this repository's
 replaces it. The viewer modules join `surgical_core.viewer`. The colormap
 needs `matplotlib`, which the `render` extra has; the GLB writer imports
