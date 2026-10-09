@@ -216,7 +216,7 @@ copy to read the RGB clips, and the ported copies read `evalkit.classes`.
 | `surgical_core/viewer/labels.py`, `palette.py` | `surgical_core/viewer/` | `extract/03-metrics` (#3) | English only. `label_table_of` and `cholec_gt_table` move to a new `gt_tables.py`, the one viewer module that imports `evalkit`; `labels.py` builds its table from plain data, so a video with no class table gets one too. The rest of `surgical_core/viewer` is below, under "Not yet extracted anywhere". |
 | `kmerge.py` | `ipcai2027_experiment/scripts/kmerge.py` | `extract/04-kmerge` (#5) | Ported as `evalkit/tools/kmerge.py`, outside `eval_code_sha` ("`kmerge` is a tool"). It merges a condition's predictions down to K and writes them as a condition of their own, which the evaluator scores and `compare_eval` compares, so it computes no metric; `kmerge.json` records the source and the sha256 of its predictions, so a source re-tracked after the merge is told apart. Its merge equals the workbench's `kmerge_sequence` on 590 maps. It differs from the workbench in what it reads: it merges every frame that has a prediction, where the workbench merged every fifth; and it refuses a frame with a pixel without valid depth, or with a region id below -1, as the evaluator does, where the workbench dropped the labels of such pixels and merged on. Not carried for now: its scoring with the pilot's instance metrics, the curve over K, the `matched` K, `--pairs`, and the merges by threshold and by geometry (`tmerge_sequence`, `kgeo_sequence`). |
 | `surgical_core/geometry/` | `depth_sam_tracking_experiment/geometry.py` | `extract/04-kmerge` (#5) | English only. Shared by the pipeline and the viewer; the toolkit imports none of it. The workbench read the ring setting from the module flag `EDGE_MASK_RING`. Here it is `mask_ring`, an argument of `sam_input_image` and of the edge functions under it, with no default. A stage passes it at every call and records the value it passed under `edge_ring_masked`, or `None` for an input that burns no edges (`uses_geom_edge`). |
-| `pose_metrics.py` | `ipcai2027_experiment/scripts/pose_metrics.py` | — | Ported as `evalkit/tools/pose_metrics.py`, to be hashed on its own ("The camera trajectory measures are hashed on their own"). It measures an estimated camera trajectory against StereoMIS's: `ate` after one similarity fit, `rpe` and `scale_consistency`; `ate_rel` decides the result. Its values equal the workbench's on 1200 random, planar and static trajectories. It refuses what the workbench let through: trajectories of unequal length, times out of order and values that are not finite. The rest of the StereoMIS result is listed under "Not yet extracted anywhere": `stereomis_io.py` (calibration, rectified frames, the measured offsets between video, ground truth and depth), `pose_controls.py` (the static camera, constant motion and stereo visual odometry the result is read against), and `summarize_20.py` and `run_20.sh` (the run and its table). `d4d_pose.py`, the D4D check of the same result, is listed there with D4D. None of StereoMIS's data is on the development machine, so they are checked on the workbench's GPU machine when they move. |
+| `pose_metrics.py` | `ipcai2027_experiment/scripts/pose_metrics.py` | — | Ported as `evalkit/tools/pose_metrics.py`, to be hashed on its own ("The camera trajectory measures are hashed on their own"). It measures an estimated camera trajectory against StereoMIS's: `ate` after one similarity fit, `rpe` and `scale_consistency`; `ate_rel` decides the result. Its values equal the workbench's on 1200 random, planar and static trajectories. It refuses what the workbench let through: trajectories of unequal length, times out of order and values that are not finite. The reader of `stereomis_io.py` (calibration, rectified frames, the measured offsets between video, ground truth and depth, and the clips) is `surgical_core/stereomis.py`. The rest of the StereoMIS result is listed under "Not yet extracted anywhere": the clip writer of `stereomis_io.py`, `pose_controls.py` (the static camera, constant motion and stereo visual odometry the result is read against), and `summarize_20.py` and `run_20.sh` (the run and its table). `d4d_pose.py`, the D4D check of the same result, is listed there with D4D. None of StereoMIS's data is on the development machine, so they are checked on the workbench's GPU machine when they move. |
 | `condition_inventory.py` | `ipcai2027_experiment/scripts/condition_inventory.py` | `extract/05-inventory` (#4) | It reads `eval_code_sha`, `eval_code_tag` and `eval_version` from score JSONs. "One ruler" is now what `docs/evaluation.md` calls comparable: `eval_code_sha`, dataset, class set, view and mode all equal, and one propagation rule. The provenance fields now include `bidir`, whether the tracker ran both ways. |
 | `check_env.py` | `ipcai2027_experiment/atlas97/scripts/check_env97.py` | `extract/05-inventory` (#4) | Not carried (decision 4). |
 | `reeval_diff.py` | — (written in the earlier repository) | `extract/06-rescore` (#6) | Ported as `evalkit/tools/pilot_check.py`, the check against the pilot evaluator, run in the workbench. The earlier repository's version insists the sha equals the pilot's and diffs `eval_code_sha` with everything else; `pilot_check` works the other way round: the shas differ by construction, only the keys the two evaluators share are compared, and those must be equal. |
@@ -346,8 +346,10 @@ below.
     makes no table: it checks each condition's `seed_info.json` against the
     settings the condition was meant to run with.
   - The camera trajectory on StereoMIS, from `ipcai2027_experiment/scripts/`:
-    `stereomis_io.py`, `run_20.sh`, `pose_metrics.py` and `pose_controls.py`.
-    `run_20.sh` runs the DA3 stage and, through
+    the clip writer of `stereomis_io.py` (`--prepare`, with `--masked` for
+    the clips whose instruments are painted black), `run_20.sh` and
+    `pose_controls.py`. The reader of `stereomis_io.py` is
+    `surgical_core/stereomis.py`. `run_20.sh` runs the DA3 stage and, through
     `pi3_wrapper/scripts/queue_pi3_clips.sh`, the Pi3X stage with
     `--max-points 60000`. That flag thins the point cloud written to the
     GLB, and with it `glb_centroid`, `n_vertices` and `median_vertices`; the
@@ -530,6 +532,13 @@ The second list holds what the paper's numbers do not use.
     log lines, which belong to the shell it was run from, and
     `--overwrite`, so that no clip of a population is replaced without
     someone looking at it.
+  - `stereomis_io.py`: the audit that measured the offsets between video,
+    ground truth and depth (`--audit`, `_audit_depth`, `_audit_gt` and
+    their residuals), whose results the reader keeps as tables; the depth
+    maps (`depth_frames`, `load_depth`), which only the audit and
+    `pose_controls.py --check-sgbm` read; frames at full resolution
+    (`half=False`); and `extract_left`, `read_frame_set`, `population`,
+    `depth_summary` and `backproject`, which no run of the result calls.
 - **`scripts/extract_cholec_frames.py`**, which no condition ran.
 
 What stays behind is listed in `repo_migration_plan.md`, in the section on
@@ -909,3 +918,37 @@ Every command takes those paths as arguments.
     machine therefore runs both stages under one numpy on one CPU. Decide
     whether the stage keeps this sort, or sorts stably and lists the change
     among the differences from the workbench that the byte check allows.
+21. **The times of a StereoMIS clip.** `surgical_core.stereomis.clips`
+    gives the frame at position n the time n divided by the video's
+    `r_frame_rate`. P1's video runs at a constant 60 frames a second. The
+    nine P2 videos declare 59.94 and do not hold it. On the eight that
+    hold clips of the population, the videos' own timestamps put a clip's
+    frames 0.217 s apart at the median, from 0.04 to 0.47 s, where the
+    times say 0.2 s, and a clip lasts 9 to 12 % longer than its 22.4 s.
+    `ate_rel` does not read the times: a position is a frame, and a frame
+    has its ground truth row. Two things read them. `rpe` pairs frames
+    1.0 s apart by the times, 1.10 s apart at the median by the
+    timestamps, and up to 1.37 s. The constant-motion control spaces its
+    positions by the times. Decide, before the StereoMIS result is
+    measured, whether the times come from the timestamps. Until then they
+    are the workbench's.
+22. **P1's offsets.** `surgical_core.stereomis` keeps the workbench's
+    tables. P1's mask and depth files are numbered by their frames'
+    positions (`DEPTH_FILE_OFFSET` 0), and every sequence's ground truth
+    row is its frame's position less 4 (`GT_ROW_OFFSET`). The workbench
+    measured P1's file offset against the frames P1 ships (`video_frames/`),
+    not against the video, and took the shipped frame N to be position N.
+    It is position N − 1. On 12 frames, in both views, the shipped frame N
+    differs from position N − 1 by 1.5 to 2.2 grey levels on average, and
+    from position N by 1.9 to 6.8. The workbench's residual, run on frames
+    decoded from P1's video as it is run on P2's, is least at −1 (10.97,
+    against 11.65 at 0). So P1's depth files are most likely numbered as
+    P2's are, one ahead of the position. P1's masks start at the shipped
+    frames' first number, 241, so they are most likely numbered so too.
+    With −1, P1's best ground truth offset is −5 rather than −6. The
+    workbench chose the common offset as the one whose largest loss over
+    the seven sequences it can read is least; with P1 at −1 that rule
+    picks −3 (6.25 %) rather than −4 (6.50 %). A change to the first table
+    changes the masks of P1's clips; a change to the second changes the
+    ground truth rows of every clip, and so every `ate_rel`. Decide before
+    the StereoMIS result is measured.
