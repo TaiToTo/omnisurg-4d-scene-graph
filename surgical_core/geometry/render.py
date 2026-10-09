@@ -61,7 +61,7 @@ def uses_geom_edge(mode):
     return mode in ("normal_edge", "rgb_edge")
 
 
-def sam_input_image(mode, depth, K, gray01, rgb, edge_gain=0.85, smooth=True, mask_ring=True):
+def sam_input_image(mode, depth, K, gray01, rgb, edge_gain=0.85, smooth=True, *, mask_ring):
     """Return the 3-channel image the segmenter is prompted with, per input mode.
 
     Args:
@@ -77,13 +77,19 @@ def sam_input_image(mode, depth, K, gray01, rgb, edge_gain=0.85, smooth=True, ma
         smooth: bilateral-filter the normal image in `normal_edge`.
         mask_ring: zero the ring of the burnt-in edges along the image border
             and around invalid depth (`geom_edge_map`), in the `_edge` modes.
+            Every mode requires it, True or False.
 
     Returns:
         (H, W, 3) uint8.
 
     Raises:
-        ValueError: `mode` is not one of `SAM_INPUT_MODES`.
+        ValueError: `mode` is not one of `SAM_INPUT_MODES`, or `mask_ring` is
+            not a bool.
     """
+    # Checked in every mode, not only in the two that burn edges: a stage
+    # records the value, and a mode without edges would let a wrong one pass.
+    if not isinstance(mask_ring, bool):
+        raise ValueError(f"mask_ring is True or False, not {mask_ring!r}")
     if mode == "rgb":
         return rgb
     if mode == "depth":
