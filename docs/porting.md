@@ -524,8 +524,8 @@ while the evaluator is built and reviewed is worked out in `docs/workstreams.md`
    - Pi3X's `runtime_sec`, per `repo_migration_determinism.md`.
    - The 14 CholecSeg8k clips whose gap frames the workbench's extractor
      placed 1 to 3 s late ("CholecSeg8k clips whose frames run out of
-     order"), which the ported extractor converts or refuses, and which are
-     then re-extracted and re-run.
+     order"), which the ported extractor converts, and which are then
+     re-extracted and re-run.
    - In the ATLAS-120k extraction, a frame that the stage shrinks. OpenCV's
      area resize rounds differently from one build to another: between the
      development machine and the GPU machine's clips, about one pixel in ten
@@ -652,20 +652,25 @@ Every command takes those paths as arguments.
    (`scripts/extract_cholec_track.py`) resolves the true 25 fps frame for the
    frames that carry a mask and leaves the gap frames it decodes from the
    video at the unconverted number, 1 to 3 s later in the video than their
-   place in the clip; the recorded times are right, the order of the images
-   is wrong, and one image can appear twice. 14 of the 27 pilot clips are
+   place in the clip. The manifest's times follow the clip; the images do
+   not, and one image can appear twice. 14 of the 27 pilot clips are
    affected, 11 visibly. Removing them changes the verdict of several F1 and
    IDF1 comparisons (power, not sign) and none of the `boundary_F` or
-   `hold_mean` ones. When the extractor is ported in step 5 it converts the
-   gap frames or refuses the video, the 14 clips are re-extracted and re-run,
-   and that is a deliberate exception to step 5's byte-for-byte rule.
+   `hold_mean` ones. The ported extractor (`pipeline/extract_cholecseg8k.py`)
+   converts the gap frames: it interpolates their native frames between the
+   clip's annotated frames, and carries the rate past them. Decided: the 14
+   clips are re-extracted with it and re-run on the workbench's GPU machine
+   for the paper's numbers, a deliberate exception to step 5's byte-for-byte
+   rule. The ported extractor writes the other 13 clips as the workbench's
+   did, byte for byte.
    The evaluator refuses two of the nine clips on this machine. In
    `VID25_s15_162_crop` native frame 387 appears twice, at one timestamp.
    In it and in `VID25_s15_402_crop`, the gap frames hold masks the
    viewer's step wrote before the clips were extracted again, 504 × 504
    where the GT is 457 × 456, on frames the manifest says have none: 8 and
    19 frames. The pilot's scores of these clips count the annotated frames
-   only, so its data root did not hold those masks.
+   only, so its data root did not hold those masks. The question closes
+   when the re-run is scored.
 8. **The evaluator map against `evalkit/frame.py`.** Two things to carry
    into the next redraw of `docs/figures/evaluator_map.png`, neither wrong
    today. The map gives step 2, one frame in one view, no module, and
