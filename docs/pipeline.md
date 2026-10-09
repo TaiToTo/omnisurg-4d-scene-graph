@@ -16,7 +16,8 @@ A clip is a directory with these files:
 - `seg_masks/`: the ground-truth masks of the frames that have one. An
   ATLAS-120k mask holds the class id of each pixel, as `NNNNNN_class.png`.
   A CholecSeg8k mask holds the class colour of each pixel, as
-  `NNNNNN_color_mask.png`.
+  `NNNNNN_color_mask.png`. A LapEx mask holds the grey level of each
+  pixel's class, as `NNNNNN_class.png`.
 - `frame_manifest.json`: the clip's record, written by the stage that cut
   the clip from its dataset. Its `dataset` key names the dataset; a
   manifest without one belongs to CholecSeg8k.
@@ -192,6 +193,60 @@ clip and an earlier cropped clip as they were.
 
 `python -m pipeline.crop_cholecseg8k --help` lists the options.
 
+## The LapEx extraction stage
+
+```bash
+python -m pipeline.extract_lapex --lapex-root /path/to/LapEx_dataset --out /path/to/clips \
+    [--cases 01 02 ...] [--overwrite]
+```
+
+The stage extracts every annotated frame of LapEx as a clip of its own.
+LapEx annotates single frames of each case's video, seconds apart, so each
+clip holds one frame. `--lapex-root` holds the release's `metadata/` and one
+directory per case, `01` to `30`. A case holds its video's frames in
+`frames/` and its masks in `seg/`, each named by its time in milliseconds.
+The frame of the mask at `<ms>` becomes the clip `<case>__gt_<ms>`, which
+holds:
+
+- `input_images/000000.png`: the frame.
+- `seg_masks/000000_class.png`: the mask's grey levels, each a class of the
+  release's `metadata/segmented_entity.csv`. Interstitial space, level 0,
+  is written as 11, a level no class uses. LapEx labels every pixel, and
+  the workbench's evaluators read id 0 as background.
+- `frame_manifest.json`: the frame's time and video frame, the class table,
+  the moved level, and the levels of the instruments and of the gauze.
+
+A run in which every case it was given is extracted writes
+`extraction_summary.json`, which counts the clips of each case. The frames
+are not cropped: they keep the black surround of the endoscope's view, so
+the depth stage refuses the clips.
+
+The stage refuses:
+
+- a release whose `metadata/segmented_entity.csv` is not the class table
+  the stage was written for, or lists a level twice;
+- a case named on the command line that has no directory; this stops the
+  run before any case is extracted;
+- a case without a mask;
+- a mask whose name is not `<ms>_seg.jpg`, or whose time is not a whole
+  frame at 25 fps;
+- a mask without the frame of its time;
+- a mask or a frame that cannot be read;
+- a mask whose size is not its frame's;
+- a mask with a level the class table lacks. The masks are JPEGs, so a
+  level the compression shifted is refused too;
+- a clip that already exists, unless `--overwrite` is given;
+- a clip that holds anything a later stage wrote, such as `depth_raw/`,
+  even with `--overwrite`. Such a clip is removed by hand.
+
+A refused case is left as it was: the stage writes and removes nothing until
+every frame of the case has been read and checked. A clip is written under a
+temporary name and moved into place when it is complete. When one case is
+refused, the others are still extracted, the failures are listed at the end,
+and no summary is written.
+
+`python -m pipeline.extract_lapex --help` lists the options.
+
 ## The depth stage
 
 ```bash
@@ -215,7 +270,8 @@ longest side (`--process-res`). It writes into the clip:
 
 The stage refuses:
 
-- a CholecSeg8k clip without `crop_info.json`;
+- a clip without `crop_info.json`, unless it is an ATLAS-120k clip: a
+  CholecSeg8k clip before the crop stage, or a LapEx clip;
 - a clip that already holds the stage's output. `--overwrite` replaces the
   stage's own files and leaves every other file.
 
