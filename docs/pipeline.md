@@ -192,6 +192,40 @@ clip and an earlier cropped clip as they were.
 
 `python -m pipeline.crop_cholecseg8k --help` lists the options.
 
+## The StereoMIS extraction stage
+
+```bash
+python -m pipeline.extract_stereomis --root /path/to/StereoMIS --depth-root /path/to/StereoMIS_depth \
+    --out /path/to/clips [--sequences P1 P2_0 ...] [--mask-instruments]
+```
+
+The stage writes the clips the camera trajectory result is measured on.
+`--root` holds one directory per sequence, as StereoMIS ships it.
+`--depth-root` holds the depth export's `<sequence>/stats.npy`, from which
+the stage tells the clips with no surface in view. The clips are those
+`surgical_core.stereomis.clips` marks usable: 112 frames 0.2 s apart, cut
+from each sequence without overlap. Into each clip the stage writes:
+
+- `input_images/`: the left view of each frame, rectified and at half
+  resolution, 640x512, numbered from 0.
+- `frame_manifest.json`: for each image its position in the video
+  (`native_frame`), its ground truth row (`gt_row`) and its time, and for
+  the clip its sequence, stride, stratum and the RMS radius of its true
+  trajectory (`span_mm`).
+
+With `--mask-instruments`, each image is painted black outside the tissue
+mask nearest its frame, and `instruments_masked` counts the images
+painted. A frame with no mask within two frames keeps its image. The
+paper's main condition reads the clips without it.
+
+The stage decodes each sequence's frames in one pass of FFmpeg. It writes
+a clip as `<clip>.partial` and renames it when its manifest is written.
+It refuses a clip whose directory, or `<clip>.partial`, exists already,
+for every sequence named, before anything is decoded. A clip is not
+replaced: the depth stages write into it.
+
+The stage needs the `stereomis` extra and FFmpeg.
+
 ## The depth stage
 
 ```bash
