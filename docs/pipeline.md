@@ -192,6 +192,27 @@ clip and an earlier cropped clip as they were.
 
 `python -m pipeline.crop_cholecseg8k --help` lists the options.
 
+## The D4D population
+
+```bash
+python -m pipeline.select_d4d_population --census /path/to/census.json \
+    --clips d4d_meta/census_clips.txt --out d4d_meta
+```
+
+The D4D measurements score sides, not clips. `d4d_meta/README.md` defines a
+side, the census and the rule. The step reads the census and selects the
+sides the measurements score, by a rule that reads no score. It writes
+`population.json`, which lists the kept sides and counts the sides left out
+for each reason, and `clips.txt`, which lists the clips with a kept side.
+
+The step refuses, before it writes anything:
+
+- a census that lacks a clip of `--clips`, such as a census cut short;
+- a census that holds a clip `--clips` does not hold, or holds a clip twice;
+- a side that carries an `error`, which the census wrote when it failed to
+  measure the side;
+- a side with a point cloud and no `active`.
+
 ## The depth stage
 
 ```bash
