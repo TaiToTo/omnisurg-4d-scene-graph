@@ -56,11 +56,12 @@ recon3d = [
     "pi3 @ git+https://github.com/yyfz/Pi3.git",
     "huggingface_hub",
 ]
-# The tracking stage needs the `render` extra, SAM 3's video tracker from
-# transformers, and SAM's automatic mask generator, which cuts the seed
-# frame. torch, transformers and segment-anything are imported only when the
-# stage builds its models, so the stage's tests run without them. The lower
-# bound of transformers is the version the stage was compared with the
+# The tracking and per-frame segmentation stages need the `render` extra and
+# SAM's automatic mask generator, which cuts frames into regions. The tracking
+# stage also needs SAM 3's video tracker from transformers. torch,
+# transformers and segment-anything are imported only when a stage builds its
+# models, so the stages' tests run without them. The lower bound of
+# transformers is the version the tracking stage was compared with the
 # workbench on; how the session stores the presence logits may differ below it.
 track = [
     "omnisurg-4d-scene-graph[render]",

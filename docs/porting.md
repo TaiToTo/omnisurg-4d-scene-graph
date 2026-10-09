@@ -322,7 +322,14 @@ below.
     `get_sam`, five lines that paint the mask generator's masks into one
     map, is written again in the stage from what it does; the mask generator
     comes from the `segment-anything` package. `loaders.py` returns a black
-    image for a missing frame; the port raises.
+    image for a missing frame; the port raises. The worker of
+    `run_per_frame_seg.py` becomes the per-frame segmentation stage, which
+    runs the clips it is given, or every clip with depth, in order on one
+    device, and refuses labels an earlier run left. Its dispatcher ran one
+    clip per GPU, resumed a run by counting its labels, and took every clip
+    with GT unless given `--clips`. The dispatcher is ported in a branch of
+    its own, with `run_conditions.py`, which spreads a tracked condition
+    over the GPUs in the same way.
   - The input of one condition: `ipcai2027_experiment/scripts/make_t5_seeds.py`,
     which makes the seeds of the granularity result.
   - The paper's tables: `ipcai2027_experiment/atlas97/scripts/summary97.py`
@@ -517,7 +524,8 @@ The second list holds what the paper's numbers do not use.
     release's JPEGs or for one padded past its annotation
     (`--gt-pad-factor`); and `--gt-stride`, `--keep-duplicates`,
     `--dry-run` and `--no-clean`;
-  - `run_per_frame_seg.py`: `--point_grids_dir`, `--frames gt`, `--smooth`.
+  - `run_per_frame_seg.py`: `--point_grids_dir`, `--frames gt`, `--smooth`,
+    and `--seed_topk`, which every run passed as 0.
   - `run_atlas97_depth.sh`: its `setsid nohup` wrapping and timestamped
     log lines, which belong to the shell it was run from, and
     `--overwrite`, so that no clip of a population is replaced without

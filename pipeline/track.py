@@ -55,13 +55,17 @@ class SeedSegmenter:
 
     Args:
         checkpoint: the SAM ViT-H weights, `sam_vit_h_4b8939.pth`.
-        device: "cpu" or "cuda", the tracker's device.
+        device: "auto", "cpu" or "cuda". "auto" takes CUDA when there is one.
     """
 
-    def __init__(self, checkpoint: str, device: str) -> None:
-        # Imported here: the `track` extra provides it, and the stage's other parts run without it.
+    def __init__(self, checkpoint: str, device: str = "auto") -> None:
+        # Imported here: the `track` extra provides them, and the stage's other parts run without them.
+        import torch
         from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
 
+        if device == "auto":
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = device
         self._generator = SamAutomaticMaskGenerator
         self._sam = sam_model_registry[SEED_SAM_MODEL_TYPE](checkpoint=checkpoint).to(device)
 
