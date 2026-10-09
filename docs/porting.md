@@ -191,7 +191,7 @@ copy to read the RGB clips, and the ported copies read `evalkit.classes`.
 | `surgical_core/clip_time.py` | `surgical_core/clip_time.py` | `extract/03-metrics` (#3) | English only. |
 | `surgical_core/viewer/labels.py`, `palette.py` | `surgical_core/viewer/` | `extract/03-metrics` (#3) | English only. `label_table_of` and `cholec_gt_table` move to a new `gt_tables.py`, the one viewer module that imports `evalkit`; `labels.py` builds its table from plain data, so a video with no class table gets one too. The rest of `surgical_core/viewer` is below, under "Not yet extracted anywhere". |
 | `kmerge.py` | `ipcai2027_experiment/scripts/kmerge.py` | `extract/04-kmerge` (#5) | Ported as `evalkit/tools/kmerge.py`, outside `eval_code_sha` ("`kmerge` is a tool"). It merges a condition's predictions down to K and writes them as a condition of their own, which the evaluator scores and `compare_eval` compares, so it computes no metric; `kmerge.json` records the source and the sha256 of its predictions, so a source re-tracked after the merge is told apart. Its merge equals the workbench's `kmerge_sequence` on 590 maps. It differs from the workbench in what it reads: it merges every frame that has a prediction, where the workbench merged every fifth; and it refuses a frame with a pixel without valid depth, or with a region id below -1, as the evaluator does, where the workbench dropped the labels of such pixels and merged on. Not carried for now: its scoring with the pilot's instance metrics, the curve over K, the `matched` K, `--pairs`, and the merges by threshold and by geometry (`tmerge_sequence`, `kgeo_sequence`). |
-| `surgical_core/geometry/` | `depth_sam_tracking_experiment/geometry.py` | `extract/04-kmerge` (#5) | English only. Shared by the pipeline and the toolkit. |
+| `surgical_core/geometry/` | `depth_sam_tracking_experiment/geometry.py` | `extract/04-kmerge` (#5) | English only. Shared by the pipeline and the viewer; the toolkit imports none of it. The workbench read the ring setting from the module flag `EDGE_MASK_RING`. Here it is `mask_ring`, an argument of `sam_input_image` and of the edge functions under it, with no default. A stage passes it at every call and records the value it passed under `edge_ring_masked`, or `None` for an input that burns no edges (`uses_geom_edge`). |
 | `pose_metrics.py` | `ipcai2027_experiment/scripts/pose_metrics.py` | — | Ported as `evalkit/tools/pose_metrics.py`, to be hashed on its own ("The camera trajectory measures are hashed on their own"). It measures an estimated camera trajectory against StereoMIS's: `ate` after one similarity fit, `rpe` and `scale_consistency`; `ate_rel` decides the result. Its values equal the workbench's on 1200 random, planar and static trajectories. It refuses what the workbench let through: trajectories of unequal length, times out of order and values that are not finite. The rest of the StereoMIS result is listed under "Not yet extracted anywhere": `stereomis_io.py` (calibration, rectified frames, the measured offsets between video, ground truth and depth), `pose_controls.py` (the static camera, constant motion and stereo visual odometry the result is read against), and `summarize_20.py` and `run_20.sh` (the run and its table). `d4d_pose.py`, the D4D check of the same result, is listed there with D4D. None of StereoMIS's data is on the development machine, so they are checked on the workbench's GPU machine when they move. |
 | `condition_inventory.py` | `ipcai2027_experiment/scripts/condition_inventory.py` | `extract/05-inventory` (#4) | It reads `eval_code_sha`, `eval_code_tag` and `eval_version` from score JSONs. "One ruler" is now what `docs/evaluation.md` calls comparable: `eval_code_sha`, dataset, class set, view and mode all equal, and one propagation rule. The provenance fields now include `bidir`, whether the tracker ran both ways. |
 | `check_env.py` | `ipcai2027_experiment/atlas97/scripts/check_env97.py` | `extract/05-inventory` (#4) | Not carried (decision 4). |
@@ -324,6 +324,9 @@ below.
       `d4d_seed.py` copies the tracking stage's seed step instead of
       importing it, and records the sha256 of `track_sam3.py`'s source,
       which no longer matches once the tracking stage is ported.
+      `d4d_seed.py` refuses a stored seed whose `edge_ring_masked` differs
+      from `EDGE_MASK_RING`, unless `--allow_stale_seed` is given; ported,
+      it compares the stored value with the `mask_ring` it passes.
     - `d4d_predicate.py` scores the front/behind relation, and
       `d4d_verdict.py` compares it with the area floor.
     - `d4d_pose.py` scores the trajectory with `pose_metrics` and
@@ -689,15 +692,27 @@ Every command takes those paths as arguments.
     above two, and where, is a decision about the paper's populations, not
     the code's; until it is made, a subset's interval is read for its sign
     only, as `--drop-video` says.
-10. **The edge ring as a process-wide flag.**
-    `surgical_core.geometry.normals.EDGE_MASK_RING` decides whether the
-    contour around the image border and around invalid depth is zeroed in the
-    edge map the segmenter is prompted with. It is a module global, set for a
-    whole process: the tracking stage, `geom_blend.py` (and through it the
-    per-frame segmentation stage) and `d4d_seed.py` read it, and each writes
-    it into its own provenance record. Whether a setting passed per run, and
-    recorded with the output in one form, replaces the flag is decided before
-    either stage is ported.
+10. **The edge ring of the tracker's input.** The tracking stage builds two
+    inputs with `sam_input_image`: the seed frame's, in the `--sam_input`
+    mode, and the tracker's, in the `--track_base` mode, which may be
+    `normal_edge` or `rgb_edge`. Both inputs are made with one ring setting.
+    The stage's `seed_info.json` records the setting once, as
+    `seed_input.edge_ring_masked`, and that field describes the seed's input
+    only. When the seed came from GT or from outside the stage, `seed_input`
+    or the field is `None`. When the `--sam_input` mode burns no edges, the
+    field is `None`. In these cases the record holds no setting, even when
+    the tracker's input burns edges. In the workbench's
+    `ipcai2027_experiment/out/track12/` and
+    `ipcai2027_experiment/atlas97/out/track12/`, 750 label directories of
+    `t12_gtseed`, one per clip and input, were tracked on `normal_edge` or
+    `rgb_edge`, and none of their records holds the setting of the tracker's
+    input. They were made on 2026-09-17, after the workbench set
+    `EDGE_MASK_RING` to True, and no script of the workbench sets it
+    otherwise, so the ring was most likely zeroed. Decide,
+    before the tracking stage is ported, where its record holds the setting
+    of the tracker's input, and, if the `t12_gtseed` conditions enter the
+    paper ("Conditions seeded from GT"), what their records are taken to
+    say.
 11. **Depth made by two versions of the depth stage.** On the development
     machine's copy of the workbench, 7 of the 9 CholecSeg8k clips (VID01 and
     VID12) carry depth written by a branch of the depth stage that never
