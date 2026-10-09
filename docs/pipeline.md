@@ -99,6 +99,31 @@ The stage refuses:
 
 `python -m pipeline.depth --help` lists the options.
 
+### Every clip of a population
+
+```bash
+python -m pipeline.depth_population --input-dir /path/to/clips --clips atlas120k_meta/clips.txt [--gpus 0 1 2 3]
+```
+
+The command runs the depth stage on every clip of a population file, one
+process per GPU, on CUDA only and without the point clouds. A clip whose
+manifest already holds `depth_info` is skipped, so a stopped run continues
+where it was. The stage writes the bundle before `depth_info`, so a clip
+stopped between the two is run again, and the stage refuses it until its
+files are removed or `pipeline.depth --overwrite` is run on it. Each
+process writes its output to `<input-dir>/_logs/depth_gpu<N>.log`, and a
+driver that is stopped stops its processes with it. The command refuses:
+
+- a clip of the population that is not under `--input-dir`, or a GPU
+  listed twice, before any process starts;
+- a run after which a clip of the population lacks `depth_info` or its
+  bundle, or whose bundle cannot be read, holds other keys than the
+  stage writes (a `ray_map` marks another version of the stage), or has
+  another number of depth maps than the clip has images;
+- a population whose `depth_info` records more than one model or
+  resolution;
+- a process that exited non-zero; the message names its log.
+
 ### Without a CUDA GPU
 
 The stage runs on a CPU, slowly: four frames take about a minute and 6 GB
