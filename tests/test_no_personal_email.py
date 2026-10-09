@@ -1,23 +1,15 @@
-"""No personal email address reaches the repository.
+"""Check that no personal email address reaches the repository.
 
-Names and affiliations may appear: they are printed on the paper. Email
-addresses may not. Once pushed to a public repository they are indexed and
-harvested, and taking one out afterwards means rewriting history.
+Names and affiliations may appear, since the paper prints them. An email
+address, once pushed to a public repository, is harvested, and removing it
+means rewriting history. The check reads:
 
-An address gets in by three routes, and this checks all of them:
+- every tracked file;
+- the author, committer and message of every commit HEAD or a tag reaches;
+- the tagger and message of every annotated tag.
 
-- **git metadata.** The author and committer of every commit, and the tagger
-  of every annotated tag. A development machine's global git config usually
-  holds a personal address, and a commit GitHub makes itself (a merge or an
-  edit in the web UI) carries whichever address the account exposes.
-- **commit messages.** Trailers such as `Co-authored-by:`, which GitHub fills
-  in from the co-author's account when a pull request is squashed.
-- **tracked file contents.**
-
-The history checked is HEAD's, plus every tag. In CI on a pull request, HEAD
-is the pull request merged into main, so every commit is checked before it
-reaches main. The one exception is the merge commit GitHub makes when the pull
-request is merged; the run on the push to main checks that one.
+In CI on a pull request, HEAD is the pull request merged into main. The run
+on the push to main checks the merge commit GitHub makes on merging.
 """
 
 import os
@@ -129,6 +121,13 @@ def mask(addr):
 
 def history(root=REPO):
     """List every place in the git history where an address can sit.
+
+    An address is written into the history from three sources:
+
+    - the git config of the machine that made a commit;
+    - a commit GitHub makes itself;
+    - a trailer such as `Co-authored-by:`, which GitHub fills in when it
+      squashes a pull request.
 
     Args:
         root: The repository.

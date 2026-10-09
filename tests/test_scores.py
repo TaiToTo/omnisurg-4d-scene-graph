@@ -26,6 +26,8 @@ from evalkit.tools.scores import (
 
 CLIPS = ["VID01_s15_80_crop", "VID02_s15_80_crop"]
 SHA = "a" * 64
+# Two propagation rules, by the names the paper's conditions use.
+BOTH_WAYS, FORWARD = "both_ways_from_centre", "forward_from_first"
 
 
 def pilot_json(sha=PILOT_EVAL_CODE_SHA, clips=CLIPS, dataset="cholec", version=2):
@@ -37,10 +39,10 @@ def pilot_json(sha=PILOT_EVAL_CODE_SHA, clips=CLIPS, dataset="cholec", version=2
 
 
 def evaluator_json(sha=SHA, clips=CLIPS, dataset="cholecseg8k", pilot=False, class_set="original",
-                   views=("all", "tissue", "geometric")):
+                   views=("all", "tissue", "geometric"), propagation=BOTH_WAYS):
     return dict(
         eval_code_sha=sha, dataset=dataset, pilot=pilot, class_set=class_set, views=list(views),
-        clips=list(clips),
+        clips=list(clips), propagation=propagation,
         input_shas={c: {"gt_masks": "g" * 64, "depth": "d" * 64, "predictions": f"p{c}"} for c in clips},
         versions={"python": "3.12.0", "numpy": "2.0.0"},
         per_clip=[dict(clip=c, **{metric_key("F1_50", v): 0.5 for v in views}) for c in clips],
@@ -89,7 +91,62 @@ def test_identical_rulers_and_populations_pass():
     chk = check_comparable(pilot_json(), pilot_json())
     assert chk == dict(clips=sorted(CLIPS), population="identical", eval_code=PILOT_EVAL_CODE_SHA[:16])
     chk = check_comparable(evaluator_json(), evaluator_json())
-    assert chk == dict(clips=sorted(CLIPS), population="identical", eval_code=SHA[:16])
+    assert chk == dict(clips=sorted(CLIPS), population="identical", eval_code=SHA[:16], propagation=BOTH_WAYS)
+
+
+# ---------------------------------------------------------------- the propagation rule
+
+
+def test_two_conditions_propagated_under_different_rules_are_refused():
+    with pytest.raises(ValueError, match="different rules") as e:
+        check_comparable(evaluator_json(), evaluator_json(propagation=FORWARD))
+    assert BOTH_WAYS in str(e.value) and FORWARD in str(e.value)
+
+
+def test_a_per_frame_condition_is_comparable_with_either_rule():
+    for rule in (BOTH_WAYS, FORWARD):
+        chk = check_comparable(evaluator_json(propagation=rule), evaluator_json(propagation=scores.PER_FRAME))
+        assert chk["propagation"] == rule
+        chk = check_comparable(evaluator_json(propagation=scores.PER_FRAME), evaluator_json(propagation=rule))
+        assert chk["propagation"] == rule
+    both = check_comparable(evaluator_json(propagation=scores.PER_FRAME), evaluator_json(propagation=scores.PER_FRAME))
+    assert both["propagation"] == scores.PER_FRAME
+
+
+def test_a_rule_that_is_not_a_name_is_refused():
+    for rule in (None, "", 1):
+        with pytest.raises(ValueError, match="names no rule"):
+            check_comparable(evaluator_json(), evaluator_json(propagation=rule))
+
+
+def test_an_evaluator_json_without_a_rule_is_neither_kind():
+    j = evaluator_json()
+    del j["propagation"]
+    with pytest.raises(ValueError, match="neither"):
+        check_comparable(evaluator_json(), j)
+
+
+def test_a_pilot_json_records_no_rule_and_two_of_them_compare_as_before():
+    assert scores.propagation_rule_of(pilot_json()) is None
+    assert "propagation" not in check_comparable(pilot_json(), pilot_json())
+
+
+def test_one_table_holds_one_rule_besides_per_frame():
+    pf = evaluator_json(propagation=scores.PER_FRAME)
+    assert scores.check_one_rule({"a": evaluator_json(), "b": pf, "c": evaluator_json()}) == BOTH_WAYS
+    assert scores.check_one_rule({"b": pf}) == scores.PER_FRAME
+    assert scores.check_one_rule({"p": pilot_json(), "q": pilot_json()}) is None
+
+
+def test_a_table_whose_pairs_each_pass_but_that_holds_two_rules_is_refused():
+    # Both pairs share the per-frame condition and pass; the table holds two rules and fails.
+    tables = {"both": evaluator_json(), "pf": evaluator_json(propagation=scores.PER_FRAME),
+              "fwd": evaluator_json(propagation=FORWARD)}
+    check_comparable(tables["pf"], tables["both"])
+    check_comparable(tables["pf"], tables["fwd"])
+    with pytest.raises(ValueError, match="one table per rule") as e:
+        scores.check_one_rule(tables)
+    assert "['both']" in str(e.value) and "['fwd']" in str(e.value)
 
 
 # ---------------------------------------------------------------- the sha
