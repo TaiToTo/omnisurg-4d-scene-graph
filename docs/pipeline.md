@@ -70,6 +70,38 @@ while a mask is written.
 
 `python -m pipeline.extract_atlas120k --help` lists the options.
 
+### A video OpenCV cannot decode
+
+```bash
+python -m pipeline.prepare_atlas120k_videos --src /path/to/ATLAS --dst /path/to/ATLAS_h264
+```
+
+One video of the 97, `rarp/NitKIjCcS7U`, is AV1, which some builds of
+OpenCV cannot decode. This command builds a second root for the extraction
+to take as `--atlas-root`. Its `atlas120k/` is a symlink to the release's.
+Under its `raw_data/`, every H.264 video is a symlink to the release's
+file, and every other video is converted to H.264 with FFmpeg, keeping its
+size, frame rate and frame count. `video_root.json` records what was done
+to each video, with the `--crf` a conversion was made at. The command
+refuses:
+
+- a release without `atlas120k/` or without an mp4;
+- a video with no video stream, or whose stream does not say how many
+  frames it has, since a conversion is checked by that count;
+- a converted video whose size, frame rate or frame count is not the
+  source's, that is not H.264, or that OpenCV cannot read a frame from;
+- a converted video that is already there, unless `video_root.json`
+  records it at the `--crf` given;
+- a path in the new root that is already something else.
+
+A converted video that is already there is checked, not made again. A
+conversion is written under a temporary name and moved into place when
+FFmpeg has finished, so a run that stops leaves no partial video. The
+extraction's output does not depend on the conversion: it reads the frames
+from the release's JPEGs, and takes from the mp4 only its frame rate and
+size, which the conversion keeps. Its frame ratio check does read the
+converted pixels, and allows for the compression.
+
 ## The CholecSeg8k crop stage
 
 ```bash

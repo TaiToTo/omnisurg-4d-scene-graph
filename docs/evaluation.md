@@ -1,8 +1,6 @@
 # Evaluation — specification
 
-**Status: agreed, not yet implemented.** Nothing here is frozen yet. One thing
-is still undecided: how to score consistency over time (the last point of the
-summary).
+**Status: agreed, not yet implemented.** Nothing here is frozen yet.
 
 ## Summary
 
@@ -30,13 +28,14 @@ robot-assisted videos of 14 procedures, 42 classes) and CholecSeg8k
   merges them into 30 classes; those are scored too, for comparison with the
   benchmark, as reference values only.
 - **Ten metrics, three questions.** The paper asks three questions of the
-  regions, and each is judged on its own *primary* metric: how far a region
-  picked out in one frame can be followed (not decided yet, the last point
-  below); what input puts the regions' boundaries where the GT's class
-  boundaries are, judged on `boundary_R_raw` in each view; and how much of
-  the labelled structure the regions hold, judged on `F1_50` (objects found,
-  with every extra region counted against it) and `SQ` (how well the found
-  ones fit), in the geometric view.
+  regions. Two are judged on a *primary* metric of their own: what input
+  puts the regions' boundaries where the GT's class boundaries are, judged
+  on `boundary_R_raw` in each view; and how much of the labelled structure
+  the regions hold, judged on `F1_50` (objects found, with every extra region
+  counted against it) and `SQ` (how well the found ones fit), in the
+  geometric view. The third, how far a region picked out in one frame can be
+  followed, is answered with reference values only ("Consistency over time:
+  reference values only", below).
 - **Regions are named from the GT.** Each region takes the class most of its
   pixels have in the GT, so the class-map metric `mIoU` is an oracle value,
   kinder than any real classifier would get.
@@ -50,11 +49,12 @@ robot-assisted videos of 14 procedures, 42 classes) and CholecSeg8k
   by an earlier evaluator, the *pilot evaluator* (`eval_code_sha = 1f8a813a…`),
   which stays frozen in the private research workbench. Run with its rules
   (*pilot mode*), this evaluator must reproduce its scores exactly.
-- **Not decided yet: consistency over time.** The pilot evaluator's `time_IoU`
-  is kept as a reference value only, because coarse regions score well on it.
-  Measures of whether a tracked thing keeps its identity — hold, IDF1, ID
-  switches, fragmentation — are candidates; the evaluator does not compute
-  them yet.
+- **Consistency over time: reference values only.** The pilot evaluator's
+  `time_IoU` is kept, as a reference value only: coarse regions score well
+  on it. Measures of whether a tracked thing keeps its identity — hold, IDF1,
+  ID switches, fragmentation, re-entry — are computed by a tool outside the
+  evaluator and reported as reference values too. No measure over time
+  carries a star.
 
 The rest of the document gives the rules in full, then why the pilot evaluator
 was replaced, then the class tables.
@@ -65,7 +65,7 @@ Scoring runs in six steps. The evaluator reads a clip's inputs, scores a
 frame in one view and then in all three, averages each key over the clip, and
 writes one score file per condition. The tools then compare two conditions.
 
-![Scoring in six steps on a drawn scene: a clip's inputs; one frame, scored in each of three views (steps 2 and 3); one clip, each key's mean over its frames; one condition, one score file; two conditions, the key that decides each question.](figures/evalkit_overview.png)
+![Scoring in six steps on a drawn scene: a clip's inputs; one frame, scored in each of three views (steps 2 and 3); one clip, each key's mean over its frames; one condition, one score file; two conditions, the keys that decide the questions about boundaries and structure.](figures/evalkit_overview.png)
 
 The second figure shows the same steps part by part. Each box names, in its
 corner, the module or package that holds the part, so a rule below can be
@@ -441,12 +441,12 @@ diagnostics and never get a star.
 ### Primary metrics
 
 The paper asks three questions, each as a comparison between two
-conditions, and judges each on its own key, on each dataset's own labels
-(the `original` class set):
+conditions, and judges two of them on a key of their own, on each dataset's
+own labels (the `original` class set):
 
 | question | primary metric | view |
 |---|---|---|
-| Given one frame as an example, how far can the regions be followed? | not decided yet (below) | — |
+| Given one frame as an example, how far can the regions be followed? | none: reference values only (below) | — |
 | Given no example, what input puts the regions' boundaries where the GT's class boundaries are? | `boundary_R_raw` | each of the three |
 | Given no GT, how much of the labelled structure is already in the regions? | `F1_50` and `SQ` | geometric |
 
@@ -465,7 +465,7 @@ The set is kept as small as the claims allow. The evaluator computes every
 metric in the table; which of them the paper reports is settled before any
 score of this evaluator is seen.
 
-### Consistency over time: not decided yet
+### Consistency over time: reference values only
 
 `time_IoU` is kept only as a reference value and never gets a star. It uses no
 GT, and the workbench measured three faults in it:
@@ -478,19 +478,36 @@ GT, and the workbench measured three faults in it:
 
 `temporal_f1`, built to close the second fault, keeps the first.
 
-The candidates measure identity against the GT, and come from the workbench's
-`track_metrics`: hold (whether the region picked on the frame tracking starts
-from still covers the same GT thing seconds later), IDF1, ID switches,
-fragmentation and re-entry. Choosing among them also means deciding what a GT
-track is: the datasets carry no ids for individual things, and the workbench
-links each class's connected components over time. That is a second object
-definition, finer than the whole-class object used above, and adopting a
-candidate means saying how the two live side by side.
+The measures of identity against the GT come from the workbench's
+`track_metrics`: hold (whether the region picked on the seed frame still
+covers the same GT thing on the GT frames seconds before or after it), IDF1,
+ID switches, fragmentation and re-entry. The evaluator computes none of
+them. Each needs a GT track, and the datasets carry no ids for individual
+things, so a GT track would be a second object definition, in addition to
+the whole-class object used above. The workbench also measured a fault in
+four of them, and the fifth depends on how the GT track is linked:
 
-Until that is settled, the evaluator computes no temporal measure but
-`time_IoU`, and that one is a reference value. The candidates exist in the
-workbench and are not reported. A measure that is to carry a star has to join
-the evaluator before it is frozen.
+- two of hold's pre-registered denominators gave one comparison opposite
+  signs: `hold_mean` averages over the GT tracks the condition picked a
+  region for on the seed frame, and `hold_all_mean` over every GT track
+  present on that frame, counting a track without a region as 0;
+- IDF1 rises when regions merge;
+- ID switches cannot tell a tracker from a floor that never moves: one mask
+  pasted on every frame scores close to zero;
+- re-entry counts a gap of at most three observations in a GT track, not a
+  return to the field of view, and it leaves out every gap whose two ends
+  are not both matched: about a third of the gaps for a tracker in the
+  workbench, and nine in ten for the pasted floor, which then scored 1.0 on
+  the rest;
+- fragmentation changes with how the GT track is linked, so its value is a
+  property of the track definition as much as of the condition.
+
+So a tool outside the evaluator, `evalkit/tools/track_metrics`, computes the
+measures of identity, and they are reported as reference values: in a table
+that carries no star. The tool's GT track is an open question
+(`docs/porting.md`, "The GT track of `track_metrics`"). A measure that is to
+carry a star would have to be computed by the evaluator before the
+evaluator is frozen, and none is.
 
 ## Rules that keep the numbers honest
 
