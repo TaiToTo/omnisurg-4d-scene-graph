@@ -70,8 +70,8 @@ omnisurg-4d-scene-graph/
 ├── surgical_core/     cholec atlas120k geometry pointcloud preprocess viewer clip_time
 ├── evalkit/           the evaluator, hashed into eval_code_sha with its class tables
 │   └── tools/         what reads scores or predictions, never hashed: scores
-│                      paired_stats compare_eval condition_inventory pilot_check kmerge
-│                      pose_metrics (track_metrics: not yet ported)
+│                      paired_stats arms_paired compare_eval condition_inventory pilot_check
+│                      kmerge pose_metrics (track_metrics: not yet ported)
 ├── pipeline/          depth → segmentation → tracking → viewer export
 ├── recon3d_wrapper/   3D reconstruction — DA3 and Pi3 behind one interface
 ├── sam3_wrapper/      promptable segmentation and tracking (SAM 3)
