@@ -393,3 +393,37 @@ The stage needs the `track` extra and the SAM ViT-H weights, as the
 tracking stage does.
 
 `python -m pipeline.per_frame --help` lists the options.
+
+## The granularity conditions
+
+The granularity result tracks seeds merged to a fixed number of regions, K.
+Three commands make each of its conditions:
+
+1. The per-frame segmentation stage cuts every frame of each clip with the
+   `rgb` input, at 24 points per side.
+2. `evalkit.tools.kmerge` merges each frame of that condition down to K
+   regions, and writes the merged maps as a condition of their own.
+3. The tracking stage reads the merged map of the seed frame with
+   `--seed-labels`, and carries its regions both ways from the middle frame.
+
+```bash
+python -m pipeline.per_frame --input-dir /path/to/clips --tracks-root /path/to/tracks --tag rgb_per_frame \
+    --sam-input rgb --points-per-side 24 --sam-ckpt sam_vit_h_4b8939.pth
+python -m evalkit.tools.kmerge --dataset atlas120k --clips atlas120k_meta/clips.txt --data-root /path/to/clips \
+    --tracks-root /path/to/tracks --tag track_rgb_rgb_per_frame --k 10
+python -m pipeline.track --input-dir /path/to/clips --tracks-root /path/to/tracks --tag rgb_k10 \
+    --rule both_ways_from_centre --sam-input rgb --track-base rgb \
+    --seed-labels '/path/to/tracks/{clip}/track_rgb_rgb_per_frame_k10'
+```
+
+The paper's granularity result merges to K = 10. The conditions at K = 6, 8
+and 12 are made the same way. The floor condition is tracked from the
+unmerged map: it skips `kmerge`, and its `--seed-labels` names the per-frame
+condition, `'/path/to/tracks/{clip}/track_rgb_rgb_per_frame'`. The tracking
+stage numbers the seed regions again, so the ids that `kmerge` and the
+per-frame stage write do not change the seed.
+
+`kmerge` merges every frame, and the tracking stage reads the seed frame's
+map only. `kmerge` reads each clip as the evaluator does, so a clip needs its
+GT masks, although the merge reads none of them. `kmerge` takes K as a
+number. No command here computes a K from the GT.

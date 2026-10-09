@@ -330,8 +330,19 @@ below.
     with GT unless given `--clips`. The dispatcher is ported in a branch of
     its own, with `run_conditions.py`, which spreads a tracked condition
     over the GPUs in the same way.
-  - The input of one condition: `ipcai2027_experiment/scripts/make_t5_seeds.py`,
-    which makes the seeds of the granularity result.
+  - The seeds of the granularity result's `kgt` condition, which
+    `ipcai2027_experiment/scripts/make_t5_seeds.py` made. The script is not
+    ported, because the ported stages make the seeds of its other conditions
+    ("The granularity conditions" in `docs/pipeline.md`). `kmerge` was run
+    at K = 6, 8, 10 and 12 on the workbench's per-frame `rgb` condition at
+    24 points per side, on all 315 ATLAS-120k clips. On each clip's seed
+    frame, the merged map holds the same regions as the workbench's seed of
+    that K, and the per-frame map holds the same regions as the floor's
+    seed. The ids differ, because `kmerge` keeps the per-frame map's ids
+    and the workbench numbered each seed's regions from 0. Once the tracking
+    stage numbers the regions again, the ids are equal too. The tracking stage
+    seeds the same frame as the workbench on every clip. The `kgt` seed
+    waits on "The K of the `kgt` seeds".
   - The paper's tables: `ipcai2027_experiment/atlas97/scripts/summary97.py`
     and `print_status_tables.py`, which the manuscript names as the source
     of every table; from `ipcai2027_experiment/scripts/`, `claims_grid.py`,
@@ -909,3 +920,15 @@ Every command takes those paths as arguments.
     machine therefore runs both stages under one numpy on one CPU. Decide
     whether the stage keeps this sort, or sorts stably and lists the change
     among the differences from the workbench that the byte check allows.
+21. **The K of the `kgt` seeds.** The granularity result's `kgt` condition
+    merged each clip's seed to K regions. K was the median count of GT
+    objects over the clip's GT frames, rounded half to even and at least 1.
+    `make_t5_seeds.py` counted the pilot evaluator's GT objects: per-class
+    8-connected components of at least 300 px, background left out. Under
+    the evaluator a GT object is one class's whole region in a frame, and
+    which classes count depends on the view. So this K needs a definition of
+    its own, as the `matched` K of `kmerge` does ("`kmerge` is a tool").
+    `kmerge` takes K as a number and computes none from the GT. Decide
+    whether `kgt` is made again with a K defined under the evaluator, and in
+    which view, or stays in the workbench, where what it measured is a
+    reference value.
