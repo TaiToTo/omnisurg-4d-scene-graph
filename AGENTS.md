@@ -76,6 +76,7 @@ omnisurg-4d-scene-graph/
 ├── recon3d_wrapper/   3D reconstruction — DA3 and Pi3 behind one interface
 ├── sam3_wrapper/      promptable segmentation and tracking (SAM 3)
 ├── atlas120k_meta/    crop rectangles, frame ratios, clip population (no video)
+├── cholecseg8k_meta/  crop rectangles, clip population (no video)
 ├── viewer/
 ├── docs/              evaluation.md, review.md, porting.md, data_contract.md, pipeline.md
 ├── tests/

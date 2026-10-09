@@ -224,15 +224,16 @@ Rules for these, besides the ones above:
 - **No endoscope border in the depth stage.** On CholecSeg8k, the
   workbench's depth stage looks for the black border around the endoscope's
   view and, when it covers 1 % of the frame or more, fills it in before DA3
-  sees it. The clips the paper reads never reach that:
-  `crop_cholec_frames.py` has already cut each video to a rectangle inside
-  the view, one per video, recorded with each clip in `crop_info.json`. On
-  the nine clips of the development machine the border found is 0.46 % at
-  most, and every manifest says `border_inpaint: false`. The port carries
-  neither the detection nor the fill. It writes `border_inpaint: false`, as
-  the workbench does, and refuses a CholecSeg8k clip without
-  `crop_info.json` rather than give the model a border. On G, the manifests
-  of the scored clips are read first: one that says `true` stops this rule.
+  sees it. The clips the paper reads never reach that: the crop stage has
+  already cropped each clip to a rectangle inside the view, recorded with
+  the clip in `crop_info.json`. On the 27 clips cropped to the rectangles
+  of `cholecseg8k_meta/`, the border found is 0.4 % at most, and every
+  manifest of the workbench's 27 clips says `border_inpaint: false`. The
+  port carries neither the detection nor the fill. It writes
+  `border_inpaint: false`, as the workbench does, and refuses a
+  CholecSeg8k clip without `crop_info.json` rather than give the model a
+  border. On G, the manifests of the scored clips are read first: one that
+  says `true` stops this rule.
 - **Anyone can install it.** On a machine with a CUDA GPU and Python 3.12,
   the pipeline installs with one command, `pip install -e ".[recon3d]"`, and
   the weights download from Hugging Face on first use. `recon3d_wrapper` and

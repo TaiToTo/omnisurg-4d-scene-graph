@@ -151,6 +151,30 @@ Where they and this document differ, this document holds.
     components of at least 300 px, is not carried for now: under the
     evaluator a GT object is a whole class, and that K would need a
     definition of its own.
+16. **CholecSeg8k clips are cropped as AE-CAI's were.** Every CholecSeg8k
+    clip is cropped to its rectangle in `cholecseg8k_meta/crop_rects.json`.
+    The table holds the rectangles of the workbench's clips, which the pilot
+    scored and AE-CAI reports. The original plan took the rectangle of the
+    circle fitted to the cholec80 video instead. `run_all17_pipeline.sh`
+    ran `crop_cholec_frames.py --method circle` on the GPU machine's host
+    without `--source-root`. The script found no video there, and took each
+    rectangle from the clip's own frames, as `paper_clean_rerun_spec.md`
+    asks of every clip. The circle's rectangles differ from these on all 27
+    clips, by up to 59 px. On VID26 and VID43 they hold black corners of 2
+    to 3.6 % of the crop. Run on the workbench's 27 clips with the table,
+    the crop stage writes the workbench's images, masks and
+    `crop_info.json` byte for byte, and every manifest key the stage writes
+    holds the workbench's value. On the clips the extraction stage writes,
+    the crops of 13 clips equal the workbench's byte for byte. The crops of
+    the other 14 differ in the gap frames alone, which the extraction stage
+    converts ("CholecSeg8k clips whose frames run out of order"). A rerun
+    of the tag `paper/aecai2026-endolina-final` reproduces these crops only
+    where the script finds no video. Where
+    `/work/SourceDatasets/cholec80/cholec80/videos` holds the videos, the
+    script fits the circle instead. AE-CAI keeps its clips. They stay in
+    the workbench's `outputs/cholec_gt`, which nothing here writes to. Each
+    of them holds depth, so the crop stage refuses to replace one even with
+    `--overwrite`.
 
 ## What moves
 
@@ -254,6 +278,14 @@ Each stage is described in `docs/pipeline.md`.
   at, and, after the run, a bundle of another version of the stage and a
   population made at more than one setting, where the script counted the
   depth maps alone.
+- `scripts/crop_cholec_frames.py`, as `run_all17_pipeline.sh` ran it, is
+  `pipeline/crop_cholecseg8k.py`. The stage reads each clip's rectangle
+  from `cholecseg8k_meta/crop_rects.json` and finds none itself
+  ("CholecSeg8k clips are cropped as AE-CAI's were"). It refuses what the
+  script cropped anyway: a clip without a rectangle in the table, a clip
+  without a manifest, a manifest that does not list one frame per image,
+  and an image whose size is not the rectangle's frame. It also refuses to
+  replace a cropped clip that holds a later stage's output.
 
 ### Not yet extracted anywhere
 
@@ -268,12 +300,6 @@ below.
     `depth_sam_tracking_experiment/run_all17_pipeline.sh` runs before the
     crop and the depth stage. `extract_cholec_frames.py`, which the take
     list named, ran in no condition.
-  - `crop_cholec_frames.py` cuts each CholecSeg8k video to a rectangle
-    inside the endoscope's view, with `--method circle`. Ported, it reads
-    the rectangle as data, one per clip in `cholecseg8k_meta/crop_rects.json`
-    beside the 27 clips' list, as the ATLAS-120k crop rectangles below are
-    data. The depth stage then neither detects nor fills a border
-    (`docs/workstreams.md`, "No endoscope border in the depth stage").
   - Segmentation and tracking, from `depth_sam_tracking_experiment/`:
     `track_sam3.py`, `sam3d_core.py` (`num_to_natural` and `get_sam`),
     `loaders.py` (`CholecGtLoader`), `depth_source.py` (DA3 and the `pi3`
@@ -473,14 +499,15 @@ The second list holds what the paper's numbers do not use.
     `add_boxes`;
   - `depth_source.py`: the `da2` source and the bilateral `_bil` variants;
   - `preprocess` (`surgical_core/preprocess/endoscope_mask.py`, the
-    package's one module): the border inpainting, the content-mask
-    detection, the circle fit (`fit_endoscope_circle`,
-    `circle_frame_inscribed_rect`) that found the rectangles
-    `cholecseg8k_meta/` holds, and the p90-mask path
-    (`video_endoscope_crop`, with `largest_inscribed_rect`). Every clip of
-    the paper has its rectangle; a new video would need the fit. With it go
-    `crop_cholec_frames.py`'s `--method p90mask`, `--reduce` and its
-    fallback to a clip's own frames;
+    package's one module): the border inpainting; the content-mask
+    detection and `largest_inscribed_rect`, which found the rectangles
+    `cholecseg8k_meta/` holds on each clip's own frames; the circle fit
+    (`fit_endoscope_circle`, `circle_frame_inscribed_rect`); and the
+    p90-mask path over a whole video (`video_endoscope_crop`). Every clip of
+    the paper has its rectangle; a new clip would need one found. With it go
+    `crop_cholec_frames.py`'s ways of finding a rectangle: `--source-root`,
+    `--method`, `--reduce`, `--video-samples`, `--shrink` and the fallback
+    to a clip's own frames;
   - `extract_atlas_frames.py`, the paths `pipeline/extract_atlas120k.py`
     does not carry: the tile clips; the per-video rectangle it estimates
     from the frames (`detect_content_rect` and the three `refine_rect_*`
