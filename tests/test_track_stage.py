@@ -7,13 +7,16 @@ the workbench's stage. The segmenter inputs need the `render` extra.
 """
 
 import json
+import sys
 
+import cv2
 import numpy as np
 import pytest
 from PIL import Image
 
 pytest.importorskip("matplotlib")
 
+import pipeline.track as track  # noqa: E402
 from pipeline.track import collapse, paint_masks, read_clip, run_track, seed_masks, window  # noqa: E402
 from sam3_wrapper import FrameResult  # noqa: E402
 from surgical_core.geometry.render import sam_input_image  # noqa: E402
@@ -54,14 +57,18 @@ class StandInTracker:
             yield FrameResult(f, list(self.ids), np.stack(self.masks), np.linspace(0.9, 0.5, len(self.ids)))
 
 
-def _clip(tmp_path, hole=False, name="VID01_s15_80_crop"):
-    """Write a clip of `N` frames with DA3 depth, a slope with a hole when asked, and return its directory."""
+def _clip(tmp_path, hole=False, name="VID01_s15_80_crop", scale=1):
+    """Write a clip of `N` frames with DA3 depth, a slope with a hole when asked, and return its directory.
+
+    The images are `scale` times the depth's size, as a clip's images are larger than its depth.
+    """
     d = tmp_path / "clips" / name
     (d / "input_images").mkdir(parents=True)
     (d / "exports" / "mini_npz").mkdir(parents=True)
     rng = np.random.default_rng(0)
     for i in range(N):
-        Image.fromarray(rng.integers(0, 256, (H, W, 3), dtype=np.uint8)).save(d / "input_images" / f"{i:06d}.png")
+        Image.fromarray(rng.integers(0, 256, (H * scale, W * scale, 3), dtype=np.uint8)).save(
+            d / "input_images" / f"{i:06d}.png")
     yy, xx = np.mgrid[0:H, 0:W]
     depth = np.stack([0.3 + 0.01 * xx + 0.005 * yy + 0.001 * i for i in range(N)]).astype(np.float32)
     if hole:
@@ -240,3 +247,160 @@ def test_seed_regions_made_outside_that_do_not_fit_are_refused(tmp_path, frame, 
     seeds = _seeds(tmp_path, clip, frame, labels)
     with pytest.raises(err, match=match):
         _run(tmp_path, clip, segmenter=None, seed_labels=seeds)
+
+
+class ReverseDiffersTracker(StandInTracker):
+    """Return the seed masks forwards, and backwards the masks shifted to other ids, skipping frame 0."""
+
+    def propagate(self, start_frame_idx, reverse=False):
+        if not reverse:
+            yield from super().propagate(start_frame_idx)
+            return
+        self.calls.append((start_frame_idx, True))
+        for f in range(start_frame_idx, 0, -1):
+            yield FrameResult(f, [i + 10 for i in self.ids], np.stack(self.masks), np.ones(len(self.ids)))
+
+
+def test_the_backward_pass_keeps_the_forward_seed_frame_and_the_record_lists_the_frames_labelled(tmp_path):
+    lab_dir, _, trk = _run(tmp_path, _clip(tmp_path), tracker=ReverseDiffersTracker())
+    assert set(np.unique(np.load(lab_dir / "label_0002.npy"))) == {1, 2, 3}
+    assert set(np.unique(np.load(lab_dir / "label_0001.npy"))) == {11, 12, 13}
+    assert json.loads((lab_dir / "seed_info.json").read_text())["frames"] == [1, 2, 3, 4]
+
+
+class SilentTracker(StandInTracker):
+    """Carry the seed to no frame."""
+
+    def propagate(self, start_frame_idx, reverse=False):
+        return iter(())
+
+
+def test_a_tracker_that_carries_no_frame_is_refused(tmp_path):
+    with pytest.raises(ValueError, match="carried no frame"):
+        _run(tmp_path, _clip(tmp_path), tracker=SilentTracker())
+
+
+def test_images_larger_than_the_depth_are_resized_to_it_with_area_averaging(tmp_path):
+    clip = _clip(tmp_path, scale=2)
+    _, seg, trk = _run(tmp_path, clip)
+    rgb = np.array(Image.open(clip / "input_images" / "000002.png").convert("RGB"))
+    small = cv2.resize(rgb, (W, H), interpolation=cv2.INTER_AREA)
+    assert np.array_equal(seg.images[0], small)
+    assert trk.frames.shape == (N, H, W, 3) and np.array_equal(trk.frames[2], small)
+
+
+def test_the_seed_settings_of_edges_and_smoothing_do_not_reach_the_tracker(tmp_path):
+    clip = _clip(tmp_path, hole=True)
+    _, seg, trk = _run(tmp_path, clip, sam_input="normal_edge", track_base="normal_edge", seed_edge_gain=1.0,
+                       seed_smooth=False)
+    depth, K = read_clip(clip, "da3")
+    seed = sam_input_image("normal_edge", depth[2], K[2], None, None, edge_gain=1.0, smooth=False, mask_ring=True)
+    tracked = sam_input_image("normal_edge", depth[2], K[2], None, None, edge_gain=0.85, smooth=True, mask_ring=True)
+    assert not np.array_equal(seed, tracked)
+    assert np.array_equal(seg.images[0], seed)
+    assert np.array_equal(trk.frames[2], tracked)
+
+
+def test_seed_smoothing_is_turned_off_on_its_own(tmp_path):
+    clip = _clip(tmp_path, hole=True)
+    _, seg, _ = _run(tmp_path, clip, sam_input="normal_edge", seed_smooth=False)
+    depth, K = read_clip(clip, "da3")
+    off = sam_input_image("normal_edge", depth[2], K[2], None, None, smooth=False, mask_ring=True)
+    assert not np.array_equal(off, sam_input_image("normal_edge", depth[2], K[2], None, None, smooth=True, mask_ring=True))
+    assert np.array_equal(seg.images[0], off)
+
+
+def test_a_clip_without_depth_is_refused(tmp_path):
+    clip = _clip(tmp_path)
+    (clip / "exports" / "mini_npz" / "results.npz").unlink()
+    with pytest.raises(FileNotFoundError, match="run the depth stage first"):
+        read_clip(clip, "da3")
+
+
+def test_pi3x_depth_without_a_value_is_filled_with_its_median(tmp_path):
+    clip = _clip(tmp_path)
+    d = np.full((N, H, W), 4.0, np.float32)
+    d[:, 0, 0] = np.nan
+    K = np.tile(np.array([[20.0, 0, 8.0], [0, 20.0, 6.0], [0, 0, 1]]), (N, 1, 1))
+    np.savez(clip / "exports" / "mini_npz" / "results__pi3x.npz", depth=d, intrinsics=K)
+    depth, _ = read_clip(clip, "pi3")
+    assert np.isfinite(depth).all() and depth[0, 0, 0] == np.median(depth)
+
+
+class FailingTracker(StandInTracker):
+    def propagate(self, start_frame_idx, reverse=False):
+        raise RuntimeError("out of memory")
+
+
+def test_a_run_that_fails_keeps_the_labels_an_earlier_run_left(tmp_path):
+    clip = _clip(tmp_path)
+    lab_dir, _, _ = _run(tmp_path, clip)
+    montage = tmp_path / "tracks" / clip.name / "viz" / "montage_track_rgb_t.png"
+    before = sorted(p.name for p in lab_dir.iterdir())
+    with pytest.raises(RuntimeError, match="out of memory"):
+        _run(tmp_path, clip, tracker=FailingTracker(), overwrite=True)
+    assert sorted(p.name for p in lab_dir.iterdir()) == before and montage.is_file()
+    assert [p.name for p in (tmp_path / "tracks" / clip.name).iterdir() if "partial" in p.name] == []
+
+
+
+def test_a_run_that_fails_while_writing_leaves_no_partial_labels(tmp_path, monkeypatch):
+    clip = _clip(tmp_path)
+    lab_dir, _, _ = _run(tmp_path, clip)
+    before = sorted(p.name for p in lab_dir.iterdir())
+
+    def full_disk(*a):
+        raise OSError("no space left on device")
+
+    monkeypatch.setattr(track, "write_montage", full_disk)
+    with pytest.raises(OSError, match="no space"):
+        _run(tmp_path, clip, overwrite=True)
+    assert sorted(p.name for p in lab_dir.iterdir()) == before
+    assert [p.name for p in (tmp_path / "tracks" / clip.name).iterdir() if "partial" in p.name] == []
+
+class _StandInSession(StandInTracker):
+    device = "cpu"
+
+    def __init__(self, *a, **kw):
+        super().__init__()
+
+
+def _main(monkeypatch, *argv):
+    monkeypatch.setattr(track, "Sam3VideoInstanceSession", _StandInSession)
+    monkeypatch.setattr(track, "SeedSegmenter", lambda ckpt, device: StandInSegmenter())
+    monkeypatch.setattr(sys, "argv", ["track", *argv])
+    track.main()
+
+
+def _argv(tmp_path, *extra):
+    return ["--input-dir", str(tmp_path / "clips"), "--tracks-root", str(tmp_path / "tracks"), "--tag", "t",
+            "--rule", "forward_from_first", "--sam-input", "rgb", "--track-base", "rgb", "--seed-min-area", "1",
+            *extra]
+
+
+def test_main_runs_every_clip_with_depth(tmp_path, monkeypatch):
+    _clip(tmp_path)
+    _clip(tmp_path, name="VID02_s15_80_crop")
+    _main(monkeypatch, *_argv(tmp_path, "--sam-ckpt", "sam.pth"))
+    assert sorted(p.name for p in (tmp_path / "tracks").iterdir()) == ["VID01_s15_80_crop", "VID02_s15_80_crop"]
+
+
+def test_main_refuses_a_mistyped_clip_before_the_models_load(tmp_path, monkeypatch):
+    _clip(tmp_path)
+    with pytest.raises(SystemExit, match="no clip with depth .* at: VID99"):
+        _main(monkeypatch, *_argv(tmp_path, "--sam-ckpt", "sam.pth", "--clips", "VID99"))
+
+
+def test_main_refuses_to_cut_seeds_without_the_sam_weights(tmp_path, monkeypatch):
+    _clip(tmp_path)
+    with pytest.raises(SystemExit, match="--sam-ckpt is needed"):
+        _main(monkeypatch, *_argv(tmp_path))
+
+
+def test_main_exits_with_an_error_when_a_clip_fails(tmp_path, monkeypatch):
+    _clip(tmp_path)
+    bad = _clip(tmp_path, name="VID02_s15_80_crop")
+    (bad / "input_images" / "000003.png").unlink()
+    with pytest.raises(SystemExit, match="1 of 2 clip.* failed: VID02_s15_80_crop"):
+        _main(monkeypatch, *_argv(tmp_path, "--sam-ckpt", "sam.pth"))
+    assert (tmp_path / "tracks" / "VID01_s15_80_crop" / "track_rgb_t").is_dir()

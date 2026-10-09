@@ -75,7 +75,8 @@ def paint_masks(masks: list[np.ndarray], shape: tuple[int, int]) -> np.ndarray:
     """Paint the generator's masks into one map, the first mask on top, and number the regions 0..K-1.
 
     The generator lists its masks roughly by predicted IoU, highest first, so where masks overlap the more
-    confident one wins, whatever the sizes. The regions are numbered in the order of their first ids.
+    confident one wins, whatever the sizes. The last mask paints id 0 and the first the highest id; the ids
+    that survive are then numbered 0..K-1 in their order, so the regions are numbered from the last mask up.
     """
     labels = np.full(shape, -1, dtype=int)
     for k, i in enumerate(reversed(range(len(masks)))):
@@ -130,7 +131,11 @@ def seed_masks(labels: np.ndarray, min_area: int) -> tuple[list[np.ndarray], lis
 def collapse(result: FrameResult, shape: tuple[int, int]) -> np.ndarray:
     """Return one frame's objects as an (H, W) int16 label map, the higher presence score painted last.
 
-    A missing score counts as the lowest, so such objects are painted under the others.
+    A missing score counts as the lowest, so such objects are painted under the others. On the prompted
+    frame every score is missing, so the objects tie. `np.argsort` keeps the tracker's order among ties only
+    up to 16 objects; above that, the order of ties depends on numpy's build and the CPU, as it did in the
+    workbench, whose labels were made with this sort. Where those objects' masks overlap, the label is
+    therefore the same only on the same numpy and CPU.
     """
     labels = np.full(shape, -1, dtype=np.int16)
     scores = np.nan_to_num(np.asarray(result.scores, dtype=float), nan=-1e9)
@@ -253,7 +258,8 @@ def run_track(clip_dir: Path, tracks_root: Path, tag: str, rule: str, segmenter,
         mask_ring: zero the ring of the burnt-in edges, for the seed and the tracker alike.
         seed_labels: a directory of seed regions made outside the stage (`read_seed_labels`), in place of the
             segmenter's. `sam_input` is then recorded but not used.
-        overwrite: replace the condition's labels and montage when the clip already has them.
+        overwrite: replace the condition's labels and montage when the clip already has them. They are
+            replaced only once the run has written every file, so a run that fails leaves them as they were.
 
     Raises:
         FileNotFoundError: a bundle, an image or the seed labels are missing.
@@ -273,11 +279,8 @@ def run_track(clip_dir: Path, tracks_root: Path, tag: str, rule: str, segmenter,
     subdir = f"track_{track_base}_{tag}"
     lab_dir = tracks_root / clip_dir.name / subdir
     montage = tracks_root / clip_dir.name / "viz" / f"montage_{subdir}.png"
-    if lab_dir.exists() or montage.exists():
-        if not overwrite:
-            raise ValueError(f"{clip_dir.name} already has {subdir}; pass --overwrite to replace it")
-        shutil.rmtree(lab_dir, ignore_errors=True)
-        montage.unlink(missing_ok=True)
+    if (lab_dir.exists() or montage.exists()) and not overwrite:
+        raise ValueError(f"{clip_dir.name} already has {subdir}; pass --overwrite to replace it")
 
     # Read the depth, and place the seed under the rule.
     depth, K = read_clip(clip_dir, depth_source)
@@ -318,20 +321,36 @@ def run_track(clip_dir: Path, tracks_root: Path, tag: str, rule: str, segmenter,
     if not labels:
         raise ValueError(f"{clip_dir.name}: the tracker carried no frame")
 
-    # Write the labels, the seed's record and the montage.
-    lab_dir.mkdir(parents=True)
-    for k, lab in sorted(labels.items()):
-        np.save(lab_dir / f"label_{frames[k]:04d}.npy", lab)
-    # The keys and their order are the workbench's, so that a record compares with one written there;
-    # `instrument_seed` names an option the workbench had and this stage leaves out.
-    with open(lab_dir / "seed_info.json", "w", encoding="utf-8") as f:
-        json.dump(dict(clip=clip_dir.name, seed_frame=int(seed_frame),
-                       seed_source="sam" if seed_labels is None else "external", seed_labels=seed_labels or "",
-                       sam_input=sam_input, depth_source=depth_source, track_base=track_base, bidir=both_ways,
-                       stride=1, seed_min_area=seed_min_area, seed_input=seed_input, n_seed_regions=len(masks),
-                       instrument_seed="off", frames=[int(frames[k]) for k in sorted(labels)]),
-                  f, indent=1, ensure_ascii=False)
-    write_montage(montage, labels, frames, (h, w))
+    # Write the labels, the seed's record and the montage to a partial directory.
+    # An earlier run's labels are replaced only after every file is written, so a run that fails keeps them.
+    partial = tracks_root / clip_dir.name / f".{subdir}.partial"
+    if partial.exists():
+        shutil.rmtree(partial)
+    partial.mkdir(parents=True)
+    try:
+        for k, lab in sorted(labels.items()):
+            np.save(partial / f"label_{frames[k]:04d}.npy", lab)
+        # The keys and their order are the workbench's, so that a record compares with one written there;
+        # `instrument_seed` names an option the workbench had and this stage leaves out.
+        with open(partial / "seed_info.json", "w", encoding="utf-8") as f:
+            json.dump(dict(clip=clip_dir.name, seed_frame=int(seed_frame),
+                           seed_source="sam" if seed_labels is None else "external",
+                           seed_labels=seed_labels or "", sam_input=sam_input, depth_source=depth_source,
+                           track_base=track_base, bidir=both_ways, stride=1, seed_min_area=seed_min_area,
+                           seed_input=seed_input, n_seed_regions=len(masks), instrument_seed="off",
+                           frames=[int(frames[k]) for k in sorted(labels)]),
+                      f, indent=1, ensure_ascii=False)
+        write_montage(partial / montage.name, labels, frames, (h, w))
+    except BaseException:
+        shutil.rmtree(partial, ignore_errors=True)
+        raise
+
+    # Replace the earlier run's labels and montage with the new ones.
+    if lab_dir.exists():
+        shutil.rmtree(lab_dir)
+    montage.parent.mkdir(parents=True, exist_ok=True)
+    (partial / montage.name).replace(montage)
+    partial.rename(lab_dir)
     print(f"  {len(labels)} label maps to {lab_dir}")
     return lab_dir
 

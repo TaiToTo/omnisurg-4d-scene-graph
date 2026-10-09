@@ -257,3 +257,51 @@ A refused clip is left as it was: the stage writes and removes nothing
 until every check has passed.
 
 `python -m pipeline.pi3x --help` lists the options.
+
+## The tracking stage
+
+```bash
+python -m pipeline.track --input-dir /path/to/clips --tracks-root /path/to/tracks --tag <tag> \
+    --rule both_ways_from_centre --sam-input normal_edge --track-base rgb --sam-ckpt sam_vit_h_4b8939.pth \
+    [--clips <clip> ...] [--seed-labels DIR] [--depth-source pi3] [--keep-edge-ring] [--overwrite]
+```
+
+The stage cuts one frame of each clip into regions and carries them through
+the clip with SAM 3's video tracker (`sam3_wrapper`). SAM's automatic mask
+generator cuts the seed frame, prompted with the `--sam-input` image;
+`--seed-labels` reads the regions from a directory instead. The rule places
+the seed:
+
+- `both_ways_from_centre` seeds the middle frame and carries both ways.
+- `forward_from_first` seeds frame 0 and carries forwards.
+
+The stage reads the depth stage's bundle, and Pi3X's with
+`--depth-source pi3`. It reads no GT. It writes, for each clip:
+
+- `<tracks-root>/<clip>/track_<track-base>_<tag>/label_NNNN.npy`: one
+  label map per frame, at the depth's resolution, -1 where no object is.
+- `seed_info.json` beside the labels: the seed frame, whether the stage
+  carried both ways (`bidir`), the frames labelled and the settings the
+  seed was made with.
+- `<tracks-root>/<clip>/viz/montage_track_<track-base>_<tag>.png`: every
+  frame's labels, one colour per object.
+
+The stage refuses:
+
+- a missing image or a missing bundle.
+- an unknown input mode, rule or depth source.
+- seed regions from `--seed-labels` that are missing, of another shape than
+  the depth, or empty.
+- Pi3X depth with another number of frames than DA3's.
+- a seed frame with no region of `--seed-min-area` pixels or more.
+- a condition an earlier run left, unless `--overwrite` is given.
+
+A clip that fails keeps the labels an earlier run left: the stage replaces
+them only once it has written every file. The stage runs every clip and
+exits with an error if one failed.
+
+The stage needs the `track` extra: `pip install -e ".[track]"`. The SAM
+ViT-H weights, `sam_vit_h_4b8939.pth`, are downloaded by hand; SAM 3's
+weights, `facebook/sam3`, download from Hugging Face on first use.
+
+`python -m pipeline.track --help` lists the options.

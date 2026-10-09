@@ -724,11 +724,12 @@ Every command takes those paths as arguments.
     `rgb_edge`, and none of their records holds the setting of the tracker's
     input. They were made on 2026-09-17, after the workbench set
     `EDGE_MASK_RING` to True, and no script of the workbench sets it
-    otherwise, so the ring was most likely zeroed. Decide,
-    before the tracking stage is ported, where its record holds the setting
-    of the tracker's input, and, if the `t12_gtseed` conditions enter the
-    paper ("Conditions seeded from GT"), what their records are taken to
-    say.
+    otherwise, so the ring was most likely zeroed. The ported stage takes
+    the setting as an argument, `--keep-edge-ring`, and writes the
+    workbench's record, so its record holds the setting of the tracker's
+    input in the same cases only. Decide where the record holds that
+    setting, and, if the `t12_gtseed` conditions enter the paper
+    ("Conditions seeded from GT"), what their records are taken to say.
 11. **Depth made by two versions of the depth stage.** On the development
     machine's copy of the workbench, 7 of the 9 CholecSeg8k clips (VID01 and
     VID12) carry depth written by a branch of the depth stage that never
@@ -859,3 +860,17 @@ Every command takes those paths as arguments.
     Splitting also makes the cut marks
     (`experiment/crop_necessity/marks/marks_20260913_174731.jsonl`) a file
     a measurement reads, so they would return to `atlas120k_meta/`.
+20. **The order of tied presence scores.** The tracking stage paints each
+    frame's objects in the order of their presence scores, through
+    `np.argsort`. On the prompted frame no object has a score, so all of
+    them tie. `np.argsort` keeps the tracker's order among ties only up to
+    16 objects, and a seed cut at 24 points per side often holds more.
+    Above 16, the order depends on numpy's build and the CPU: on the
+    development machine, under numpy 2.4.6 on arm64, 17 tied objects come
+    out as 0, 14, 13, 12 and so on. The workbench sorted the same way, so
+    the two stages give the same labels on one machine. Where the masks of
+    tied objects overlap, a label of the prompted frame can differ between
+    machines. The tracking stage's byte check on the workbench's GPU
+    machine therefore runs both stages under one numpy on one CPU. Decide
+    whether the stage keeps this sort, or sorts stably and lists the change
+    among the differences from the workbench that the byte check allows.
