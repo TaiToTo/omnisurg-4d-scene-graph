@@ -440,8 +440,10 @@ and not before.
 
   The manuscript's draft reports them: propagation over the pasted floor,
   in the abstract, and the loss of a geometry rendering under GT seeds.
-  Whether they enter the paper, and from which code, is "Conditions seeded
-  from GT" under "Open questions".
+  The author decided on 2026-10-10 that these conditions are measured
+  again with this repository's code. Whether they enter the paper is not
+  decided. How a GT seed is placed and scored is "Conditions seeded from
+  GT" under "Open questions".
 
 The second list holds what the paper's numbers do not use.
 
@@ -662,6 +664,10 @@ Every command takes those paths as arguments.
    - what hold means under forward propagation (`forward_from_first`),
      where its time offsets from the seed frame run one way only; the
      workbench claimed this changes the measure and did not measure it.
+
+   The author decided on 2026-10-10 that `track_metrics` is ported and run
+   on the paper's conditions. How the paper reports its measures is not
+   decided.
 2. **The skill-classification code and the other 18 viewer pages.** The plan
    leaves both behind. The paper's figures come from some of those pages.
 3. **Whether step 5 has to finish before submission.** Step 3 gives the
@@ -671,7 +677,9 @@ Every command takes those paths as arguments.
    step-3 numbers;
    the 14 clips re-extracted under "CholecSeg8k clips whose frames run out
    of order" can, and so can depth made again under "Depth made by two
-   versions of the depth stage".
+   versions of the depth stage". The author decided on 2026-10-10 that the
+   paper reports the `forward_from_first` conditions. So those rows are
+   measured on the GPU machine before submission.
 4. **Boundary dilation before the freeze.** `evalkit/boundary.py` dilates
    with `cv2.dilate`; a numpy shift-or over the (2·tol + 1)² offsets agrees
    on every mask tried, borders included. The question is whether a hashed
@@ -842,9 +850,17 @@ Every command takes those paths as arguments.
     The workshop's oracle row, GT instrument masks painted onto a
     condition's labels, is one; the viewer's `gt_tracked` track, one GT
     frame carried by SAM 3, is another candidate. The ported tracking stage
-    seeds from no GT: the conditions the workbench seeded from GT masks
-    (`--seed_source gt`: `t12_gtseed` on five inputs, and `t12_paste`) stay
-    in the workbench, and what they measured is a reference value.
+    seeds from no GT. The workbench seeded `t12_gtseed` on five inputs, and
+    `t12_paste`, from GT masks (`--seed_source gt`). On ATLAS-120k their
+    seed sits on the centre frame of 164 of the 315 clips. On the other 151
+    it sits on the frame `track_metrics.pick_seed_frame` chose from GT. So
+    these conditions hold neither propagation rule, whatever the evaluator
+    accepts as a seed's source. The author decided on 2026-10-10 that they
+    are measured again with this repository's code. Open before that:
+    - which frame a GT seed is placed on under each propagation rule,
+      including on a clip whose centre frame has no GT;
+    - how the evaluator records and scores such a condition ("Seeds made
+      outside the tracking stage").
 15. **Masks that are not GT under the GT's name.** The viewer's step writes
     SAM 3 masks into `seg_masks/` as `<i>_color_mask.png`, told apart from
     the annotation only by the frame manifest's `is_anchor` and
@@ -909,3 +925,28 @@ Every command takes those paths as arguments.
     machine therefore runs both stages under one numpy on one CPU. Decide
     whether the stage keeps this sort, or sorts stably and lists the change
     among the differences from the workbench that the byte check allows.
+21. **Seeds made outside the tracking stage.** The evaluator reads a
+    condition's propagation rule from each clip's `seed_info.json`.
+    `rule_of_seed_info` refuses a record whose `seed_source` is neither
+    `sam` nor `per_frame`. Run on the records of the 38 conditions the pilot
+    evaluator scored on ATLAS-120k, it refuses 22 of them:
+    - `op_edge` and `op_normal`, whose seed frame was chosen from GT on 298
+      of the 315 clips;
+    - the seven `t12_*` conditions, whose seeds came from GT masks
+      (`seed_source` `gt`);
+    - the six `t5_*` conditions of the granularity result (`seed_source`
+      `external`).
+
+    The check against the pilot evaluator therefore covers 23 conditions: 5
+    tracked both ways from the centre frame, and 18 segmented frame by
+    frame. `make_t5_seeds.py` made the `t5_*` seeds. It merged the per-frame
+    `rgb` segmentation of the seed frame to K regions. On every clip the
+    seed sits on the centre frame and is carried both ways. So the
+    granularity result holds a propagation rule, and the evaluator refuses
+    it for its source alone. `t5_kgt` takes its K from the clip's GT, so its
+    seed is not the pipeline's own. Decide before the evaluator is frozen:
+    - which values of `seed_source` the evaluator scores;
+    - how a score records where its seed came from;
+    - which comparisons the tools refuse between conditions whose seeds
+      came from different places, as they refuse a comparison across two
+      propagation rules.
