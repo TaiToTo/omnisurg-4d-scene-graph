@@ -189,8 +189,8 @@ def test_a_key_with_no_direction_is_refused(tmp_path):
 
 
 def test_a_reference_value_is_refused_as_the_key(tmp_path):
-    # It has no better direction, so no cell could be marked ★ or ✗.
-    with pytest.raises(ValueError, match="'time_IoU' is a reference value"):
+    # Its direction is 0, so no cell could be marked ★ or ✗.
+    with pytest.raises(ValueError, match="'time_IoU' is a reference value of direction 0"):
         CT.build(write_table(tmp_path), "time_IoU")
 
 

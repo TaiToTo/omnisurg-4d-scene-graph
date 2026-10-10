@@ -123,7 +123,11 @@ def columns_of(summary: Mapping, keys: Sequence[str] = ()) -> list[tuple[str, in
         keys = PILOT_COLUMNS
     out = []
     for key in keys:
-        sign = sign_of_key(summary, key)
+        # The keys with a direction include the reference values, which the table refuses next.
+        try:
+            sign = sign_of_key(summary, key)
+        except ValueError as e:
+            raise ValueError(f"{e}; the table can mark only {markable}") from e
         if sign == 0:
             raise ValueError(f"{key} is a reference value: no star marks it, so it goes in a table that carries none")
         out.append((key, sign))

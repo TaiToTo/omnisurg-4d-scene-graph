@@ -219,8 +219,7 @@ def build(dirs: Mapping[str, str], key: str) -> tuple[list[tuple[Claim, list[dic
         except ValueError as e:
             raise ValueError(f"{name}: {e}") from e
         if sign == 0:
-            raise ValueError(f"{key!r} is a reference value, which has no better direction, so no cell could be "
-                             "marked ★ or ✗")
+            raise ValueError(f"{key!r} is a reference value of direction 0, so no cell could be marked ★ or ✗")
 
     # Each cell, refused with its claim and its dataset named.
     rows = []

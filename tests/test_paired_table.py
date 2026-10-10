@@ -159,6 +159,14 @@ def test_a_key_the_table_cannot_report_is_refused(make, keys, said):
         PT.columns_of(make(), keys)
 
 
+def test_a_key_with_no_direction_is_told_only_the_keys_the_table_can_mark():
+    # The keys with a direction include the reference values, which the table refuses too.
+    with pytest.raises(ValueError, match="the table can mark only") as e:
+        PT.columns_of(pilot_scores("x"), ["F1_50/all"])
+    markable = str(e.value).split("the table can mark only ")[1]
+    assert "inst_F1_50" in markable and "time_IoU" not in markable and "n_regions_mean" not in markable
+
+
 def test_a_condition_without_a_score_json_is_refused():
     pair = workbench_pair()
     del pair["base"]

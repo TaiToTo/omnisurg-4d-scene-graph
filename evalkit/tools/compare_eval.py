@@ -55,10 +55,11 @@ def primary_key(summary: dict, key: str = "") -> tuple[str, int]:
         key: The key asked for; the default when empty.
 
     Raises:
-        ValueError: `key` is not one the JSON reports, or is a reference
-            value, which has no direction to count a win in; or the
-            default is asked of an evaluator JSON without the geometric
-            view, where it lives.
+        ValueError: `key` has no direction on the JSON
+            (`scores.sign_of_key`); it is in no row of the JSON; it is a
+            reference value, of direction 0, so no clip can win on it; or
+            the default is asked of an evaluator JSON without the
+            geometric view, where it lives.
     """
     if not key:
         if is_pilot_json(summary):
@@ -76,7 +77,7 @@ def primary_key(summary: dict, key: str = "") -> tuple[str, int]:
         raise ValueError(f"{key} is in no row of this JSON; the keys its rows hold are "
                          f"{sorted({k for r in summary['per_clip'] for k in r if k in known})}")
     if sign == 0:
-        raise ValueError(f"{key} is a reference value with no direction, so no clip can win on it")
+        raise ValueError(f"{key} is a reference value of direction 0, so no clip can win on it")
     return key, sign
 
 

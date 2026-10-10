@@ -202,7 +202,7 @@ def test_a_key_in_no_row_of_a_pilot_json_is_refused_by_name():
 
 def test_a_reference_value_or_a_key_the_json_does_not_report_is_refused():
     a, b = evaluator_scores(seed=1), evaluator_scores(seed=1, shift=0.1)
-    with pytest.raises(ValueError, match="reference value with no direction"):
+    with pytest.raises(ValueError, match="reference value of direction 0"):
         CE.compare(a, b, key="time_IoU")
     with pytest.raises(ValueError, match="not a key with a direction on this JSON"):
         CE.compare(a, b, key="inst_F1_50")
