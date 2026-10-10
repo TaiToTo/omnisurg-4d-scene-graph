@@ -484,19 +484,24 @@ def marks_decided_by_p(src: str) -> list[str]:
     return [bad[k] for k in sorted(bad)]
 
 
-def _calls_mark_of(node) -> bool:
-    """Whether `node` holds a call of `mark_of`, by its bare name or as an attribute (`PS.mark_of`)."""
-    return any(isinstance(n, ast.Call) and ((isinstance(n.func, ast.Name) and n.func.id == "mark_of")
-                                           or (isinstance(n.func, ast.Attribute) and n.func.attr == "mark_of"))
-               for n in ast.walk(node))
+# The names a mark from `mark_of` is kept under: a variable, or a row's key.
+MARK_HOLDERS = {"mark", "verdict"}
+
+
+def _reads_a_mark(node) -> bool:
+    """Whether `node` calls `mark_of`, bare or as an attribute (`PS.mark_of`), or reads a name in `MARK_HOLDERS`."""
+    calls = any(isinstance(n, ast.Call) and ((isinstance(n.func, ast.Name) and n.func.id == "mark_of")
+                                            or (isinstance(n.func, ast.Attribute) and n.func.attr == "mark_of"))
+                for n in ast.walk(node))
+    return calls or bool(_names_in(node) & MARK_HOLDERS)
 
 
 def marks_bound_to_a_truth_value(src: str) -> list[str]:
-    """`<line>  <statement>` for every assignment that binds `bool(mark_of(...))` to a mark's name.
+    """`<line>  <statement>` for every assignment that binds `bool()` of a mark to a mark's name.
 
-    `star = bool(mark_of(ci))` is True for a cross too, and four readers
-    once drew a loss as a star through it. Counting with bool() is fine;
-    binding it to a mark's name is not.
+    `star = bool(mark_of(ci))` is True for a cross too, and so is
+    `star = bool(row["mark"])`; four readers once drew a loss as a star
+    that way. Counting with bool() is fine; binding it to a mark's name is not.
     """
     bad = []
     for node in ast.walk(ast.parse(src)):
@@ -509,7 +514,7 @@ def marks_bound_to_a_truth_value(src: str) -> list[str]:
         if not (targets & MARK_NAMES):
             continue
         for call in (n for n in ast.walk(node.value) if isinstance(n, ast.Call)):
-            if isinstance(call.func, ast.Name) and call.func.id == "bool" and _calls_mark_of(call):
+            if isinstance(call.func, ast.Name) and call.func.id == "bool" and _reads_a_mark(call):
                 seg = ast.get_source_segment(src, node) or ""
                 bad.append(f"{node.lineno}  {seg.splitlines()[0].strip()}")
     return bad
@@ -629,6 +634,7 @@ DECIDED_BY_P = [
 
 P_BESIDE_A_MARK = [
     'print(f"{mark} p={p:.4f}")',
+    'mark = mark_of(ci)',
     'row["mark"] = mark_of(ci)',
     'if p < 0.05:\n    print("a small p, printed, not decisive")',
     'alpha = 0.05\nprint(f"alpha={alpha}")',
@@ -651,12 +657,15 @@ BOUND_TO_A_TRUTH_VALUE = [
     'star = bool(mark_of(ci))',
     'row["star"] = bool(PS.mark_of(ci))',
     'sig = bool(paired_stats.mark_of(r["ci95_video"], r["sign"]))',
+    'star = bool(row["mark"])',
+    'star = bool(mark)',
 ]
 
 KEEPS_THE_DIRECTION = [
     'n_marked = sum(bool(mark_of(c)) for c in cis)',
     'star = mark_of(ci) == "★"',
     'star = is_star(ci)',
+    'mark = mark_of(ci)',
     'row["mark"] = mark_of(ci)',
 ]
 
