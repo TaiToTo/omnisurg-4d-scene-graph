@@ -217,22 +217,31 @@ holds:
   the moved level, and the levels of the instruments and of the gauze.
 
 A run that extracts every case of the release writes
-`extraction_summary.json`, which counts the clips of each case. Any other
-run, one given `--cases` or one in which a case is refused, removes the
-summary an earlier run wrote, so a summary always counts the clips of one
-run over the whole release. The frames
-are not cropped: they keep the black surround of the endoscope's view, so
-the depth stage refuses the clips.
+`extraction_summary.json`, which counts the clips of each case. Such a run
+is given no `--cases`, or names every case with it. Any other run removes
+the summary an earlier run wrote:
 
-The stage refuses:
+- a run given only some of the cases;
+- a run in which a case is refused.
+
+So a summary always counts the clips of one run over the whole release.
+
+The frames are not cropped: they keep the black surround of the
+endoscope's view, so the depth stage refuses the clips.
+
+The stage refuses, before any case is extracted:
 
 - a release whose `metadata/segmented_entity.csv` is not the class table
   the stage was written for, or lists a level twice;
-- a case named on the command line that has no directory; this stops the
-  run before any case is extracted;
+- a case named on the command line that is not one of the release's, `01`
+  to `30`, such as `01/` or `../01`;
+- a case named on the command line that has no directory.
+
+In each case, the stage refuses:
+
 - a case without a mask;
-- a mask whose name is not `<ms>_seg.jpg`, or whose time is not a whole
-  frame at 25 fps;
+- a file in `seg/` whose name is not `<ms>_seg.jpg`;
+- a mask whose time is not a whole frame at 25 fps;
 - a mask without the frame of its time;
 - a mask or a frame that cannot be read;
 - a mask whose size is not its frame's;

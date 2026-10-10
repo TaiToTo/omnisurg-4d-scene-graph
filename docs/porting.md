@@ -289,8 +289,9 @@ Each stage is described in `docs/pipeline.md`.
 - `ipcai2027_experiment/scripts/lapex_extract.py` is
   `pipeline/extract_lapex.py`, which extracts LapEx, the third population
   of the granularity result. It refuses what the script let through: a
-  mask whose name is not a time, a time that is not a whole frame, and a
-  class table that lists a level twice. It refuses a clip an earlier run
+  mask whose name is not a time, a file in `seg/` that the script skipped
+  because its name does not end in `_seg.jpg`, a time that is not a whole
+  frame, and a class table that lists a level twice. It refuses a clip an earlier run
   left, which the script wrote over, unless `--overwrite` is given, and,
   even with it, a clip a later stage wrote into. It checks every frame of a
   case before it writes the case's clips, and goes on to the next case

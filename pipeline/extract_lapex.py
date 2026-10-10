@@ -59,7 +59,7 @@ OUTPUTS = ("input_images", "seg_masks", "frame_manifest.json")
 
 @dataclass(frozen=True)
 class Annotated:
-    """One annotated frame of a case, read and checked.
+    """Hold one annotated frame of a case, as `read_case` read and checked it.
 
     Attributes:
         ms: The frame's time in milliseconds, as the release spells it in the file names.
@@ -118,20 +118,23 @@ def read_case(case_dir: Path) -> list[Annotated]:
 
     Raises:
         FileNotFoundError: the case has no annotated frame, or a mask has no frame of its time.
-        ValueError: a mask's name is not `<ms>_seg.jpg`, its time is not a whole frame at `FPS`, it is not its
-            frame's size, or it holds a level the class table lacks.
+        ValueError: a file in `seg/` is not named `<ms>_seg.jpg`, a mask's time is not a whole frame at `FPS`,
+            a mask is not its frame's size, or a mask holds a level the class table lacks.
         RuntimeError: a mask or a frame cannot be read.
     """
+    # List every file in `seg/`, not only the names that end as a mask's does, so that a misnamed mask is
+    # refused rather than skipped.
     seg_dir = case_dir / "seg"
-    segs = sorted(p for p in seg_dir.glob(f"*{SEG_SUFFIX}")) if seg_dir.is_dir() else []
+    segs = sorted(seg_dir.iterdir()) if seg_dir.is_dir() else []
     if not segs:
-        raise FileNotFoundError(f"{case_dir.name}: no *{SEG_SUFFIX} in {seg_dir}")
+        raise FileNotFoundError(f"{case_dir.name}: {seg_dir} holds no mask")
     out = []
     for seg in segs:
         # Find the frame of the mask's time; a time between two frames would give the wrong `native_frame`.
-        ms = seg.name[: -len(SEG_SUFFIX)]
-        if not re.fullmatch(r"\d+", ms):
+        named = re.fullmatch(rf"(\d+){re.escape(SEG_SUFFIX)}", seg.name)
+        if not named:
             raise ValueError(f"{case_dir.name}: {seg.name} is not named <ms>{SEG_SUFFIX}")
+        ms = named.group(1)
         if int(ms) % MS_PER_FRAME:
             raise ValueError(f"{case_dir.name}: {seg.name} is at {int(ms)} ms, not a whole frame at {FPS} fps")
         frame = case_dir / "frames" / f"{ms}.jpg"
@@ -234,7 +237,10 @@ def main(argv: Sequence[str] | None = None) -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--lapex-root", required=True, help="The release's directory, holding metadata/ and the cases.")
     ap.add_argument("--out", required=True, help="The directory the clips are written to.")
-    ap.add_argument("--cases", nargs="+", help="Cases to extract, such as 01. Default: all 30.")
+    # A case names a directory under `--lapex-root` and starts the name of each of its clips. So only the
+    # release's cases are taken: `01/` or `../01` would read or write outside those directories.
+    ap.add_argument("--cases", nargs="+", choices=CASES, metavar="CASE",
+                    help="Cases to extract, 01 to 30. Default: all 30.")
     ap.add_argument("--overwrite", action="store_true", help="Replace the clips an earlier run left.")
     args = ap.parse_args(argv)
 

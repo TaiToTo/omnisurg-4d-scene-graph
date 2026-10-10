@@ -28,7 +28,7 @@ CASES = {
 
 
 def _mask(levels: tuple[int, ...]) -> np.ndarray:
-    """A mask of vertical blocks 16 pixels wide, one level each, repeating."""
+    """Draw a mask in vertical blocks 16 pixels wide. Each block takes the next level, and the levels repeat."""
     m = np.empty((SIZE[1], SIZE[0]), np.uint8)
     for i in range(SIZE[0] // 16):
         m[:, i * 16:(i + 1) * 16] = levels[i % len(levels)]
@@ -67,7 +67,7 @@ def release(tmp_path):
 
 @pytest.fixture
 def out(tmp_path):
-    """The directory the clips are written to, beside the release."""
+    """Make the directory the clips are written to, beside the release, and return it."""
     d = tmp_path / "clips"
     d.mkdir()
     return d
@@ -146,7 +146,7 @@ def test_a_release_without_a_class_table_is_refused(release):
 def test_a_case_without_masks_is_refused(release, out):
     for p in (release / "02" / "seg").iterdir():
         p.unlink()
-    with pytest.raises(FileNotFoundError, match="no \\*_seg.jpg"):
+    with pytest.raises(FileNotFoundError, match="holds no mask"):
         extract_case(release, "02", out)
 
 
@@ -164,6 +164,13 @@ def test_a_mask_without_its_frame_is_refused(release, out):
 def test_a_mask_name_that_is_not_a_time_is_refused(release, out):
     _write_jpeg(release / "01" / "seg" / "a0040_seg.jpg", _mask((18,)))
     with pytest.raises(ValueError, match="is not named <ms>_seg.jpg"):
+        extract_case(release, "01", out)
+
+
+def test_a_file_in_seg_with_another_suffix_is_refused(release, out):
+    # The name does not end in _seg.jpg, so a stage that lists only the masks' names would skip it.
+    assert cv2.imwrite(str(release / "01" / "seg" / "0000080_seg.png"), _mask((18,)))
+    with pytest.raises(ValueError, match="0000080_seg.png is not named <ms>_seg.jpg"):
         extract_case(release, "01", out)
 
 
@@ -246,6 +253,24 @@ def test_a_run_over_some_cases_removes_the_summary_of_the_whole_release(release,
     main(["--lapex-root", str(release), "--out", str(out), "--cases", "02", "--overwrite"])
     assert not (out / "extraction_summary.json").exists()
     assert sorted(p.name for p in out.iterdir()) == ["01__gt_0000040", "01__gt_0145160", "02__gt_038920"]
+
+
+def test_a_run_naming_every_case_writes_the_summary(release, tmp_path, monkeypatch):
+    monkeypatch.setattr(extract_lapex, "CASES", ("01", "02"))
+    out = tmp_path / "clips"
+    main(["--lapex-root", str(release), "--out", str(out), "--cases", "02", "01"])
+    assert json.loads((out / "extraction_summary.json").read_text())["cases"] == {"02": 1, "01": 2}
+
+
+@pytest.mark.parametrize("case", ["01/", "../01"])
+def test_the_command_refuses_a_case_the_release_does_not_have(release, tmp_path, capsys, case):
+    # Joined to the release's root, each names a directory that exists.
+    (release.parent / "01").mkdir()
+    out = tmp_path / "clips"
+    with pytest.raises(SystemExit):
+        main(["--lapex-root", str(release), "--out", str(out), "--cases", case])
+    assert f"invalid choice: '{case}'" in capsys.readouterr().err
+    assert not out.exists()
 
 
 def test_the_command_refuses_a_missing_case_before_any_is_extracted(release, tmp_path):
