@@ -293,6 +293,19 @@ Each stage is described in `docs/pipeline.md`.
   without a manifest, a manifest that does not list one frame per image,
   and an image whose size is not the rectangle's frame. It also refuses to
   replace a cropped clip that holds a later stage's output.
+- `ipcai2027_experiment/scripts/lapex_extract.py` is
+  `pipeline/extract_lapex.py`, which extracts LapEx, the third population
+  of the granularity result. It refuses what the script let through: a
+  mask whose name is not a time, a file in `seg/` that the script skipped
+  because its name does not end in `_seg.jpg`, a time that is not a whole
+  frame, and a class table that lists a level twice. It refuses a clip an earlier run
+  left, which the script wrote over, unless `--overwrite` is given, and,
+  even with it, a clip a later stage wrote into. It checks every frame of a
+  case before it writes the case's clips, and goes on to the next case
+  after a refusal, where the script stopped at the first fault after
+  writing the clips before it. It writes `extraction_summary.json` only
+  after a run over every case, where the script replaced it with the
+  count of the cases it was given.
 
 ### Not yet extracted anywhere
 
@@ -352,6 +365,17 @@ below.
     `ipcai2027_experiment/task11_atlas13/scripts/check_provenance.py`, which
     makes no table: it checks each condition's `seed_info.json` against the
     settings the condition was meant to run with.
+  - LapEx's comparisons, from `ipcai2027_experiment/scripts/`, which the
+    manuscript reports and does not release. `lapex_kcurve.py` merges the
+    `rgb` condition at 24 points per side to fixed K with `kmerge`, and
+    compares the merge with the condition unmerged. `lapex_02b02c.py`
+    compares `normal_edge` with `rgb`, at 24 and at 4 points per side, and
+    the merge to K = 10 with `rgb` at 4. Their scores carry the earlier
+    frozen evaluator's `eval_code_sha` (`9cf136c7…`), and `reeval_v2.py`
+    lists `outputs/lapex` among the roots it scores again with the pilot
+    evaluator. Ported, each comparison is a run of `kmerge` and a pair
+    given to `paired_stats`, on the evaluator's scores. They wait on "How
+    LapEx is scored".
   - The camera trajectory on StereoMIS, from `ipcai2027_experiment/scripts/`:
     `stereomis_io.py`, `run_20.sh`, `pose_metrics.py` and `pose_controls.py`.
     `run_20.sh` runs the DA3 stage and, through
@@ -425,13 +449,6 @@ The first list holds experiments the manuscript reports. Their numbers come
 from this repository once they are ported ("The paper is measured here"),
 and not before.
 
-- **LapEx** (`lapex_extract.py`, `lapex_kcurve.py` and `lapex_02b02c.py`,
-  in `ipcai2027_experiment/scripts/`), the third population of the
-  granularity result, which the manuscript reports and does not release.
-  Its scores carry the earlier frozen evaluator's `eval_code_sha`
-  (`9cf136c7…`), and `reeval_v2.py` lists `outputs/lapex` among the roots
-  it scores again with the pilot evaluator. Whichever its scores carry,
-  LapEx is scored again with the evaluator once ported.
 - **Conditions seeded from GT masks**, which the ported tracking stage does
   not carry ("Two propagation rules, and no seed chosen from GT"):
   - `track_sam3.py --seed_source gt`, the `gt_seed` mode of
@@ -1013,3 +1030,32 @@ Every command takes those paths as arguments.
       seed came from, and the propagation rule;
     - where the table lives that maps each workbench name to its name here.
       That table is the only place a workbench name appears.
+23. **How LapEx is scored.** The evaluator holds class tables for
+    ATLAS-120k and CholecSeg8k only, so it cannot read a LapEx clip.
+    `kmerge` reads a condition through the evaluator, so it cannot merge
+    one either. Three things are open before LapEx is scored again:
+    - **Its class table.** Each of LapEx's 11 classes needs a type. LapEx
+      labels every pixel, and level 0 is interstitial space, a class. The
+      extraction writes level 0 as 11, because the workbench's evaluators
+      read id 0 as background. Either the table names 11, or the move is
+      dropped and the clips are extracted again. The workbench scored all
+      11 classes. It planned two more views, one without the instruments
+      and one without the instruments and the gauze (`compress`), and
+      measured neither.
+    - **Its depth.** LapEx's frames keep the black surround of the
+      endoscope's view. On 710 of the 735 clips, the workbench's depth
+      stage found that border and filled it (`border_inpaint` in
+      `depth_info`). Its depth maps of those clips hold zeros, on 1.8 to
+      8.9 % of the pixels, and the evaluator and `kmerge` refuse a frame
+      with such a pixel. The ported depth stage neither finds nor fills a
+      border, and it refuses a LapEx clip, which has no `crop_info.json`.
+      So LapEx needs depth made again, on frames cropped or filled, and its
+      predictions made again on that depth, by the ported per-frame stage,
+      which records their propagation rule.
+    - **Its comparison.** The workbench averaged each case's clips first,
+      then resampled the 30 case means, 2,000 times. `paired_stats`
+      averages over clips and resamples the cases, 10,000 times. A case
+      holds 14 to 55 clips, so the two weigh the cases differently. The
+      workbench's reading, fixed before the numbers, gave the merge a star
+      only if it had one at both K = 8 and K = 10. The paper merges to 10
+      ("`kmerge` is a tool").
