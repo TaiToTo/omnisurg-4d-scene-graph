@@ -183,6 +183,20 @@ Where they and this document differ, this document holds.
       this repository's code. Open: whether the paper reports them.
     - **`track_metrics`.** It is run on the paper's conditions. Open: how
       the paper reports its measures.
+18. **The public viewer reads a bundle.** The workbench's viewer read the
+    export stage's files from its development server, which listed the
+    clips through `/api/clips`, and drew a 10 MB colour raster per frame and
+    track. A page on the public internet has no such server. The stage
+    `pipeline.viewer_bundle` writes what the viewer reads instead: a catalog
+    of the clips, and per clip the frames, the clouds of one geometry
+    source, and per track the labels of the cloud's points, run-length
+    coded, with the scene graphs. A clip's overlays go from about 600 MB to
+    under 1 MB. The workbench's viewer resampled the overlays onto the Pi3X
+    cloud and placed the nodes on it in the browser, on every frame load;
+    the stage does both once, so the labels the viewer reads always index
+    the cloud it draws. Track names and instrument classes come from the
+    bundle; the instrument classes are the class tables' `tool` type. The
+    viewer names no track and no dataset.
 
 ## What moves
 
@@ -698,8 +712,8 @@ while the evaluator is built and reviewed is worked out in `docs/workstreams.md`
 6. **Prepare the release.**
    - An English README, `docs/data_contract.md`, the `atlas120k_meta/` README
      and `CITATION.cff`.
-   - Before anything is public, a check of HTL's anonymity rules, since AE-CAI
-     is under double-blind revision.
+   - Before anything is public, a check of the anonymity rules of Healthcare
+     Technology Letters, since AE-CAI is under double-blind revision.
    - Done when a third party can clone, install and get a green `pytest`,
      and, on a machine with a CUDA GPU, install the pipeline with the
      README's steps and run each ported stage on a clip.
@@ -1255,3 +1269,20 @@ Every command takes those paths as arguments.
     granularity result answers a question whose primary metrics are already
     fixed ("Primary metrics" in `docs/evaluation.md`). Decide with it which
     population the ATLAS-120k column reads.
+33. **What the public viewer may publish.** A bundle holds a clip's frames
+    as JPEG, its masks as labels, and the scene graphs built on them. Two
+    questions are open before a bundle is put online:
+    - Whether each dataset's terms allow its frames and masks on a public
+      page, and with which attribution. CholecSeg8k's frames come from
+      Cholec80, and ATLAS-120k's from public videos.
+    - What the page says about who made it. The workbench's demo named the
+      authors, their university and their funders, with the funders' marks.
+      AE-CAI is under double-blind revision, so this waits on the anonymity
+      rules of Healthcare Technology Letters ("Prepare the release").
+34. **The size of the point clouds.** A bundled clip is 60 to 90 MB, and its
+    clouds are 97 % of it: a GLB holds one float32 position and one RGBA
+    colour per pixel, 2.8 MB on DA3's grid and 4 MB on Pi3X's. A clip of 15
+    frames takes about a minute to load on a 10 Mbit/s line. Quantised
+    positions or a compressed GLB would shrink them several times, if the
+    encoding keeps the points in their order, since the labels index them
+    by order. Decide with the place the bundles are hosted.
