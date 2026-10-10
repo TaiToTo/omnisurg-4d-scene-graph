@@ -213,7 +213,7 @@ def test_the_pair_statistics_are_the_workbench_s():
     for key, want in WORKBENCH.items():
         got = res["metrics"][key]
         assert {k: got[k] for k in want} == want, key
-        assert set(got) - set(want) == {"sign"}, key
+        assert set(got) - set(want) == {"sign", "verdict"}, key
 
 
 def test_every_row_carries_the_direction_of_its_key():
@@ -297,6 +297,19 @@ def test_the_pair_computes_the_keys_it_is_named_and_only_those():
     # A key named by mistake is refused, even where no clip defines it.
     with pytest.raises(KeyError):
         PS.compare_pair(a, b, keys=["inst_F1_50_labelled"])
+    ea, eb = evaluator_scores("base", 0.0, 5), evaluator_scores("cond", 0.03, 6)
+    for spelt in ("F1_50/geometrc", "F1_50"):
+        with pytest.raises(KeyError, match="not keys the evaluator writes"):
+            PS.compare_pair(ea, eb, keys=[spelt])
+
+
+def test_the_row_s_mark_is_read_from_the_interval_before_it_is_rounded(monkeypatch):
+    # An interval whose lower end is 2e-5 is a star; rounded to four places it starts at 0.0 and would be none.
+    monkeypatch.setattr(PS, "boot_ci", lambda d, groups, **kw: (2.03e-05, 0.01509))
+    a, b = pilot_scores("base", 0.0, 5), pilot_scores("cond", 0.03, 6)
+    r = PS.compare_pair(a, b, keys=["inst_F1_50"])["metrics"]["inst_F1_50"]
+    assert r["ci95_video"] == [0.0, 0.0151] and PS.verdict(r["ci95_video"], r["sign"]) == ""
+    assert r["verdict"] == PS.mark_of(r) == "★"
 
 
 def test_a_key_defined_on_no_common_clip_is_left_out_not_zeroed():
@@ -517,11 +530,12 @@ def _module_of(node: ast.ImportFrom, package: str) -> str:
     return ".".join(base + ([node.module] if node.module else []))
 
 
-VERDICTS = {"evalkit.tools.paired_stats.verdict", "evalkit.tools.paired_stats.is_star"}
+VERDICTS = {"evalkit.tools.paired_stats.verdict", "evalkit.tools.paired_stats.is_star",
+            "evalkit.tools.paired_stats.mark_of"}
 
 
 def _borrows_verdict(tree, package: str) -> bool:
-    """Whether the module calls `paired_stats.verdict` or `is_star`, through whatever import form binds it.
+    """Whether the module calls `paired_stats.verdict`, `is_star` or `mark_of`, through whatever import form binds it.
 
     Every name an import binds is resolved to the dotted thing it stands
     for, and every name or attribute chain the module uses is read through

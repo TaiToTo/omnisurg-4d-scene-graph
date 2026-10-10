@@ -243,6 +243,15 @@ def is_star(ci95_video, sign: int = +1) -> bool:
     return verdict(ci95_video, sign) == "★"
 
 
+def mark_of(row: dict) -> str:
+    """Return the mark of a row of `compare_pair`: `verdict` on its video-level interval before it was rounded.
+
+    The row's `ci95_video` is rounded to four places, so `verdict` on it can drop a star whose interval ends
+    within 5e-5 of zero; a table reads the row's mark here rather than the rounded interval.
+    """
+    return row["verdict"]
+
+
 def _sd(x: np.ndarray) -> float | None:
     """The sample SD, or None on one value, where `std(ddof=1)` would write NaN into the JSON."""
     return None if len(x) < 2 else round(float(x.std(ddof=1)), 4)
@@ -261,7 +270,8 @@ def _stats_of(va: np.ndarray, vb: np.ndarray, kvids: np.ndarray, sign: int) -> d
     n_videos = int(len(np.unique(kvids)))
     w = stats.wilcoxon(d, zero_method="wilcox") if np.any(d != 0) else None
     ci_clip = None if len(d) < 2 else [round(x, 4) for x in boot_ci(d, None)]
-    ci_video = None if n_videos < 2 else [round(x, 4) for x in boot_ci(d, kvids)]
+    ci_video_raw = None if n_videos < 2 else boot_ci(d, kvids)
+    ci_video = None if ci_video_raw is None else [round(x, 4) for x in ci_video_raw]
     pv = wilcoxon_video(d, kvids)
     return dict(
         # A shrunken population is never averaged silently: the counts stay.
@@ -275,6 +285,9 @@ def _stats_of(va: np.ndarray, vb: np.ndarray, kvids: np.ndarray, sign: int) -> d
         wilcoxon_p_video=None if pv is None else round(pv, 5),
         ci95_clip=ci_clip,
         ci95_video=ci_video,
+        # The mark is read from the interval before it is rounded: an end within 5e-5 of zero rounds to 0.0, and
+        # a table reading the rounded interval would drop a star another tool gives the same pair.
+        verdict=verdict(ci_video_raw, sign),
     )
 
 
@@ -304,11 +317,16 @@ def compare_pair(ja: dict, jb: dict, drop: Sequence[str] = (), allow_legacy_code
             the scores do not have, or `drop` leaves no clip.
         KeyError: A key in `keys` has no direction: on a pilot JSON it is
             not in `scores.PILOT_SIGNS`, on another it is not a key the
-            evaluator writes.
+            evaluator writes, in a view the JSON holds.
     """
     # The ruler and the domain are checked, not only the population; the
     # check also settles that the populations are equal (no subset here).
     chk = check_comparable(ja, jb, allow_legacy_code=allow_legacy_code)
+    # `sign_of` reads the metric alone, so a view spelt wrong would pass it and be defined on no clip.
+    if keys is not None and not is_pilot_json(ja):
+        unknown = [k for k in keys if k not in metric_keys(ja)]
+        if unknown:
+            raise KeyError(f"{unknown} are not keys the evaluator writes in the views {ja['views']}")
     # The direction of each key is read before any is computed, so that a
     # key named by mistake is refused even where no clip defines it.
     signs = {k: sign_of_key(ja, k) for k in (keys_of(ja) if keys is None else keys)}

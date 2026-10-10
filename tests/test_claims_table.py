@@ -4,9 +4,10 @@ Each check is shown refusing a planted fault:
 
 - a score JSON without the key, or with a key that has no direction;
 - a stage the propagation rules contradict, and two rules in one table;
-- a column of two datasets, two columns of one, and a JSON with no dataset;
-- a pair that is not comparable;
-- a directory that is missing or holds none of the table's conditions.
+- a column given the other dataset's scores, a JSON of another dataset, and a JSON with no dataset;
+- a pair that is not comparable, and a column of two populations;
+- a reference value as the key;
+- a directory that is missing or holds none of the table's conditions, and a cell not measured.
 """
 import json
 import random
@@ -107,7 +108,7 @@ MERGE = CT.CLAIMS[0]
 
 def test_a_cell_is_the_pair_statistics_of_paired_stats_on_the_key(tmp_path):
     dirs = write_table(tmp_path, {("atlas120k", "t5_k10"): 0.05})
-    rows, rule = CT.build(dirs, PILOT_KEY)
+    rows, rule, _ = CT.build(dirs, PILOT_KEY)
     assert rule is None
     claim, cells = rows[0]
     assert claim is MERGE
@@ -122,7 +123,7 @@ def test_a_cell_is_the_pair_statistics_of_paired_stats_on_the_key(tmp_path):
 def test_a_row_is_starred_in_both_only_when_both_datasets_give_a_star(tmp_path):
     dirs = write_table(tmp_path, {("atlas120k", "t5_k10"): 0.05, ("cholecseg8k", "t5_k10"): 0.05,
                                   ("atlas120k", "rgb_center18"): 0.05, ("cholecseg8k", "ch_rgb_center"): -0.05})
-    rows, _ = CT.build(dirs, PILOT_KEY)
+    rows, _, _ = CT.build(dirs, PILOT_KEY)
     both = {claim.name: all(CT.star_in(p, PILOT_KEY) for p in cells) for claim, cells in rows}
     # Every claim whose compared condition is `t5_k10` gets a star in both;
     # the rgb tracking claim gets a star and a cross, and the edge one nothing.
@@ -133,18 +134,30 @@ def test_a_row_is_starred_in_both_only_when_both_datasets_give_a_star(tmp_path):
 def test_a_key_where_less_is_better_is_read_in_its_direction(tmp_path):
     dirs = write_table(tmp_path, {("atlas120k", "t5_k10"): -0.05, ("cholecseg8k", "t5_k10"): -0.05},
                        layout="evaluator")
-    rows, _ = CT.build(dirs, metric_key("VI_split", "all"))
+    rows, _, _ = CT.build(dirs, metric_key("VI_split", "all"))
     assert all(CT.star_in(p, metric_key("VI_split", "all")) for p in rows[0][1])
-    rows, _ = CT.build(dirs, KEY)
+    rows, _, _ = CT.build(dirs, KEY)
     assert "✗" in CT.format_cell(rows[0][1][0], KEY)
 
 
 def test_a_condition_without_a_score_json_is_not_measured_and_its_row_gets_no_star(tmp_path):
     dirs = write_table(tmp_path, {("atlas120k", "t5_k10"): 0.05, ("cholecseg8k", "t5_k10"): 0.05},
                        skip={("cholecseg8k", "t5_floor")})
-    rows, _ = CT.build(dirs, PILOT_KEY)
-    assert rows[0][1][1] is None and CT.format_cell(None, PILOT_KEY) == "not measured"
+    rows, _, _ = CT.build(dirs, PILOT_KEY)
+    assert rows[0][1][1] == CT.Unmeasured(("t5_floor",))
+    assert CT.format_cell(rows[0][1][1], PILOT_KEY) == "not measured: no t5_floor.json"
     assert not all(CT.star_in(p, PILOT_KEY) for p in rows[0][1])
+    assert "→ 2 / 5 rows get a star in both datasets; 1 rows have a cell not measured" in CT.render(
+        rows, None, PILOT_KEY, markdown=False)
+
+
+def test_the_star_is_the_mark_paired_stats_read_before_rounding(tmp_path, monkeypatch):
+    # The rounded interval [0.0, 0.0151] gives no star; the interval it was rounded from gives one.
+    monkeypatch.setattr(PS, "boot_ci", lambda d, groups, **kw: (2.03e-05, 0.01509))
+    rows, _, _ = CT.build(write_table(tmp_path), PILOT_KEY)
+    r = rows[0][1][0]["metrics"][PILOT_KEY]
+    assert r["ci95_video"] == [0.0, 0.0151] and CT.star_in(rows[0][1][0], PILOT_KEY)
+    assert "★ (8 clips" in CT.format_cell(rows[0][1][0], PILOT_KEY)
 
 
 def test_a_score_json_without_the_key_is_refused_not_shown_as_not_measured(tmp_path):
@@ -157,14 +170,14 @@ def test_a_score_json_without_the_key_is_refused_not_shown_as_not_measured(tmp_p
 def test_a_key_defined_on_no_common_clip_is_said_so(tmp_path):
     dirs = write_table(tmp_path)
     rewrite(dirs, "atlas120k", "t5_k10", lambda d: [r.update({PILOT_KEY: None}) for r in d["per_clip"]])
-    rows, _ = CT.build(dirs, PILOT_KEY)
+    rows, _, _ = CT.build(dirs, PILOT_KEY)
     assert CT.format_cell(rows[0][1][0], PILOT_KEY) == "not defined on any common clip"
 
 
 def test_a_shrunken_population_is_shown_against_the_pair_s(tmp_path):
     dirs = write_table(tmp_path)
     rewrite(dirs, "atlas120k", "t5_k10", lambda d: d["per_clip"][0].update({PILOT_KEY: None}))
-    rows, _ = CT.build(dirs, PILOT_KEY)
+    rows, _, _ = CT.build(dirs, PILOT_KEY)
     assert CT.format_cell(rows[0][1][0], PILOT_KEY).endswith("(7/8 clips, 4/4 videos)")
 
 
@@ -173,11 +186,17 @@ def test_a_key_with_no_direction_is_refused(tmp_path):
         CT.build(write_table(tmp_path), "no_such_key")
 
 
+def test_a_reference_value_is_refused_as_the_key(tmp_path):
+    # No star marks it, so every row would read as one without a star.
+    with pytest.raises(ValueError, match="'time_IoU' is a reference value"):
+        CT.build(write_table(tmp_path), "time_IoU")
+
+
 # ---------------------------------------------------------------- the stage and the rule
 
 
 def test_the_stages_are_checked_against_the_rules_the_evaluator_records(tmp_path):
-    rows, rule = CT.build(write_table(tmp_path, layout="evaluator"), KEY)
+    rows, rule, _ = CT.build(write_table(tmp_path, layout="evaluator"), KEY)
     assert rule == "both_ways_from_centre"
     assert "each stage is checked" in CT.render(rows, rule, KEY, markdown=False)
 
@@ -207,7 +226,7 @@ def test_a_table_of_two_propagation_rules_is_refused(tmp_path):
 
 
 def test_pilot_jsons_leave_the_stages_declared_and_the_table_says_so(tmp_path):
-    rows, rule = CT.build(write_table(tmp_path), PILOT_KEY)
+    rows, rule, _ = CT.build(write_table(tmp_path), PILOT_KEY)
     assert rule is None
     assert "each stage is as declared" in CT.render(rows, rule, PILOT_KEY, markdown=True)
 
@@ -215,19 +234,39 @@ def test_pilot_jsons_leave_the_stages_declared_and_the_table_says_so(tmp_path):
 # ---------------------------------------------------------------- the columns
 
 
-def test_a_column_that_holds_two_datasets_is_refused(tmp_path):
+@pytest.mark.parametrize("layout", ["pilot", "evaluator"])
+def test_columns_given_each_other_s_scores_are_refused(tmp_path, layout):
+    # `t5_floor` and `t5_k10` are tags of both datasets, so the swapped columns would print each other's numbers.
+    dirs = write_table(tmp_path, layout=layout)
+    with pytest.raises(ValueError, match=r"atlas120k: t5_floor records the dataset '(cholec|cholecseg8k)', not one"):
+        CT.build({"atlas120k": dirs["cholecseg8k"], "cholecseg8k": dirs["atlas120k"]},
+                 PILOT_KEY if layout == "pilot" else KEY)
+
+
+def test_a_json_of_another_dataset_in_a_column_is_refused(tmp_path):
     dirs = write_table(tmp_path)
     rewrite(dirs, "atlas120k", "rgb_center18", lambda d: d.update(dataset="cholec"))
-    with pytest.raises(ValueError, match="atlas120k: the score JSONs record more than one dataset"):
+    with pytest.raises(ValueError, match="atlas120k: rgb_center18 records the dataset 'cholec'"):
         CT.build(dirs, PILOT_KEY)
 
 
-def test_two_columns_of_one_dataset_are_refused(tmp_path):
+def test_a_column_of_two_populations_is_refused(tmp_path):
+    # The rgb pair shares no condition with the other pairs, so each pair alone would pass on its own clips.
     dirs = write_table(tmp_path)
-    for tag in {t for c in CT.CLAIMS for t in c.pairs["cholecseg8k"]}:
-        rewrite(dirs, "cholecseg8k", tag, lambda d: d.update(dataset="atlas"))
-    with pytest.raises(ValueError, match="both hold scores of 'atlas'"):
+    def first_six(doc):
+        doc.update(clips=doc["clips"][:6], per_clip=doc["per_clip"][:6])
+
+    for tag in ("op_rgb_perframe_pps24", "rgb_center18"):
+        rewrite(dirs, "atlas120k", tag, first_six)
+    with pytest.raises(ValueError, match=r"atlas120k: .* cannot share a column"):
         CT.build(dirs, PILOT_KEY)
+
+
+def test_library_versions_that_differ_in_a_column_are_noted_not_refused(tmp_path):
+    dirs = write_table(tmp_path, layout="evaluator")
+    rewrite(dirs, "atlas120k", "t5_k10", lambda d: d.update(versions={"python": "3.12.1"}))
+    rows, rule, differ = CT.build(dirs, KEY)
+    assert "# note: library versions differ in atlas120k between" in CT.render(rows, rule, KEY, False, differ)
 
 
 def test_a_json_that_records_no_dataset_is_refused(tmp_path):
@@ -237,10 +276,10 @@ def test_a_json_that_records_no_dataset_is_refused(tmp_path):
         CT.build(dirs, PILOT_KEY)
 
 
-def test_a_pair_that_is_not_comparable_is_refused_with_its_claim_named(tmp_path):
+def test_a_pair_that_is_not_comparable_is_refused_with_its_column_named(tmp_path):
     dirs = write_table(tmp_path)
     rewrite(dirs, "cholecseg8k", "t5_k10", lambda d: d.update(eval_code_sha="b" * 64))
-    with pytest.raises(ValueError, match=r"Merging fixes over-splitting.*\(cholecseg8k\).*different evaluators"):
+    with pytest.raises(ValueError, match=r"cholecseg8k: .*t5_k10 cannot share a column: .*different evaluators"):
         CT.build(dirs, PILOT_KEY)
 
 
@@ -283,6 +322,16 @@ def test_the_command_prints_the_markdown_table(tmp_path):
     assert out.returncode == 0, out.stderr
     assert "| claim | stage | atlas120k | cholecseg8k | both |" in out.stdout
     assert f"| {MERGE.name} | propagated | " in out.stdout and out.stdout.count("| ★★ |") == 3
+
+
+def test_the_command_exits_non_zero_on_a_cell_not_measured_unless_allowed(tmp_path):
+    dirs = write_table(tmp_path, skip={("cholecseg8k", "t5_floor")})
+    cmd = [sys.executable, "-m", "evalkit.tools.claims_table", "--key", PILOT_KEY,
+           *[f"--scores={ds}={d}" for ds, d in dirs.items()]]
+    out = subprocess.run(cmd, capture_output=True, text=True, cwd=REPO)
+    assert out.returncode == 1 and "1 row(s) have a cell not measured" in out.stderr
+    assert "not measured: no t5_floor.json" in out.stdout
+    assert subprocess.run([*cmd, "--allow-unmeasured"], capture_output=True, text=True, cwd=REPO).returncode == 0
 
 
 def test_the_command_refuses_with_a_message_not_a_traceback(tmp_path):
