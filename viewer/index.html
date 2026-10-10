@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Surgical 4D Scene Graphs</title>
+  <meta name="description" content="Browse 4D (3D + time) scene graphs of laparoscopic video, built from foundation models with no task-specific training." />
+  <!-- An inline icon, so the page asks for no favicon file. -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='%230899b4'/%3E%3Ccircle cx='8' cy='8' r='2.6' fill='%23e07f00'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="/src/styles.css" />
+</head>
+<body>
+  <header id="topbar">
+    <div class="tb-row">
+      <div id="brand"><span class="brand-dot"></span><span class="brand-title">Surgical 4D scene graphs</span></div>
+      <select id="clip-select" title="Clip" aria-label="Clip"></select>
+      <div id="regions-menu">
+        <button id="btn-regions" aria-haspopup="true" aria-expanded="false" title="Which regions the graph shows, and whether they are painted on the cloud (S)">Regions: <b id="regions-now"></b> ▾</button>
+        <div id="regions-pop" role="menu" hidden></div>
+      </div>
+      <div class="seg-group" id="mode-btns" title="View mode (W)">
+        <button data-mode="frame" class="active">Per-frame</button>
+        <button data-mode="world">World</button>
+      </div>
+      <div class="seg-group" id="worldview-btns" title="How the stacked frames are drawn" hidden>
+        <button data-wv="focus" class="active" title="Spotlight the frame at the playhead; the others fade">Spotlight</button>
+        <button data-wv="overlay" title="Every stacked frame alike">Overlay</button>
+      </div>
+      <button id="btn-graph3d" title="Draw the scene graph on the cloud (G)">Graph on cloud</button>
+      <button id="btn-reset-view" title="Reset the 3D camera (R)">Reset view</button>
+      <button id="btn-help" title="What this page shows, and its keys (?)">?</button>
+    </div>
+    <div class="tb-row">
+      <div id="frame-nav">
+        <button id="btn-prev" title="Previous frame (←)">◀</button>
+        <input type="range" id="frame-slider" min="0" max="0" value="0" aria-label="Frame" />
+        <button id="btn-next" title="Next frame (→)">▶</button>
+        <button id="btn-play" title="Play / pause (Space)">▶︎ Play</button>
+        <span id="frame-label">– / –</span>
+      </div>
+    </div>
+  </header>
+
+  <div id="help-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="help-title">
+    <div id="help-panel">
+      <div id="help-head"><h2 id="help-title">About this viewer</h2><button id="help-close" title="Close (Esc)">Close</button></div>
+      <div id="help-body"></div>
+    </div>
+  </div>
+
+  <div id="toast" hidden role="alert"><span id="toast-text"></span><button id="toast-close" title="Dismiss">×</button></div>
+
+  <main id="layout">
+    <aside id="side">
+      <section class="card" id="thumb-card">
+        <h3>Camera frame <button class="card-toggle" data-panel="thumb-card" title="Collapse / expand">–</button></h3>
+        <div id="thumb-row">
+          <figure><img id="thumb-rgb" alt="Camera frame" /><figcaption>RGB</figcaption></figure>
+          <figure id="thumb-seg-fig"><canvas id="thumb-seg"></canvas><figcaption id="thumb-seg-cap">Segmentation</figcaption></figure>
+          <figure id="thumb-seg2-fig" hidden><canvas id="thumb-seg2"></canvas><figcaption id="thumb-seg2-cap"></figcaption></figure>
+        </div>
+        <div id="thumb-legend" hidden></div>
+      </section>
+      <section class="card grow" id="nodelink-card">
+        <h3><span id="nodelink-title">Scene graph — camera view</span>
+          <button id="btn-map-big" class="map-open" title="Show this map large, over the 3D view">⤢ Enlarge</button>
+          <button class="card-toggle" data-panel="nodelink-card" title="Collapse / expand">–</button></h3>
+        <div id="nodelink-body"></div>
+      </section>
+    </aside>
+
+    <div id="split-side" title="Drag to resize the side panel"></div>
+
+    <section id="viewport">
+      <canvas id="gl"></canvas>
+      <div id="hud"><span class="chip chip-hint">drag rotate · right-drag pan · wheel zoom</span></div>
+      <div id="focus-bar">
+        <span id="fb-hint">Click a region on the cloud, in the scene graph or in the band below to follow it through time</span>
+        <span id="fb-on" hidden>Following <b id="fb-name"></b> <span id="fb-track"></span>
+          <span id="fb-steps">
+            <button data-stage="1" title="The region, marked where it is">① Region</button>
+            <button data-stage="2" title="How it moves: World mode, this region alone, with its path">② Motion in 3D</button>
+            <button data-stage="3" title="How its relation to its neighbour changes">③ Relations</button>
+          </span>
+          <button id="fb-clear" title="Stop following (Esc)">×</button></span>
+      </div>
+      <div id="map-big" hidden>
+        <div id="mb-head">
+          <b>The stacked frames, in one map</b>
+          <span id="mb-note"></span>
+          <button id="mb-close" title="Back to the 3D view (Esc)">Back to 3D</button>
+        </div>
+        <div id="mb-body"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer id="dock">
+    <div id="split-dock" title="Drag to resize the band"></div>
+    <div id="dock-head">
+      <h3><span class="in-world">The graph through time <small>· same node ids, every frame</small></span><span class="in-frame">Regions through time, one row per track</span></h3>
+      <button id="btn-strip-photo" class="in-world" title="Lay each frame's camera image under its regions (P)">RGB</button>
+      <button id="btn-fuse" class="map-open" title="Project every stacked frame into one camera: the scene-graph map, large">⤒ All frames in one map</button>
+      <button class="card-toggle" data-panel="dock" title="Collapse / expand">–</button>
+    </div>
+    <div id="node-focus" hidden>
+      <div id="nf-head">
+        <span id="nf-title"></span>
+        <span id="nf-hint"></span>
+        <button id="nf-close" title="Stop following (Esc)">×</button>
+      </div>
+      <div id="nf-body"></div>
+    </div>
+    <div id="strip"><div class="strip-empty">Loading…</div></div>
+  </footer>
+
+  <div id="status">Loading the catalog…</div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
