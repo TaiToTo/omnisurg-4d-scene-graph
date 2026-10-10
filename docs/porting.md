@@ -945,10 +945,38 @@ Every command takes those paths as arguments.
     against 11.65 at 0). So P1's depth files are most likely numbered as
     P2's are, one ahead of the position. P1's masks start at the shipped
     frames' first number, 241, so they are most likely numbered so too.
+    The masks agree: on the 43 usable clips, every frame of P2 has a mask
+    of its own number, and no frame of P1 does. P1's clips take even
+    positions and its masks have odd numbers, so 504 of its 672 frames
+    take a mask one position away and 168 have none. With −1, those 504
+    have a mask of their own number.
     With −1, P1's best ground truth offset is −5 rather than −6. The
     workbench chose the common offset as the one whose largest loss over
     the seven sequences it can read is least; with P1 at −1 that rule
     picks −3 (6.25 %) rather than −4 (6.50 %). A change to the first table
-    changes the masks of P1's clips; a change to the second changes the
-    ground truth rows of every clip, and so every `ate_rel`. Decide before
-    the StereoMIS result is measured.
+    changes the masks of P1's clips. A change to the second moves the
+    grid's start, since the grid starts at the first position that has a
+    row: every clip keeps its name and its ground truth rows, takes the
+    frames one position away, and has to be extracted and run through the
+    depth stages again, and every `ate_rel` changes. Decide before the
+    StereoMIS result is measured, and decide with it whether the grid's
+    start is fixed apart from the offset.
+23. **What fixes the StereoMIS clips.** `surgical_core.stereomis.clips`
+    computes the 86 clips, 43 of them usable, each time it runs: from the
+    tables of offsets and thresholds, and from the `stats.npy` of a stereo
+    depth export. The export is the workbench's `StereoMIS_depth`: depth
+    maps in mm on every 13th to 30th frame, a `summary.json` and a
+    `stats.npy` per sequence, whose first three columns are a map's file
+    number, its median in mm and its share of valid pixels. No tracked
+    file of the workbench makes it. The tables decide which frame is paired
+    with which ground truth row, so a change to one moves every `ate_rel`,
+    while the hash of the camera trajectory measures ("The camera
+    trajectory measures are hashed on their own") covers `pose_metrics`
+    only. Decide before the StereoMIS result is measured:
+    - whether the clips are kept as data, as ATLAS-120k's population is,
+      with each clip's name, frames, reason left out and stratum, and
+      `clips` refuses a result that differs from them;
+    - whether the hash covers the tables and the clip rule, or a score
+      records the hash of the clips it was measured on;
+    - whether the export is made again by code of this repository, or kept
+      as an input whose files are named by their hashes.

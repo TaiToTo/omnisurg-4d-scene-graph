@@ -255,8 +255,41 @@ def test_a_frame_without_a_ground_truth_row_is_refused(tmp_path):
 
 
 def test_a_sequence_without_a_measured_offset_is_refused():
-    with pytest.raises(KeyError, match="not been measured"):
+    with pytest.raises(KeyError, match="ground truth's rows has not been measured"):
         S.gt_row("P3", 10)
+
+
+def test_a_sequence_without_a_measured_offset_has_no_break_read(tmp_path):
+    # The workbench took an offset of 0 here, and read the breaks of rows that are not the clip's.
+    write_gt(tmp_path / "P3", np.zeros((30, 3)))
+    with pytest.raises(KeyError, match="P3: the offset between its frames and the ground truth's rows has not"):
+        S.has_gt_jump(tmp_path, "P3", 11, 20)
+
+
+def test_a_sequence_without_a_measured_offset_is_not_cut_into_clips(tmp_path):
+    with pytest.raises(KeyError, match="P3: the offset between its frames and the ground truth's rows has not"):
+        S.clips(tmp_path, tmp_path, "P3")
+
+
+def test_a_sequence_without_a_measured_file_offset_has_no_mask_read(tmp_path, monkeypatch):
+    monkeypatch.setitem(S.GT_ROW_OFFSET, "P3", -4)
+    write_mask(tmp_path / "P3", 10)
+    with pytest.raises(KeyError, match="P3: the offset between its frames and the file numbers of its masks"):
+        S.load_mask(tmp_path, "P3", 10)
+    with pytest.raises(KeyError, match="the file numbers of its masks and depth maps has not been measured"):
+        S.clips(tmp_path, tmp_path, "P3")
+
+
+def test_the_ground_truth_is_returned_read_only(tmp_path):
+    # It is cached: a caller that wrote into it would move every later pose of the sequence.
+    write_gt(tmp_path / "P1", np.zeros((6, 3)))
+    R, t = S.load_gt(tmp_path, "P1")
+    with pytest.raises(ValueError, match="read-only"):
+        t -= 1.0
+    with pytest.raises(ValueError, match="read-only"):
+        R[0, 0, 0] = 2.0
+    with pytest.raises(ValueError, match="read-only"):
+        S.gt_jump_rows(tmp_path, "P1")[:] = 0
 
 
 def test_a_ground_truth_without_eight_columns_is_refused(tmp_path):
@@ -425,6 +458,35 @@ def test_a_clip_whose_rows_run_past_the_ground_truth_is_not_returned(clip_seq):
     write_gt(root / "P2_0", *circle_gt(5 * SPAN + 1000))
     cl = S.clips(root, depth_root, "P2_0")
     assert [c["name"] for c in cl] == [f"P2_0__clip_{k:04d}" for k in range(5)]
+
+
+def test_a_map_on_a_clip_s_first_position_counts_for_that_clip(clip_seq):
+    root, depth_root = clip_seq
+    stats = np.load(depth_root / "P2_0" / "stats.npy")
+    np.save(depth_root / "P2_0" / "stats.npy", np.vstack([stats, [4 + SPAN + 1, 10.0, 0.9]]))
+    # Clip 1 now holds 46 maps, 16 without surface; clip 0, which ends one position before, is unchanged.
+    assert [c["depth_ok"] for c in S.clips(root, depth_root, "P2_0")][:2] == [0.978, 0.652]
+
+
+@pytest.mark.parametrize("median_mm, valid, shows", [
+    (30.0, 0.9, True), (400.0, 0.9, True), (29.9, 0.9, False), (400.1, 0.9, False),
+    (100.0, 0.5, False), (100.0, 0.51, True),
+])
+def test_a_map_shows_a_surface_with_its_median_from_30_to_400_mm_and_more_than_half_valid(median_mm, valid, shows):
+    assert S.shows_surface(median_mm, valid) is shows
+
+
+@pytest.mark.parametrize("depth_ok, jump, span_mm, drop", [
+    (0.5, False, 1.0, ""), (0.49, False, 20.0, "no_surface"), (0.5, True, 20.0, "gt_jump"),
+    (0.5, False, 0.99, "gt_static"), (0.4, True, 0.5, "no_surface"), (1.0, True, 0.5, "gt_jump"),
+])
+def test_a_clip_is_left_out_for_the_first_reason_that_holds_each_threshold_kept(depth_ok, jump, span_mm, drop):
+    assert S.drop_of(depth_ok, jump, span_mm) == drop
+
+
+@pytest.mark.parametrize("span_mm, stratum", [(10.0, "moving"), (9.99, "slow"), (1.0, "slow")])
+def test_a_clip_moves_from_10_mm_up(span_mm, stratum):
+    assert S.stratum_of(span_mm) == stratum
 
 
 def test_a_depth_export_without_a_row_is_refused(clip_seq):
