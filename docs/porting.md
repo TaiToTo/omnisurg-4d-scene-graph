@@ -175,6 +175,13 @@ Where they and this document differ, this document holds.
     the workbench's `outputs/cholec_gt`, which nothing here writes to. Each
     of them holds depth, so the crop stage refuses to replace one even with
     `--overwrite`.
+17. **What the paper measures.** Decided on 2026-10-10:
+    - **The `forward_from_first` conditions.** The paper reports them. They
+      are measured on the GPU machine before submission.
+    - **The conditions seeded from GT masks.** They are measured again with
+      this repository's code. Open: whether the paper reports them.
+    - **`track_metrics`.** It is run on the paper's conditions. Open: how
+      the paper reports its measures.
 
 ## What moves
 
@@ -286,6 +293,19 @@ Each stage is described in `docs/pipeline.md`.
   without a manifest, a manifest that does not list one frame per image,
   and an image whose size is not the rectangle's frame. It also refuses to
   replace a cropped clip that holds a later stage's output.
+- `ipcai2027_experiment/scripts/lapex_extract.py` is
+  `pipeline/extract_lapex.py`, which extracts LapEx, the third population
+  of the granularity result. It refuses what the script let through: a
+  mask whose name is not a time, a file in `seg/` that the script skipped
+  because its name does not end in `_seg.jpg`, a time that is not a whole
+  frame, and a class table that lists a level twice. It refuses a clip an earlier run
+  left, which the script wrote over, unless `--overwrite` is given, and,
+  even with it, a clip a later stage wrote into. It checks every frame of a
+  case before it writes the case's clips, and goes on to the next case
+  after a refusal, where the script stopped at the first fault after
+  writing the clips before it. It writes `extraction_summary.json` only
+  after a run over every case, where the script replaced it with the
+  count of the cases it was given.
 - `ipcai2027_experiment/scripts/d4d_population.py` is
   `pipeline/select_d4d_population.py`, which selects the sides the D4D
   measurements score. `d4d_meta/README.md` defines a side, and `d4d_meta/`
@@ -363,6 +383,17 @@ below.
     `ipcai2027_experiment/task11_atlas13/scripts/check_provenance.py`, which
     makes no table: it checks each condition's `seed_info.json` against the
     settings the condition was meant to run with.
+  - LapEx's comparisons, from `ipcai2027_experiment/scripts/`, which the
+    manuscript reports and does not release. `lapex_kcurve.py` merges the
+    `rgb` condition at 24 points per side to fixed K with `kmerge`, and
+    compares the merge with the condition unmerged. `lapex_02b02c.py`
+    compares `normal_edge` with `rgb`, at 24 and at 4 points per side, and
+    the merge to K = 10 with `rgb` at 4. Their scores carry the earlier
+    frozen evaluator's `eval_code_sha` (`9cf136c7…`), and `reeval_v2.py`
+    lists `outputs/lapex` among the roots it scores again with the pilot
+    evaluator. Ported, each comparison is a run of `kmerge` and a pair
+    given to `paired_stats`, on the evaluator's scores. They wait on "How
+    LapEx is scored".
   - The camera trajectory on StereoMIS, from `ipcai2027_experiment/scripts/`:
     `stereomis_io.py`, `run_20.sh`, `pose_metrics.py` and `pose_controls.py`.
     `run_20.sh` runs the DA3 stage and, through
@@ -437,13 +468,6 @@ The first list holds experiments the manuscript reports. Their numbers come
 from this repository once they are ported ("The paper is measured here"),
 and not before.
 
-- **LapEx** (`lapex_extract.py`, `lapex_kcurve.py` and `lapex_02b02c.py`,
-  in `ipcai2027_experiment/scripts/`), the third population of the
-  granularity result, which the manuscript reports and does not release.
-  Its scores carry the earlier frozen evaluator's `eval_code_sha`
-  (`9cf136c7…`), and `reeval_v2.py` lists `outputs/lapex` among the roots
-  it scores again with the pilot evaluator. Whichever its scores carry,
-  LapEx is scored again with the evaluator once ported.
 - **Conditions seeded from GT masks**, which the ported tracking stage does
   not carry ("Two propagation rules, and no seed chosen from GT"):
   - `track_sam3.py --seed_source gt`, the `gt_seed` mode of
@@ -457,10 +481,14 @@ and not before.
     `t12_gtseed`'s seed frame onto every frame of the clip and runs no
     tracker: the floor the propagated seeds are measured against.
 
-  The manuscript's draft reports them: propagation over the pasted floor,
-  in the abstract, and the loss of a geometry rendering under GT seeds.
-  Whether they enter the paper, and from which code, is "Conditions seeded
-  from GT" under "Open questions".
+  The manuscript's draft reports two results from them:
+  - propagation over the pasted floor, in the abstract;
+  - the loss of a geometry rendering under GT seeds.
+
+  They are measured again with this repository's code ("What the paper
+  measures"). Two questions stay open:
+  - whether the paper reports them;
+  - how a GT seed is placed and scored ("Conditions seeded from GT").
 
 The second list holds what the paper's numbers do not use.
 
@@ -681,16 +709,23 @@ Every command takes those paths as arguments.
    - what hold means under forward propagation (`forward_from_first`),
      where its time offsets from the seed frame run one way only; the
      workbench claimed this changes the measure and did not measure it.
+
+   The tool is run on the paper's conditions ("What the paper measures").
 2. **The skill-classification code and the other 18 viewer pages.** The plan
    leaves both behind. The paper's figures come from some of those pages.
-3. **Whether step 5 has to finish before submission.** Step 3 gives the
-   numbers of every condition the workbench ran. The `forward_from_first`
-   conditions are new measurement in step 5, so a row that reports them
-   waits on it. A stage that passes step 5's byte check cannot change the
-   step-3 numbers;
-   the 14 clips re-extracted under "CholecSeg8k clips whose frames run out
-   of order" can, and so can depth made again under "Depth made by two
-   versions of the depth stage".
+3. **Which numbers step 5 changes before submission.** Step 3 scores every
+   condition the workbench ran. Step 5 measures the `forward_from_first`
+   conditions for the first time. The paper reports them ("What the paper
+   measures"), so step 5 runs before submission.
+
+   A stage that passes step 5's byte check leaves the step-3 numbers as
+   they are. Two things that step 5 makes again can change them:
+   - the 14 CholecSeg8k clips extracted again ("CholecSeg8k clips whose
+     frames run out of order");
+   - depth made again ("Depth made by two versions of the depth stage").
+
+   Open: does the paper report those clips and that depth as step 5 makes
+   them again, or as step 3 scores them?
 4. **Boundary dilation before the freeze.** `evalkit/boundary.py` dilates
    with `cv2.dilate`; a numpy shift-or over the (2·tol + 1)² offsets agrees
    on every mask tried, borders included. The question is whether a hashed
@@ -858,12 +893,40 @@ Every command takes those paths as arguments.
     propagation rule (`pilot_check --leave-out`). The `seed_source` that each
     condition's `seed_info.json` records says where its seed came from;
     where it does not tell, the command that made the condition does.
-    The workshop's oracle row, GT instrument masks painted onto a
-    condition's labels, is one; the viewer's `gt_tracked` track, one GT
-    frame carried by SAM 3, is another candidate. The ported tracking stage
-    seeds from no GT: the conditions the workbench seeded from GT masks
-    (`--seed_source gt`: `t12_gtseed` on five inputs, and `t12_paste`) stay
-    in the workbench, and what they measured is a reference value.
+
+    The conditions that took something from GT:
+    - `t12_gtseed`, on five inputs, and `t12_paste`: the workbench seeded
+      them from GT masks (`--seed_source gt`);
+    - the workshop's oracle row: GT instrument masks painted onto a
+      condition's labels;
+    - the viewer's `gt_tracked` track (a candidate): one GT frame carried
+      by SAM 3.
+
+    The ported tracking stage seeds from no GT.
+
+    Where the `t12_*` seed sits depends on the clip's number of frames.
+    Every frame of the 315 ATLAS-120k clips has GT.
+    - On the 164 clips with an odd number, it sits on the centre frame.
+    - On the 151 clips with an even number, it sits one frame before the
+      centre.
+
+    Two pieces of code take the centre differently:
+    - `track_metrics.pick_seed_frame`, which placed the seed, takes the GT
+      frame nearest (n − 1)/2 and breaks a tie toward the earlier frame;
+    - the tracking stage and `rule_of_seed_info` take `frames[n // 2]`.
+
+    So on those 151 clips the `t12_*` conditions hold neither propagation
+    rule, whatever seed source the evaluator accepts.
+
+    They are measured again with this repository's code ("What the paper
+    measures"). Open before that:
+    - which frame a GT seed is placed on under each propagation rule;
+    - which frame it is placed on when a clip's centre frame has no GT.
+      This happens on CholecSeg8k, whose GT covers only some of a clip's
+      frames;
+    - which code places a GT seed;
+    - how the evaluator records and scores a condition seeded from GT
+      ("Seeds made outside the tracking stage").
 15. **Masks that are not GT under the GT's name.** The viewer's step writes
     SAM 3 masks into `seg_masks/` as `<i>_color_mask.png`, told apart from
     the annotation only by the frame manifest's `is_anchor` and
@@ -928,7 +991,94 @@ Every command takes those paths as arguments.
     machine therefore runs both stages under one numpy on one CPU. Decide
     whether the stage keeps this sort, or sorts stably and lists the change
     among the differences from the workbench that the byte check allows.
-21. **How this repository depends on D4D's loader.** The workbench's
+21. **Seeds made outside the tracking stage.** The evaluator reads a
+    condition's propagation rule from each clip's `seed_info.json`.
+    `rule_of_seed_info` refuses a record whose `seed_source` is neither
+    `sam` nor `per_frame`. It was run on the records of the 38 conditions
+    the pilot evaluator scored on ATLAS-120k:
+
+    | conditions | count | refused | why |
+    |---|---|---|---|
+    | tracked both ways from the centre frame | 5 | no | |
+    | segmented frame by frame | 18 | no | |
+    | `op_edge`, `op_normal` | 2 | yes | seed frame chosen from GT, off the centre on 298 of the 315 clips |
+    | `t12_*` | 7 | yes | seeds from GT masks (`seed_source` `gt`) |
+    | `t5_*`, the granularity result | 6 | yes | seeds made outside the tracking stage (`seed_source` `external`) |
+
+    - The check against the pilot evaluator covers the 23 conditions not
+      refused.
+    - The seven `t12_*` scores read six prediction directories:
+      `t12_gtseed` and `t12_rgb` both read `track_rgb_t12_gtseed`.
+    - CholecSeg8k's conditions are not counted here.
+
+    `make_t5_seeds.py` made the `t5_*` seeds:
+    - from the per-frame `rgb` segmentation at 24 points per side, on the
+      seed frame;
+    - merged to K regions, in every arm but `t5_floor`, which it left
+      unmerged. `t5_kgt` takes its K from the clip's GT, so its seed is not
+      the pipeline's own;
+    - on the centre frame of every clip, carried both ways.
+
+    The evaluator still refuses all six. A seed made outside the tracking
+    stage holds no propagation rule, whatever frame it sits on.
+
+    The same refusal reaches this repository's own conditions.
+    `pipeline/track.py --seed-labels` records `seed_source` `external`. So
+    the evaluator refuses every condition the ported tracking stage makes
+    from seeds made outside it.
+
+    `docs/evaluation.md` says the paper reports none of the conditions that
+    hold neither rule. The granularity result makes that sentence false.
+
+    Decide before the evaluator is frozen, and before the granularity result
+    is measured again:
+    - which values of `seed_source` the evaluator scores;
+    - how a score records where its seed came from;
+    - which comparisons the tools refuse between conditions whose seeds
+      came from different places, as they refuse a comparison across two
+      propagation rules.
+22. **Condition names.** A workbench condition's name says which task made
+    it, not what the condition is. `t12_*` comes from the workbench's task
+    12 (`run_12_trackbase.sh`), and `t5_*` from step T5 of its task 05
+    (`make_t5_seeds.py`). A condition also has two names: its score's tag
+    (`t12_rgb`) and its prediction directory (`track_rgb_t12_gtseed`).
+    A score records its `track_dir_name`, so a condition renamed after
+    step 5 no longer matches its scores. Decide before step 5 writes new
+    conditions:
+    - how a name says what varies between conditions: the input, where the
+      seed came from, and the propagation rule;
+    - where the table lives that maps each workbench name to its name here.
+      That table is the only place a workbench name appears.
+23. **How LapEx is scored.** The evaluator holds class tables for
+    ATLAS-120k and CholecSeg8k only, so it cannot read a LapEx clip.
+    `kmerge` reads a condition through the evaluator, so it cannot merge
+    one either. Three things are open before LapEx is scored again:
+    - **Its class table.** Each of LapEx's 11 classes needs a type. LapEx
+      labels every pixel, and level 0 is interstitial space, a class. The
+      extraction writes level 0 as 11, because the workbench's evaluators
+      read id 0 as background. Either the table names 11, or the move is
+      dropped and the clips are extracted again. The workbench scored all
+      11 classes. It planned two more views, one without the instruments
+      and one without the instruments and the gauze (`compress`), and
+      measured neither.
+    - **Its depth.** LapEx's frames keep the black surround of the
+      endoscope's view. On 710 of the 735 clips, the workbench's depth
+      stage found that border and filled it (`border_inpaint` in
+      `depth_info`). Its depth maps of those clips hold zeros, on 1.8 to
+      8.9 % of the pixels, and the evaluator and `kmerge` refuse a frame
+      with such a pixel. The ported depth stage neither finds nor fills a
+      border, and it refuses a LapEx clip, which has no `crop_info.json`.
+      So LapEx needs depth made again, on frames cropped or filled, and its
+      predictions made again on that depth, by the ported per-frame stage,
+      which records their propagation rule.
+    - **Its comparison.** The workbench averaged each case's clips first,
+      then resampled the 30 case means, 2,000 times. `paired_stats`
+      averages over clips and resamples the cases, 10,000 times. A case
+      holds 14 to 55 clips, so the two weigh the cases differently. The
+      workbench's reading, fixed before the numbers, gave the merge a star
+      only if it had one at both K = 8 and K = 10. The paper merges to 10
+      ("`kmerge` is a tool").
+24. **How this repository depends on D4D's loader.** The workbench's
     `d4d_io.py` imports `d4d.loader` from a clone of
     https://github.com/reubendocea/d4d, which the workbench's commands put
     on `PYTHONPATH`. The clone is at commit `efe12d26`, the head of
@@ -955,7 +1105,7 @@ Every command takes those paths as arguments.
 
     The census and the D4D reader wait on this. The population step needs
     no loader.
-22. **Two inputs of the census whose code no repository holds.**
+25. **Two inputs of the census whose code no repository holds.**
     `d4d_census.py` reads two files from a `logs/` directory beside the
     dataset's copy:
     - `clip_table.json`, written by `analyze_dataset.py`, which gives each
@@ -983,7 +1133,7 @@ Every command takes those paths as arguments.
     workbench's `d4d_io.instrument_mask` passes `interpolation=` by name. Decide whether the two scripts
     are ported or their files kept as data, and whether the motion record
     is made again with the masks resized by nearest neighbour.
-23. **The tissue's motion when a side was scanned.** A side's scan is taken
+26. **The tissue's motion when a side was scanned.** A side's scan is taken
     outside its clip. Over the 540 sides with a point cloud, the `start`
     scan comes 4.4 s before the clip's first frame at the median (1.6 to
     29.1 s), and the `end` scan 4.3 s after its last frame (3.0 to 13.8 s).
