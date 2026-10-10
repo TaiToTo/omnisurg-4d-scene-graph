@@ -1,15 +1,14 @@
-"""Make the camera trajectories the StereoMIS result is read against: two floors and a ceiling.
+"""Make the camera trajectories the StereoMIS result is compared with: two floors and a ceiling.
 
 - `static_floor`: a camera that never moves. Its `ate_rel` is exactly 1.0.
 - `line_floor`: a camera that moves in a straight line at the true
   trajectory's mean speed. It looks plausible and carries no information.
 - `StereoVO`: stereo visual odometry, from disparity, sparse tracks and PnP.
-  It reaches what an estimate with true scale reaches.
+  It shows what an estimate with true scale reaches.
 
-A method's trajectory is read only against these. A floor or ceiling made by
-splitting the ground truth is no control: the similarity fit of `ate` would
-fit the truth to itself. The ceiling may use what a method may not, the
-instrument masks among it.
+No control is cut from the ground truth, because the similarity fit of `ate`
+would fit the truth to itself. The ceiling reads the instrument masks, which
+a method may not read.
 """
 
 from pathlib import Path
@@ -169,13 +168,32 @@ def run_sequence(root: Path, depth_root: Path, seq: str) -> dict[str, tuple[np.n
 
     Each frame takes the tissue mask nearest it, as `stereomis.load_mask_nearest` finds it.
 
+    Args:
+        root: the StereoMIS directory, which holds one directory per sequence.
+        depth_root: the depth export, which holds `<sequence>/stats.npy`.
+        seq: the sequence.
+
     Returns:
         For each clip's name, its camera centres, its camera-to-world rotations and how many steps failed.
+
+    Raises:
+        ValueError: two clips share a frame, a clip holds a frame twice, or two clips interleave.
     """
+    # Find the clips, and map each frame to its clip.
     clips = [c for c in stereomis.clips(root, depth_root, seq) if c["usable"]]
     if not clips:
         return {}
     owner = {f: c["name"] for c in clips for f in c["frames"]}
+
+    # Refuse clips one decode cannot feed in turn. A shared frame would go to one clip only, and an interleaved
+    # clip would restart its trajectory and lose the frames before.
+    order = [owner[f] for f in sorted(owner)]
+    n_runs = 1 + sum(a != b for a, b in zip(order, order[1:]))
+    if len(owner) != sum(len(c["frames"]) for c in clips) or n_runs != len(clips):
+        raise ValueError(f"{seq}: the clips share a frame, repeat one, or interleave, so one decode cannot "
+                         "feed them in turn")
+
+    # Decode the sequence once, and chain each clip's poses from its first frame.
     c = stereomis.calib(root, seq)
     vo, cur, out = StereoVO(c.K_half, c.baseline_mm), None, {}
     for f, left, right in stereomis.iter_frame_set(root, seq, sorted(owner)):

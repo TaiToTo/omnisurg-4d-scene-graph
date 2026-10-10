@@ -255,3 +255,16 @@ def test_a_sequence_without_a_usable_clip_decodes_nothing(monkeypatch, tmp_path)
     monkeypatch.setattr(stereomis, "clips", lambda root, depth_root, seq: (dict(name="x", frames=[0], usable=False),))
     monkeypatch.setattr(stereomis, "iter_frame_set", lambda *a: pytest.fail("decoded"))
     assert PC.run_sequence(tmp_path, tmp_path, "P2_3") == {}
+
+
+@pytest.mark.parametrize("frames", [
+    pytest.param(([0, 1, 2], [2, 3, 4]), id="a shared frame"),
+    pytest.param(([0, 1, 1], [3, 4, 5]), id="a frame held twice"),
+    pytest.param(([0, 2, 4], [1, 3, 5]), id="interleaved clips"),
+])
+def test_clips_one_decode_cannot_feed_in_turn_are_refused_before_decoding(monkeypatch, tmp_path, frames):
+    clips = tuple(dict(name=f"P1__clip_{k:04d}", frames=f, usable=True) for k, f in enumerate(frames))
+    monkeypatch.setattr(stereomis, "clips", lambda root, depth_root, seq: clips)
+    monkeypatch.setattr(stereomis, "iter_frame_set", lambda *a: pytest.fail("decoded"))
+    with pytest.raises(ValueError, match="cannot feed them in turn"):
+        PC.run_sequence(tmp_path, tmp_path, "P1")
