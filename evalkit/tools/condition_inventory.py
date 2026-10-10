@@ -45,8 +45,8 @@ SEED_KEYS = ("points_per_side", "seed_edge_gain", "seed_smooth",
 # A label directory that holds pictures, never labels of a condition.
 VIZ_DIR = "viz"
 
-# What a cell of the matrix says about a condition. Letters, not marks: a mark
-# beside a condition's name reads as a mark, and the only mark is the one `paired_stats.mark_of` gives.
+# What a cell of the matrix says about a condition. Letters, not symbols: a symbol
+# beside a condition's name reads as a mark, and only `paired_stats.mark_of` gives a mark.
 SCORED, LABELS_ONLY, PROVENANCE_ONLY, NOT_RUN = "S", "L", "P", "-"
 
 
@@ -291,11 +291,11 @@ def report(track_root: str, evals: dict, title: str, scored_dirs: set[str]) -> t
         ts = c["mtime"] or [0]
         day = lambda t: datetime.datetime.fromtimestamp(t).strftime("%m-%d")
         dt = day(min(ts)) if day(min(ts)) == day(max(ts)) else f"{day(min(ts))}..{day(max(ts))}"
-        mark = "scored" if tag in scored_dirs else "no"
+        scored = "scored" if tag in scored_dirs else "no"
         notes = c.get("notes") or {}
         if len(c["keys"]) > 1:
             problems.append(f"{title}/{tag}: {len(c['keys'])} conditions are mixed under one tag")
-            print(f"{tag:34s}{nclip:5d}{nlab:7d}  !! {len(c['keys'])} conditions mixed !!   {mark:<7s}{dt}")
+            print(f"{tag:34s}{nclip:5d}{nlab:7d}  !! {len(c['keys'])} conditions mixed !!   {scored:<7s}{dt}")
             for k, cl in sorted(c["keys"].items()):
                 print(f"      [{len(cl):3d} clips] {k}")
             for note, cl in sorted(notes.items()):
@@ -307,7 +307,7 @@ def report(track_root: str, evals: dict, title: str, scored_dirs: set[str]) -> t
             for note, cl in sorted(notes.items()):
                 problems.append(f"{title}/{tag}: {note} ({len(cl)} clips); "
                                 "the condition cannot be verified, so it enters no comparison")
-            print(f"{tag:34s}{nclip:5d}{nlab:7d}  !! no readable provenance !!      {mark:<7s}{dt}")
+            print(f"{tag:34s}{nclip:5d}{nlab:7d}  !! no readable provenance !!      {scored:<7s}{dt}")
             continue
         if notes:
             n_note = sum(len(v) for v in notes.values())
@@ -315,7 +315,7 @@ def report(track_root: str, evals: dict, title: str, scored_dirs: set[str]) -> t
         k = json.loads(next(iter(c["keys"])))
         print(f"{tag:34s}{nclip:5d}{nlab:7d}  {str(k['sam_input']):<12s}"
               f"{str(k['points_per_side']):>4s} {str(k['depth_source']):<6s}"
-              f"{str(k['seed_source']):<10s}{str(k['track_base']):<12s}{mark:<7s}{dt}")
+              f"{str(k['seed_source']):<10s}{str(k['track_base']):<12s}{scored:<7s}{dt}")
         if clips != full:
             missing, extra = sorted(full - clips), sorted(clips - full)
             problems.append(f"{title}/{tag}: {nclip} clips where the others have {len(full)}"

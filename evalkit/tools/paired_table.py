@@ -1,7 +1,7 @@
 """Print the pilot's table of paired comparisons: blocks of rows under headings, a row per pair of conditions.
 
-Each cell holds the mean of `cond − base` for one key, with the mark of
-`paired_stats.mark_of`. A line under each row gives the first key's
+Each cell holds the mean of `cond − base` for one key, with the mark that
+`paired_stats.mark_of` gives. A line under each row gives the first key's
 interval and wins. Every two conditions of the table must pass
 `scores.check_comparable`. The table is pasted as printed, never copied by hand.
 

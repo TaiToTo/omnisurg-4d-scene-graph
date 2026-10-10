@@ -114,7 +114,7 @@ def test_wilcoxon_per_video_is_undefined_below_six_videos():
 # ---------------------------------------------------------------- the mark
 
 
-def test_the_mark_is_the_video_interval_s_alone():
+def test_mark_of_reads_the_video_interval_alone():
     assert PS.mark_of([0.01, 0.05]) == "★"
     assert PS.mark_of([-0.05, -0.01]) == "✗"
     assert PS.mark_of([-0.01, 0.05]) == ""

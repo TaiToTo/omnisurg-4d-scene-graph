@@ -5,7 +5,7 @@ has on unlabelled tissue. `unlabelled_share` counts those pixels.
 `docs/evaluation.md` defines the key ("The spill no other key sees:
 `unlabelled_share`") and says why background is removed ("Background").
 The key reads no GT class, only where the GT is unlabelled. It is a
-reference value, and no mark is read on it.
+reference value and never carries a mark.
 
 `docs/figures/unlabelled_share.png` shows this on a drawn scene, with the
 numbers the module gives for it.
