@@ -640,6 +640,11 @@ while the evaluator is built and reviewed is worked out in `docs/workstreams.md`
    - in pilot mode, the evaluator reproduces every key it shares with the
      pilot evaluator, at zero tolerance, on the 38 scored conditions, apart
      from those that hold neither propagation rule.
+   The check against the pilot evaluator passed on 2026-10-11, for
+   `eval_code_sha` `a5d7ea46…`. It compared the 23 conditions that hold a
+   propagation rule, 315 clips each: 18 values and 17 frame counts per
+   clip, 253,575 in all, every one equal. It left out the 15 conditions
+   that "Seeds made outside the tracking stage" lists as refused.
    Record its sha with every score; do not freeze it (decision 2). Pilot
    mode stays in it until just before the freeze (decision 11).
 3. **Re-score.** CPU only. Score every condition's existing predictions with
@@ -940,9 +945,9 @@ Every command takes those paths as arguments.
     masks. Which of the 38 conditions were seeded from GT instead, and
     whether such a condition is scored on its seed frame or enters a table
     at all, is settled before step 3, on the machine that holds the
-    predictions. The check against the pilot evaluator in step 2 needs the
-    list sooner: it leaves out by name every condition that holds neither
-    propagation rule (`pilot_check --leave-out`). The `seed_source` that each
+    predictions. The check against the pilot evaluator in step 2 left out
+    by name every condition that holds neither propagation rule
+    (`pilot_check --leave-out`). The `seed_source` that each
     condition's `seed_info.json` records says where its seed came from;
     where it does not tell, the command that made the condition does.
 

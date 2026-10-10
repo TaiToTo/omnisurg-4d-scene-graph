@@ -693,6 +693,9 @@ pilot evaluator's numbers.
   must the number of frames behind each. Ties are broken as the pilot
   evaluator breaks them. The check runs where the pilot evaluator and its
   scores are, and takes their paths as arguments.
+- The check passed on 2026-10-11, for `eval_code_sha` `a5d7ea46…`. On the
+  23 ATLAS-120k conditions that hold a propagation rule, 315 clips each,
+  every shared value and every frame count was equal.
 - Every difference in the normal mode then comes from a rule this document
   changes, and is listed.
 - A score made in pilot mode is marked as such and never enters a comparison
