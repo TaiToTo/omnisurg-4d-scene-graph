@@ -22,6 +22,7 @@ them from here. A pilot JSON keeps the pilot evaluator's own spellings
 """
 from __future__ import annotations
 
+import itertools
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -253,6 +254,29 @@ def metric_keys(summary: Mapping) -> list[str]:
     return keys + list(CLIP_METRICS)
 
 
+def signs_of(summary: Mapping) -> dict[str, int]:
+    """Map each key a JSON reports to which way it is better: `PILOT_SIGNS` on a pilot JSON, `sign_of` otherwise.
+
+    Every tool reads a key's direction from here, so that one key is never
+    marked one way by one tool and another way by another.
+    """
+    if is_pilot_json(summary):
+        return dict(PILOT_SIGNS)
+    return {k: sign_of(k) for k in metric_keys(summary)}
+
+
+def sign_of_key(summary: Mapping, key: str) -> int:
+    """Return which way `key` is better on this JSON: +1, -1, or 0 for a key that is never marked.
+
+    Raises:
+        ValueError: `key` is not one of the keys `signs_of` lists for this JSON.
+    """
+    signs = signs_of(summary)
+    if key not in signs:
+        raise ValueError(f"{key} is not a key with a direction on this JSON; the keys with one are {list(signs)}")
+    return signs[key]
+
+
 def defined_clips(a: Mapping[str, Mapping], b: Mapping[str, Mapping], clips: list[str], key: str) -> list[str]:
     """The clips on which `key` is defined in both conditions, in the order of `clips`.
 
@@ -437,3 +461,41 @@ def check_comparable(
         if differ:
             out["versions_differ"] = differ
     return out
+
+
+def check_comparable_table(summaries: Mapping[str, Mapping]) -> dict:
+    """Check that every two score JSONs of a table are comparable, and return what the table shares.
+
+    Checking each pair of a table alone is not enough. Two pairs can each
+    pass and still put two evaluators or two propagation rules in one table.
+    Checking each JSON against the first is not enough either. The pilot's
+    domain is compared only when both JSONs record one, so two JSONs that
+    disagree each pass against a first JSON that records none.
+
+    Args:
+        summaries: The score JSONs of the table, by tag, the first first.
+
+    Returns:
+        `clips`, sorted; `eval_code`; `dataset`; `propagation`, the table's
+        rule, or None for pilot JSONs, which record none; and
+        `versions_differ`, the library versions in which a condition
+        differs from the first, by the two tags.
+
+    Raises:
+        ValueError: The table holds fewer than two conditions, or two of
+            them are not comparable.
+    """
+    tags = list(summaries)
+    if len(tags) < 2:
+        raise ValueError(f"a table compares two conditions at least, and this one names {tags}")
+    versions_differ = {}
+    for a, b in itertools.combinations(tags, 2):
+        try:
+            chk = check_comparable(summaries[a], summaries[b])
+        except ValueError as e:
+            raise ValueError(f"{a} and {b} cannot share a table: {e}") from e
+        if a == tags[0] and "versions_differ" in chk:
+            versions_differ[a, b] = chk["versions_differ"]
+    # Every two passed, so no two rules besides `per_frame` remain; this reads which rule the table holds.
+    return dict(clips=chk["clips"], eval_code=chk["eval_code"], dataset=summaries[tags[0]].get("dataset"),
+                propagation=check_one_rule(summaries), versions_differ=versions_differ)

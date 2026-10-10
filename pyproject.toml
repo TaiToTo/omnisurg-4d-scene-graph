@@ -35,10 +35,10 @@ dependencies = ["numpy", "opencv-python", "Pillow"]
 # toolkit still installs on a machine with none of them.
 render = ["matplotlib", "trimesh"]
 # What the tools under `evalkit/tools` need and the evaluator does not: the
-# Wilcoxon test that `paired_stats` reports beside the bootstrap (scipy) and
-# the per-clip chart `compare_eval` draws on request (matplotlib). The tools
-# import them only where they are used, so reading and checking scores works
-# without the extra.
+# Wilcoxon test that `paired_stats` and `arms_paired` report beside the
+# bootstrap (scipy) and the per-clip chart `compare_eval` draws on request
+# (matplotlib). The tools import them only where they are used, so reading
+# and checking scores works without the extra.
 tools = ["scipy", "matplotlib"]
 # What the StereoMIS reader, `surgical_core.stereomis`, needs and nothing else in
 # `surgical_core` does: scipy turns the ground truth's quaternions into
