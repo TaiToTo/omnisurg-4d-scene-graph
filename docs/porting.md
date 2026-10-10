@@ -1001,3 +1001,15 @@ Every command takes those paths as arguments.
     - which comparisons the tools refuse between conditions whose seeds
       came from different places, as they refuse a comparison across two
       propagation rules.
+22. **Condition names.** A workbench condition's name says which task made
+    it, not what the condition is. `t12_*` comes from the workbench's task
+    12 (`run_12_trackbase.sh`), and `t5_*` from step T5 of its task 05
+    (`make_t5_seeds.py`). A condition also has two names: its score's tag
+    (`t12_rgb`) and its prediction directory (`track_rgb_t12_gtseed`).
+    A score records its `track_dir_name`, so a condition renamed after
+    step 5 no longer matches its scores. Decide before step 5 writes new
+    conditions:
+    - how a name says what varies between conditions: the input, where the
+      seed came from, and the propagation rule;
+    - where the table lives that maps each workbench name to its name here.
+      That table is the only place a workbench name appears.
