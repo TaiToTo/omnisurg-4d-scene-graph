@@ -195,13 +195,14 @@ function wire() {
   new ResizeObserver(invalidate).observe($('viewport'));
 }
 
+// The keys whose action may run again while the key is held.
+const REPEATS = new Set(['ArrowLeft', 'ArrowRight']);
+
 function onKey(ev) {
   if (ev.defaultPrevented || ev.metaKey || ev.ctrlKey || ev.altKey) return;
   if (ev.target.closest?.('input:not([type=range]), select, textarea')) return;
   // Space and Enter on a focused control press that control, and nothing else.
   if ((ev.key === ' ' || ev.key === 'Enter') && ev.target.closest?.('button, a, [role=button]')) return;
-  // A held key repeats; each repeat of W, G or I would rebuild every cloud again.
-  if (ev.repeat) { ev.preventDefault(); return; }
   if (dialogOpen()) {
     if (ev.key === 'Escape' || ev.key === '?') { closeDialogs(); ev.preventDefault(); }
     return;
@@ -224,6 +225,8 @@ function onKey(ev) {
   };
   if (!actions[k]) return;
   ev.preventDefault();
+  // A held arrow steps the frames; a held key of any other action would rebuild every cloud, or toggle, on each repeat.
+  if (ev.repeat && !REPEATS.has(k)) return;
   actions[k]();
 }
 
