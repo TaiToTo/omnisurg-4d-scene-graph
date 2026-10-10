@@ -284,6 +284,50 @@ def test_one_clip_writes_none_and_not_nan():
     json.dumps(res, allow_nan=False)
 
 
+def test_the_pair_computes_the_keys_it_is_named_and_only_those():
+    a, b = pilot_scores("base", 0.0, 5), pilot_scores("cond", 0.03, 6)
+    for x, y in zip(a["per_clip"], b["per_clip"]):
+        x["inst_F1_50_labeled"], y["inst_F1_50_labeled"] = x["inst_F1_50"], y["inst_F1_50"] + 0.01
+    assert "inst_F1_50_labeled" not in PS.compare_pair(a, b)["metrics"]
+    res = PS.compare_pair(a, b, keys=["inst_F1_50_labeled"])
+    assert list(res["metrics"]) == ["inst_F1_50_labeled"]
+    got = res["metrics"]["inst_F1_50_labeled"]
+    assert got["sign"] == PILOT_SIGNS["inst_F1_50_labeled"]
+    assert got["delta_mean"] == round(WORKBENCH["inst_F1_50"]["delta_mean"] + 0.01, 4)
+    # A key named by mistake is refused, even where no clip defines it.
+    with pytest.raises(KeyError):
+        PS.compare_pair(a, b, keys=["inst_F1_50_labelled"])
+    ea, eb = evaluator_scores("base", 0.0, 5), evaluator_scores("cond", 0.03, 6)
+    for spelt in ("F1_50/geometrc", "F1_50"):
+        with pytest.raises(KeyError, match="not keys the evaluator writes"):
+            PS.compare_pair(ea, eb, keys=[spelt])
+
+
+def test_a_value_that_rounds_to_zero_keeps_two_digits():
+    # An end written as -0.0 would lose its ✗.
+    assert PS.round_keeping_sign(-2.4e-05) == -2.4e-05 and PS.round_keeping_sign(0.0) == 0.0
+    assert PS.round_keeping_sign(0.123449) == 0.1234
+    assert PS.format_signed(-2.4e-05) == "-2.40e-05" and PS.format_signed(0.0) == "+0.0000"
+    assert PS.format_signed(0.05) == "+0.0500"
+
+
+@pytest.mark.parametrize("x, written, printed", [(4.99e-05, 5e-05, "+5.00e-05"), (-4.99e-05, -5e-05, "-5.00e-05"),
+                                                 (6e-05, 0.0001, "+0.0001")])
+def test_a_value_is_printed_as_it_is_written_at_the_boundary_of_four_places(x, written, printed):
+    # 5e-05 printed at four places would read 0.0001, twice the value written.
+    assert PS.round_keeping_sign(x) == written and PS.format_signed(written) == printed
+
+
+@pytest.mark.parametrize("ci, written, mark", [((2.03e-05, 0.01509), [2e-05, 0.0151], "★"),
+                                               ((-0.01509, -2.03e-05), [-0.0151, -2e-05], "✗")])
+def test_an_interval_end_near_zero_keeps_its_star_or_cross(monkeypatch, ci, written, mark):
+    # Rounded to four places alone, either end would be written as 0.0, which gives neither ★ nor ✗.
+    monkeypatch.setattr(PS, "boot_ci", lambda d, groups, **kw: ci)
+    a, b = pilot_scores("base", 0.0, 5), pilot_scores("cond", 0.03, 6)
+    r = PS.compare_pair(a, b, keys=["inst_F1_50"])["metrics"]["inst_F1_50"]
+    assert r["ci95_video"] == written and PS.verdict(r["ci95_video"], r["sign"]) == mark
+
+
 def test_a_key_defined_on_no_common_clip_is_left_out_not_zeroed():
     a, b = pilot_scores("base", 0.0, 5), pilot_scores("cond", 0.03, 6)
     for r in b["per_clip"]:

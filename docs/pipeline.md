@@ -417,7 +417,8 @@ The stage reads the depth stage's bundle, and Pi3X's with
   label map per frame, at the depth's resolution, -1 where no object is.
 - `seed_info.json` beside the labels: the seed frame, whether the stage
   carried both ways (`bidir`), the frames labelled and the settings the
-  seed was made with.
+  seed was made with. Its `seed_source` is `sam`, or `external` when the
+  seed was read with `--seed-labels`.
 - `<tracks-root>/<clip>/viz/montage_track_<track-base>_<tag>.png`: every
   frame's labels, one colour per object.
 
@@ -484,3 +485,36 @@ The stage needs the `track` extra and the SAM ViT-H weights, as the
 tracking stage does.
 
 `python -m pipeline.per_frame --help` lists the options.
+
+## The granularity conditions
+
+The granularity result tracks seeds merged to K regions. These three commands
+make the tracked condition at K = 10. The output of `kmerge`, the per-frame
+map merged to 10, is scored as a condition too.
+
+```bash
+python -m pipeline.per_frame --input-dir /path/to/clips --tracks-root /path/to/tracks --tag rgb_per_frame \
+    --sam-input rgb --points-per-side 24 --sam-ckpt sam_vit_h_4b8939.pth
+python -m evalkit.tools.kmerge --dataset atlas120k --clips atlas120k_meta/clips.txt --data-root /path/to/clips \
+    --tracks-root /path/to/tracks --tag track_rgb_rgb_per_frame --k 10
+python -m pipeline.track --input-dir /path/to/clips --tracks-root /path/to/tracks --tag rgb_k10 \
+    --rule both_ways_from_centre --sam-input rgb --track-base rgb \
+    --seed-labels '/path/to/tracks/{clip}/track_rgb_rgb_per_frame_k10'
+```
+
+The floor condition tracks the unmerged seed:
+
+```bash
+python -m pipeline.track --input-dir /path/to/clips --tracks-root /path/to/tracks --tag rgb \
+    --rule both_ways_from_centre --sam-input rgb --track-base rgb --points-per-side 24 \
+    --sam-ckpt sam_vit_h_4b8939.pth
+```
+
+- K = 6, 8 and 12 are made the same way.
+- On CholecSeg8k, `kmerge` takes `--dataset cholecseg8k --clips
+  cholecseg8k_meta/clips.txt`.
+- `kmerge` reads a clip as the evaluator does, so it needs the GT masks and
+  valid depth at every pixel of every frame.
+- The evaluator refuses a condition tracked with `--seed-labels` ("Propagation
+  rule" in `docs/evaluation.md`). It scores the floor and the per-frame
+  conditions.
