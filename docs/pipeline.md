@@ -513,9 +513,8 @@ python -m pipeline.track --input-dir /path/to/clips --tracks-root /path/to/track
 The paper's granularity result merges to K = 10. The conditions at K = 6, 8
 and 12 are made the same way. The tracking stage numbers the seed regions
 again, so the ids that `kmerge` and the per-frame stage write do not change
-the seed. On CholecSeg8k the commands are the same, with `--dataset
-cholecseg8k --clips cholecseg8k_meta/clips.txt`, on clips the ported
-extraction stage wrote.
+the seed. On CholecSeg8k, `kmerge` takes `--dataset cholecseg8k --clips
+cholecseg8k_meta/clips.txt`, and the other commands are the same.
 
 The floor condition is the unmerged seed tracked. It needs no `kmerge` and no
 `--seed-labels`: the tracking stage cuts the seed frame itself.
@@ -526,27 +525,15 @@ python -m pipeline.track --input-dir /path/to/clips --tracks-root /path/to/track
     --sam-ckpt sam_vit_h_4b8939.pth
 ```
 
-This is the condition the workbench named `rgb_center18` on ATLAS-120k and
-`ch_rgb_center` on CholecSeg8k. The workbench's floor, `t5_floor`, was tracked
-from the unmerged per-frame map instead. The pilot evaluator scored the two
-alike: every key of `t5_floor` equals that of `rgb_center18` on all 315
-clips, and that of `ch_rgb_center` on all 27. That the ported per-frame stage
-and tracking stage cut the same seed is read from their code, which calls
-the same mask generator with the same settings, and has not been run.
-
-The evaluator refuses every condition tracked with `--seed-labels`: the
-stage records `seed_source` `external`, and the evaluator scores only `sam`
-and `per_frame`, whatever `--propagation` states. So the conditions merged
-to K are not scored until the evaluator's rule for such a seed is decided,
-in "Seeds made outside the tracking stage" in `docs/porting.md`. The floor
-and the per-frame conditions, merged or not, record `sam` and `per_frame`.
-
-The evaluator names a score JSON by its `--out`. The pilot's tables read
-the floor as `t5_floor`, K = 10 as `t5_k10`, and the per-frame condition
-merged to 10 as `op_rgb_perframe_pps24_k10` (`ch_rgb_perframe_pps24_k10` on
-CholecSeg8k).
+The evaluator refuses every condition tracked with `--seed-labels`, whatever
+`--propagation` states. The tracking stage records `seed_source` `external`
+for such a seed, and a seed from outside the tracker holds no propagation
+rule ("Propagation rule" in `docs/evaluation.md`). So the evaluator scores
+none of the tracked conditions merged to K. The floor records `seed_source`
+`sam`. The per-frame conditions, merged or not, record `per_frame`.
 
 `kmerge` merges every frame, and the tracking stage reads the seed frame's
-map only. `kmerge` reads each clip as the evaluator does, so a clip needs its
-GT masks, although the merge reads none of them. `kmerge` takes K as a
-number. No command here computes a K from the GT.
+map only. `kmerge` reads each clip as the evaluator does. So a clip needs its
+GT masks, although the merge reads none of them, and valid depth at every
+pixel of every frame. `kmerge` takes K as a number. No command here computes
+a K from the GT.
