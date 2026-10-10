@@ -112,7 +112,7 @@ def settings(stage: str, *options: str, tag: str = "t", sam_ckpt: str | None = N
     """Parse a condition's settings as the command line does."""
     ckpt = ["--sam-ckpt", sam_ckpt] if sam_ckpt else []
     return build_parser().parse_args([stage, "--input-dir", "-", "--clips", "-", "--tracks-root", "-", "--tag", tag,
-                                      *ckpt, *options])
+                                      "--gpus", "0", *ckpt, *options])
 
 
 def calls(tracks_root: Path) -> dict[str, list[str]]:
@@ -308,6 +308,11 @@ def test_a_clip_that_fails_is_reported_with_its_log_and_the_others_run(run):
     ("per_frame", PER_FRAME + ["--depth-source", "pi3", "--sam-ckpt", "{ckpt}"], [0],
      r"2 clip\(s\) of the population lack the depth under .*: \['clip0 \(exports/mini_npz/results__pi3x.npz\)', "
      r"'clip1 \(exports/mini_npz/results__pi3x.npz\)'\]"),
+    # The stage records the seed input's ring only, so a tracker's input that burns edges would keep no record of it.
+    ("track", ["--rule", "both_ways_from_centre", "--sam-input", "rgb", "--track-base", "rgb_edge", "--sam-ckpt",
+               "{ckpt}"], [0], r"--track-base rgb_edge burns edges and --sam-input rgb records no edge ring"),
+    ("track", ["--rule", "both_ways_from_centre", "--sam-input", "rgb", "--track-base", "normal_edge",
+               "--seed-labels", "nowhere"], [0], r"--track-base normal_edge burns edges and --seed-labels records no"),
 ])
 def test_a_run_that_cannot_make_the_condition_is_refused_before_anything_runs(run, stage, options, gpus, match):
     root, tracks, ckpt = run
@@ -317,6 +322,63 @@ def test_a_run_that_cannot_make_the_condition_is_refused_before_anything_runs(ru
         run_population(stage, settings(stage, *[o.replace("{ckpt}", ckpt) for o in options]), root, tracks,
                        ["clip0", "clip1"], gpus)
     assert not (tracks / "_calls").exists()
+
+
+def test_a_tracker_input_that_burns_edges_runs_when_the_seed_s_input_records_the_ring(run):
+    root, tracks, ckpt = run
+    make_clip(root, "clip0")
+    s = settings("track", "--rule", "both_ways_from_centre", "--sam-input", "normal_edge", "--track-base", "rgb_edge",
+                 "--seed-min-area", "1", sam_ckpt=ckpt)
+    run_population("track", s, root, tracks, ["clip0"], [0])
+    assert (tracks / "clip0" / "track_rgb_edge_t" / "seed_info.json").is_file()
+
+
+def test_a_montage_left_without_its_labels_is_refused_before_anything_runs(run):
+    # Labels removed by hand without their montage: the stage would refuse the clip on every run.
+    root, tracks, ckpt = run
+    make_clip(root, "clip0")
+    s = settings("track", *TRACK, sam_ckpt=ckpt)
+    run_population("track", s, root, tracks, ["clip0"], [0])
+    for p in (tracks / "clip0" / "track_rgb_t").iterdir():
+        p.unlink()
+    (tracks / "clip0" / "track_rgb_t").rmdir()
+    (tracks / "_calls" / "clip0.json").unlink()
+    with pytest.raises(ValueError, match=r"1 clip\(s\) hold viz/montage_track_rgb_t.png without track_rgb_t"):
+        run_population("track", s, root, tracks, ["clip0"], [0])
+    assert calls(tracks) == {}
+
+
+def test_a_record_of_other_settings_after_a_failure_names_the_failure_too(run):
+    root, tracks, ckpt = run
+    for name in ("broken", "drifted"):
+        make_clip(root, name)
+    with pytest.raises(ValueError, match=r"^drifted's seed_info.json records other settings .*; broken exited 1"):
+        run_population("track", settings("track", *TRACK, sam_ckpt=ckpt), root, tracks, ["broken", "drifted"], [0])
+
+
+def test_each_clip_that_ends_is_reported_as_it_ends(run, capsys):
+    root, tracks, ckpt = run
+    for name in ("clip0", "broken"):
+        make_clip(root, name)
+    with pytest.raises(RuntimeError):
+        run_population("per_frame", settings("per_frame", *PER_FRAME, sam_ckpt=ckpt), root, tracks,
+                       ["clip0", "broken"], [0])
+    out = capsys.readouterr().out
+    assert "[ok] GPU 0: clip0 (1/2)" in out and "[failed] GPU 0: broken exited 1 (2/2)" in out
+
+
+def test_the_gpus_are_named_on_the_command_line():
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(["per_frame", "--input-dir", "-", "--clips", "-", "--tracks-root", "-",
+                                   "--tag", "t", "--sam-ckpt", "x", "--sam-input", "rgb"])
+
+
+def test_a_signal_ignored_under_nohup_stays_ignored(handlers_restored):
+    signal.signal(signal.SIGHUP, signal.SIG_IGN)
+    signal.signal(signal.SIGTERM, signal.SIG_DFL)
+    driver.install_stop_handlers()
+    assert signal.getsignal(signal.SIGHUP) is signal.SIG_IGN
+    assert signal.getsignal(signal.SIGTERM) is driver.stop
 
 
 def test_a_clip_without_depth_is_refused_before_anything_runs(run):
@@ -336,7 +398,7 @@ def test_a_driver_stopped_by_a_signal_stops_its_processes(run, stop_signal):
     population = root.parent / "clips.txt"
     population.write_text("slow\n")
     argv = ["d", "per_frame", "--input-dir", str(root), "--clips", str(population), "--tracks-root", str(tracks),
-            "--tag", "t", "--sam-ckpt", ckpt, *PER_FRAME]
+            "--tag", "t", "--sam-ckpt", ckpt, "--gpus", "0", *PER_FRAME]
     script = (f"import sys; import pipeline.condition_population as d; d.STAGE_COMMANDS = {driver.STAGE_COMMANDS!r}; "
               f"sys.argv = {argv!r}; d.main()")
     proc = subprocess.Popen([sys.executable, "-c", script], cwd=REPO, stdout=subprocess.DEVNULL)

@@ -1,8 +1,7 @@
 """Run one condition of the tracking or the per-frame stage on every clip of a population, one clip per GPU at a time.
 
-Each clip runs as its own `python -m pipeline.track` or
-`python -m pipeline.per_frame`, which is given every setting of the
-condition. Its output goes to `<tracks-root>/_logs/<labels>/<clip>.log`,
+Each clip runs as its own `python -m pipeline.track` or `python -m pipeline.per_frame`, which is given every
+setting of the condition. Its command and output are appended to `<tracks-root>/_logs/<labels>/<clip>.log`,
 where `<labels>` names the clip's label directory. A clip whose labels exist
 is skipped, so a stopped run continues where it was; before anything runs,
 the `seed_info.json` of each such clip must record this run's settings.
@@ -14,10 +13,10 @@ otherwise, and names the clips that fail.
 Usage:
     python -m pipeline.condition_population track --input-dir /path/to/clips --clips atlas120k_meta/clips.txt \\
         --tracks-root /path/to/tracks --tag <tag> --rule both_ways_from_centre --sam-input normal_edge \\
-        --track-base rgb --seed-edge-gain 1.0 --seed-no-smooth --sam-ckpt sam_vit_h_4b8939.pth [--gpus 0 1 2 3]
+        --track-base rgb --seed-edge-gain 1.0 --seed-no-smooth --sam-ckpt sam_vit_h_4b8939.pth --gpus 0 1 2 3
     python -m pipeline.condition_population per_frame --input-dir /path/to/clips --clips atlas120k_meta/clips.txt \\
         --tracks-root /path/to/tracks --tag <tag> --sam-input normal_edge --sam-ckpt sam_vit_h_4b8939.pth \\
-        [--points-per-side 8] [--depth-source pi3] [--gpus 0 1 2 3]
+        [--points-per-side 8] [--depth-source pi3] --gpus 0 1 2 3
 """
 
 import argparse
@@ -150,12 +149,20 @@ def check_inputs(stage: str, s: argparse.Namespace, root: Path, clips: list[str]
     """Refuse, before anything runs, what would make every process fail or run another condition.
 
     Raises:
-        ValueError: a GPU is listed twice; the SAM weights are missing or not given where the stage needs them;
+        ValueError: a GPU is listed twice; the tracker's input burns edges while the seed's record cannot say
+            whether their ring was kept; the SAM weights are missing or not given where the stage needs them;
             a clip is not under `root` with the depth the stage reads; or a clip's seed labels are missing.
             The message counts such clips and names the first five.
     """
     if len(set(gpus)) != len(gpus):
         raise ValueError(f"a GPU is listed twice in {gpus}")
+    # The stage records the ring of the seed's input only, so the ring of the tracker's would go unrecorded and a
+    # continued run could mix the two settings, until "The edge ring of the tracker's input" is decided.
+    if stage == "track" and uses_geom_edge(s.track_base) and (s.seed_labels is not None
+                                                               or not uses_geom_edge(s.sam_input)):
+        seed = "--seed-labels" if s.seed_labels is not None else f"--sam-input {s.sam_input}"
+        raise ValueError(f"--track-base {s.track_base} burns edges and {seed} records no edge ring, so whether the "
+                         "tracker's input kept its ring would be recorded nowhere")
     if s.sam_ckpt is None and not (stage == "track" and s.seed_labels is not None):
         raise ValueError("--sam-ckpt is needed to cut the frames, unless --seed-labels gives the seed regions")
     if s.sam_ckpt is not None and not Path(s.sam_ckpt).is_file():
@@ -171,6 +178,24 @@ def check_inputs(stage: str, s: argparse.Namespace, root: Path, clips: list[str]
         absent = [c for c, d in seeds.items() if not d.is_dir()]
         if absent:
             raise ValueError(f"{len(absent)} clip(s) have no seed labels under {s.seed_labels}: {absent[:5]}")
+
+
+def check_montages(stage: str, s: argparse.Namespace, tracks_root: Path, clips: list[str]) -> None:
+    """Refuse a clip that holds the tracker's montage and not its labels, which the tracking stage refuses to run on.
+
+    Labels removed by hand without their montage leave such a clip, and the stage would exit 1 on it every run.
+
+    Raises:
+        ValueError: the message counts such clips and names the first five.
+    """
+    if stage != "track":
+        return
+    cond = condition_dir(stage, s)
+    stray = [c for c in clips
+             if (tracks_root / c / "viz" / f"montage_{cond}.png").is_file() and not (tracks_root / c / cond).is_dir()]
+    if stray:
+        raise ValueError(f"{len(stray)} clip(s) hold viz/montage_{cond}.png without {cond}, which the stage refuses "
+                         f"to replace; remove the montage with the labels: {stray[:5]}")
 
 
 def check_population(stage: str, s: argparse.Namespace, root: Path, tracks_root: Path, clips: list[str],
@@ -216,7 +241,7 @@ def run_clips(stage: str, s: argparse.Namespace, root: Path, tracks_root: Path, 
     cond, expected = condition_dir(stage, s), expected_record(stage, s)
     log_dir = tracks_root / LOG_DIR / cond
     log_dir.mkdir(parents=True, exist_ok=True)
-    queue, running, failed = list(clips), {}, []
+    queue, running, failed, done = list(clips), {}, [], 0
     try:
         while queue or running:
             # Give each idle GPU the next clip; its log starts with the command.
@@ -241,10 +266,17 @@ def run_clips(stage: str, s: argparse.Namespace, root: Path, tracks_root: Path, 
                 if code is None:
                     continue
                 del running[gpu]
+                done += 1
                 if code != 0:
                     failed.append(f"{clip} exited {code}, see {log}")
+                    print(f"  [failed] GPU {gpu}: {clip} exited {code} ({done}/{len(clips)})", flush=True)
                     continue
-                check_settings(stage, clip, read_record(tracks_root / clip / cond, clip), expected)
+                try:
+                    check_settings(stage, clip, read_record(tracks_root / clip / cond, clip), expected)
+                except ValueError as e:
+                    # The failures before it would be lost with the run, so they go into its message.
+                    raise ValueError("; ".join([str(e), *failed])) from None
+                print(f"  [ok] GPU {gpu}: {clip} ({done}/{len(clips)})", flush=True)
     except BaseException:
         for _, proc, _ in running.values():
             proc.terminate()
@@ -264,6 +296,7 @@ def run_population(stage: str, s: argparse.Namespace, root: Path, tracks_root: P
     """
     # Refuse, before any process starts: what would make every process fail, and labels of another setting.
     check_inputs(stage, s, root, clips, gpus)
+    check_montages(stage, s, tracks_root, clips)
     check_population(stage, s, root, tracks_root, clips, only_existing=True)
     cond = condition_dir(stage, s)
     todo = [c for c in clips if not (tracks_root / c / cond).is_dir()]
@@ -287,7 +320,7 @@ def build_parser() -> argparse.ArgumentParser:
     common.add_argument("--clips", required=True, help="The population: one clip name per line.")
     common.add_argument("--tracks-root", required=True, help="Where each clip's conditions go.")
     common.add_argument("--tag", required=True, help="The condition's name.")
-    common.add_argument("--gpus", type=int, nargs="+", default=[0], help="The GPUs to run on, one clip each.")
+    common.add_argument("--gpus", type=int, nargs="+", required=True, help="The GPUs to run on, one clip each.")
     common.add_argument("--sam-input", required=True, choices=SAM_INPUT_MODES, help="The segmenter's input mode.")
     common.add_argument("--depth-source", default="da3", choices=DEPTH_SOURCES,
                         help="The depth the normals and edges come from.")
@@ -309,9 +342,18 @@ def build_parser() -> argparse.ArgumentParser:
     return ap
 
 
-def main() -> None:
+def install_stop_handlers() -> None:
+    """Stop the driver, and its processes with it, on a stop signal, but leave ignored a signal that is ignored.
+
+    Under `nohup` SIGHUP is ignored, and a handler would stop the run when the terminal closes.
+    """
     for sig in STOP_SIGNALS:
-        signal.signal(sig, stop)
+        if signal.getsignal(sig) is not signal.SIG_IGN:
+            signal.signal(sig, stop)
+
+
+def main() -> None:
+    install_stop_handlers()
     args = build_parser().parse_args()
     root = Path(args.input_dir)
     if not root.is_dir():

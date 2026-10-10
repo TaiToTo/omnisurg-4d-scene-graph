@@ -399,31 +399,43 @@ tracking stage does.
 ```bash
 python -m pipeline.condition_population track --input-dir /path/to/clips --clips atlas120k_meta/clips.txt \
     --tracks-root /path/to/tracks --tag <tag> --rule both_ways_from_centre --sam-input normal_edge \
-    --track-base rgb --seed-edge-gain 1.0 --seed-no-smooth --sam-ckpt sam_vit_h_4b8939.pth [--gpus 0 1 2 3]
+    --track-base rgb --seed-edge-gain 1.0 --seed-no-smooth --sam-ckpt sam_vit_h_4b8939.pth --gpus 0 1 2 3
 python -m pipeline.condition_population per_frame --input-dir /path/to/clips --clips atlas120k_meta/clips.txt \
     --tracks-root /path/to/tracks --tag <tag> --sam-input normal_edge --sam-ckpt sam_vit_h_4b8939.pth \
-    [--points-per-side 8] [--depth-source pi3] [--gpus 0 1 2 3]
+    [--points-per-side 8] [--depth-source pi3] --gpus 0 1 2 3
 ```
 
 The command runs one condition of the tracking stage or of the per-frame
 segmentation stage on every clip of a population file. The subcommand names
 the stage. It takes the stage's settings, under the stage's names and with
 its defaults, and gives every one of them to each process. Each clip runs as
-a process of its own, on CUDA only, and each GPU runs one clip at a time.
-Each process writes its output to `<tracks-root>/_logs/<labels>/<clip>.log`,
-after the command it ran. `<labels>` is the name of the directory the stage
+a process of its own, on CUDA only, and each GPU of `--gpus`, which has no
+default, runs one clip at a time. The command and the output of each process
+are appended to `<tracks-root>/_logs/<labels>/<clip>.log`, so a clip run
+again adds its command below the earlier run's. A line is printed as each
+clip ends, `[ok]` or `[failed]`, with the count of clips ended. `<labels>` is the name of the directory the stage
 writes a clip's labels to: `track_<track-base>_<tag>` for the tracking stage
 and `track_rgb_<tag>` for the per-frame stage. A clip that already has that
 directory is skipped. A driver that is stopped, by `kill`, a closed terminal
-or Ctrl-C, stops its processes with it. The command refuses:
+or Ctrl-C, stops its processes with it; under `nohup`, which ignores the
+signal of a closed terminal, it keeps running. The command refuses:
 
-- before any process starts: a GPU listed twice; SAM weights that are
+- before any process starts: a GPU listed twice; a tracker's input that
+  burns edges (`--track-base` `normal_edge` or `rgb_edge`) with a seed whose
+  record holds no edge ring (`--seed-labels`, or a `--sam-input` that burns
+  none), since the stage records the ring of the seed's input only and
+  whether the tracker's input kept its ring would be recorded nowhere
+  ("The edge ring of the tracker's input" in `docs/porting.md`); SAM weights that are
   missing, or not given where the stage cuts frames; a clip of the
   population without the depth the stage reads under `--input-dir`; a clip
-  without its directory of seed labels under `--seed-labels`; a clip whose
-  labels exist and that the check after the run would refuse;
+  without its directory of seed labels under `--seed-labels`; a clip that
+  holds the tracking stage's montage, `viz/montage_<labels>.png`, without its
+  labels, which the stage refuses to replace (labels removed by hand go with
+  their montage); a clip whose labels exist and that the check after the run
+  would refuse;
 - after a clip has run: a `seed_info.json` that records other settings than
   the run gives. The run stops there, and so do the processes still running;
+  the message also names the clips that exited non-zero before;
 - after the run: a clip without its `<labels>` directory; a clip whose
   `seed_info.json` is missing, cannot be read, records other settings or
   another clip, or, from the tracking stage, does not list every frame or
