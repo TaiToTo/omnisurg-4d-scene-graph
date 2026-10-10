@@ -1,0 +1,254 @@
+"""Test the selection of D4D's sides on a census made up for the test, and the files in `d4d_meta/`.
+
+The made-up census holds a side for each reason of the rule, on clips of two specimens and three
+sessions, and no `specimen`, which the step reads from the key. Each refusal has a test that plants its fault:
+
+- an empty list of clips, a list that holds a clip twice, and a line that is not three names;
+- a census cut short or lacking one clip, a clip the list does not hold, a clip held twice, and clips out of order;
+- a side that carries an `error`, and a side with a point cloud and no `active`;
+- a field the rule reads that is missing or holds a value of the wrong kind, and a `NaN` in the file.
+
+The files in `d4d_meta/` are checked against one another, against the rule's thresholds, and for
+machine paths, email addresses and untranslated text.
+"""
+
+import json
+import re
+from pathlib import Path
+
+import pytest
+
+from pipeline.select_d4d_population import (
+    MAX_GT_FRAME_GAP_S, MIN_GT_BLOCK_FRAC, check_census, classify, kept_clips, main, read_clips, select)
+
+META = Path(__file__).resolve().parent.parent / "d4d_meta"
+# A field planted as `MISSING` is left out of the side.
+MISSING = object()
+PRIVATE = re.compile(r"/(home|var/autofs|mnt|Users)/|[぀-ヿ一-鿿！-｠]|[\w.+-]+@[\w-]+\.[\w.]+")
+
+
+def side(**kw) -> dict:
+    """Return a census side that the rule keeps, with the fields in `kw` replaced."""
+    return {"present": True, "gt_blk_frac": 0.5, "frame_minus_gt_s": 4.4, "active": False} | kw
+
+
+def clip(key: str, start: dict, end: dict, moved: bool = False) -> dict:
+    return {"key": key, "moved_camera": moved, "start": start, "end": end}
+
+
+def census() -> list[dict]:
+    """Return four clips: every reason of the rule, and kept sides of both cameras, two specimens and three sessions."""
+    return [
+        clip("specimen_1/s_a/Clip_1", side(), side(frame_minus_gt_s=-4.3)),
+        clip("specimen_1/s_a/Clip_2", side(active=True), {"present": False, "active": False}, moved=True),
+        clip("specimen_1/s_b/Clip_1", side(gt_blk_frac=0.1), side(frame_minus_gt_s=12.0), moved=True),
+        clip("specimen_2/s_c/Clip_1", side(frame_minus_gt_s=-10.5), side(), moved=True),
+    ]
+
+
+def keys(c: list[dict]) -> list[str]:
+    return [r["key"] for r in c]
+
+
+def write_inputs(tmp_path, c: list[dict], clips: list[str]) -> list[str]:
+    """Write a census and a list of clips; return the arguments that name them and an output directory."""
+    (tmp_path / "census.json").write_text(json.dumps(c))
+    (tmp_path / "clips.txt").write_text("\n".join(clips) + "\n")
+    return ["--census", str(tmp_path / "census.json"), "--clips", str(tmp_path / "clips.txt"),
+            "--out", str(tmp_path / "out")]
+
+
+@pytest.mark.parametrize("fields, reason", [
+    ({"present": False, "gt_blk_frac": 0.0, "active": True}, "no_gt"),
+    ({"gt_blk_frac": 0.1, "active": True, "frame_minus_gt_s": 30.0}, "gt_not_visible"),
+    ({"active": True, "frame_minus_gt_s": 30.0}, "tissue_moving"),
+    ({"frame_minus_gt_s": -10.5}, "gt_stale"),
+    ({"gt_blk_frac": MIN_GT_BLOCK_FRAC, "frame_minus_gt_s": -MAX_GT_FRAME_GAP_S}, "keep"),
+])
+def test_a_side_is_left_out_for_the_first_reason_of_the_rule_that_applies(fields, reason):
+    assert classify(side(**fields)) == reason
+
+
+def test_the_population_lists_the_kept_sides_and_counts_each_reason():
+    population = select(census())
+    # The keys keep the order the workbench wrote them in, and the reasons the order they first occur in.
+    assert list(population) == ["n_clips_total", "n_sides_total", "exclusions", "n_sides_kept", "n_clips_kept",
+                                "n_clips_moved", "n_clips_static", "n_sessions_kept", "n_specimens_kept",
+                                "thresholds", "sides"]
+    assert list(population["exclusions"].items()) == [("keep", 3), ("tissue_moving", 1), ("no_gt", 1),
+                                                       ("gt_not_visible", 1), ("gt_stale", 2)]
+    assert population == {
+        "n_clips_total": 4, "n_sides_total": 8,
+        "exclusions": population["exclusions"],
+        "n_sides_kept": 3, "n_clips_kept": 2, "n_clips_moved": 1, "n_clips_static": 1,
+        "n_sessions_kept": 2, "n_specimens_kept": 2,
+        "thresholds": {"min_gt_block_frac": 0.2, "exclude_active": True, "max_gt_frame_gap_s": 10.0},
+        "sides": [
+            {"key": "specimen_1/s_a/Clip_1", "side": "start", "moved_camera": False, "specimen": "specimen_1"},
+            {"key": "specimen_1/s_a/Clip_1", "side": "end", "moved_camera": False, "specimen": "specimen_1"},
+            {"key": "specimen_2/s_c/Clip_1", "side": "end", "moved_camera": True, "specimen": "specimen_2"},
+        ],
+    }
+
+
+def test_main_writes_the_population_and_the_clips_with_a_kept_side(tmp_path):
+    c = census()
+    main(write_inputs(tmp_path, c, keys(c)))
+    out = tmp_path / "out"
+    assert (out / "population.json").read_text() == json.dumps(select(c), indent=1)
+    assert (out / "clips.txt").read_text() == "specimen_1/s_a/Clip_1\nspecimen_2/s_c/Clip_1\n"
+
+
+def test_a_census_cut_short_is_refused(tmp_path):
+    c = census()
+    with pytest.raises(SystemExit, match="lacks 2 of the 4 clips"):
+        main(write_inputs(tmp_path, c[:2], keys(c)))
+    assert not (tmp_path / "out").exists()
+
+
+def test_a_census_that_lacks_one_clip_is_refused():
+    c = census()
+    with pytest.raises(ValueError, match="lacks 1 of the 4 clips it must hold, the first being specimen_1/s_b/Clip_1"):
+        check_census(c[:2] + c[3:], keys(c))
+
+
+def test_a_clip_the_list_does_not_hold_is_refused():
+    c = census()
+    with pytest.raises(ValueError, match=r"clips the list does not: \['specimen_2/s_c/Clip_1'\]"):
+        check_census(c, keys(c)[:3])
+
+
+def test_a_clip_held_twice_is_refused():
+    c = census()
+    with pytest.raises(ValueError, match=r"holds a clip twice: \['specimen_1/s_a/Clip_2'\]"):
+        check_census(c + [c[1]], keys(c))
+
+
+def test_a_census_of_the_listed_clips_in_another_order_is_refused():
+    c = census()
+    with pytest.raises(ValueError, match="another order than the list, first at line 2: specimen_1/s_b/Clip_1"):
+        check_census([c[0], c[2], c[1], c[3]], keys(c))
+
+
+def test_an_empty_list_of_clips_is_refused(tmp_path):
+    with pytest.raises(SystemExit, match="lists no clip"):
+        main(write_inputs(tmp_path, [], []))
+    assert not (tmp_path / "out").exists()
+
+
+def test_a_list_that_holds_a_clip_twice_is_refused(tmp_path):
+    c = census()
+    with pytest.raises(SystemExit, match=r"lists a clip twice: \['specimen_1/s_a/Clip_1'\]"):
+        main(write_inputs(tmp_path, c, keys(c) + keys(c)[:1]))
+
+
+def test_a_side_that_carries_an_error_is_refused():
+    # The census recorded a side it failed to measure as one without a point cloud, with the error beside it.
+    c = census()
+    c[0]["end"] = {"present": False, "error": "ValueError: empty point cloud"}
+    with pytest.raises(ValueError, match="specimen_1/s_a/Clip_1 end: the census failed to measure the side"):
+        check_census(c, keys(c))
+
+
+def test_a_side_with_a_point_cloud_and_no_active_is_refused():
+    # The census left `active` out when it found no record of the tissue's motion, and the rule kept such a side.
+    c = census()
+    del c[3]["end"]["active"]
+    assert classify(side()) == "keep"
+    with pytest.raises(ValueError, match="specimen_2/s_c/Clip_1 end: the side has a point cloud and no `active`"):
+        check_census(c, keys(c))
+
+
+@pytest.mark.parametrize("fields, message", [
+    # Without `present`, the rule would count the side as `no_gt`; with the string "false", as one with a point cloud.
+    ({"present": MISSING}, r"no `present`"),
+    ({"present": "false"}, r"`present` is 'false', not true or false"),
+    ({"active": None}, r"`active` is None, not true or false"),
+    ({"active": 1}, r"`active` is 1, not true or false"),
+    ({"gt_blk_frac": MISSING}, r"no `gt_blk_frac`"),
+    ({"gt_blk_frac": float("nan")}, r"`gt_blk_frac` is nan, not a finite number"),
+    ({"gt_blk_frac": "0.1"}, r"`gt_blk_frac` is '0.1', not a finite number"),
+    ({"gt_blk_frac": True}, r"`gt_blk_frac` is True, not a finite number"),
+    ({"frame_minus_gt_s": float("nan")}, r"`frame_minus_gt_s` is nan, not a finite number"),
+    ({"frame_minus_gt_s": float("-inf")}, r"`frame_minus_gt_s` is -inf, not a finite number"),
+])
+def test_a_side_whose_field_is_missing_or_of_the_wrong_kind_is_refused(fields, message):
+    c = census()
+    c[3]["start"] = {k: v for k, v in (side() | fields).items() if v is not MISSING}
+    with pytest.raises(ValueError, match=r"specimen_2/s_c/Clip_1 start: " + message):
+        check_census(c, keys(c))
+
+
+def test_a_side_without_a_point_cloud_needs_only_present():
+    c = census()
+    c[1]["end"] = {"present": False}
+    check_census(c, keys(c))
+
+
+@pytest.mark.parametrize("moved, message", [
+    (None, r"no `moved_camera`"),
+    ("no", r"`moved_camera` is 'no', not true or false"),
+])
+def test_a_clip_whose_moved_camera_is_missing_or_not_true_or_false_is_refused(moved, message):
+    c = census()
+    if moved is None:
+        del c[2]["moved_camera"]
+    else:
+        c[2]["moved_camera"] = moved
+    with pytest.raises(ValueError, match=r"specimen_1/s_b/Clip_1: " + message):
+        check_census(c, keys(c))
+
+
+def test_a_nan_in_the_census_file_is_refused(tmp_path):
+    # `json.dumps` writes NaN, `json.loads` reads it, and NaN compares false with both thresholds.
+    c = census()
+    c[0]["start"]["gt_blk_frac"] = float("nan")
+    assert classify(c[0]["start"]) == "keep"
+    args = write_inputs(tmp_path, c, keys(c))
+    assert "NaN" in (tmp_path / "census.json").read_text()
+    with pytest.raises(SystemExit, match="specimen_1/s_a/Clip_1 start: `gt_blk_frac` is nan, not a finite number"):
+        main(args)
+    assert not (tmp_path / "out").exists()
+
+
+@pytest.mark.parametrize("line", ["specimen_1/s_a", "specimen_1/s_a/Clip_1/x", "specimen_1//Clip_1"])
+def test_a_list_with_a_line_that_is_not_three_names_is_refused(tmp_path, line):
+    c = census()
+    with pytest.raises(SystemExit, match=f"not `<specimen>/<session>/<clip>`: {line}"):
+        main(write_inputs(tmp_path, c, keys(c) + [line]))
+
+
+def test_the_list_of_clips_holds_271_clips_once_in_order():
+    clips = read_clips(str(META / "census_clips.txt"))
+    assert len(clips) == len(set(clips)) == 271
+    assert clips == sorted(clips)
+    assert all(re.fullmatch(r"specimen_\d/\d{4}_\d\d_\d\d-\d\d_\d\d_\d\d/Clip_\d+", k) for k in clips)
+
+
+def test_the_committed_population_agrees_with_the_list_and_with_its_own_counts():
+    population = json.loads((META / "population.json").read_text(encoding="utf-8"))
+    clips = read_clips(str(META / "census_clips.txt"))
+    assert population["thresholds"] == select([])["thresholds"]
+    assert population["n_clips_total"] == len(clips)
+    assert sum(population["exclusions"].values()) == population["n_sides_total"] == 2 * len(clips)
+    assert population["exclusions"]["keep"] == population["n_sides_kept"] == len(population["sides"])
+    kept = kept_clips(population)
+    assert set(kept) <= set(clips)
+    assert population["n_clips_kept"] == len(kept) == population["n_clips_moved"] + population["n_clips_static"]
+
+
+def test_clips_txt_lists_the_clips_of_the_committed_population():
+    population = json.loads((META / "population.json").read_text(encoding="utf-8"))
+    assert (META / "clips.txt").read_text(encoding="utf-8") == "\n".join(kept_clips(population)) + "\n"
+
+
+def test_no_file_carries_a_path_an_email_address_or_untranslated_text():
+    for p in sorted(META.iterdir()):
+        hits = PRIVATE.findall(p.read_text(encoding="utf-8"))
+        assert not hits, (p.name, hits)
+
+
+@pytest.mark.parametrize("text", ["/home/someone/datasets", "/var/autofs/data", "someone@example.com",
+                                  "採点に使う"])
+def test_the_private_pattern_finds_what_it_is_for(text):
+    assert PRIVATE.search(text), text

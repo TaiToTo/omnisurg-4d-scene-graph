@@ -34,17 +34,19 @@ PROV_NAME = "seed_info.json"
 # `tag` say where the labels are, not what made them; of `frames`, which is
 # that clip's own frame numbers, only the kind is kept. `bidir` says
 # whether the tracker ran both ways. A tag tracked both ways on some clips
-# and forward on others mixes two propagation rules.
+# and forward on others mixes two propagation rules. `seed_labels` names
+# seeds made outside the tracking stage, which is all that tells two merges
+# of one condition to different K apart.
 PROV_KEYS = ("sam_input", "depth_source", "seed_source", "track_base",
-             "seed_min_area", "seed_topk", "point_grids", "bidir")
+             "seed_min_area", "seed_topk", "point_grids", "bidir", "seed_labels")
 SEED_KEYS = ("points_per_side", "seed_edge_gain", "seed_smooth",
              "edge_ring_masked", "seed_sam_kwargs", "produced_by")
 
 # A label directory that holds pictures, never labels of a condition.
 VIZ_DIR = "viz"
 
-# What a cell of the matrix says about a condition. Letters, not marks: a mark
-# beside a condition's name reads as a verdict, and the only verdict is `paired_stats.verdict`.
+# What a cell of the matrix says about a condition. Letters, not symbols: a symbol
+# beside a condition's name reads as a mark, and only `paired_stats.mark_of` gives a mark.
 SCORED, LABELS_ONLY, PROVENANCE_ONLY, NOT_RUN = "S", "L", "P", "-"
 
 
@@ -94,6 +96,25 @@ def frames_kind(v) -> str:
     return str(v)
 
 
+def condition_key(record) -> str:
+    """Return what tells a clip's condition from another's: the fields of `PROV_KEYS` and `SEED_KEYS`, as JSON.
+
+    Raises:
+        ValueError: `record`, or its `seed_input`, is not a JSON object.
+    """
+    if not isinstance(record, Mapping):
+        raise ValueError(f"a JSON {type(record).__name__}, not an object")
+    si = record.get("seed_input") or {}
+    if not isinstance(si, Mapping):
+        raise ValueError(f"seed_input is a JSON {type(si).__name__}, not an object")
+    key = {**{k: record.get(k) for k in PROV_KEYS}, **{k: si.get(k) for k in SEED_KEYS},
+           "frames": frames_kind(record.get("frames"))}
+    # The tracker writes "" when it read no seed labels, and its versions before `seed_labels` wrote no key.
+    # Neither names seeds, so the two are one condition.
+    key["seed_labels"] = key["seed_labels"] or None
+    return json.dumps(key, sort_keys=True, ensure_ascii=False)
+
+
 def read_conditions(track_root: str) -> dict:
     """The provenance under `track_root`, by tag.
 
@@ -120,16 +141,11 @@ def read_conditions(track_root: str) -> dict:
         out[tag]["mtime"].append(os.path.getmtime(p))
         try:
             with open(p, encoding="utf-8") as f:
-                d = json.load(f)
+                key = condition_key(json.load(f))
         except (OSError, ValueError) as e:
             # A broken provenance is reported, not hidden.
             out[tag]["notes"][f"unreadable provenance: {e}"].append(clip)
             continue
-        si = d.get("seed_input") or {}
-        key = json.dumps({**{k: d.get(k) for k in PROV_KEYS},
-                          **{k: si.get(k) for k in SEED_KEYS},
-                          "frames": frames_kind(d.get("frames"))},
-                         sort_keys=True, ensure_ascii=False)
         out[tag]["keys"][key].append(clip)
     # The clips with labels and no provenance file, per clip: a tag can hold
     # both kinds, and skipping it would hide these from the mixed-condition check.
@@ -275,11 +291,11 @@ def report(track_root: str, evals: dict, title: str, scored_dirs: set[str]) -> t
         ts = c["mtime"] or [0]
         day = lambda t: datetime.datetime.fromtimestamp(t).strftime("%m-%d")
         dt = day(min(ts)) if day(min(ts)) == day(max(ts)) else f"{day(min(ts))}..{day(max(ts))}"
-        mark = "scored" if tag in scored_dirs else "no"
+        scored = "scored" if tag in scored_dirs else "no"
         notes = c.get("notes") or {}
         if len(c["keys"]) > 1:
             problems.append(f"{title}/{tag}: {len(c['keys'])} conditions are mixed under one tag")
-            print(f"{tag:34s}{nclip:5d}{nlab:7d}  !! {len(c['keys'])} conditions mixed !!   {mark:<7s}{dt}")
+            print(f"{tag:34s}{nclip:5d}{nlab:7d}  !! {len(c['keys'])} conditions mixed !!   {scored:<7s}{dt}")
             for k, cl in sorted(c["keys"].items()):
                 print(f"      [{len(cl):3d} clips] {k}")
             for note, cl in sorted(notes.items()):
@@ -291,7 +307,7 @@ def report(track_root: str, evals: dict, title: str, scored_dirs: set[str]) -> t
             for note, cl in sorted(notes.items()):
                 problems.append(f"{title}/{tag}: {note} ({len(cl)} clips); "
                                 "the condition cannot be verified, so it enters no comparison")
-            print(f"{tag:34s}{nclip:5d}{nlab:7d}  !! no readable provenance !!      {mark:<7s}{dt}")
+            print(f"{tag:34s}{nclip:5d}{nlab:7d}  !! no readable provenance !!      {scored:<7s}{dt}")
             continue
         if notes:
             n_note = sum(len(v) for v in notes.values())
@@ -299,7 +315,7 @@ def report(track_root: str, evals: dict, title: str, scored_dirs: set[str]) -> t
         k = json.loads(next(iter(c["keys"])))
         print(f"{tag:34s}{nclip:5d}{nlab:7d}  {str(k['sam_input']):<12s}"
               f"{str(k['points_per_side']):>4s} {str(k['depth_source']):<6s}"
-              f"{str(k['seed_source']):<10s}{str(k['track_base']):<12s}{mark:<7s}{dt}")
+              f"{str(k['seed_source']):<10s}{str(k['track_base']):<12s}{scored:<7s}{dt}")
         if clips != full:
             missing, extra = sorted(full - clips), sorted(clips - full)
             problems.append(f"{title}/{tag}: {nclip} clips where the others have {len(full)}"
