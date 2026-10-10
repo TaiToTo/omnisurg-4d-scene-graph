@@ -6,8 +6,8 @@ writes `depth_raw/depth_NNNNNN.npy`, `depth_vis/NNNN.jpg`,
 `depth_info` to the manifest. The bundle `results.npz` holds depth,
 confidence, intrinsics and world-to-camera extrinsics. The stage refuses:
 
-- a clip without `crop_info.json`, unless it is an ATLAS-120k clip: a
-  CholecSeg8k clip before the crop stage, or a LapEx clip;
+- a clip without `crop_info.json`, unless it is an ATLAS-120k or a
+  StereoMIS clip: a CholecSeg8k clip before the crop stage, or a LapEx clip;
 - a clip that already holds the stage's output, unless `--overwrite` is
   given, which removes that output first.
 
@@ -36,8 +36,8 @@ from surgical_core.viewer.glb import write_point_cloud_glb
 DEFAULT_DATASET = "cholec_gt"
 
 # The datasets whose clips need no crop. ATLAS-120k frames have no endoscope border; their extraction removes any
-# letterbox and records it in the manifest's `crop`.
-UNCROPPED_DATASETS = frozenset({"atlas120k"})
+# letterbox and records it in the manifest's `crop`. StereoMIS frames are rectified views that keep no black border.
+UNCROPPED_DATASETS = frozenset({"atlas120k", "stereomis"})
 
 # The stage's own files in a clip, by the directory or file that holds them. The later stages and other depth
 # sources write into the same directories, under a `__<source>` suffix (`depth_vis/NNNN__pi3x.jpg`) or another

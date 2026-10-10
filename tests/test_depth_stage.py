@@ -109,6 +109,11 @@ def test_an_atlas120k_clip_needs_no_crop_info(tmp_path):
     check_cropped(clip, json.loads((clip / "frame_manifest.json").read_text()))
 
 
+def test_a_stereomis_clip_needs_no_crop_info(tmp_path):
+    clip = make_clip(tmp_path, name="P1__clip_0001", dataset="stereomis", cropped=False)
+    check_cropped(clip, json.loads((clip / "frame_manifest.json").read_text()))
+
+
 def test_a_clip_without_manifest_or_images_is_refused(tmp_path):
     clip = make_clip(tmp_path)
     for p in (clip / "input_images").iterdir():

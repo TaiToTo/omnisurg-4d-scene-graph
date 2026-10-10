@@ -185,6 +185,36 @@ def check_depth(root: Path, clips: list[str]) -> None:
         raise ValueError("; ".join(problems))
 
 
+def run_shards(command: list[str], args: list[str], root: Path, dealt: dict[int, list[str]],
+               log_name: str) -> list[str]:
+    """Run `command` once per GPU on its share of the clips, wait for every process, and name each that failed.
+
+    Each process gets `--input-dir`, `--gpu`, `args` and `--clips`, and writes to
+    `<root>/_logs/<log_name>_gpu<N>.log`. A driver that is stopped while starting or waiting stops the processes
+    it has started with it.
+
+    Returns:
+        One line for each process that exited non-zero, with its log.
+    """
+    log_dir = root / LOG_DIR
+    log_dir.mkdir(exist_ok=True)
+    procs = {}
+    try:
+        for gpu, shard in dealt.items():
+            log = log_dir / f"{log_name}_gpu{gpu}.log"
+            print(f"  GPU {gpu}: {len(shard)} clips -> {log}")
+            with open(log, "a") as fh:
+                procs[gpu] = (subprocess.Popen(command + ["--input-dir", str(root), "--gpu", str(gpu),
+                                                          *args, "--clips", *shard],
+                                               stdout=fh, stderr=subprocess.STDOUT), log)
+        exits = {gpu: p.wait() for gpu, (p, _) in procs.items()}
+    except BaseException:
+        for p, _ in procs.values():
+            p.terminate()
+        raise
+    return [f"GPU {gpu} exited {code}, see {procs[gpu][1]}" for gpu, code in exits.items() if code != 0]
+
+
 def run_population(root: Path, clips: list[str], gpus: list[int]) -> None:
     """Run the depth stage on the clips that lack `depth_info`, one process per GPU, and check the population.
 
@@ -203,25 +233,8 @@ def run_population(root: Path, clips: list[str], gpus: list[int]) -> None:
     dealt = shards(todo, gpus)
     print(f"{len(clips)} clips in the population, {len(todo)} without depth, GPUs {gpus}")
 
-    # Start one process per GPU, each on its share of the clips, and wait for every one. A driver that is
-    # stopped while starting or waiting stops the processes it has started with it.
-    log_dir = root / LOG_DIR
-    log_dir.mkdir(exist_ok=True)
-    procs = {}
-    try:
-        for gpu, shard in dealt.items():
-            log = log_dir / f"depth_gpu{gpu}.log"
-            print(f"  GPU {gpu}: {len(shard)} clips -> {log}")
-            with open(log, "a") as fh:
-                procs[gpu] = (subprocess.Popen(DEPTH_COMMAND + ["--input-dir", str(root), "--gpu", str(gpu),
-                                                                *DEPTH_ARGS, "--clips", *shard],
-                                               stdout=fh, stderr=subprocess.STDOUT), log)
-        exits = {gpu: p.wait() for gpu, (p, _) in procs.items()}
-    except BaseException:
-        for p, _ in procs.values():
-            p.terminate()
-        raise
-    problems = [f"GPU {gpu} exited {code}, see {procs[gpu][1]}" for gpu, code in exits.items() if code != 0]
+    # Start one process per GPU, each on its share of the clips, and wait for every one.
+    problems = run_shards(DEPTH_COMMAND, DEPTH_ARGS, root, dealt, "depth")
 
     # Check every clip of the population, whether it ran now or before, and report the check with the exits.
     try:
