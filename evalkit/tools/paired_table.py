@@ -1,7 +1,7 @@
 """Print the pilot's table of paired comparisons: blocks of rows under headings, a row per pair of conditions.
 
-Each cell holds the mean of `cond − base` for one key, with the mark of
-`paired_stats.verdict`. A line under each row gives the first key's
+Each cell holds the mean of `cond − base` for one key, with the mark that
+`paired_stats.mark_of` gives. A line under each row gives the first key's
 interval and wins. Every two conditions of the table must pass
 `scores.check_comparable`. The table is pasted as printed, never copied by hand.
 
@@ -17,7 +17,7 @@ from collections.abc import Mapping, Sequence
 import numpy as np
 
 from evalkit.tools.compare_eval import DIRECTION
-from evalkit.tools.paired_stats import VERDICT_RULE, boot_ci, sign_of_key, verdict, video_of
+from evalkit.tools.paired_stats import MARK_RULE, boot_ci, mark_of, sign_of_key, video_of
 from evalkit.tools.scores import (
     PILOT_SIGNS,
     check_comparable_table,
@@ -174,7 +174,7 @@ def cell_of(base: Mapping, cond: Mapping, clips: list[str], key: str, sign: int)
 
     `mean`, `ci` and `mark` are None when fewer than `MIN_CLIPS` clips or
     fewer than two videos define the key: one video has no interval, and
-    the point it would give reads as a verdict.
+    the point it would give reads as a mark.
 
     Args:
         base: The base condition's rows, by clip.
@@ -191,7 +191,7 @@ def cell_of(base: Mapping, cond: Mapping, clips: list[str], key: str, sign: int)
     d = (np.array([cond[c][key] for c in ks], dtype=np.float64)
          - np.array([base[c][key] for c in ks], dtype=np.float64))
     ci = boot_ci(d, videos)
-    out.update(mean=float(d.mean()), ci=ci, mark=verdict(ci, sign),
+    out.update(mean=float(d.mean()), ci=ci, mark=mark_of(ci, sign),
                wins=int((d * sign > 0).sum()), losses=int((d * sign < 0).sum()))
     return out
 
@@ -233,7 +233,7 @@ def table_lines(blocks: Sequence, summaries: Mapping[str, Mapping], keys: Sequen
     rule = "" if shared["propagation"] is None else f" / propagation {shared['propagation']}"
     lines = [f"{shared['dataset']}: {len(clips)} clips / {n_videos} videos / "
              f"eval_code_sha {shared['eval_code'][:8]}{rule}",
-             f"★ better, ✗ worse, each in its key's direction: {VERDICT_RULE}",
+             f"★ better, ✗ worse, each in its key's direction: {MARK_RULE}",
              f"{SIGN_NOTE} after a mark: as many clips or more moved against the mark as with it",
              f"{NO_VALUE}: fewer than {MIN_CLIPS} clips or 2 videos define the key",
              "directions: " + ", ".join(f"{k} {DIRECTION[s]}" for k, s in columns)]

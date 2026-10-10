@@ -18,7 +18,7 @@ import numpy as np
 import pytest
 
 from evalkit.tools import arms_paired as AP
-from evalkit.tools.paired_stats import VERDICT_RULE, boot_ci, video_of
+from evalkit.tools.paired_stats import MARK_RULE, boot_ci, video_of
 from evalkit.tools.scores import PILOT_EVAL_CODE_SHA, metric_key
 
 pytest.importorskip("scipy", reason="the Wilcoxon test needs the `tools` extra")
@@ -235,7 +235,7 @@ def test_the_command_prints_the_workbench_s_rows(tmp_path):
     assert lines[0] == f"atlas: {len(CLIPS)} clips / {len(VIDEOS)} videos, eval_code={PILOT_EVAL_CODE_SHA[:16]}"
     head = next(i for i, line in enumerate(lines) if line.startswith("pair"))
     assert lines[head + 1:head + 1 + len(PAIRS)] == WORKBENCH_ROWS["inst_F1_50"]
-    assert lines[-1] == f"★ / ✗: {VERDICT_RULE}."
+    assert lines[-1] == f"★ / ✗: {MARK_RULE}."
 
 
 def test_the_command_refuses_a_mixed_table_and_names_the_two_conditions(tmp_path):

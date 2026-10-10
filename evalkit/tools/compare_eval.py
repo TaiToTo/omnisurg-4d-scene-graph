@@ -5,7 +5,7 @@ define it, their difference `cond − base` and the key's direction; then,
 on one key (`--key`, meant to be the one that decides the question
 asked), the per-clip list, the wins and, with `--plot`, a chart. No mark
 is printed: whether a difference is distinguishable from zero is
-`paired_stats.verdict`'s alone. The terms are those of
+`paired_stats.mark_of`'s alone. The terms are those of
 `docs/evaluation.md`, "Terms the tools read a score with".
 
 Usage:

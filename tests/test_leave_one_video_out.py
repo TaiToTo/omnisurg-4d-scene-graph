@@ -275,7 +275,7 @@ def test_the_command_writes_the_marks_and_names_the_video(tmp_path):
     assert "<-" not in run.stdout
     got = json.loads(out.read_text(encoding="utf-8"))
     assert list(got) == ["mark_rule", "n_boot", "seed", "seed_scheme", "min_videos_after_drop", "pairs"]
-    assert (got["mark_rule"], got["seed_scheme"]) == (PS.VERDICT_RULE, PS.SEED_SCHEME)
+    assert (got["mark_rule"], got["seed_scheme"]) == (PS.MARK_RULE, PS.SEED_SCHEME)
     assert (got["n_boot"], got["seed"]) == (PS.N_BOOT, PS.SEED)
     # A pilot JSON's pair records its evaluator as an evaluator JSON's does.
     assert got["pairs"]["base:cond"]["eval_code"] == PILOT_EVAL_CODE_SHA[:16]
