@@ -17,7 +17,7 @@ import cv2  # noqa: E402
 
 import evalkit.tools.pose_controls as PC  # noqa: E402
 import surgical_core.stereomis as stereomis  # noqa: E402
-from evalkit.tools.pose_metrics import ate  # noqa: E402
+from trajectory_eval.pose_metrics import ate  # noqa: E402
 
 # A camera of 400 px focal length on 320x256 views, and a 6 mm baseline: bf is 2400, so a plane at 100 mm is at
 # a disparity of 24 px, and a step of 0.5 mm sideways moves it 2 px.

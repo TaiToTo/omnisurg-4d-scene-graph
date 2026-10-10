@@ -10,8 +10,8 @@
 import numpy as np
 import pytest
 
-from evalkit.tools.pose_metrics import (ate, centers_from_cam_to_world, centers_from_world_to_cam, rpe,
-                                        rot_from_world_to_cam, scale_consistency, umeyama)
+from trajectory_eval.pose_metrics import (ate, centers_from_cam_to_world, centers_from_world_to_cam, rpe,
+                                         rot_from_world_to_cam, scale_consistency, umeyama)
 
 N = 120
 TIMES = np.linspace(0, 24, N)

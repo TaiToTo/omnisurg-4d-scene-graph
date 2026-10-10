@@ -117,13 +117,12 @@ Where they and this document differ, this document holds.
     decides the StereoMIS result, so the code that computes it is under the
     freeze rule like the evaluator, and `eval_code_sha` does not cover it:
     the two results are measured and frozen at their own times, and a
-    change to one must not make the other's scores incomparable. When the
-    StereoMIS scorer is ported, `pose_metrics` moves out of `tools/` into a
-    package of its own, hashed as `code_sha` hashes the evaluator (each
-    file's path and content, each preceded by its length), and every
-    StereoMIS score records that hash and is compared only with scores
-    whose hash matches. Until then `pose_metrics` is a module under
-    `tools/`, tested, and nothing scores with it.
+    change to one must not make the other's scores incomparable. So
+    `pose_metrics` and the scoring of a clip are the package
+    `trajectory_eval`, hashed into `trajectory_code_sha` as `code_sha`
+    hashes the evaluator (each file's path and content, each preceded by
+    its length). Every StereoMIS score records that hash, and
+    `trajectory_eval.tools.scores` refuses rows whose hashes differ.
 14. **No measure over time carries a star.** `time_IoU` stays a reference
     value, and the evaluator computes no measure of identity from the
     workbench's `track_metrics` (hold, IDF1, ID switches, fragmentation,
@@ -228,7 +227,8 @@ copy to read the RGB clips, and the ported copies read `evalkit.classes`.
 | `kmerge.py` | `ipcai2027_experiment/scripts/kmerge.py` | `extract/04-kmerge` (#5) | Ported as `evalkit/tools/kmerge.py`, outside `eval_code_sha` ("`kmerge` is a tool"). It merges a condition's predictions down to K and writes them as a condition of their own, which the evaluator scores and `compare_eval` compares, so it computes no metric; `kmerge.json` records the source and the sha256 of its predictions, so a source re-tracked after the merge is told apart. Its merge equals the workbench's `kmerge_sequence` on 590 maps. It differs from the workbench in what it reads: it merges every frame that has a prediction, where the workbench merged every fifth; and it refuses a frame with a pixel without valid depth, or with a region id below -1, as the evaluator does, where the workbench dropped the labels of such pixels and merged on. Not carried for now: its scoring with the pilot's instance metrics, the curve over K, the `matched` K, `--pairs`, and the merges by threshold and by geometry (`tmerge_sequence`, `kgeo_sequence`). |
 | `claims_table.py` | `ipcai2027_experiment/task15_granularity/scripts/claims_table.py` | — | Ported as `evalkit/tools/claims_table.py`. It prints each claim of the granularity result: a pair of conditions in each dataset, with the pair's difference on one key, its interval, and ★ or ✗ from `paired_stats.mark_of`. A row is marked ★★ when both datasets are marked ★. It departs from the workbench in four places: it reads score JSONs through `paired_stats.compare_pair`, where the workbench read the analysis JSONs of `metric_fairness.py`, `fair_merge_recheck.py` and `settle_inputs.py`, which scored predictions themselves; it checks each claim's stage against the propagation rules the JSONs record; it refuses a column whose JSONs record another dataset or are not all comparable; and a cell with no score JSON is printed as not measured, and the command then exits non-zero. The first claim's base is `rgb_center18` (`ch_rgb_center`), where the workbench read `t5_floor`, which scored the same on every key. Checked with `t5_floor` on the pilot's score JSONs of the 13-video set and of CholecSeg8k, every cell's difference equals the workbench's analysis read at a stride of one frame, and every ★ and ✗ equals the workbench's table's. Its rows on the evaluator's scores are open ("The claims table on the evaluator's scores"). Not carried: the claims at K = 8, the comparisons at a matched number of regions and the merges stopped at a geometric boundary ("Not carried for now"), the per-frame stage's ceiling, the column of frame strides, and the note printed when the clip-level sign test disagrees with a ★. |
 | `surgical_core/geometry/` | `depth_sam_tracking_experiment/geometry.py` | `extract/04-kmerge` (#5) | English only. Shared by the pipeline and the viewer; the toolkit imports none of it. The workbench read the ring setting from the module flag `EDGE_MASK_RING`. Here it is `mask_ring`, an argument of `sam_input_image` and of the edge functions under it, with no default. A stage passes it at every call and records the value it passed under `edge_ring_masked`, or `None` for an input that burns no edges (`uses_geom_edge`). |
-| `pose_metrics.py` | `ipcai2027_experiment/scripts/pose_metrics.py` | — | Ported as `evalkit/tools/pose_metrics.py`, to be hashed on its own ("The camera trajectory measures are hashed on their own"). It measures an estimated camera trajectory against StereoMIS's: `ate` after one similarity fit, `rpe` and `scale_consistency`; `ate_rel` decides the result. Its values equal the workbench's on 1200 random, planar and static trajectories. It refuses what the workbench let through: trajectories of unequal length, times out of order and values that are not finite. The reader of `stereomis_io.py` (calibration, rectified frames, the measured offsets between video, ground truth and depth, and the clips) is `surgical_core/stereomis.py`. The floors and the ceiling of `pose_controls.py` (a static camera, constant motion and stereo visual odometry, which the result is compared with) are `evalkit/tools/pose_controls.py`. The rest of the StereoMIS result is listed under "Not yet extracted anywhere": the clip writer of `stereomis_io.py`, the scoring of `pose_controls.py`, and `summarize_20.py` and `run_20.sh` (the run and its table). `d4d_pose.py`, the D4D check of the same result, is listed there with D4D. None of StereoMIS's data is on the development machine, so they are checked on the workbench's GPU machine when they move. |
+| `pose_metrics.py` | `ipcai2027_experiment/scripts/pose_metrics.py` | — | Ported as `trajectory_eval/pose_metrics.py`, hashed on its own ("The camera trajectory measures are hashed on their own"). It measures an estimated camera trajectory against StereoMIS's: `ate` after one similarity fit, `rpe` and `scale_consistency`; `ate_rel` decides the result. Its values equal the workbench's on 1200 random, planar and static trajectories. It refuses what the workbench let through: trajectories of unequal length, times out of order and values that are not finite. The reader of `stereomis_io.py` (calibration, rectified frames, the measured offsets between video, ground truth and depth, and the clips) is `surgical_core/stereomis.py`. The rest of the StereoMIS result is listed under "Not yet extracted anywhere": the clip writer of `stereomis_io.py`, the command of `pose_controls.py`, and `summarize_20.py` and `run_20.sh` (the run and its table). `d4d_pose.py`, the D4D check of the same result, is listed there with D4D. |
+| `pose_controls.py` | `ipcai2027_experiment/scripts/pose_controls.py` | — | The floors and the ceiling (a static camera, constant motion and stereo visual odometry, which the result is compared with) are `evalkit/tools/pose_controls.py`. `score` and `method_traj` are `trajectory_eval/score.py`, hashed with `pose_metrics`; `method_traj` is `method_trajectory`, which refuses a clip without the bundle, where the workbench returned None. Every row records `trajectory_code_sha`, and `trajectory_eval/tools/scores.py` reads rows of one hash only. |
 | `condition_inventory.py` | `ipcai2027_experiment/scripts/condition_inventory.py` | `extract/05-inventory` (#4) | It reads `eval_code_sha`, `eval_code_tag` and `eval_version` from score JSONs. "One ruler" is now what `docs/evaluation.md` calls comparable: `eval_code_sha`, dataset, class set, view and mode all equal, and one propagation rule. The provenance fields now include `bidir`, whether the tracker ran both ways, and `seed_labels`, which alone tells two merges of one condition to different K apart. `condition_key` builds the key that tells two conditions apart; `check_provenance` reads it too. |
 | `check_provenance.py` | `ipcai2027_experiment/task11_atlas13/scripts/check_provenance.py` | — | Ported as `evalkit/tools/check_provenance.py`. It makes no table: it checks each clip's `seed_info.json` against the settings the condition states. It tells conditions apart by `condition_key`, where the script compared only the seed source, the segmenter input and the tracker input. It requires `--sam-input` under the seed sources `sam` and `per_frame`, and `--seed-labels` under `external`. It reads one tracks root, where the script also searched the workbench's other roots. Not carried: `--allow-missing`; a clip without a record is a problem. |
 | `check_env.py` | `ipcai2027_experiment/atlas97/scripts/check_env97.py` | `extract/05-inventory` (#4) | Not carried (decision 4). |
@@ -246,6 +246,8 @@ Tests come with the file they test:
 - `test_condition_inventory_roots.py` comes with `condition_inventory`.
 - `pose_metrics` has no test in the workbench; its `selftest` is
   `tests/test_pose_metrics.py`, with the values worked out by hand.
+- `pose_controls.py --selftest`, which scores the truth through a bundle,
+  is a test in `tests/test_trajectory_score.py`.
 - `test_ipcai_guards.py`'s two tests of `oriented_verdict` come with
   `leave_one_video_out`, as the tests of the direction in
   `tests/test_leave_one_video_out.py`.
@@ -418,12 +420,8 @@ below.
   - The camera trajectory on StereoMIS, from `ipcai2027_experiment/scripts/`:
     the clip writer of `stereomis_io.py` (`--prepare`, with `--masked` for
     the clips whose instruments are painted black), `run_20.sh`, and the
-    scoring of `pose_controls.py` (`score`, `method_traj`, and the command
-    that writes `controls.json` and `methods.json`). The scoring moves
-    with `pose_metrics` into the package hashed on its own ("The camera
-    trajectory measures are hashed on their own"). The floors and the
-    ceiling of `pose_controls.py` are `evalkit/tools/pose_controls.py`.
-    `run_20.sh` runs the DA3 stage and, through
+    command of `pose_controls.py`, which writes `controls.json` and
+    `methods.json`. `run_20.sh` runs the DA3 stage and, through
     `pi3_wrapper/scripts/queue_pi3_clips.sh`, the Pi3X stage with
     `--max-points 60000`. That flag thins the point cloud written to the
     GLB, and with it `glb_centroid`, `n_vertices` and `median_vertices`; the
@@ -1238,8 +1236,8 @@ Every command takes those paths as arguments.
     computes the 86 clips each time it runs. It reads the tables of offsets
     and thresholds, and the `stats.npy` of the workbench's depth export
     `StereoMIS_depth`, which no tracked file makes. A change to an offset
-    moves every `ate_rel`, but the hash of the camera trajectory measures
-    covers `pose_metrics` only. Decide before the StereoMIS result is
+    moves every `ate_rel`, but `trajectory_code_sha` covers the modules of
+    `trajectory_eval` only. Decide before the StereoMIS result is
     measured:
     - whether the clips are kept as data, as ATLAS-120k's population is;
     - whether the hash covers the tables and the clip rule;
