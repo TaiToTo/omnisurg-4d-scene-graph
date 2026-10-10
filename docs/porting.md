@@ -1075,6 +1075,11 @@ Every command takes those paths as arguments.
     conditions:
     - how a name says what varies between conditions: the input, where the
       seed came from, and the propagation rule;
+    - whether the comparisons the paper reports are also listed in one
+      place, read by every tool that prints them. An entry would hold the
+      base, then the compared condition, and whether each is propagated or
+      segmented frame by frame. `paired_table.PILOT_BLOCKS` puts the
+      compared condition before the base;
     - where the table lives that maps each workbench name to its name here.
       That table is the only place a workbench name appears;
     - whether `paired_table.PILOT_BLOCKS`, which reads the pilot's score
