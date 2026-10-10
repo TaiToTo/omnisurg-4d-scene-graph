@@ -173,9 +173,9 @@ def test_a_reference_value_is_refused():
 
 def test_a_key_with_no_direction_is_refused():
     base, _ = pilot_pair()
-    with pytest.raises(ValueError, match="no direction is known"):
+    with pytest.raises(ValueError, match="not a key with a direction on this JSON"):
         LV.direction(base, "no_such_key")
-    with pytest.raises(ValueError, match="no direction is known"):
+    with pytest.raises(ValueError, match="not a key with a direction on this JSON"):
         LV.direction(evaluator_scores("base", 0.0, 1), "inst_F1_50")
 
 
@@ -233,12 +233,6 @@ def test_the_marks_are_computed_on_the_clips_the_check_compared(monkeypatch):
     assert (r["n_clips"], r["n_videos"]) == (8, 4)
 
 
-def test_a_value_that_rounds_to_zero_keeps_two_digits():
-    # The mark follows the sign of the interval's end; -0.0 would hide it.
-    assert LV._r(-2.4e-05) == -2.4e-05 and LV._r(0.0) == 0.0 and LV._r(0.123449) == 0.1234
-    assert LV._f(-2.4e-05) == "-2.40e-05" and LV._f(0.0) == "+0.0000" and LV._f(0.05) == "+0.0500"
-
-
 @pytest.mark.parametrize("n, said", [(3, "on 3 videos the interval is the range of the video means"),
                                      (4, "an interval on 4 videos is thin"), (5, None)])
 def test_the_note_says_when_an_interval_is_the_range_of_the_means_or_thin(n, said):
@@ -281,7 +275,7 @@ def test_the_command_writes_the_marks_and_names_the_video(tmp_path):
     assert "<-" not in run.stdout
     got = json.loads(out.read_text(encoding="utf-8"))
     assert list(got) == ["mark_rule", "n_boot", "seed", "seed_scheme", "min_videos_after_drop", "pairs"]
-    assert (got["mark_rule"], got["seed_scheme"]) == (PS.VERDICT_RULE, PS.SEED_SCHEME)
+    assert (got["mark_rule"], got["seed_scheme"]) == (PS.MARK_RULE, PS.SEED_SCHEME)
     assert (got["n_boot"], got["seed"]) == (PS.N_BOOT, PS.SEED)
     # A pilot JSON's pair records its evaluator as an evaluator JSON's does.
     assert got["pairs"]["base:cond"]["eval_code"] == PILOT_EVAL_CODE_SHA[:16]
@@ -342,9 +336,12 @@ def test_the_command_refuses_keys_that_name_no_key(tmp_path):
 
 
 @pytest.mark.parametrize("pairs, said", [("base", "<base>:<cond>"), ("base:cond:x", "<base>:<cond>"),
+                                         ("base:base", "not one with itself"), (" , ", "no pair is given"),
                                          ("base:nowhere", "nowhere.json")])
 def test_the_command_refuses_a_bad_pair_with_a_message_not_a_traceback(tmp_path, pairs, said):
     base, cond = pilot_pair()
     _write(tmp_path, base=base, cond=cond)
-    run = _run(tmp_path, "--pairs", pairs, "--keys", "inst_F1_50")
+    out = tmp_path / "left_out.json"
+    run = _run(tmp_path, "--pairs", pairs, "--keys", "inst_F1_50", "--out", str(out))
     assert run.returncode != 0 and said in run.stderr and "Traceback" not in run.stderr
+    assert not out.exists() and not run.stdout

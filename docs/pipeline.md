@@ -486,6 +486,41 @@ tracking stage does.
 
 `python -m pipeline.per_frame --help` lists the options.
 
+## A condition on every clip of a population
+
+```bash
+python -m pipeline.condition_population track --input-dir /path/to/clips --clips atlas120k_meta/clips.txt \
+    --tracks-root /path/to/tracks --tag <tag> --rule both_ways_from_centre --sam-input normal_edge \
+    --track-base rgb --seed-edge-gain 1.0 --seed-no-smooth --sam-ckpt sam_vit_h_4b8939.pth --gpus 0 1 2 3
+python -m pipeline.condition_population per_frame --input-dir /path/to/clips --clips atlas120k_meta/clips.txt \
+    --tracks-root /path/to/tracks --tag <tag> --sam-input normal_edge --sam-ckpt sam_vit_h_4b8939.pth \
+    [--points-per-side 8] [--depth-source pi3] --gpus 0 1 2 3
+```
+
+The command runs one condition of the tracking stage or of the per-frame
+stage on every clip of a population file. The subcommand names the stage,
+and the stage's options keep their names and defaults.
+
+- Each GPU of `--gpus` runs one clip at a time, on CUDA.
+- A clip that already has its labels is skipped, so a stopped run resumes.
+- Each clip's log is `<tracks-root>/_logs/<labels>/<clip>.log`. `<labels>`
+  is the label directory: `track_<track-base>_<tag>`, or `track_rgb_<tag>`
+  for the per-frame stage.
+- A stopped driver stops its processes. Under `nohup`, a closed terminal
+  does not stop the driver.
+- Labels removed by hand are removed with their montage,
+  `viz/montage_<labels>.png`.
+
+The command refuses:
+
+- before any process starts: an input a process would fail on, labels made
+  with other settings, and a tracker's input that burns edges with a seed
+  whose record holds no edge ring ("The edge ring of the tracker's input"
+  in `docs/porting.md`);
+- after a clip: a record of other settings, which stops the run;
+- after the run: labels that are missing, incomplete or of other settings,
+  and a process that exited non-zero.
+
 ## The granularity conditions
 
 The granularity result tracks seeds merged to K regions. These three commands

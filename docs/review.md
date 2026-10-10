@@ -3,7 +3,7 @@
 This repository is written so that anyone who opens one file cold, the
 authors a month later included, sees at once what it does. A change is
 reviewed against this page. `AGENTS.md` lists the rules in one line each and
-holds the two that never change, the freeze rule and the verdict rule; this
+holds the two that never change, the freeze rule and the mark rule; this
 page says what each rule asks for, where what it cuts goes instead, and
 which test refuses a breach.
 
@@ -13,7 +13,7 @@ which test refuses a breach.
 |---|---|
 | no `TODO`, `FIXME`, `XXX`, `HACK` in a tracked file, the planning documents and this page excepted | `tests/test_no_todo_in_code.py` |
 | a module's header is at most `HEADER_LINES` lines, and a listed long module is not added after the fact | `tests/test_module_headers_are_short.py` |
-| no mark (`★`, `✗`) printed without borrowing `paired_stats.verdict`, none decided by a p-value | `tests/test_paired_stats.py` |
+| no mark (`★`, `✗`) printed without borrowing `paired_stats.mark_of`, none decided by a p-value | `tests/test_paired_stats.py` |
 | no personal address in the history or in a tracked file | `tests/test_no_personal_email.py` |
 
 A rule without a test in this table is checked by the reviewer.
@@ -98,7 +98,7 @@ them changes.
   they point at documents this repository does not have, and the reader is
   left holding a dead pointer. The only citable things are the ones that
   outlive the work: the frozen `eval_code_sha`, the module that defines a
-  rule (`paired_stats.VERDICT_RULE`), a published paper.
+  rule (`paired_stats.MARK_RULE`), a published paper.
 - Code, comments and docs in English.
 
 ## Wording

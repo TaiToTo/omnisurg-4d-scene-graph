@@ -2,7 +2,7 @@
 
 The bootstrap tests are the workbench's: each one pins a property that
 was once broken there. The three scans at the end hold `AGENTS.md`'s rule
-over every tracked Python file: a star is decided by `paired_stats.verdict`
+over every tracked Python file: a star is decided by `paired_stats.mark_of`
 and nothing else, never by a p-value, and never by a truth value that has
 dropped the direction. Each scan is shown to catch a planted fault, and to
 let the allowed forms through.
@@ -19,7 +19,7 @@ import numpy as np
 import pytest
 
 from evalkit.tools import paired_stats as PS
-from evalkit.tools.scores import CLIP_METRICS, FRAME_METRICS, PILOT_EVAL_CODE_SHA, PILOT_SIGNS, metric_key
+from evalkit.tools.scores import CLIP_METRICS, FRAME_METRICS, PILOT_EVAL_CODE_SHA, PILOT_SIGNS, metric_key, sign_of_key
 
 pytest.importorskip("scipy", reason="the Wilcoxon test needs the `tools` extra")
 
@@ -111,34 +111,34 @@ def test_wilcoxon_per_video_is_undefined_below_six_videos():
     assert PS.wilcoxon_video(d, vids) is not None
 
 
-# ---------------------------------------------------------------- the verdict
+# ---------------------------------------------------------------- the mark
 
 
-def test_verdict_is_the_video_interval_alone():
-    assert PS.verdict([0.01, 0.05]) == "★"
-    assert PS.verdict([-0.05, -0.01]) == "✗"
-    assert PS.verdict([-0.01, 0.05]) == ""
-    assert PS.verdict([0.0, 0.05]) == "" and PS.verdict([-0.05, 0.0]) == ""
-    assert PS.verdict(None) == "" and PS.verdict([None, 0.05]) == ""
+def test_mark_of_reads_the_video_interval_alone():
+    assert PS.mark_of([0.01, 0.05]) == "★"
+    assert PS.mark_of([-0.05, -0.01]) == "✗"
+    assert PS.mark_of([-0.01, 0.05]) == ""
+    assert PS.mark_of([0.0, 0.05]) == "" and PS.mark_of([-0.05, 0.0]) == ""
+    assert PS.mark_of(None) == "" and PS.mark_of([None, 0.05]) == ""
 
 
-def test_verdict_takes_the_interval_and_the_direction_and_no_p_value():
-    assert list(inspect.signature(PS.verdict).parameters) == ["ci95_video", "sign"]
+def test_mark_of_takes_the_interval_and_the_direction_and_no_p_value():
+    assert list(inspect.signature(PS.mark_of).parameters) == ["ci95_video", "sign"]
 
 
-def test_verdict_reads_the_interval_in_the_metric_s_direction():
+def test_mark_of_reads_the_interval_in_the_metric_s_direction():
     # `VI_split` falls when a method improves; `time_IoU` is a reference
     # value and is never marked, whichever way it moved.
-    assert PS.verdict([0.01, 0.05], sign=-1) == "✗" and PS.verdict([-0.05, -0.01], sign=-1) == "★"
-    assert PS.verdict([-0.01, 0.05], sign=-1) == ""
-    assert PS.verdict([0.01, 0.05], sign=0) == "" and PS.verdict([-0.05, -0.01], sign=0) == ""
+    assert PS.mark_of([0.01, 0.05], sign=-1) == "✗" and PS.mark_of([-0.05, -0.01], sign=-1) == "★"
+    assert PS.mark_of([-0.01, 0.05], sign=-1) == ""
+    assert PS.mark_of([0.01, 0.05], sign=0) == "" and PS.mark_of([-0.05, -0.01], sign=0) == ""
     with pytest.raises(ValueError, match="sign is"):
-        PS.verdict([0.01, 0.05], sign=2)
+        PS.mark_of([0.01, 0.05], sign=2)
     with pytest.raises(ValueError, match="sign is"):
-        PS.verdict([0.01, 0.05], sign=None)
+        PS.mark_of([0.01, 0.05], sign=None)
 
 
-def test_is_star_matches_verdict():
+def test_is_star_matches_mark_of():
     assert PS.is_star([0.01, 0.05]) and not PS.is_star([-0.05, -0.01]) and not PS.is_star([-0.01, 0.05])
     assert PS.is_star([-0.05, -0.01], sign=-1) and not PS.is_star([0.01, 0.05], sign=-1)
 
@@ -147,7 +147,7 @@ def test_every_pilot_key_has_a_direction_from_the_one_table():
     assert set(PS.PILOT_KEYS) <= set(PILOT_SIGNS)
     assert PILOT_SIGNS["underseg_error"] == -1
     assert all(PILOT_SIGNS[k] == +1 for k in PS.PILOT_KEYS if k != "underseg_error")
-    assert all(PS.sign_of_key(pilot_scores("a", 0.0, 1), k) == PILOT_SIGNS[k] for k in PS.PILOT_KEYS)
+    assert all(sign_of_key(pilot_scores("a", 0.0, 1), k) == PILOT_SIGNS[k] for k in PS.PILOT_KEYS)
 
 
 def test_video_of():
@@ -266,7 +266,7 @@ def test_one_video_has_no_video_interval_and_so_no_mark():
     res = PS.compare_pair(pilot_scores("base", 0.0, 5), pilot_scores("cond", 0.03, 6), drop=VIDEOS[1:])
     assert (res["n_clips"], res["n_videos"]) == (2, 1)
     for key, r in res["metrics"].items():
-        assert r["ci95_video"] is None and PS.verdict(r["ci95_video"], r["sign"]) == "", key
+        assert r["ci95_video"] is None and PS.mark_of(r["ci95_video"], r["sign"]) == "", key
         # Two clips still give a clip interval and SDs; they are reference only.
         assert (r["ci95_clip"] is not None and r["delta_sd"] is not None) == (r["n_clips"] == 2), key
 
@@ -282,6 +282,50 @@ def test_one_clip_writes_none_and_not_nan():
     assert sq["base_sd"] is None and sq["cond_sd"] is None and sq["delta_sd"] is None
     assert sq["ci95_clip"] is None and sq["ci95_video"] is None
     json.dumps(res, allow_nan=False)
+
+
+def test_the_pair_computes_the_keys_it_is_named_and_only_those():
+    a, b = pilot_scores("base", 0.0, 5), pilot_scores("cond", 0.03, 6)
+    for x, y in zip(a["per_clip"], b["per_clip"]):
+        x["inst_F1_50_labeled"], y["inst_F1_50_labeled"] = x["inst_F1_50"], y["inst_F1_50"] + 0.01
+    assert "inst_F1_50_labeled" not in PS.compare_pair(a, b)["metrics"]
+    res = PS.compare_pair(a, b, keys=["inst_F1_50_labeled"])
+    assert list(res["metrics"]) == ["inst_F1_50_labeled"]
+    got = res["metrics"]["inst_F1_50_labeled"]
+    assert got["sign"] == PILOT_SIGNS["inst_F1_50_labeled"]
+    assert got["delta_mean"] == round(WORKBENCH["inst_F1_50"]["delta_mean"] + 0.01, 4)
+    # A key named by mistake is refused, even where no clip defines it.
+    with pytest.raises(ValueError, match="not a key with a direction on this JSON"):
+        PS.compare_pair(a, b, keys=["inst_F1_50_labelled"])
+    ea, eb = evaluator_scores("base", 0.0, 5), evaluator_scores("cond", 0.03, 6)
+    for spelt in ("F1_50/geometrc", "F1_50"):
+        with pytest.raises(ValueError, match="not a key with a direction on this JSON"):
+            PS.compare_pair(ea, eb, keys=[spelt])
+
+
+def test_a_value_that_rounds_to_zero_keeps_two_digits():
+    # An end written as -0.0 would lose its ✗.
+    assert PS.round_keeping_sign(-2.4e-05) == -2.4e-05 and PS.round_keeping_sign(0.0) == 0.0
+    assert PS.round_keeping_sign(0.123449) == 0.1234
+    assert PS.format_signed(-2.4e-05) == "-2.40e-05" and PS.format_signed(0.0) == "+0.0000"
+    assert PS.format_signed(0.05) == "+0.0500"
+
+
+@pytest.mark.parametrize("x, written, printed", [(4.99e-05, 5e-05, "+5.00e-05"), (-4.99e-05, -5e-05, "-5.00e-05"),
+                                                 (6e-05, 0.0001, "+0.0001")])
+def test_a_value_is_printed_as_it_is_written_at_the_boundary_of_four_places(x, written, printed):
+    # 5e-05 printed at four places would read 0.0001, twice the value written.
+    assert PS.round_keeping_sign(x) == written and PS.format_signed(written) == printed
+
+
+@pytest.mark.parametrize("ci, written, mark", [((2.03e-05, 0.01509), [2e-05, 0.0151], "★"),
+                                               ((-0.01509, -2.03e-05), [-0.0151, -2e-05], "✗")])
+def test_an_interval_end_near_zero_keeps_its_star_or_cross(monkeypatch, ci, written, mark):
+    # Rounded to four places alone, either end would be written as 0.0, which gives neither ★ nor ✗.
+    monkeypatch.setattr(PS, "boot_ci", lambda d, groups, **kw: ci)
+    a, b = pilot_scores("base", 0.0, 5), pilot_scores("cond", 0.03, 6)
+    r = PS.compare_pair(a, b, keys=["inst_F1_50"])["metrics"]["inst_F1_50"]
+    assert r["ci95_video"] == written and PS.mark_of(r["ci95_video"], r["sign"]) == mark
 
 
 def test_a_key_defined_on_no_common_clip_is_left_out_not_zeroed():
@@ -353,16 +397,44 @@ def test_a_malformed_pair_is_refused(text):
         PS.parse_pairs(text)
 
 
+def test_shared_conditions_are_read_once(tmp_path, monkeypatch):
+    summaries = {tag: {"tag": tag} for tag in ("base", "cond", "other")}
+    for tag, summary in summaries.items():
+        (tmp_path / f"{tag}.json").write_text(json.dumps(summary))
+    reads = []
+    real = PS.load_json
+
+    def read_once(tag, eval_dir):
+        assert tag not in reads, f"{tag} was read twice"
+        reads.append(tag)
+        return real(tag, eval_dir)
+
+    monkeypatch.setattr(PS, "load_json", read_once)
+    pairs, loaded = PS.load_pairs("base:cond,base:other,cond:other", str(tmp_path))
+    assert pairs == [("base", "cond"), ("base", "other"), ("cond", "other")]
+    assert loaded == summaries
+    assert reads == list(summaries)
+
+
+def test_a_later_bad_pair_is_refused_before_any_file_is_read(tmp_path):
+    # No files exist, so reading the first pair before parsing the rest would raise OSError.
+    with pytest.raises(ValueError, match="not one with itself"):
+        PS.load_pairs("base:cond,other:other", str(tmp_path))
+
+
 @pytest.mark.parametrize("pairs, said", [
     ("base", "a pair is <base>:<cond>"),
     ("base:cond:other", "a pair is <base>:<cond>"),
     ("base:base", "not one with itself"),
+    (" , ", "no pair is given"),
     ("base:nothere", "nothere.json"),
 ])
 def test_the_command_refuses_a_bad_pair_with_a_message_not_a_traceback(tmp_path, pairs, said):
     (tmp_path / "base.json").write_text(json.dumps(pilot_scores("base", 0.0, 5)))
-    run = _run(tmp_path, "--pairs", pairs)
+    out = tmp_path / "paired.json"
+    run = _run(tmp_path, "--pairs", pairs, "--out", str(out))
     assert run.returncode != 0 and said in run.stderr and "Traceback" not in run.stderr
+    assert not out.exists() and not run.stdout
 
 
 # ---------------------------------------------------------------- the rule, over the repository
@@ -451,12 +523,24 @@ def marks_decided_by_p(src: str) -> list[str]:
     return [bad[k] for k in sorted(bad)]
 
 
-def marks_bound_to_a_truth_value(src: str) -> list[str]:
-    """`<line>  <statement>` for every assignment that binds `bool(verdict(...))` to a mark's name.
+# The names a mark from `mark_of` is kept under: a variable, or a row's key.
+MARK_HOLDERS = {"mark", "verdict"}
 
-    `star = bool(verdict(ci))` is True for a cross too, and four readers
-    once drew a loss as a star through it. Counting with bool() is fine;
-    binding it to a mark's name is not.
+
+def _reads_a_mark(node) -> bool:
+    """Whether `node` calls `mark_of`, bare or as an attribute (`PS.mark_of`), or reads a name in `MARK_HOLDERS`."""
+    calls = any(isinstance(n, ast.Call) and ((isinstance(n.func, ast.Name) and n.func.id == "mark_of")
+                                            or (isinstance(n.func, ast.Attribute) and n.func.attr == "mark_of"))
+                for n in ast.walk(node))
+    return calls or bool(_names_in(node) & MARK_HOLDERS)
+
+
+def marks_bound_to_a_truth_value(src: str) -> list[str]:
+    """`<line>  <statement>` for every assignment that binds `bool()` of a mark to a mark's name.
+
+    `star = bool(mark_of(ci))` is True for a cross too, and so is
+    `star = bool(row["mark"])`; four readers once drew a loss as a star
+    that way. Counting with bool() is fine; binding it to a mark's name is not.
     """
     bad = []
     for node in ast.walk(ast.parse(src)):
@@ -469,14 +553,14 @@ def marks_bound_to_a_truth_value(src: str) -> list[str]:
         if not (targets & MARK_NAMES):
             continue
         for call in (n for n in ast.walk(node.value) if isinstance(n, ast.Call)):
-            if isinstance(call.func, ast.Name) and call.func.id == "bool" and "verdict" in ast.dump(call).lower():
+            if isinstance(call.func, ast.Name) and call.func.id == "bool" and _reads_a_mark(call):
                 seg = ast.get_source_segment(src, node) or ""
                 bad.append(f"{node.lineno}  {seg.splitlines()[0].strip()}")
     return bad
 
 
-# Every glyph that reads as "better" or "worse" in a table: the verdict's own
-# two, and the circle and cross that read as a verdict on a sign alone.
+# Every glyph that reads as "better" or "worse" in a table: the two of
+# `mark_of`, and the circle and cross that read as a mark on a sign alone.
 MARKS = ("★", "✗", "○", "×")
 
 
@@ -513,16 +597,16 @@ def _module_of(node: ast.ImportFrom, package: str) -> str:
     return ".".join(base + ([node.module] if node.module else []))
 
 
-VERDICTS = {"evalkit.tools.paired_stats.verdict", "evalkit.tools.paired_stats.is_star"}
+BORROWED = {"evalkit.tools.paired_stats.mark_of", "evalkit.tools.paired_stats.is_star"}
 
 
-def _borrows_verdict(tree, package: str) -> bool:
-    """Whether the module calls `paired_stats.verdict` or `is_star`, through whatever import form binds it.
+def _borrows_mark_of(tree, package: str) -> bool:
+    """Whether the module calls `paired_stats.mark_of` or `is_star`, through whatever import form binds it.
 
     Every name an import binds is resolved to the dotted thing it stands
     for, and every name or attribute chain the module uses is read through
     that table; so `from evalkit.tools import paired_stats as PS` and
-    `PS.verdict(...)` count, as `import evalkit.tools.paired_stats` and the
+    `PS.mark_of(...)` count, as `import evalkit.tools.paired_stats` and the
     full chain do.
     """
     bound = {}
@@ -541,32 +625,32 @@ def _borrows_verdict(tree, package: str) -> bool:
         if dotted is None:
             continue
         head, _, rest = dotted.partition(".")
-        if bound.get(head, head) + (f".{rest}" if rest else "") in VERDICTS:
+        if bound.get(head, head) + (f".{rest}" if rest else "") in BORROWED:
             return True
     return False
 
 
-def prints_a_mark_without_the_verdict(src: str, package: str = "") -> bool:
-    """Whether a module writes a star or a cross outside a docstring without borrowing `verdict`."""
+def prints_a_mark_without_mark_of(src: str, package: str = "") -> bool:
+    """Whether a module writes a star or a cross outside a docstring without borrowing `mark_of`."""
     tree = ast.parse(src)
-    return _emits_a_mark(tree) and not _borrows_verdict(tree, package)
+    return _emits_a_mark(tree) and not _borrows_mark_of(tree, package)
 
 
 def test_no_statement_decides_a_mark_from_a_p_value():
     bad = [f"{rel}:{hit}" for rel, src in _tracked_python_files() for hit in marks_decided_by_p(src)]
-    assert not bad, "a mark is decided by p; the rule is paired_stats.VERDICT_RULE:\n  " + "\n  ".join(bad)
+    assert not bad, "a mark is decided by p; the rule is paired_stats.MARK_RULE:\n  " + "\n  ".join(bad)
 
 
 def test_no_mark_is_bound_to_a_truth_value_that_dropped_the_direction():
     bad = [f"{rel}:{hit}" for rel, src in _tracked_python_files() for hit in marks_bound_to_a_truth_value(src)]
-    assert not bad, "bool(verdict(...)) bound to a mark's name drops the direction:\n  " + "\n  ".join(bad)
+    assert not bad, "bool(mark_of(...)) bound to a mark's name drops the direction:\n  " + "\n  ".join(bad)
 
 
-def test_every_file_that_prints_a_mark_borrows_the_verdict():
+def test_every_file_that_prints_a_mark_borrows_mark_of():
     # The tests are left out: they spell the marks to check them.
     bad = [rel for rel, src in _tracked_python_files()
-           if not rel.startswith("tests/") and prints_a_mark_without_the_verdict(src, _package_of(rel))]
-    assert not bad, "a mark is printed without borrowing paired_stats.verdict:\n  " + "\n  ".join(bad)
+           if not rel.startswith("tests/") and prints_a_mark_without_mark_of(src, _package_of(rel))]
+    assert not bad, "a mark is printed without borrowing paired_stats.mark_of:\n  " + "\n  ".join(bad)
 
 
 # The planted faults. Each scan is shown to catch the forms it is for, the
@@ -589,7 +673,8 @@ DECIDED_BY_P = [
 
 P_BESIDE_A_MARK = [
     'print(f"{mark} p={p:.4f}")',
-    'mark = verdict(ci)',
+    'mark = mark_of(ci)',
+    'row["mark"] = mark_of(ci)',
     'if p < 0.05:\n    print("a small p, printed, not decisive")',
     'alpha = 0.05\nprint(f"alpha={alpha}")',
     'sig = wilcoxon_p_video',
@@ -608,16 +693,19 @@ def test_the_p_scan_lets_p_be_printed_beside_a_mark(src):
 
 
 BOUND_TO_A_TRUTH_VALUE = [
-    'star = bool(verdict(ci))',
-    'row["star"] = bool(PS.verdict(ci))',
-    'sig = bool(paired_stats.verdict(r["ci95_video"], r["sign"]))',
+    'star = bool(mark_of(ci))',
+    'row["star"] = bool(PS.mark_of(ci))',
+    'sig = bool(paired_stats.mark_of(r["ci95_video"], r["sign"]))',
+    'star = bool(row["mark"])',
+    'star = bool(mark)',
 ]
 
 KEEPS_THE_DIRECTION = [
-    'n_marked = sum(bool(verdict(c)) for c in cis)',
-    'star = verdict(ci) == "★"',
+    'n_marked = sum(bool(mark_of(c)) for c in cis)',
+    'star = mark_of(ci) == "★"',
     'star = is_star(ci)',
-    'mark = verdict(ci)',
+    'mark = mark_of(ci)',
+    'row["mark"] = mark_of(ci)',
 ]
 
 
@@ -642,29 +730,29 @@ PRINTS_WITHOUT_BORROWING = [
 LEGEND = 'print("  ★ better   ✗ worse")\n'
 
 BORROWS = [
-    ('from evalkit.tools.paired_stats import verdict\n' + LEGEND + 'print(verdict(ci, sign))', ""),
+    ('from evalkit.tools.paired_stats import mark_of\n' + LEGEND + 'print(mark_of(ci, sign))', ""),
     ('from evalkit.tools.paired_stats import is_star\n' + LEGEND + 'print(is_star(ci))', ""),
-    ('from evalkit.tools import paired_stats as PS\n' + LEGEND + 'print(PS.verdict(ci, sign))', ""),
-    ('from evalkit.tools import paired_stats\n' + LEGEND + 'print(paired_stats.verdict(ci))', ""),
+    ('from evalkit.tools import paired_stats as PS\n' + LEGEND + 'print(PS.mark_of(ci, sign))', ""),
+    ('from evalkit.tools import paired_stats\n' + LEGEND + 'print(paired_stats.mark_of(ci))', ""),
     ('import evalkit.tools.paired_stats as P\n' + LEGEND + 'print(P.is_star(ci))', ""),
-    ('import evalkit.tools.paired_stats\n' + LEGEND + 'print(evalkit.tools.paired_stats.verdict(ci))', ""),
-    ('from evalkit import tools\n' + LEGEND + 'print(tools.paired_stats.verdict(ci))', ""),
-    ('from .paired_stats import verdict\n' + LEGEND + 'print(verdict(ci))', "evalkit.tools"),
-    ('from . import paired_stats\n' + LEGEND + 'print(paired_stats.verdict(ci))', "evalkit.tools"),
-    ('from ..tools import paired_stats\n' + LEGEND + 'print(paired_stats.verdict(ci))', "evalkit.other"),
+    ('import evalkit.tools.paired_stats\n' + LEGEND + 'print(evalkit.tools.paired_stats.mark_of(ci))', ""),
+    ('from evalkit import tools\n' + LEGEND + 'print(tools.paired_stats.mark_of(ci))', ""),
+    ('from .paired_stats import mark_of\n' + LEGEND + 'print(mark_of(ci))', "evalkit.tools"),
+    ('from . import paired_stats\n' + LEGEND + 'print(paired_stats.mark_of(ci))', "evalkit.tools"),
+    ('from ..tools import paired_stats\n' + LEGEND + 'print(paired_stats.mark_of(ci))', "evalkit.other"),
 ]
 
 
 @pytest.mark.parametrize("src", PRINTS_WITHOUT_BORROWING)
-def test_the_mark_scan_sees_a_planted_mark_without_the_verdict(src):
-    assert prints_a_mark_without_the_verdict(src), src
+def test_the_mark_scan_sees_a_planted_mark_without_mark_of(src):
+    assert prints_a_mark_without_mark_of(src), src
 
 
 @pytest.mark.parametrize("src, package", BORROWS)
 def test_the_mark_scan_knows_every_import_form(src, package):
-    assert not prints_a_mark_without_the_verdict(src, package), src
+    assert not prints_a_mark_without_mark_of(src, package), src
 
 
 def test_the_mark_scan_ignores_a_mark_in_a_docstring():
-    assert not prints_a_mark_without_the_verdict('"""A ★ is a star and a ✗ a cross."""\nx = 1')
-    assert not prints_a_mark_without_the_verdict('def f():\n    """★"""\n    return 1')
+    assert not prints_a_mark_without_mark_of('"""A ★ is a star and a ✗ a cross."""\nx = 1')
+    assert not prints_a_mark_without_mark_of('def f():\n    """★"""\n    return 1')
