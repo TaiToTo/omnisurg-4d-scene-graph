@@ -53,9 +53,11 @@ def main():
     ap.add_argument("--workers", type=int, default=16)
     args = ap.parse_args()
     cfg = load()
+    if cfg["windows"]["population"] != "legacy27":
+        raise SystemExit("the Table 1 check runs on the legacy27 population only")
     clips = cfg["windows"]["legacy27"]
     modes = cfg["track"]["modalities"]
-    out = os.path.join(cfg["paths"]["results"], "00_check")
+    out = os.path.join(cfg["paths"]["results_root"], "00_check")
     work = os.path.join(cfg["paths"]["work"], "check_legacy")
     os.makedirs(work, exist_ok=True)
 

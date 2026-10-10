@@ -46,6 +46,20 @@ All conditions are in `aecai_rev/config.yaml`.
 Item 2 (statistics) has no command of its own: every `summary.csv` and
 `tests.csv` above goes through `aecai_rev/stats.py`.
 
+## The enumerated windows (`enumerated/`)
+
+The same steps on the population of `00_windows/windows.csv`, after the
+windows are prepared. `AECAI_REV_POPULATION=enumerated` selects it; its
+paths are under `populations.enumerated` in `aecai_rev/config.yaml`.
+
+| output | command |
+|---|---|
+| frames, masks, crop and depth of the 86 windows (≈ 1 h) | `AECAI_REV_POPULATION=enumerated OMP_NUM_THREADS=4 python3 -m aecai_rev.prepare_windows --videos-root $CHOLEC80_VIDEOS --gpus 1,2,3,4,5,6,7 --per_gpu 1` |
+| tracks, every points_per_side | `AECAI_REV_POPULATION=enumerated OMP_NUM_THREADS=4 python3 -m aecai_rev.run_track --pps 24 8 12 16 32 4 6 48 --gpus 1,2,3,4,5,6,7 --per_gpu 2` |
+| scores | `AECAI_REV_POPULATION=enumerated python3 -m aecai_rev.score --workers 27` |
+| `enumerated/07_filter/` … `enumerated/06_naming/` | `AECAI_REV_POPULATION=enumerated python3 -m aecai_rev.<filter_sensitivity, sweep, merge_rescore, identity, overlay>` |
+| `enumerated/SUMMARY.md` | `AECAI_REV_POPULATION=enumerated python3 -m aecai_rev.summary` |
+
 ## Where the inputs come from
 
 - Frames, masks and depth of the 27 windows:

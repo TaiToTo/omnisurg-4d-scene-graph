@@ -7,17 +7,45 @@
 #   AECAI_REV_WORK   a work directory for the tagged source and every
 #                    intermediate output (seed maps, tracks, matches)
 #   CHOLECSEG8K_ROOT the CholecSeg8k release (video01/video01_00080/...)
+# The environment variable AECAI_REV_POPULATION, when set, overrides
+# `windows.population`.
 
 tag: paper/aecai2026-endolina-final
 
 paths:
   aecai_src: ${AECAI_REV_WORK}/aecai_src
-  work: ${AECAI_REV_WORK}
-  cholec_gt: ${OMNISURG_SOURCE}/outputs/cholec_gt
+  work_root: ${AECAI_REV_WORK}
   sam_ckpt: ${OMNISURG_SOURCE}/outputs/weights/sam_vit_h_4b8939.pth
   hf_home: ${OMNISURG_SOURCE}/.hf_cache
   cholecseg8k: ${CHOLECSEG8K_ROOT}
-  results: results/aecai_rev
+  # Item 0 and the Table 1 check are written here whatever the population.
+  results_root: results/aecai_rev
+
+# What depends on the window population: where its windows are, where their
+# tracks are, and where its tables go. `{pps}` is the points_per_side value.
+populations:
+  legacy27:
+    cholec_gt: ${OMNISURG_SOURCE}/outputs/cholec_gt
+    results: results/aecai_rev
+    work: ${AECAI_REV_WORK}
+    # The frozen AE-CAI sweep points are read in place; a value with no
+    # frozen run is tracked into the work directory.
+    sources:
+      4: ${AECAI_REV_WORK}/tracks/pps4
+      6: ${AECAI_REV_WORK}/tracks/pps6
+      8: ${OMNISURG_SOURCE}/depth_sam_tracking_experiment/out_w1_pps8
+      12: ${AECAI_REV_WORK}/tracks/pps12
+      16: ${OMNISURG_SOURCE}/depth_sam_tracking_experiment/out_w1_pps16
+      24: ${OMNISURG_SOURCE}/depth_sam_tracking_experiment/out_w1_all
+      32: ${OMNISURG_SOURCE}/depth_sam_tracking_experiment/out_w1_pps32
+      48: ${OMNISURG_SOURCE}/depth_sam_tracking_experiment/out_w1_pps48
+  enumerated:
+    # Extracted by `aecai_rev.prepare_windows`: the ported extractor, then the
+    # tagged crop (from the frames, as for the AE-CAI windows) and depth.
+    cholec_gt: ${AECAI_REV_WORK}/cholec_gt_enum
+    results: results/aecai_rev/enumerated
+    work: ${AECAI_REV_WORK}/enumerated
+    sources_template: ${AECAI_REV_WORK}/tracks_enum/pps{pps}
 
 seed: 0
 
@@ -25,7 +53,7 @@ seed: 0
 windows:
   population: legacy27
   samples: 30          # sampled frames per window
-  stride: 15           # source frames between samples
+  stride: 15           # CholecSeg8k numbers between samples
   seed_index: 15       # 0-based sample index of the seed (the 16th frame)
   min_annotated_frames: 5
   legacy27:
@@ -69,18 +97,6 @@ track:
   bidir: true
   seed_min_area: 400
   sam3_model_id: facebook/sam3
-  # Where each points_per_side value's tracks are. `{work}` is paths.work and
-  # `{source}` is OMNISURG_SOURCE. The four frozen AE-CAI sweep points are
-  # read in place; a value with no frozen run is tracked into the work dir.
-  sources:
-    4: ${AECAI_REV_WORK}/tracks/pps4
-    6: ${AECAI_REV_WORK}/tracks/pps6
-    8: ${OMNISURG_SOURCE}/depth_sam_tracking_experiment/out_w1_pps8
-    12: ${AECAI_REV_WORK}/tracks/pps12
-    16: ${OMNISURG_SOURCE}/depth_sam_tracking_experiment/out_w1_pps16
-    24: ${OMNISURG_SOURCE}/depth_sam_tracking_experiment/out_w1_all
-    32: ${OMNISURG_SOURCE}/depth_sam_tracking_experiment/out_w1_pps32
-    48: ${OMNISURG_SOURCE}/depth_sam_tracking_experiment/out_w1_pps48
 
 # Scoring.
 score:

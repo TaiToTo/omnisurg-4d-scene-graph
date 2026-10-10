@@ -129,7 +129,7 @@ def main():
     clips = window_clips(cfg)
     modes = args.modes or cfg["track"]["modalities"]
     n_frames = cfg["windows"]["samples"]
-    work = cfg["paths"]["work"]
+    work = cfg["paths"]["work_root"]
     jobs = []
     for pps in args.pps:
         if pps not in cfg["track"]["sources"]:

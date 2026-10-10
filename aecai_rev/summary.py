@@ -67,8 +67,9 @@ def tests_block(tests, metrics, where=None, nd=3):
 
 
 def read(cfg, item, name):
-    """Read one item's table."""
-    return pd.read_csv(os.path.join(cfg["paths"]["results"], item, name))
+    """Read one item's table; item 0 and the Table 1 check are shared."""
+    root = "results_root" if item.startswith("00_") else "results"
+    return pd.read_csv(os.path.join(cfg["paths"][root], item, name))
 
 
 def main():
@@ -108,7 +109,10 @@ def main():
               f"One window per CholecSeg8k clip: {len(w)} kept, {len(ex)} excluded "
               f"({', '.join(sorted(ex['reason'].unique()))}); "
               f"{int(w['n_annotated'].sum())} annotated frames in the kept windows. "
-              f"Not extracted or tracked yet: the numbers below are on the AE-CAI windows.", ""]
+              + ("The numbers below are on the 27 AE-CAI windows; those of the enumerated "
+                 "windows are in `enumerated/SUMMARY.md`."
+                 if cfg["windows"]["population"] == "legacy27" else
+                 "The numbers below are on these enumerated windows."), ""]
 
     # Item 7.
     s7 = read(cfg, "07_filter", "summary.csv")
@@ -212,9 +216,12 @@ def main():
         s = s.assign(level="all")
         parts += [f"## {title} (`{item}/`)", "", table(s, "level", keys), "",
                   tests_block(t, keys), ""]
-    ev = open(os.path.join(res, "06_naming", "fig6_named_events.txt")).read().strip()
-    parts += ["Named events (`06_naming/fig6_named_events.txt`; not Fig. 6's window, "
-              "whose graph is not on this machine, see `00_inventory.md`):", "", "```", ev, "```", ""]
+    events = os.path.join(cfg["paths"]["results_root"], "06_naming", "fig6_named_events.txt")
+    with open(events) as f:
+        ev = f.read().strip()
+    parts += ["Named events (`06_naming/fig6_named_events.txt`, on an AE-CAI window; not "
+              "Fig. 6's window, whose graph is not on this machine, see `00_inventory.md`):",
+              "", "```", ev, "```", ""]
     with open(os.path.join(res, "SUMMARY.md"), "w") as f:
         f.write("\n".join(parts))
     print(f"wrote {os.path.join(res, 'SUMMARY.md')}")

@@ -21,7 +21,7 @@ def window_ids(cfg):
     """Return a dict from clip directory name to window id."""
     if cfg["windows"]["population"] == "legacy27":
         return {c: c for c in cfg["windows"]["legacy27"]}
-    path = os.path.join(cfg["paths"]["results"], "00_windows", "windows.csv")
+    path = os.path.join(cfg["paths"]["results_root"], "00_windows", "windows.csv")
     with open(path) as f:
         return {row["clip"]: row["window_id"] for row in csv.DictReader(f)}
 

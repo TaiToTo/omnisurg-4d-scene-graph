@@ -27,7 +27,7 @@ def window_clips(cfg):
     if pop == "legacy27":
         return list(cfg["windows"]["legacy27"])
     if pop == "enumerated":
-        path = os.path.join(cfg["paths"]["results"], "00_windows", "windows.csv")
+        path = os.path.join(cfg["paths"]["results_root"], "00_windows", "windows.csv")
         with open(path) as f:
             return [row["clip"] for row in csv.DictReader(f)]
     raise ValueError(f"unknown window population {pop!r}")

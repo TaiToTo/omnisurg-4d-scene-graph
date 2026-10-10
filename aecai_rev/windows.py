@@ -157,7 +157,7 @@ def main():
     kept, excluded = enumerate_windows(clips, lengths, w)
 
     # Write: the windows, the exclusions and the map from the AE-CAI windows.
-    out = os.path.join(cfg["paths"]["results"], "00_windows")
+    out = os.path.join(cfg["paths"]["results_root"], "00_windows")
     os.makedirs(out, exist_ok=True)
     cols = ["window_id", "video_id", "clip_id", "seed_frame", "frame_list", "n_annotated",
             "first_frame", "last_frame", "clip"]

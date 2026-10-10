@@ -57,23 +57,47 @@ def _expand_tree(node):
     return node
 
 
+def _repo_path(p):
+    p = Path(p)
+    return str(p if p.is_absolute() else REPO_ROOT / p)
+
+
 def load(path=CONFIG_PATH):
-    """Read the configuration and expand its paths.
+    """Read the configuration, choose the population and expand its paths.
+
+    The population is `windows.population`, or `AECAI_REV_POPULATION` when
+    that variable is set. Its block under `populations` gives
+    `paths.cholec_gt`, `paths.results`, `paths.work` and `track.sources`.
 
     Args:
         path: The YAML file to read.
 
     Returns:
-        A dict; `paths` and `track.sources` hold absolute paths, and
-        `paths.results` is resolved against the repository root.
+        A dict whose paths are absolute.
+
+    Raises:
+        KeyError: The population has no block under `populations`.
     """
     with open(path) as f:
         cfg = yaml.safe_load(f)
+    pop = os.environ.get("AECAI_REV_POPULATION") or cfg["windows"]["population"]
+    cfg["windows"]["population"] = pop
+    block = cfg["populations"][pop]
     cfg["paths"] = _expand_tree(cfg["paths"])
-    cfg["track"]["sources"] = {int(k): expand(v)
-                               for k, v in cfg["track"]["sources"].items()}
-    res = Path(cfg["paths"]["results"])
-    cfg["paths"]["results"] = str(res if res.is_absolute() else REPO_ROOT / res)
+    cfg["paths"]["cholec_gt"] = expand(block["cholec_gt"])
+    cfg["paths"]["work"] = expand(block["work"])
+    cfg["paths"]["results"] = _repo_path(block["results"])
+    cfg["paths"]["results_root"] = _repo_path(cfg["paths"]["results_root"])
+    t = cfg["track"]
+    every = sorted(set(t["points_per_side"]) | set(t.get("points_per_side_extended", [])))
+    if "sources" in block:
+        t["sources"] = {int(k): expand(v) for k, v in block["sources"].items()}
+    else:
+        t["sources"] = {p: expand(block["sources_template"]).format(pps=p) for p in every}
+    missing = [p for p in every if p not in t["sources"]]
+    if missing:
+        raise KeyError(f"population {pop} gives no tracks for points_per_side {missing}")
+    del cfg["populations"]
     return cfg
 
 
