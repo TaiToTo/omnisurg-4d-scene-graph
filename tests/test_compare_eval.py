@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 
 from evalkit.tools import compare_eval as CE
-from evalkit.tools.scores import PILOT_EVAL_CODE_SHA, PILOT_SIGNS, metric_key
+from evalkit.tools.scores import PILOT_EVAL_CODE_SHA, PILOT_SIGNS, metric_key, signs_of
 
 REPO = Path(__file__).resolve().parent.parent
 VIDEOS = ("adrenalectomy__16GPCUPkXYQ", "appendectomy__41RKDh3INiU", "gastric_surgery__4FHGGFZsPzw",
@@ -118,7 +118,7 @@ def test_the_evaluator_s_keys_and_primary_metric_come_from_the_json():
     assert set(res["metrics"]) == {"F1_50/all", "SQ/all", "F1_50/tissue", "SQ/tissue",
                                    "F1_50/geometric", "SQ/geometric", "time_IoU"}
     assert res["wins"] == 5
-    assert dict(CE.metrics_of(a))["SQ/geometric"] == +1 and dict(CE.metrics_of(a))["time_IoU"] == 0
+    assert signs_of(a)["SQ/geometric"] == +1 and signs_of(a)["time_IoU"] == 0
 
 
 def test_a_clip_where_the_primary_metric_is_undefined_is_neither_a_win_nor_a_crash():
@@ -162,7 +162,7 @@ def test_an_evaluator_json_without_the_geometric_view_has_no_default_key():
 
 
 def test_the_pilot_directions_are_the_specification_s():
-    signs = dict(CE.metrics_of(pilot_scores("base", 0.0, 5)))
+    signs = signs_of(pilot_scores("base", 0.0, 5))
     # `time_IoU` is a reference value and `n_regions_mean` a count: neither has a better way.
     assert signs["time_IoU"] == 0 and signs["n_regions_mean"] == 0
     assert signs["underseg_error"] == -1 and signs["overseg_mean"] == -1
@@ -202,11 +202,11 @@ def test_a_key_in_no_row_of_a_pilot_json_is_refused_by_name():
 
 def test_a_reference_value_or_a_key_the_json_does_not_report_is_refused():
     a, b = evaluator_scores(seed=1), evaluator_scores(seed=1, shift=0.1)
-    with pytest.raises(ValueError, match="reference value with no direction"):
+    with pytest.raises(ValueError, match="reference value of direction 0"):
         CE.compare(a, b, key="time_IoU")
-    with pytest.raises(ValueError, match="not a key this JSON reports"):
+    with pytest.raises(ValueError, match="not a key with a direction on this JSON"):
         CE.compare(a, b, key="inst_F1_50")
-    with pytest.raises(ValueError, match="not a key this JSON reports"):
+    with pytest.raises(ValueError, match="not a key with a direction on this JSON"):
         CE.compare(pilot_scores("base", 0.0, 5), pilot_scores("cond", 0.03, 6), key="F1_50/geometric")
 
 

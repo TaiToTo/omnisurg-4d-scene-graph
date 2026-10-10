@@ -17,15 +17,15 @@ from collections.abc import Mapping, Sequence
 import numpy as np
 
 from evalkit.tools.compare_eval import DIRECTION
-from evalkit.tools.paired_stats import MARK_RULE, boot_ci, mark_of, sign_of_key, video_of
+from evalkit.tools.paired_stats import MARK_RULE, boot_ci, mark_of, video_of
 from evalkit.tools.scores import (
-    PILOT_SIGNS,
     check_comparable_table,
     defined_clips,
     is_pilot_json,
     load_scores,
-    metric_keys,
     rows_of,
+    sign_of_key,
+    signs_of,
 )
 
 # The keys the table reports on a pilot JSON, in the workbench's order. F1
@@ -110,14 +110,12 @@ def columns_of(summary: Mapping, keys: Sequence[str] = ()) -> list[tuple[str, in
 
     Raises:
         ValueError: No keys are given for an evaluator JSON, whose table
-            keys are not settled; a key is not one the JSON reports, or on
-            a pilot JSON has no direction in `scores.PILOT_SIGNS`; or a key
-            is a reference value, which no star marks and so goes in a
-            table that carries none.
+            keys are not settled; a key has no direction on the JSON
+            (`scores.sign_of_key`); or a key is a reference value, which no
+            star marks and so goes in a table that carries none.
     """
     pilot = is_pilot_json(summary)
-    known = list(PILOT_SIGNS) if pilot else metric_keys(summary)
-    markable = [k for k in known if sign_of_key(summary, k) != 0]
+    markable = [k for k, sign in signs_of(summary).items() if sign != 0]
     if not keys:
         if not pilot:
             raise ValueError(f"the table's keys on the evaluator's scores are not settled; name them with --keys, "
@@ -125,12 +123,11 @@ def columns_of(summary: Mapping, keys: Sequence[str] = ()) -> list[tuple[str, in
         keys = PILOT_COLUMNS
     out = []
     for key in keys:
-        if key not in known and pilot:
-            raise ValueError(f"{key} has no direction in scores.PILOT_SIGNS, so no mark can be read for it; "
-                             f"the keys the table can mark are {markable}")
-        if key not in known:
-            raise ValueError(f"{key} is not a key this JSON reports; the keys the table can mark are {markable}")
-        sign = sign_of_key(summary, key)
+        # The keys with a direction include the reference values, which the table refuses next.
+        try:
+            sign = sign_of_key(summary, key)
+        except ValueError as e:
+            raise ValueError(f"{e}; the table can mark only {markable}") from e
         if sign == 0:
             raise ValueError(f"{key} is a reference value: no star marks it, so it goes in a table that carries none")
         out.append((key, sign))

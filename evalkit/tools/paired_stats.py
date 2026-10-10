@@ -37,7 +37,6 @@ from collections.abc import Sequence
 import numpy as np
 
 from evalkit.tools.scores import (
-    PILOT_SIGNS,
     check_comparable,
     check_one_rule,
     defined_clips,
@@ -45,7 +44,7 @@ from evalkit.tools.scores import (
     load_scores,
     metric_keys,
     rows_of,
-    sign_of,
+    sign_of_key,
 )
 
 # The keys reported on a pilot evaluator's JSON, in the order the workbench
@@ -67,11 +66,6 @@ SEED_SCHEME = "default_rng([SEED, blake2b(d, groups)]), independent of call orde
 def keys_of(summary: dict) -> Sequence[str]:
     """The keys to report on a JSON: the pilot's list on a pilot JSON, the evaluator's own otherwise."""
     return PILOT_KEYS if is_pilot_json(summary) else metric_keys(summary)
-
-
-def sign_of_key(summary: dict, key: str) -> int:
-    """Which way `key` is better on this JSON: the pilot's table on a pilot JSON, `scores.sign_of` otherwise."""
-    return PILOT_SIGNS[key] if is_pilot_json(summary) else sign_of(key)
 
 
 def load_json(tag: str, eval_dir: str) -> dict:
@@ -321,20 +315,13 @@ def compare_pair(ja: dict, jb: dict, drop: Sequence[str] = (), allow_legacy_code
         `versions_differ` when the check reports them.
 
     Raises:
-        ValueError: The two JSONs are not comparable, `drop` names a video
-            the scores do not have, or `drop` leaves no clip.
-        KeyError: A key in `keys` has no direction: on a pilot JSON it is
-            not in `scores.PILOT_SIGNS`, on another it is not a key the
-            evaluator writes, in a view the JSON holds.
+        ValueError: The two JSONs are not comparable, a key in `keys` has
+            no direction on the base JSON (`scores.sign_of_key`), `drop`
+            names a video the scores do not have, or `drop` leaves no clip.
     """
     # The ruler and the domain are checked, not only the population; the
     # check also settles that the populations are equal (no subset here).
     chk = check_comparable(ja, jb, allow_legacy_code=allow_legacy_code)
-    # `sign_of` reads the metric alone, so a view spelt wrong would pass it and be defined on no clip.
-    if keys is not None and not is_pilot_json(ja):
-        unknown = [k for k in keys if k not in metric_keys(ja)]
-        if unknown:
-            raise KeyError(f"{unknown} are not keys the evaluator writes in the views {ja['views']}")
     # The direction of each key is read before any is computed, so that a
     # key named by mistake is refused even where no clip defines it.
     signs = {k: sign_of_key(ja, k) for k in (keys_of(ja) if keys is None else keys)}

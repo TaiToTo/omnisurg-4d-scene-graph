@@ -19,7 +19,7 @@ import numpy as np
 import pytest
 
 from evalkit.tools import paired_stats as PS
-from evalkit.tools.scores import CLIP_METRICS, FRAME_METRICS, PILOT_EVAL_CODE_SHA, PILOT_SIGNS, metric_key
+from evalkit.tools.scores import CLIP_METRICS, FRAME_METRICS, PILOT_EVAL_CODE_SHA, PILOT_SIGNS, metric_key, sign_of_key
 
 pytest.importorskip("scipy", reason="the Wilcoxon test needs the `tools` extra")
 
@@ -147,7 +147,7 @@ def test_every_pilot_key_has_a_direction_from_the_one_table():
     assert set(PS.PILOT_KEYS) <= set(PILOT_SIGNS)
     assert PILOT_SIGNS["underseg_error"] == -1
     assert all(PILOT_SIGNS[k] == +1 for k in PS.PILOT_KEYS if k != "underseg_error")
-    assert all(PS.sign_of_key(pilot_scores("a", 0.0, 1), k) == PILOT_SIGNS[k] for k in PS.PILOT_KEYS)
+    assert all(sign_of_key(pilot_scores("a", 0.0, 1), k) == PILOT_SIGNS[k] for k in PS.PILOT_KEYS)
 
 
 def test_video_of():
@@ -295,11 +295,11 @@ def test_the_pair_computes_the_keys_it_is_named_and_only_those():
     assert got["sign"] == PILOT_SIGNS["inst_F1_50_labeled"]
     assert got["delta_mean"] == round(WORKBENCH["inst_F1_50"]["delta_mean"] + 0.01, 4)
     # A key named by mistake is refused, even where no clip defines it.
-    with pytest.raises(KeyError):
+    with pytest.raises(ValueError, match="not a key with a direction on this JSON"):
         PS.compare_pair(a, b, keys=["inst_F1_50_labelled"])
     ea, eb = evaluator_scores("base", 0.0, 5), evaluator_scores("cond", 0.03, 6)
     for spelt in ("F1_50/geometrc", "F1_50"):
-        with pytest.raises(KeyError, match="not keys the evaluator writes"):
+        with pytest.raises(ValueError, match="not a key with a direction on this JSON"):
             PS.compare_pair(ea, eb, keys=[spelt])
 
 

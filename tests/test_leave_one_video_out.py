@@ -173,9 +173,9 @@ def test_a_reference_value_is_refused():
 
 def test_a_key_with_no_direction_is_refused():
     base, _ = pilot_pair()
-    with pytest.raises(ValueError, match="no direction is known"):
+    with pytest.raises(ValueError, match="not a key with a direction on this JSON"):
         LV.direction(base, "no_such_key")
-    with pytest.raises(ValueError, match="no direction is known"):
+    with pytest.raises(ValueError, match="not a key with a direction on this JSON"):
         LV.direction(evaluator_scores("base", 0.0, 1), "inst_F1_50")
 
 
