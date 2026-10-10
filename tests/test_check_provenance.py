@@ -53,7 +53,7 @@ def write(root: Path, condition: str, records: dict) -> None:
 
 def test_a_condition_whose_records_hold_the_stated_settings_has_no_problem(tmp_path):
     write(tmp_path, "track_rgb_op_edge_center", {c: TRACKED for c in CLIPS})
-    prov = read_provenance(tmp_path, "track_rgb_op_edge_center", CLIPS, "sam", "rgb")
+    prov = read_provenance(tmp_path, "track_rgb_op_edge_center", CLIPS, "sam", "rgb", sam_input="normal_edge")
     assert prov.problems() == []
     assert report(prov, "sam", "rgb") == [
         "track_rgb_op_edge_center: 3 clips, stated seed_source sam, track_base rgb",
@@ -64,12 +64,21 @@ def test_a_condition_whose_records_hold_the_stated_settings_has_no_problem(tmp_p
 EXTERNAL = {**TRACKED, "seed_source": "external", "seed_labels": "out/seeds/k10"}
 
 
-@pytest.mark.parametrize("record, source, base, labels", [(GT_SEEDED, "gt", "rgb", None),
-                                                          (PER_FRAME, "per_frame", "rgb", None),
-                                                          (EXTERNAL, "external", "rgb", "out/seeds/k10")])
-def test_each_seed_source_the_records_hold_is_read(tmp_path, record, source, base, labels):
+@pytest.mark.parametrize("record, source, base, sam_input, labels", [
+    (GT_SEEDED, "gt", "rgb", None, None),
+    (PER_FRAME, "per_frame", "rgb", "normal_edge", None),
+    (EXTERNAL, "external", "rgb", None, "out/seeds/k10"),
+])
+def test_each_seed_source_the_records_hold_is_read(tmp_path, record, source, base, sam_input, labels):
     write(tmp_path, "track_rgb_t", {c: record for c in CLIPS})
-    assert read_provenance(tmp_path, "track_rgb_t", CLIPS, source, base, seed_labels=labels).problems() == []
+    assert read_provenance(tmp_path, "track_rgb_t", CLIPS, source, base, sam_input, labels).problems() == []
+
+
+def test_a_record_written_before_seed_labels_and_one_without_seed_labels_are_one_condition(tmp_path):
+    # `t12_gtseed` on the workbench's 13-video set: the clips run again later hold "", the others no key.
+    write(tmp_path, "track_rgb_t12_gtseed", {"clip0": GT_SEEDED, "clip1": GT_SEEDED,
+                                             "clip2": {k: v for k, v in GT_SEEDED.items() if k != "seed_labels"}})
+    assert read_provenance(tmp_path, "track_rgb_t12_gtseed", CLIPS, "gt", "rgb").problems() == []
 
 
 @pytest.mark.parametrize("change, shown", [
@@ -112,9 +121,16 @@ def test_a_segmenter_input_other_than_stated_is_a_problem(tmp_path):
         read_provenance(tmp_path, "track_rgb_t", CLIPS, "gt", "rgb", sam_input="normal")
 
 
+@pytest.mark.parametrize("source", ["sam", "per_frame"])
+def test_the_segmenter_input_is_stated_where_the_segmenter_cut_the_seed(tmp_path, source):
+    # A condition run whole on the wrong segmenter input holds one combination, so only a stated input finds it.
+    with pytest.raises(ValueError, match=f"the seed source '{source}' needs sam_input stated"):
+        read_provenance(tmp_path, "track_rgb_t", CLIPS, source, "rgb")
+
+
 def test_a_setting_that_is_not_a_string_is_a_record_that_cannot_be_read(tmp_path):
     write(tmp_path, "track_rgb_t", {"clip0": TRACKED, "clip1": {**TRACKED, "sam_input": {"mode": "normal"}}})
-    prov = read_provenance(tmp_path, "track_rgb_t", ["clip0", "clip1"], "sam", "rgb")
+    prov = read_provenance(tmp_path, "track_rgb_t", ["clip0", "clip1"], "sam", "rgb", sam_input="normal_edge")
     assert prov.problems() == ["1 clip(s) whose seed_info.json cannot be read: clip1 (holds sam_input "
                                "{'mode': 'normal'}, not a string)"]
 
@@ -129,7 +145,7 @@ def test_a_seed_source_other_than_stated_is_a_problem(tmp_path):
 
 def test_a_tracker_input_other_than_stated_is_a_problem(tmp_path):
     write(tmp_path, "track_rgb_t", {"clip0": TRACKED, "clip1": {**TRACKED, "track_base": "normal"}})
-    prov = read_provenance(tmp_path, "track_rgb_t", ["clip0", "clip1"], "sam", "rgb")
+    prov = read_provenance(tmp_path, "track_rgb_t", ["clip0", "clip1"], "sam", "rgb", sam_input="normal_edge")
     assert prov.problems() == [
         "the clips hold 2 combinations of the settings that tell one condition from another, so the population mixes "
         "conditions",
@@ -139,10 +155,11 @@ def test_a_tracker_input_other_than_stated_is_a_problem(tmp_path):
 
 def test_a_population_whose_records_hold_two_segmenter_inputs_is_a_problem(tmp_path):
     write(tmp_path, "track_rgb_t", {"clip0": TRACKED, "clip1": TRACKED, "clip2": {**TRACKED, "sam_input": "normal"}})
-    prov = read_provenance(tmp_path, "track_rgb_t", CLIPS, "sam", "rgb")
+    prov = read_provenance(tmp_path, "track_rgb_t", CLIPS, "sam", "rgb", sam_input="normal_edge")
     assert prov.problems() == [
         "the clips hold 2 combinations of the settings that tell one condition from another, so the population mixes "
-        "conditions"]
+        "conditions",
+        "1 setting(s) other than stated: clip2: sam_input 'normal', not 'normal_edge'"]
     assert report(prov, "sam", "rgb")[1:3] == ["  seed_source sam, sam_input normal_edge, track_base rgb: 2 clip(s)",
                                                 "  seed_source sam, sam_input normal, track_base rgb: 1 clip(s)"]
 
@@ -150,17 +167,19 @@ def test_a_population_whose_records_hold_two_segmenter_inputs_is_a_problem(tmp_p
 def test_a_clip_without_a_record_is_a_problem(tmp_path):
     write(tmp_path, "track_rgb_t", {"clip0": TRACKED})
     (tmp_path / "clip1" / "track_rgb_t").mkdir(parents=True)
-    prov = read_provenance(tmp_path, "track_rgb_t", CLIPS, "sam", "rgb")
+    prov = read_provenance(tmp_path, "track_rgb_t", CLIPS, "sam", "rgb", sam_input="normal_edge")
     assert prov.problems() == ["2 clip(s) without seed_info.json: ['clip1', 'clip2']"]
 
 
-@pytest.mark.parametrize("text, why", [('{"seed_source": "sa', "not JSON"), ("[1, 2]", "a JSON list, not an object"),
-                                       (b"\xff\xfe", "not JSON")])
+@pytest.mark.parametrize("text, why", [
+    ('{"seed_source": "sa', "not JSON"), ("[1, 2]", "a JSON list, not an object"), (b"\xff\xfe", "not JSON"),
+    (json.dumps({**TRACKED, "seed_input": [24]}), "seed_input is a JSON list, not an object"),
+])
 def test_a_record_that_cannot_be_read_is_a_problem(tmp_path, text, why):
     write(tmp_path, "track_rgb_t", {"clip0": TRACKED, "clip1": TRACKED})
     path = tmp_path / "clip1" / "track_rgb_t" / "seed_info.json"
     path.write_bytes(text) if isinstance(text, bytes) else path.write_text(text)
-    prov = read_provenance(tmp_path, "track_rgb_t", ["clip0", "clip1"], "sam", "rgb")
+    prov = read_provenance(tmp_path, "track_rgb_t", ["clip0", "clip1"], "sam", "rgb", sam_input="normal_edge")
     assert len(prov.problems()) == 1
     assert prov.problems()[0].startswith(f"1 clip(s) whose seed_info.json cannot be read: clip1 ({why}")
 
@@ -172,7 +191,7 @@ def test_a_record_without_a_setting_holds_no_such_key_in_its_place(tmp_path):
     assert prov.problems() == []
     assert report(prov, "gt", "none")[1] == "  seed_source gt, sam_input (no such key), track_base none: 3 clip(s)"
     write(tmp_path, "track_rgb_t", {"clip0": {k: v for k, v in TRACKED.items() if k != "seed_source"}})
-    prov = read_provenance(tmp_path, "track_rgb_t", ["clip0"], "sam", "rgb")
+    prov = read_provenance(tmp_path, "track_rgb_t", ["clip0"], "sam", "rgb", sam_input="normal_edge")
     assert prov.mismatched == [("clip0", "seed_source", ABSENT, "sam")]
     assert prov.problems() == ["1 setting(s) other than stated: clip0: seed_source (no such key), not 'sam'"]
 
@@ -180,7 +199,7 @@ def test_a_record_without_a_setting_holds_no_such_key_in_its_place(tmp_path):
 def test_a_record_holding_null_differs_from_one_without_the_key(tmp_path):
     write(tmp_path, "track_rgb_t", {"clip0": {**PER_FRAME, "sam_input": None},
                                     "clip1": {k: v for k, v in PER_FRAME.items() if k != "sam_input"}})
-    prov = read_provenance(tmp_path, "track_rgb_t", ["clip0", "clip1"], "per_frame", "rgb")
+    prov = read_provenance(tmp_path, "track_rgb_t", ["clip0", "clip1"], "per_frame", "rgb", sam_input="normal_edge")
     assert sorted(repr(combo[:3]) for combo in prov.settings) == ["('per_frame', (no such key), 'rgb')",
                                                                     "('per_frame', None, 'rgb')"]
 
@@ -189,7 +208,7 @@ def test_an_unknown_seed_source_or_a_root_that_is_not_there_is_refused(tmp_path)
     with pytest.raises(ValueError, match=r"'auto' is no seed source; one of \('sam', 'external', 'gt', 'per_frame'\)"):
         read_provenance(tmp_path, "track_rgb_t", CLIPS, "auto", "rgb")
     with pytest.raises(ValueError, match="no such directory"):
-        read_provenance(tmp_path / "nowhere", "track_rgb_t", CLIPS, "sam", "rgb")
+        read_provenance(tmp_path / "nowhere", "track_rgb_t", CLIPS, "sam", "rgb", sam_input="normal_edge")
 
 
 def run_stage(tmp_path, stage: str, **settings) -> None:
@@ -246,12 +265,13 @@ def test_the_records_this_repository_s_stages_write_are_read(tmp_path, stage, se
             np.save(seeds / f"label_{i:04d}.npy", np.zeros((8, 10), np.int32))
         settings = {**settings, "seed_labels": str(tmp_path / "seeds" / "{clip}")}
     run_stage(tmp_path, stage, **settings)
-    labels = settings.get("seed_labels")
-    prov = read_provenance(tmp_path / "tracks", condition, ["clip0"], source, base, seed_labels=labels)
+    labels, sam_input = settings.get("seed_labels"), settings["sam_input"]
+    stated = None if labels else sam_input
+    prov = read_provenance(tmp_path / "tracks", condition, ["clip0"], source, base, stated, labels)
     assert prov.problems() == []
-    assert [combo[:3] for combo in prov.settings] == [(source, settings["sam_input"], base)]
+    assert [combo[:3] for combo in prov.settings] == [(source, sam_input, base)]
     other = "sam" if source == "per_frame" else "per_frame"
-    assert read_provenance(tmp_path / "tracks", condition, ["clip0"], other, base).mismatched[0] == (
+    assert read_provenance(tmp_path / "tracks", condition, ["clip0"], other, base, sam_input).mismatched[0] == (
         "clip0", "seed_source", source, other)
 
 
@@ -261,11 +281,12 @@ def test_the_command_exits_non_zero_on_a_problem_and_zero_otherwise(tmp_path):
     population.write_text("\n".join(CLIPS) + "\n")
     cmd = [sys.executable, "-m", "evalkit.tools.check_provenance", "--tracks-root", str(tmp_path / "tracks"),
            "--tag", "op_edge_center", "--clips", str(population)]
-    ok = subprocess.run([*cmd, "--seed-source", "sam"], cwd=REPO, capture_output=True, text=True)
+    ok = subprocess.run([*cmd, "--seed-source", "sam", "--sam-input", "normal_edge"], cwd=REPO, capture_output=True,
+                        text=True)
     assert ok.returncode == 0, ok.stderr
     assert ok.stdout.splitlines()[1] == "  seed_source sam, sam_input normal_edge, track_base rgb: 3 clip(s)"
     bad = subprocess.run([*cmd, "--seed-source", "gt"], cwd=REPO, capture_output=True, text=True)
     assert bad.returncode == 1 and "!! 3 setting(s) other than stated" in bad.stdout
-    refused = subprocess.run([*cmd, "--seed-source", "sam", "--track-base", "normal", "--tracks-root",
-                              str(tmp_path / "nowhere")], cwd=REPO, capture_output=True, text=True)
+    refused = subprocess.run([*cmd, "--seed-source", "sam", "--sam-input", "normal_edge", "--track-base", "normal",
+                              "--tracks-root", str(tmp_path / "nowhere")], cwd=REPO, capture_output=True, text=True)
     assert refused.returncode == 1 and "no such directory" in refused.stderr

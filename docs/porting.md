@@ -226,7 +226,7 @@ copy to read the RGB clips, and the ported copies read `evalkit.classes`.
 | `surgical_core/geometry/` | `depth_sam_tracking_experiment/geometry.py` | `extract/04-kmerge` (#5) | English only. Shared by the pipeline and the viewer; the toolkit imports none of it. The workbench read the ring setting from the module flag `EDGE_MASK_RING`. Here it is `mask_ring`, an argument of `sam_input_image` and of the edge functions under it, with no default. A stage passes it at every call and records the value it passed under `edge_ring_masked`, or `None` for an input that burns no edges (`uses_geom_edge`). |
 | `pose_metrics.py` | `ipcai2027_experiment/scripts/pose_metrics.py` | — | Ported as `evalkit/tools/pose_metrics.py`, to be hashed on its own ("The camera trajectory measures are hashed on their own"). It measures an estimated camera trajectory against StereoMIS's: `ate` after one similarity fit, `rpe` and `scale_consistency`; `ate_rel` decides the result. Its values equal the workbench's on 1200 random, planar and static trajectories. It refuses what the workbench let through: trajectories of unequal length, times out of order and values that are not finite. The rest of the StereoMIS result is listed under "Not yet extracted anywhere": `stereomis_io.py` (calibration, rectified frames, the measured offsets between video, ground truth and depth), `pose_controls.py` (the static camera, constant motion and stereo visual odometry the result is read against), and `summarize_20.py` and `run_20.sh` (the run and its table). `d4d_pose.py`, the D4D check of the same result, is listed there with D4D. None of StereoMIS's data is on the development machine, so they are checked on the workbench's GPU machine when they move. |
 | `condition_inventory.py` | `ipcai2027_experiment/scripts/condition_inventory.py` | `extract/05-inventory` (#4) | It reads `eval_code_sha`, `eval_code_tag` and `eval_version` from score JSONs. "One ruler" is now what `docs/evaluation.md` calls comparable: `eval_code_sha`, dataset, class set, view and mode all equal, and one propagation rule. The provenance fields now include `bidir`, whether the tracker ran both ways, and `seed_labels`, which alone tells two merges of one condition to different K apart. `condition_key` builds the key that tells two conditions apart; `check_provenance` reads it too. |
-| `check_provenance.py` | `ipcai2027_experiment/task11_atlas13/scripts/check_provenance.py` | — | Ported as `evalkit/tools/check_provenance.py`. It makes no table: it checks each clip's `seed_info.json` against the settings the condition states. It tells conditions apart by `condition_key`, where the script compared only the seed source, the segmenter input and the tracker input. It requires `--seed-labels` under the seed source `external`. It reads one tracks root, where the script also searched the workbench's other roots. Not carried: `--allow-missing`; a clip without a record is a problem. |
+| `check_provenance.py` | `ipcai2027_experiment/task11_atlas13/scripts/check_provenance.py` | — | Ported as `evalkit/tools/check_provenance.py`. It makes no table: it checks each clip's `seed_info.json` against the settings the condition states. It tells conditions apart by `condition_key`, where the script compared only the seed source, the segmenter input and the tracker input. It requires `--sam-input` under the seed sources `sam` and `per_frame`, and `--seed-labels` under `external`. It reads one tracks root, where the script also searched the workbench's other roots. Not carried: `--allow-missing`; a clip without a record is a problem. |
 | `check_env.py` | `ipcai2027_experiment/atlas97/scripts/check_env97.py` | `extract/05-inventory` (#4) | Not carried (decision 4). |
 | `reeval_diff.py` | — (written in the earlier repository) | `extract/06-rescore` (#6) | Ported as `evalkit/tools/pilot_check.py`, the check against the pilot evaluator, run in the workbench. The earlier repository's version insists the sha equals the pilot's and diffs `eval_code_sha` with everything else; `pilot_check` works the other way round: the shas differ by construction, only the keys the two evaluators share are compared, and those must be equal. |
 
@@ -1027,10 +1027,20 @@ Every command takes those paths as arguments.
     `docs/evaluation.md` says the paper reports none of the conditions that
     hold neither rule. The granularity result makes that sentence false.
 
+    The record names the seeds by the path the tracking stage was given, as
+    given. The workbench's records hold
+    `../ipcai2027_experiment/atlas97/out/seeds/k10`, relative to where the
+    stage ran. `check_provenance` and `condition_inventory` compare that
+    path as written. So one directory given by two paths reads as two
+    conditions, and one path given from two places can name two directories.
+
     Decide before the evaluator is frozen, and before the granularity result
     is measured again:
     - which values of `seed_source` the evaluator scores;
     - how a score records where its seed came from;
+    - how the record names the seeds: by the path as given, by the resolved
+      path, or by a hash of the seed files, as `kmerge.json` holds one of its
+      source;
     - which comparisons the tools refuse between conditions whose seeds
       came from different places, as they refuse a comparison across two
       propagation rules.

@@ -96,13 +96,23 @@ def frames_kind(v) -> str:
     return str(v)
 
 
-def condition_key(record: Mapping) -> str:
-    """Return what tells a clip's condition from another's: the fields of `PROV_KEYS` and `SEED_KEYS`, as JSON."""
+def condition_key(record) -> str:
+    """Return what tells a clip's condition from another's: the fields of `PROV_KEYS` and `SEED_KEYS`, as JSON.
+
+    Raises:
+        ValueError: `record`, or its `seed_input`, is not a JSON object.
+    """
+    if not isinstance(record, Mapping):
+        raise ValueError(f"a JSON {type(record).__name__}, not an object")
     si = record.get("seed_input") or {}
-    return json.dumps({**{k: record.get(k) for k in PROV_KEYS},
-                       **{k: si.get(k) for k in SEED_KEYS},
-                       "frames": frames_kind(record.get("frames"))},
-                      sort_keys=True, ensure_ascii=False)
+    if not isinstance(si, Mapping):
+        raise ValueError(f"seed_input is a JSON {type(si).__name__}, not an object")
+    key = {**{k: record.get(k) for k in PROV_KEYS}, **{k: si.get(k) for k in SEED_KEYS},
+           "frames": frames_kind(record.get("frames"))}
+    # The tracker writes "" when it read no seed labels, and its versions before `seed_labels` wrote no key.
+    # Neither names seeds, so the two are one condition.
+    key["seed_labels"] = key["seed_labels"] or None
+    return json.dumps(key, sort_keys=True, ensure_ascii=False)
 
 
 def read_conditions(track_root: str) -> dict:
@@ -131,12 +141,12 @@ def read_conditions(track_root: str) -> dict:
         out[tag]["mtime"].append(os.path.getmtime(p))
         try:
             with open(p, encoding="utf-8") as f:
-                d = json.load(f)
+                key = condition_key(json.load(f))
         except (OSError, ValueError) as e:
             # A broken provenance is reported, not hidden.
             out[tag]["notes"][f"unreadable provenance: {e}"].append(clip)
             continue
-        out[tag]["keys"][condition_key(d)].append(clip)
+        out[tag]["keys"][key].append(clip)
     # The clips with labels and no provenance file, per clip: a tag can hold
     # both kinds, and skipping it would hide these from the mixed-condition check.
     for d in glob.glob(os.path.join(track_root, "*", "*", "")):
