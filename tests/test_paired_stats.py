@@ -343,9 +343,20 @@ def test_the_command_writes_no_rule_on_pilot_jsons(tmp_path):
     assert list(j) == ["n_boot", "seed", "seed_scheme", "pairs"] and "propagation" not in j["pairs"]["base:cond"]
 
 
+def test_pairs_are_read_in_the_order_given():
+    assert PS.parse_pairs(" b:a, c:d ,") == [("b", "a"), ("c", "d")]
+
+
+@pytest.mark.parametrize("text", ["rgb", "rgb:", ":rgb", "a:b:c", "rgb:rgb", "", " , "])
+def test_a_malformed_pair_is_refused(text):
+    with pytest.raises(ValueError):
+        PS.parse_pairs(text)
+
+
 @pytest.mark.parametrize("pairs, said", [
-    ("base", "--pairs takes <base>:<cond>"),
-    ("base:cond:other", "--pairs takes <base>:<cond>"),
+    ("base", "a pair is <base>:<cond>"),
+    ("base:cond:other", "a pair is <base>:<cond>"),
+    ("base:base", "not one with itself"),
     ("base:nothere", "nothere.json"),
 ])
 def test_the_command_refuses_a_bad_pair_with_a_message_not_a_traceback(tmp_path, pairs, said):

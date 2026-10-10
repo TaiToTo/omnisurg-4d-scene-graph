@@ -79,6 +79,40 @@ def load_json(tag: str, eval_dir: str) -> dict:
     return load_scores(os.path.join(eval_dir, f"{tag}.json"))
 
 
+def parse_pairs(text: str) -> list[tuple[str, str]]:
+    """Read `base:cond,base:cond` into `(base, cond)` tuples, in the order given.
+
+    Raises:
+        ValueError: An item is not `<base>:<cond>`, pairs a condition with
+            itself, or no pair is given.
+    """
+    pairs = []
+    for item in (p.strip() for p in text.split(",")):
+        if not item:
+            continue
+        base, sep, cond = item.partition(":")
+        if not (sep and base and cond) or ":" in cond:
+            raise ValueError(f"{item!r}: a pair is <base>:<cond>")
+        if base == cond:
+            raise ValueError(f"{item!r}: a pair compares two conditions, not one with itself")
+        pairs.append((base, cond))
+    if not pairs:
+        raise ValueError("no pair is given")
+    return pairs
+
+
+def load_pairs(text: str, eval_dir: str) -> tuple[list[tuple[str, str]], dict[str, dict]]:
+    """Read the pairs `text` names, and the score JSON of each condition in them, once per condition.
+
+    Raises:
+        ValueError: `parse_pairs` refuses `text`, or a JSON holds a NaN.
+        OSError: A condition has no score JSON.
+    """
+    pairs = parse_pairs(text)
+    tags = dict.fromkeys(tag for pair in pairs for tag in pair)
+    return pairs, {tag: load_json(tag, eval_dir) for tag in tags}
+
+
 def video_of(clip: str) -> str:
     """The video a clip was cut from: the unit the bootstrap resamples.
 
@@ -379,18 +413,10 @@ def main() -> None:
 
     # Every pair's two JSONs, read before any is compared.
     drop = {v.strip() for v in args.drop_video.split(",") if v.strip()}
-    pairs, loaded = [], {}
-    for pair in [p.strip() for p in args.pairs.split(",") if p.strip()]:
-        try:
-            base, sep, cond = pair.partition(":")
-            if not (sep and base and cond) or ":" in cond:
-                raise ValueError("--pairs takes <base>:<cond>")
-            for tag in (base, cond):
-                if tag not in loaded:
-                    loaded[tag] = load_json(tag, args.eval_dir)
-        except (ValueError, OSError) as e:
-            raise SystemExit(f"{pair}: {e}") from e
-        pairs.append((pair, base, cond))
+    try:
+        pairs, loaded = load_pairs(args.pairs, args.eval_dir)
+    except (ValueError, OSError) as e:
+        raise SystemExit(f"--pairs: {e}") from e
 
     # One rule for the whole run, because all its pairs go into one JSON.
     # Checking each pair misses a mix: a per_frame condition paired once
@@ -402,7 +428,8 @@ def main() -> None:
 
     # The statistics of each pair, printed as they come.
     out = {}
-    for pair, base, cond in pairs:
+    for base, cond in pairs:
+        pair = f"{base}:{cond}"
         try:
             out[pair] = compare_pair(loaded[base], loaded[cond], drop, allow_legacy_code=args.allow_legacy_code)
         except ValueError as e:
