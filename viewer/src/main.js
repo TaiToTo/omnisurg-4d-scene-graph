@@ -4,7 +4,7 @@
 import { loadCatalog } from './data.js';
 import { initStage, invalidate, resetView, startRenderLoop } from './stage.js';
 import {
-  cycleCloudShow, onChange, onError, openClip, pickNode, refitPanels, setCloudShow, setFocusNode, setFocusStage, setGraph3D,
+  BOTH, cycleCloudShow, onChange, onError, openClip, pickNode, refitPanels, setCloudShow, setFocusNode, setFocusStage, setGraph3D,
   setHover, setIsolate, setMapBig, setPlaying, setRegionsMenu, setStatus, setStripCellHeight, setStripPhoto, setWorldView,
   seekFrame, setTrack, state, stepFrame, stripCellHeight, switchMode, syncControls, toggleRegions,
 } from './app.js';
@@ -28,13 +28,17 @@ function showError(msg) {
 
 const NODE_KEY = /^[a-z0-9_]+:\d+$/;
 
-/** Write the open clip, frame, mode, track and followed region into the address, without a history entry. */
+/**
+ * Write the open clip, frame, mode, track and followed region into the address, without a history entry.
+ * The track is `both` while both tracks of the hierarchy are shown.
+ */
 function writeAddress() {
   if (!state.clip) return;
   const u = new URL(location.href);
   u.search = '';
   u.searchParams.set('clip', state.clip.id);
-  if (state.track) u.searchParams.set('track', state.track);
+  if (state.both) u.searchParams.set('track', BOTH);
+  else if (state.track) u.searchParams.set('track', state.track);
   if (state.frame) u.searchParams.set('frame', String(state.frame));
   if (state.mode === 'world') u.searchParams.set('mode', 'world');
   if (state.focusKey) u.searchParams.set('focus', state.focusKey);
@@ -94,7 +98,7 @@ async function open(id, { frame = 0, mode = 'frame', track = null, focus = null 
   }
   const seq = state.clipSeq;
   const current = () => state.clipSeq === seq;
-  if (track && state.clip.trackById.has(track)) setTrack(track);
+  if (track === BOTH || state.clip.trackById.has(track)) setTrack(track);
   if (frame > 0 && frame < state.clip.n_frames) await seekFrame(frame);
   if (!current()) return;
   if (mode === 'world') await switchMode('world');
@@ -213,7 +217,7 @@ function onKey(ev) {
     r: () => resetView(state.clip.frames[state.frame]),
     p: () => state.mode === 'world' && setStripPhoto(!state.stripPhoto),
     i: () => cycleCloudShow(),
-    s: () => toggleRegions(state.track),
+    s: () => toggleRegions(state.both ? BOTH : state.track),
     o: () => state.focusKey && state.mode === 'world' && setIsolate(!state.isolate),
     '?': () => openDialog('keys-overlay'),
     Escape: () => (state.mapBig ? setMapBig(false) : state.focusKey && setFocusNode(null)),

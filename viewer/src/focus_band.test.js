@@ -28,6 +28,26 @@ describe('topPartners', () => {
     expect(topPartners(gap, 1)[0][1].changes).toEqual([]);
   });
 
+  it('takes the word of the edge from the followed node, whatever order the file lists the edges in', () => {
+    const both = [
+      { src: 2, dst: 1, relation: 'above', edge_type: 'spatial', frames: [0, 1] },
+      { src: 1, dst: 2, relation: 'left', edge_type: 'spatial', frames: [1, 2] },
+      { src: 1, dst: 2, relation: 'right', edge_type: 'spatial', frames: [2] },
+    ];
+    for (const relations of [both, [...both].reverse()]) {
+      const [[, e]] = topPartners({ relations }, 1);
+      expect(e.relByFrame.get(0)).toBe('below');
+      expect(e.relByFrame.get(1)).toBe('left');
+      expect(e.frames).toBe(3);
+    }
+    expect(topPartners({ relations: both }, 1)[0][1].relByFrame.get(2)).toBe('left');
+    const mirrored = [
+      { src: 2, dst: 1, relation: 'above', edge_type: 'spatial', frames: [0] },
+      { src: 2, dst: 1, relation: 'left', edge_type: 'spatial', frames: [0] },
+    ];
+    expect(topPartners({ relations: mirrored }, 1)[0][1].relByFrame.get(0)).toBe('below');
+  });
+
   it('leaves out relations that are not spatial', () => {
     const third = topPartners(tg, 1, 2)[1][1];
     expect([...third.relByFrame.values()]).toEqual(['above', 'above']);

@@ -14,22 +14,33 @@ function axisX(f, W, n) {
 /**
  * The neighbours of `nodeId` in a graph through time, the one whose relation to it changes most first,
  * ties by how many frames they share. A relation is read from `nodeId`'s side: "nodeId is <relation> of".
+ * On a frame with an edge each way, the edge from `nodeId` gives the word, since it is the word the
+ * graph stored; of two edges the same way, the first in the file does.
  *
  * @returns {Array<[number, {relByFrame:Map<number,string>, changes:Array<{f,from,to}>, frames:number}]>}
  */
 export function topPartners(tg, nodeId, k = 1) {
   const byPartner = new Map();
+  const fromNode = new Map();
   for (const r of tg?.relations || []) {
     if (r.edge_type && r.edge_type !== 'spatial') continue;
     if (r.src !== nodeId && r.dst !== nodeId) continue;
-    const other = r.src === nodeId ? r.dst : r.src;
-    if (!byPartner.has(other)) byPartner.set(other, { relByFrame: new Map(), changes: [], frames: 0 });
-    const e = byPartner.get(other);
-    e.frames += (r.frames || []).length;
-    const rel = r.src === nodeId ? r.relation : (MIRROR_REL[r.relation] ?? r.relation);
-    for (const f of r.frames || []) if (Number.isInteger(f)) e.relByFrame.set(f, rel);
+    const direct = r.src === nodeId;
+    const other = direct ? r.dst : r.src;
+    if (!byPartner.has(other)) {
+      byPartner.set(other, { relByFrame: new Map(), changes: [], frames: 0 });
+      fromNode.set(other, new Map());
+    }
+    const e = byPartner.get(other), from = fromNode.get(other);
+    const rel = direct ? r.relation : (MIRROR_REL[r.relation] ?? r.relation);
+    for (const f of r.frames || []) {
+      if (!Number.isInteger(f) || (from.has(f) && (from.get(f) || !direct))) continue;
+      e.relByFrame.set(f, rel);
+      from.set(f, direct);
+    }
   }
   for (const e of byPartner.values()) {
+    e.frames = e.relByFrame.size;
     const fr = [...e.relByFrame.keys()].sort((a, b) => a - b);
     for (let j = 1; j < fr.length; j++) {
       if (fr[j] === fr[j - 1] + 1 && e.relByFrame.get(fr[j]) !== e.relByFrame.get(fr[j - 1])) {

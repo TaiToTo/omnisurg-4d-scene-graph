@@ -11,6 +11,9 @@ What a reader can do on it:
 - step through a clip's frames, or play them;
 - paint a track's regions on the cloud, and draw the scene graph on it;
 - see the frame's scene graph from its camera;
+- show the manual annotation and the automatic regions together, joined
+  where an annotated region contains an automatic one, on a clip whose
+  bundle holds the hierarchy between them;
 - stack the clip's frames in one space (world mode), with the camera's path,
   and see every stacked frame's scene graph in one camera;
 - follow a region in three steps: where it is, how it moves through the
@@ -46,6 +49,7 @@ built, `VITE_DATA_URL=https://example.org/bundle/ npm run build`; that host
 must then allow the page's origin to fetch from it (CORS). Every URL the page
 uses is relative, so it works from any directory of a host.
 
-The address keeps what is on screen, `?clip=<id>&frame=<n>&mode=world&focus=<track>:<id>`,
-so a view can be shared as a link. The page opens only clips the catalog
+The address keeps what is on screen,
+`?clip=<id>&track=<track>&frame=<n>&mode=world&focus=<track>:<id>`, so a view
+can be shared as a link; `track=both` shows the two tracks of the hierarchy. The page opens only clips the catalog
 lists.

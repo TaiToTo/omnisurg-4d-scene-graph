@@ -13,7 +13,7 @@ export const KEYS = [
   { group: 'View' },
   { keys: 'W', what: 'World mode: the clip\'s frames stacked in one space' },
   { keys: 'G', what: 'The scene graph drawn on the cloud' },
-  { keys: 'S', what: 'The shown track\'s regions painted on the cloud' },
+  { keys: 'S', what: 'The shown tracks\' regions painted on the cloud' },
   { keys: 'I', what: 'Every point, the tissue only, or the instruments only' },
   { keys: 'O', what: 'World mode: the followed region alone' },
   { keys: 'P', what: 'World mode: each frame\'s image under its regions in the strip' },
