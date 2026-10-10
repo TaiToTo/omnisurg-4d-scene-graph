@@ -611,9 +611,11 @@ The tools enforce this:
 - `compare_eval` refuses a pair that is not comparable.
 - `paired_stats` refuses such a pair too, and a table that holds two rules
   other than `per_frame`.
+- `paired_table` and `arms_paired` refuse a table that holds two
+  conditions that are not comparable.
 - `claims_table` refuses a column in which any two score JSONs are not
   comparable.
-- All three report a difference in library versions but do not refuse it.
+- All five report a difference in library versions but do not refuse it.
 
 The check against the pilot evaluator, below, is not bound by these
 conditions: the two `eval_code_sha` differ by construction. Its own script,

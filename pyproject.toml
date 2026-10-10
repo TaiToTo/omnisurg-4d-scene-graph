@@ -35,10 +35,10 @@ dependencies = ["numpy", "opencv-python", "Pillow"]
 # toolkit still installs on a machine with none of them.
 render = ["matplotlib", "trimesh"]
 # What the tools under `evalkit/tools` need and the evaluator does not: the
-# Wilcoxon test that `paired_stats` reports beside the bootstrap (scipy) and
-# the per-clip chart `compare_eval` draws on request (matplotlib). The tools
-# import them only where they are used, so reading and checking scores works
-# without the extra.
+# Wilcoxon test that `paired_stats` and `arms_paired` report beside the
+# bootstrap (scipy) and the per-clip chart `compare_eval` draws on request
+# (matplotlib). The tools import them only where they are used, so reading
+# and checking scores works without the extra.
 tools = ["scipy", "matplotlib"]
 # The depth stages need the render extra, Depth Anything 3, Pi3X and torch. DA3
 # pins numpy below 2, and no numpy below 2 supports a Python newer than 3.12,
