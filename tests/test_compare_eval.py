@@ -223,8 +223,8 @@ def directions(stdout: str) -> dict[str, str]:
     return {line.split()[0]: next(d for d in CE.DIRECTION.values() if d in line) for line in table}
 
 
-def test_the_table_prints_a_direction_and_no_mark_that_reads_as_a_verdict(tmp_path):
-    # The verdict is `paired_stats.verdict` alone; a mark on a sign would be
+def test_the_table_prints_a_direction_and_no_mark_of_its_own(tmp_path):
+    # The mark is `paired_stats.mark_of`'s alone; a mark on a sign would be
     # a second one, read as "better" on a difference of 0.0004.
     a, b = pilot_scores("base", 0.0, 5), pilot_scores("cond", 0.03, 6)
     forward, backward = run(tmp_path, a, b), run(tmp_path, b, a)

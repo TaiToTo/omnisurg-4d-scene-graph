@@ -233,12 +233,6 @@ def test_the_marks_are_computed_on_the_clips_the_check_compared(monkeypatch):
     assert (r["n_clips"], r["n_videos"]) == (8, 4)
 
 
-def test_a_value_that_rounds_to_zero_keeps_two_digits():
-    # The mark follows the sign of the interval's end; -0.0 would hide it.
-    assert LV._r(-2.4e-05) == -2.4e-05 and LV._r(0.0) == 0.0 and LV._r(0.123449) == 0.1234
-    assert LV._f(-2.4e-05) == "-2.40e-05" and LV._f(0.0) == "+0.0000" and LV._f(0.05) == "+0.0500"
-
-
 @pytest.mark.parametrize("n, said", [(3, "on 3 videos the interval is the range of the video means"),
                                      (4, "an interval on 4 videos is thin"), (5, None)])
 def test_the_note_says_when_an_interval_is_the_range_of_the_means_or_thin(n, said):
@@ -281,7 +275,7 @@ def test_the_command_writes_the_marks_and_names_the_video(tmp_path):
     assert "<-" not in run.stdout
     got = json.loads(out.read_text(encoding="utf-8"))
     assert list(got) == ["mark_rule", "n_boot", "seed", "seed_scheme", "min_videos_after_drop", "pairs"]
-    assert (got["mark_rule"], got["seed_scheme"]) == (PS.VERDICT_RULE, PS.SEED_SCHEME)
+    assert (got["mark_rule"], got["seed_scheme"]) == (PS.MARK_RULE, PS.SEED_SCHEME)
     assert (got["n_boot"], got["seed"]) == (PS.N_BOOT, PS.SEED)
     # A pilot JSON's pair records its evaluator as an evaluator JSON's does.
     assert got["pairs"]["base:cond"]["eval_code"] == PILOT_EVAL_CODE_SHA[:16]

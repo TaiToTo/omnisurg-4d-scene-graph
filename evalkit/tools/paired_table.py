@@ -1,7 +1,7 @@
 """Print the pilot's table of paired comparisons: blocks of rows under headings, a row per pair of conditions.
 
-Each cell holds the mean of `cond − base` for one key, with the mark of
-`paired_stats.verdict`. A line under each row gives the first key's
+Each cell holds the mean of `cond − base` for one key, with the mark that
+`paired_stats.mark_of` gives. A line under each row gives the first key's
 interval and wins. Every two conditions of the table must pass
 `scores.check_comparable`. The table is pasted as printed, never copied by hand.
 
@@ -11,18 +11,15 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import itertools
 import os
 from collections.abc import Mapping, Sequence
 
 import numpy as np
 
 from evalkit.tools.compare_eval import DIRECTION
-from evalkit.tools.paired_stats import VERDICT_RULE, boot_ci, verdict, video_of
+from evalkit.tools.paired_stats import MARK_RULE, boot_ci, mark_of, video_of
 from evalkit.tools.scores import (
-    check_comparable,
-    check_one_rule,
-    clips_of,
+    check_comparable_table,
     defined_clips,
     is_pilot_json,
     load_scores,
@@ -142,46 +139,27 @@ def check_table(tags: Sequence[str], summaries: Mapping[str, Mapping], columns: 
         columns: The keys the table reports, with their directions.
 
     Returns:
-        `clips`, the population, sorted; `eval_code_sha`; `dataset`;
-        `propagation`, None on pilot JSONs, which record none; `regions`,
+        What `scores.check_comparable_table` returns, and `regions`,
         whether the table has a column of regions, which only pilot JSONs
-        record; and `versions_differ`, by tag, the library versions in
-        which a condition differs from the first.
+        record.
 
     Raises:
-        ValueError: The table names fewer than two conditions; two
-            conditions are not comparable, propagated under two rules
-            besides `per_frame` among the reasons; a key is in no row of a
-            condition; or a pilot JSON records no `n_regions_mean`.
+        ValueError: `scores.check_comparable_table` refuses the conditions;
+            a key is in no row of a condition; or a pilot JSON records no
+            `n_regions_mean`.
     """
-    # Every two conditions. A condition is checked only against another, so
-    # one condition alone would go unchecked. Checking each against the first
-    # alone is not enough: a pilot JSON with no domain passes against any.
-    if len(tags) < 2:
-        raise ValueError(f"a table compares two conditions at least, and this one names {list(tags)}")
-    versions_differ = {}
-    for a, b in itertools.combinations(tags, 2):
-        try:
-            chk = check_comparable(summaries[a], summaries[b])
-        except ValueError as e:
-            raise ValueError(f"{a} and {b} cannot share a table: {e}") from e
-        if a == tags[0] and "versions_differ" in chk:
-            versions_differ[b] = chk["versions_differ"]
-    # The table's rule, for the header; the pairs above already refused a second one.
-    rule = check_one_rule({t: summaries[t] for t in tags})
+    shared = check_comparable_table({t: summaries[t] for t in tags})
     # A key in no row is a wrong key or a wrong JSON, not a key undefined on every clip.
     for tag in tags:
         absent = [k for k, _ in columns if not any(k in r for r in summaries[tag]["per_clip"])]
         if absent:
             raise ValueError(f"{tag}: {absent} in no row")
-    first = summaries[tags[0]]
-    regions = is_pilot_json(first)
+    regions = is_pilot_json(summaries[tags[0]])
     if regions:
         unrecorded = [t for t in tags if not isinstance(summaries[t].get("n_regions_mean"), (int, float))]
         if unrecorded:
             raise ValueError(f"{unrecorded}: a pilot JSON records n_regions_mean, and these do not")
-    return dict(clips=sorted(clips_of(first)), eval_code_sha=first["eval_code_sha"], dataset=first.get("dataset"),
-                propagation=rule, regions=regions, versions_differ=versions_differ)
+    return dict(shared, regions=regions)
 
 
 def cell_of(base: Mapping, cond: Mapping, clips: list[str], key: str, sign: int) -> dict:
@@ -189,7 +167,7 @@ def cell_of(base: Mapping, cond: Mapping, clips: list[str], key: str, sign: int)
 
     `mean`, `ci` and `mark` are None when fewer than `MIN_CLIPS` clips or
     fewer than two videos define the key: one video has no interval, and
-    the point it would give reads as a verdict.
+    the point it would give reads as a mark.
 
     Args:
         base: The base condition's rows, by clip.
@@ -206,7 +184,7 @@ def cell_of(base: Mapping, cond: Mapping, clips: list[str], key: str, sign: int)
     d = (np.array([cond[c][key] for c in ks], dtype=np.float64)
          - np.array([base[c][key] for c in ks], dtype=np.float64))
     ci = boot_ci(d, videos)
-    out.update(mean=float(d.mean()), ci=ci, mark=verdict(ci, sign),
+    out.update(mean=float(d.mean()), ci=ci, mark=mark_of(ci, sign),
                wins=int((d * sign > 0).sum()), losses=int((d * sign < 0).sum()))
     return out
 
@@ -247,16 +225,16 @@ def table_lines(blocks: Sequence, summaries: Mapping[str, Mapping], keys: Sequen
     # The header: what the table was measured with, on what, and how a cell is read.
     rule = "" if shared["propagation"] is None else f" / propagation {shared['propagation']}"
     lines = [f"{shared['dataset']}: {len(clips)} clips / {n_videos} videos / "
-             f"eval_code_sha {shared['eval_code_sha'][:8]}{rule}",
-             f"★ better, ✗ worse, each in its key's direction: {VERDICT_RULE}",
+             f"eval_code_sha {shared['eval_code'][:8]}{rule}",
+             f"★ better, ✗ worse, each in its key's direction: {MARK_RULE}",
              f"{SIGN_NOTE} after a mark: as many clips or more moved against the mark as with it",
              f"{NO_VALUE}: fewer than {MIN_CLIPS} clips or 2 videos define the key",
              "directions: " + ", ".join(f"{k} {DIRECTION[s]}" for k, s in columns)]
     if not shared["regions"]:
         lines.append("regions: the evaluator records no n_regions_mean, only objects.predicted, per view and summed "
                      "over the scored frames; the table has no column of it")
-    for tag, differ in shared["versions_differ"].items():
-        lines.append(f"note: library versions differ between {tags[0]} and {tag}: {differ}")
+    for (a, b), differ in shared["versions_differ"].items():
+        lines.append(f"note: library versions differ between {a} and {b}: {differ}")
     lines.append("")
 
     # Each block: its heading, the keys, and each row's cells, its interval line and any shrunken population.
