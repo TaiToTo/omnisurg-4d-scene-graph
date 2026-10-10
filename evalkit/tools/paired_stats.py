@@ -37,7 +37,6 @@ from collections.abc import Sequence
 import numpy as np
 
 from evalkit.tools.scores import (
-    PILOT_SIGNS,
     check_comparable,
     check_one_rule,
     defined_clips,
@@ -45,7 +44,7 @@ from evalkit.tools.scores import (
     load_scores,
     metric_keys,
     rows_of,
-    sign_of,
+    sign_of_key,
 )
 
 # The keys reported on a pilot evaluator's JSON, in the order the workbench
@@ -67,11 +66,6 @@ SEED_SCHEME = "default_rng([SEED, blake2b(d, groups)]), independent of call orde
 def keys_of(summary: dict) -> Sequence[str]:
     """The keys to report on a JSON: the pilot's list on a pilot JSON, the evaluator's own otherwise."""
     return PILOT_KEYS if is_pilot_json(summary) else metric_keys(summary)
-
-
-def sign_of_key(summary: dict, key: str) -> int:
-    """Which way `key` is better on this JSON: the pilot's table on a pilot JSON, `scores.sign_of` otherwise."""
-    return PILOT_SIGNS[key] if is_pilot_json(summary) else sign_of(key)
 
 
 def load_json(tag: str, eval_dir: str) -> dict:

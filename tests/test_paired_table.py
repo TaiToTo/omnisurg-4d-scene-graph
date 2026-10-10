@@ -150,8 +150,8 @@ def test_the_mark_reads_the_interval_in_the_key_s_direction(shift, mark):
     (lambda: pilot_scores("x"), ["n_regions_mean"], "n_regions_mean is a reference value"),
     (lambda: evaluator_scores("x"), ["time_IoU"], "time_IoU is a reference value"),
     (lambda: evaluator_scores("x"), [metric_key("unlabelled_share", "all")], "is a reference value"),
-    (lambda: evaluator_scores("x"), [metric_key("F1_50", "tissue")], "not a key this JSON reports"),
-    (lambda: pilot_scores("x"), ["F1_50/all"], "no direction in scores.PILOT_SIGNS"),
+    (lambda: evaluator_scores("x"), [metric_key("F1_50", "tissue")], "not a key with a direction on this JSON"),
+    (lambda: pilot_scores("x"), ["F1_50/all"], "not a key with a direction on this JSON"),
     (lambda: evaluator_scores("x"), [], "not settled; name them with --keys"),
 ])
 def test_a_key_the_table_cannot_report_is_refused(make, keys, said):

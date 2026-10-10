@@ -24,18 +24,16 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from collections.abc import Sequence
 
 from evalkit.tools.scores import (
-    PILOT_SIGNS,
     check_comparable,
     defined_clips,
     is_pilot_json,
     load_scores,
     metric_key,
-    metric_keys,
     rows_of,
-    sign_of,
+    sign_of_key,
+    signs_of,
 )
 
 # The default key of the per-clip list, the chart and `wins`: `F1_50` in the
@@ -46,13 +44,6 @@ DEFAULT_KEY = ("F1_50", "geometric")
 
 # What the table says beside each metric, from its sign alone.
 DIRECTION = {+1: "higher is better", -1: "lower is better", 0: "reference, never marked"}
-
-
-def metrics_of(summary: dict) -> Sequence[tuple[str, int]]:
-    """The keys to report and their directions: the pilot's list on a pilot JSON, the evaluator's own otherwise."""
-    if is_pilot_json(summary):
-        return tuple(PILOT_SIGNS.items())
-    return tuple((k, sign_of(k)) for k in metric_keys(summary))
 
 
 def primary_key(summary: dict, key: str = "") -> tuple[str, int]:
@@ -69,7 +60,6 @@ def primary_key(summary: dict, key: str = "") -> tuple[str, int]:
             default is asked of an evaluator JSON without the geometric
             view, where it lives.
     """
-    signs = dict(metrics_of(summary))
     if not key:
         if is_pilot_json(summary):
             key = PILOT_KEY
@@ -78,16 +68,16 @@ def primary_key(summary: dict, key: str = "") -> tuple[str, int]:
                              f"{summary['views']}; name one with --key")
         else:
             key = metric_key(*DEFAULT_KEY)
-    if key not in signs:
-        raise ValueError(f"{key} is not a key this JSON reports; the keys are {list(signs)}")
+    sign = sign_of_key(summary, key)
     # The lists name every key either evaluator can write; a key in no row
     # is told apart from one that is None on every clip.
     if not any(key in r for r in summary["per_clip"]):
+        known = signs_of(summary)
         raise ValueError(f"{key} is in no row of this JSON; the keys its rows hold are "
-                         f"{sorted({k for r in summary['per_clip'] for k in r if k in signs})}")
-    if signs[key] == 0:
+                         f"{sorted({k for r in summary['per_clip'] for k in r if k in known})}")
+    if sign == 0:
         raise ValueError(f"{key} is a reference value with no direction, so no clip can win on it")
-    return key, signs[key]
+    return key, sign
 
 
 def load(out_dir: str, tag: str) -> dict:
@@ -132,7 +122,7 @@ def compare(a: dict, b: dict, allow_subset: bool = False, allow_legacy_code: boo
 
     # Every key's two means and their difference, over the clips both define it on.
     deltas = {}
-    for k, _sign in metrics_of(a):
+    for k in signs_of(a):
         # The JSONs' own means are not used: each left out its own None clips.
         # A key's presence is read from the rows, the record, not from the summary's list.
         ks = defined_clips(ia, ib, clips, k)
@@ -241,7 +231,7 @@ def main() -> None:
           f"population={res['population']}, eval_code={res['eval_code']}{rule}) ===")
     if "versions_differ" in res:
         print(f"note: library versions differ: {res['versions_differ']}")
-    metrics = metrics_of(a)
+    metrics = list(signs_of(a).items())
     w = max(len("metric"), *(len(k) for k, _ in metrics))
     print(f"{'metric':{w}s} {args.base:>10s} {args.cond:>10s} {'Δ':>9s}  direction")
     for k, s in metrics:

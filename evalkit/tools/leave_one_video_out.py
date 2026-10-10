@@ -30,11 +30,10 @@ from evalkit.tools.paired_stats import (
     VERDICT_RULE,
     boot_ci,
     load_json,
-    sign_of_key,
     verdict,
     video_of,
 )
-from evalkit.tools.scores import check_comparable, check_one_rule, defined_clips, rows_of
+from evalkit.tools.scores import check_comparable, check_one_rule, defined_clips, rows_of, sign_of_key
 
 # A video is left out only while this many videos remain, so a key on this many videos or fewer is refused.
 MIN_VIDEOS_AFTER_DROP = 3
@@ -68,15 +67,13 @@ def direction(summary: dict, key: str) -> int:
     """Return which way `key` is better on this JSON, refusing a key that is never marked.
 
     Raises:
-        ValueError: The key has no direction in the table `paired_stats`
-            reads, or its direction is 0. A key of direction 0, such as the
-            reference value `time_IoU` or the count `n_regions_mean`, is
-            never marked, so leaving a video out cannot change its mark.
+        ValueError: The key has no direction on this JSON
+            (`scores.sign_of_key`), or its direction is 0. A key of
+            direction 0, such as the reference value `time_IoU` or the count
+            `n_regions_mean`, is never marked, so leaving a video out cannot
+            change its mark.
     """
-    try:
-        sign = sign_of_key(summary, key)
-    except KeyError:
-        raise ValueError(f"{key}: no direction is known for this key, so no mark can be read on it") from None
+    sign = sign_of_key(summary, key)
     if sign == 0:
         raise ValueError(f"{key} has direction 0 and is never marked, so leaving a video out cannot change its mark")
     return sign
