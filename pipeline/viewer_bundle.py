@@ -1,16 +1,18 @@
-"""Write the static files the web viewer reads, from clips whose overlays the export stage has written.
+"""Write the static files the web viewer reads. The clips' overlays come from the export stage.
 
 Each clip goes to `<out>/<clip>/`: `clip.json`, each frame as a JPEG, each frame's point cloud of one
 geometry source, and per track the regions and the scene graphs of the frames the track covers. The
 regions are run-length coded labels, one per point of the cloud, in the cloud's order. The export stage
 builds the overlays on DA3's cloud; with `--geometry pi3x` the labels are resampled onto Pi3X's pixel
-grid and each node is moved to its region's centroid on the Pi3X cloud. A clip is written to a hidden
-directory and replaces an earlier one only once every file is written. The run then rewrites
+grid and each node is moved to its region's centroid on the Pi3X cloud. Every value the viewer draws
+into its page is checked for its kind before it is written. A clip is written to a hidden directory
+and replaces an earlier one only once every file is written. The run then rewrites
 `<out>/catalog.json`, the list of every clip under `<out>`. `docs/pipeline.md` describes each file.
 
 Usage:
     python -m pipeline.viewer_bundle --input-dir /path/to/clips --out /path/to/site/data \\
-        --clips <clip> ... --tracks <track> ... [--geometry da3] [--overwrite]
+        --clips <clip> ... --tracks <track> ... [--geometry da3] [--overwrite] \\
+        [--frame-ratios atlas120k_meta/frame_ratio.json]
 """
 
 import argparse
@@ -23,6 +25,8 @@ import numpy as np
 from PIL import Image
 
 from evalkit.classes import ClassType, load_table
+from surgical_core.atlas120k.frame_ratio import FrameRatios
+from surgical_core.clip_time import frame_times
 from surgical_core.viewer.glb import read_point_cloud_glb
 
 FORMAT = 1
@@ -154,8 +158,9 @@ def place_graph(graph: dict, geometry: dict[int, dict]) -> dict:
     """Return the graph with each node at its region's place on another cloud, from `region_geometry`.
 
     The position the graph was built at stays, as `graph_pos`: the spatial relations were chosen from it.
-    A node whose region has no point on that cloud is left out, with every edge that touches it: drawn at
-    the other cloud's coordinates, it would sit away from its region.
+    A node whose region kept no point on the resampled grid is left out, with every edge that touches it:
+    drawn at the other cloud's coordinates, it would sit away from its region. `check_graph` has already
+    refused a node that is no region of the frame at all.
     """
     nodes = []
     for n in graph.get("nodes", []):
@@ -170,19 +175,26 @@ def place_graph(graph: dict, geometry: dict[int, dict]) -> dict:
 
 
 def instrument_ids(dataset: str) -> list[int]:
-    """The class ids of a dataset's class table that are tools, which the viewer can hide from the cloud."""
+    """Return the class ids of a dataset's class table that are tools, which the viewer can hide from the cloud."""
     table = load_table(dataset)
     return sorted(int(cid) for cid, e in table.entries.items() if e.type == ClassType.TOOL)
 
 
-def frame_time(manifest: dict, frame: dict) -> float | None:
-    """The frame's time in its video, in seconds, or None when the manifest does not say."""
-    if frame.get("timestamp_sec") is not None:
-        return round(float(frame["timestamp_sec"]), 3)
-    fps = manifest.get("fps_native")
-    if frame.get("native_frame") is not None and fps:
-        return round(frame["native_frame"] / fps, 3)
-    return None
+def clip_times(clip_dir: Path, ratios: FrameRatios | None = None) -> list[float]:
+    """Return the time of each frame in its video, in seconds, through `surgical_core.clip_time.frame_times`.
+
+    That function holds the one rule that turns a manifest into seconds, with ATLAS-120k's `frame_ratio`.
+    A second copy here would drift from it, and a wrong time would show on the page as a plausible number.
+    `ratios`, the measured ratios, is asked only for an ATLAS-120k manifest that records no `frame_ratio`.
+
+    Raises:
+        ValueError: the manifest gives no way to make seconds, or `frame_times` refuses it.
+    """
+    try:
+        times = frame_times(str(clip_dir.parent), clip_dir.name, ratios)
+    except RuntimeError as e:
+        raise ValueError(str(e)) from e
+    return [round(float(t), 3) for t in times]
 
 
 def _overlay(clip_dir: Path, kind: str, i: int, track: str | None = None) -> Path:
@@ -204,18 +216,19 @@ def _write_json(path: Path, obj) -> None:
     path.write_text(json.dumps(obj, separators=(",", ":")), encoding="utf-8")
 
 
-def read_clip(clip_dir: Path, geometry: str) -> dict:
+def read_clip(clip_dir: Path, geometry: str, ratios: FrameRatios | None = None) -> dict:
     """Read and check what every frame of a clip needs: the manifest, the images, the grids and the placements.
 
     Returns the manifest, the image paths, the overlays' grid and the cloud's grid (width, height), and
-    each frame's placement under the viewer's names.
+    each frame's placement under the viewer's names. `ratios` is passed to `clip_times`.
 
     Raises:
         FileNotFoundError: no manifest, or a frame without its cloud.
         ValueError: one of these:
             - `seq_idx` does not run from 0 to N - 1, `n_frames` is not N, or there are not N images
+            - the frames' times cannot be made (`clip_times`)
             - the manifest gives no grid for DA3 or for the geometry source
-            - a frame has no placement for the geometry source
+            - a frame has no placement for the geometry source, or no DA3 camera axes under Pi3X
     """
     manifest_path = clip_dir / MANIFEST
     if not manifest_path.is_file():
@@ -228,6 +241,7 @@ def read_clip(clip_dir: Path, geometry: str) -> dict:
     images = sorted((clip_dir / "input_images").glob("*.png"))
     if len(images) != n:
         raise ValueError(f"{clip_dir.name}: {len(images)} images in input_images/ for {n} frames")
+    times = clip_times(clip_dir, ratios)
 
     shape = manifest.get("depth_info", {}).get("depth_shape")
     if not (isinstance(shape, list) and len(shape) == 3 and shape[0] == n):
@@ -242,14 +256,14 @@ def read_clip(clip_dir: Path, geometry: str) -> dict:
         cloud_grid = tuple(res)
 
     placements = []
-    for f in frames:
+    for i, f in enumerate(frames):
         entry = f if geometry == "da3" else f.get("geometry_sources", {}).get(geometry, {})
         if any(entry.get(k) is None for k in PLACEMENT_KEYS):
             raise ValueError(f"{clip_dir.name}: frame {f['seq_idx']} has no {geometry} placement "
                              f"({', '.join(PLACEMENT_KEYS)})")
         if not _cloud(clip_dir, f["seq_idx"], geometry).is_file():
             raise FileNotFoundError(f"{clip_dir.name}: frame {f['seq_idx']} has no {geometry} cloud")
-        placement = {"time_s": frame_time(manifest, f),
+        placement = {"time_s": times[i],
                      "centroid": entry["glb_centroid"], "camera_position": entry["camera_pos_glb"],
                      "camera_forward": entry["camera_forward_glb"], "camera_up": entry["camera_up_glb"]}
         if geometry != "da3":
@@ -268,7 +282,8 @@ def regions_of(seg: dict, overlay_grid: tuple[int, int], where: str) -> tuple[np
     Raises:
         ValueError: one of these:
             - the regions are not on DA3's grid, or do not label every pixel of it
-            - a label is not an integer, is negative, or is no class the record lists
+            - a label is not an integer, or is no class the record lists
+            - a class has no integer id above 0, no string name, or no colour of three numbers
             - the stage is neither `anchor` nor `propagated`
     """
     w, h = seg.get("width"), seg.get("height")
@@ -279,15 +294,79 @@ def regions_of(seg: dict, overlay_grid: tuple[int, int], where: str) -> tuple[np
     if (w, h) != overlay_grid or labels.size != w * h:
         raise ValueError(f"{where}: {labels.size} labels on a {w}x{h} grid; the viewer needs one label per pixel "
                          f"of DA3's {overlay_grid[0]}x{overlay_grid[1]} grid")
-    classes = [{"id": int(c["id"]), "name": c["name"], "color": c["color"]} for c in seg.get("classes", [])]
+    # The viewer writes the name into the legend and reads the colour as three channels.
+    classes = []
+    for c in seg.get("classes", []):
+        if (type(c.get("id")) is not int or c["id"] <= 0 or not isinstance(c.get("name"), str)
+                or not _numbers(c.get("color"), 3)):
+            raise ValueError(f"{where}: class {c.get('id')!r} is not an integer id above 0 with a name and a "
+                             "colour of three numbers")
+        classes.append({"id": c["id"], "name": c["name"], "color": c["color"]})
     unknown = set(np.unique(labels).tolist()) - {0} - {c["id"] for c in classes}
-    if (labels < 0).any() or unknown:
-        raise ValueError(f"{where}: labels {sorted(unknown) or 'below 0'} are no class of the record")
+    if unknown:
+        raise ValueError(f"{where}: labels {sorted(unknown)} are no class of the record")
     prov = seg.get("provenance", {})
     if prov.get("stage") not in ("anchor", "propagated"):
         raise ValueError(f"{where}: provenance stage {prov.get('stage')!r} is neither anchor nor propagated")
     anchor = prov.get("anchor_frame")
     return labels, {"classes": classes, "stage": prov["stage"], "anchor_frame": anchor}
+
+
+def _numbers(value, n: int) -> bool:
+    """Return whether `value` is a list of `n` finite numbers, not booleans."""
+    return (isinstance(value, list) and len(value) == n
+            and all(type(v) in (int, float) and np.isfinite(v) for v in value))
+
+
+def check_graph(graph: dict, labels: np.ndarray, where: str) -> None:
+    """Check that a frame's scene graph names regions of the frame, with a string label and a position.
+
+    The viewer draws the ids, the labels and the relations into the page and places each node at `pos`,
+    so a value of another kind is refused here. A node that is no region of the frame is refused too:
+    `place_graph` can only leave out a node whose region kept no point, and the two must not be confused.
+
+    Raises:
+        ValueError: a node has no integer id among the frame's labels, no string label or no position of
+            three numbers; or an edge has no node ids of the graph at its ends or no string relation.
+    """
+    regions = set(np.unique(labels[labels > 0]).tolist())
+    ids = set()
+    for node in graph.get("nodes", []):
+        if (type(node.get("id")) is not int or node["id"] not in regions or not isinstance(node.get("label"), str)
+                or not _numbers(node.get("pos"), 3)):
+            raise ValueError(f"{where}: node {node.get('id')!r} is not a region of the frame with a string label "
+                             "and a position of three numbers")
+        ids.add(node["id"])
+    for e in graph.get("edges", []):
+        if e.get("src") not in ids or e.get("dst") not in ids or not isinstance(e.get("relation"), str):
+            raise ValueError(f"{where}: an edge of {e.get('src')!r} and {e.get('dst')!r} does not join two nodes "
+                             "of the graph with a string relation")
+
+
+def check_hierarchy(h: dict, tracks: list[str], where: str) -> None:
+    """Check that a hierarchy relates two of the bundle's tracks, with string keys and labels.
+
+    The viewer draws the labels and the relations into the page and joins the nodes by their keys.
+
+    Raises:
+        ValueError: `tracks` is not two of the bundle's tracks; a node has no string key, no track of the two,
+            no integer id or no string label; or an edge has no node keys of the hierarchy at its ends or no
+            string relation.
+    """
+    pair = h.get("tracks")
+    if not (isinstance(pair, list) and len(pair) == 2 and set(pair) <= set(tracks) and pair[0] != pair[1]):
+        raise ValueError(f"{where}: tracks {pair!r} are not two of {', '.join(tracks)}")
+    keys = set()
+    for node in h.get("nodes", []):
+        if (not isinstance(node.get("key"), str) or node.get("track") not in pair or type(node.get("id")) is not int
+                or not isinstance(node.get("label"), str)):
+            raise ValueError(f"{where}: node {node.get('key')!r} is not a string key of one of the two tracks "
+                             "with an integer id and a string label")
+        keys.add(node["key"])
+    for e in h.get("edges", []):
+        if e.get("src") not in keys or e.get("dst") not in keys or not isinstance(e.get("relation"), str):
+            raise ValueError(f"{where}: an edge of {e.get('src')!r} and {e.get('dst')!r} does not join two nodes "
+                             "of the hierarchy with a string relation")
 
 
 def check_temporal(tg: dict, n: int, where: str) -> None:
@@ -338,14 +417,15 @@ def track_record(clip_dir: Path, track: str, n: int, dataset: str) -> dict:
 
 
 def bundle_clip(clip_dir: Path, out: Path, tracks: list[str], geometry: str = "da3",
-                overwrite: bool = False) -> dict:
-    """Write one clip's files under `out` and return its `clip.json`.
+                overwrite: bool = False, ratios: FrameRatios | None = None) -> dict:
+    """Write one clip's files under `out` and return its `clip.json`. `ratios` is passed to `clip_times`.
 
     Raises:
         FileNotFoundError: a file the clip needs is missing.
-        ValueError: the geometry source is unknown, the clip is already under `out` and `overwrite` is false,
-            or a check of `read_clip`, `regions_of`, `track_record` or of a cloud fails. A cloud must hold one
-            point per pixel of its grid, since the labels and the viewer's depth filter are read by pixel.
+        ValueError: the geometry source or the dataset is unknown, the clip is already under `out` and
+            `overwrite` is false, or a check of `read_clip`, `regions_of`, `check_graph`, `check_hierarchy`,
+            `check_temporal`, `track_record` or of a cloud fails. A cloud must hold one point per pixel of its
+            grid, since the labels and the viewer's depth filter are read by pixel.
     """
     # Check the settings and every file that does not need the overlays read.
     if geometry not in GEOMETRY_NAMES:
@@ -353,7 +433,7 @@ def bundle_clip(clip_dir: Path, out: Path, tracks: list[str], geometry: str = "d
     target = out / clip_dir.name
     if target.exists() and not overwrite:
         raise ValueError(f"{target} exists; pass --overwrite to replace it")
-    clip = read_clip(clip_dir, geometry)
+    clip = read_clip(clip_dir, geometry, ratios)
     manifest, n = clip["manifest"], len(clip["placements"])
     dataset = manifest.get("dataset", "cholecseg8k")
     if dataset not in DATASET_NAMES:
@@ -362,9 +442,15 @@ def bundle_clip(clip_dir: Path, out: Path, tracks: list[str], geometry: str = "d
     remap = (None if clip["cloud_grid"] == clip["overlay_grid"]
              else grid_remap_index(*clip["overlay_grid"], *clip["cloud_grid"]))
     # A hierarchy relates two tracks; one that relates a track left out of the bundle cannot be drawn.
-    hierarchy = {i: _read_json(_overlay(clip_dir, "hierarchy_frame", i))["tracks"] for i in range(n)
-                 if _overlay(clip_dir, "hierarchy_frame", i).is_file()}
-    hierarchy = {i: t for i, t in hierarchy.items() if set(t) <= set(tracks)}
+    hierarchy = {}
+    for i in range(n):
+        if not _overlay(clip_dir, "hierarchy_frame", i).is_file():
+            continue
+        h = _read_json(_overlay(clip_dir, "hierarchy_frame", i))
+        if isinstance(h.get("tracks"), list) and not set(h["tracks"]) <= set(tracks):
+            continue
+        check_hierarchy(h, tracks, f"{clip_dir.name} frame {i} hierarchy")
+        hierarchy[i] = h["tracks"]
 
     # Write every frame's files into a hidden directory.
     partial = out / f".{clip_dir.name}.partial"
@@ -429,19 +515,22 @@ def _write_track_frame(clip_dir: Path, partial: Path, rec: dict, i: int, clip: d
         return
     where = f"{clip_dir.name} frame {i} {track}"
     labels, rest = regions_of(_read_json(_overlay(clip_dir, "seg_frame", i, track)), clip["overlay_grid"], where)
+    # The graph names regions of DA3's grid, so it is checked against the labels before they are resampled.
+    graph = _read_json(_overlay(clip_dir, "graph_frame", i, track)) if i in rec["graph_frames"] else None
+    if graph is not None:
+        check_graph(graph, labels, f"{where} graph")
     if remap is not None:
         labels = labels[remap]
     _write_json(partial / "regions" / track / f"{i:04d}.json",
                 {"grid": list(clip["cloud_grid"]), "runs": encode_runs(labels), **rest})
-    if i in rec["graph_frames"]:
-        graph = _read_json(_overlay(clip_dir, "graph_frame", i, track))
+    if graph is not None:
         if geometry != "da3":
             graph = place_graph(graph, region_geometry(points, labels))
         _write_json(partial / "graphs" / track / f"{i:04d}.json", graph)
 
 
 def _source_of(manifest: dict, dataset: str) -> dict:
-    """The procedure, the video and a link to it, as the manifest records them."""
+    """Return the procedure, the video and a link to it, as the manifest records them."""
     if dataset == "atlas120k":
         proc, video = manifest.get("procedure", ""), manifest.get("youtube_id", "")
         url = f"https://www.youtube.com/watch?v={video}" if video else None
@@ -479,7 +568,12 @@ def main() -> None:
     ap.add_argument("--geometry", default="da3", choices=sorted(GEOMETRY_NAMES),
                     help="The reconstruction whose point clouds the viewer draws.")
     ap.add_argument("--overwrite", action="store_true", help="Replace a clip already under --out.")
+    ap.add_argument("--frame-ratios", help="The measured frame ratios, frame_ratio.json. Needed only for an "
+                    "ATLAS-120k clip whose manifest records no frame_ratio.")
     args = ap.parse_args()
+    if len(set(args.tracks)) != len(args.tracks):
+        raise SystemExit(f"--tracks names a track twice: {' '.join(args.tracks)}")
+    ratios = FrameRatios.load(args.frame_ratios) if args.frame_ratios else None
     # Find the clips first: a mistyped clip name fails here, not halfway through the run.
     root, out = Path(args.input_dir), Path(args.out)
     missing = [c for c in args.clips if not (root / c / MANIFEST).is_file()]
@@ -491,7 +585,7 @@ def main() -> None:
     for name in args.clips:
         print(name)
         try:
-            rec = bundle_clip(root / name, out, args.tracks, args.geometry, args.overwrite)
+            rec = bundle_clip(root / name, out, args.tracks, args.geometry, args.overwrite, ratios)
             print(f"  {rec['n_frames']} frame(s), tracks {', '.join(t['id'] for t in rec['tracks'])}")
         except Exception as e:
             print(f"  failed: {type(e).__name__}: {e}")

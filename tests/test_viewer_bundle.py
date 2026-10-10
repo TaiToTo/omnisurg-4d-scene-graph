@@ -8,12 +8,14 @@ reads a file the writer itself wrote skips without the `render` extra.
 import json
 import struct
 import sys
+from pathlib import Path
 
 import numpy as np
 import pytest
 from PIL import Image
 
 from pipeline import viewer_bundle as vb
+from surgical_core.atlas120k.frame_ratio import FrameRatios
 from surgical_core.viewer.glb import read_point_cloud_glb
 
 W, H = 4, 3            # DA3's grid in these clips
@@ -71,8 +73,13 @@ def graph(track="sam3d") -> dict:
             "track": track, "provenance": {"track": track, "stage": "anchor"}}
 
 
-def make_clip(root, n=3, dataset=None, tracks=("sam3d",), pi3x=True, name=CLIP):
-    """A clip of `n` frames with DA3 and Pi3X clouds, and every track's regions and graphs on every frame."""
+def make_clip(root, n=3, dataset=None, tracks=("sam3d",), pi3x=True, name=CLIP, frame_ratio=1,
+              video=("lar", "vid")):
+    """A clip of `n` frames with DA3 and Pi3X clouds, and every track's regions and graphs on every frame.
+
+    Frame `i` is native frame `30 * i` at 30 fps. An ATLAS-120k clip records `frame_ratio`, as the extraction
+    stage writes it; a CholecSeg8k clip records none.
+    """
     c = root / name
     (c / "input_images").mkdir(parents=True)
     (c / "pc_vis").mkdir()
@@ -98,7 +105,7 @@ def make_clip(root, n=3, dataset=None, tracks=("sam3d",), pi3x=True, name=CLIP):
                 "depth_info": {"depth_shape": [n, H, W]},
                 "geometry_sources": {"pi3x": {"resolution": [PW, PH]}} if pi3x else {}}
     if dataset:
-        manifest.update(dataset=dataset, procedure="lar", youtube_id="vid")
+        manifest.update(dataset=dataset, procedure=video[0], youtube_id=video[1], frame_ratio=frame_ratio)
     else:
         manifest["video_id"] = "VID01"
     (c / "frame_manifest.json").write_text(json.dumps(manifest))
@@ -161,10 +168,49 @@ def test_instrument_ids_are_the_tool_classes_of_the_class_tables():
     assert vb.instrument_ids("atlas120k") == [1, 30, 41]
 
 
-def test_frame_time_reads_the_timestamp_or_the_native_frame():
-    assert vb.frame_time({}, {"timestamp_sec": 3.2}) == 3.2
-    assert vb.frame_time({"fps_native": 25.0}, {"native_frame": 50}) == 2.0
-    assert vb.frame_time({}, {"native_frame": 50}) is None
+def test_frame_times_come_from_clip_time_with_the_atlas_frame_ratio(tmp_path):
+    # Frame i is native frame 30 i at 30 fps; with a ratio of 2 the video runs twice as far per frame.
+    clip = make_clip(tmp_path / "in", dataset="atlas120k", tracks=("atlas_gt",), frame_ratio=2)
+    rec = vb.bundle_clip(clip, tmp_path / "out", ["atlas_gt"])
+    assert [f["time_s"] for f in rec["frames"]] == [0.0, 2.0, 4.0]
+    # A frame with a timestamp is taken as it is.
+    m = read(clip / "frame_manifest.json")
+    for i, f in enumerate(m["frames"]):
+        f["timestamp_sec"] = 7.25 + i
+    (clip / "frame_manifest.json").write_text(json.dumps(m))
+    rec = vb.bundle_clip(clip, tmp_path / "out", ["atlas_gt"], overwrite=True)
+    assert [f["time_s"] for f in rec["frames"]] == [7.25, 8.25, 9.25]
+
+
+def test_an_atlas_clip_without_a_recorded_ratio_is_timed_from_the_table_of_measured_ratios(tmp_path, monkeypatch):
+    # The table measures this video at 1; `frame_times` refuses the clip without the table.
+    clip = make_clip(tmp_path / "in", dataset="atlas120k", tracks=("atlas_gt",),
+                     video=("adrenalectomy", "16GPCUPkXYQ"))
+    m = read(clip / "frame_manifest.json")
+    m.pop("frame_ratio")
+    (clip / "frame_manifest.json").write_text(json.dumps(m))
+    table = str(Path(vb.__file__).resolve().parent.parent / "atlas120k_meta" / "frame_ratio.json")
+    rec = vb.bundle_clip(clip, tmp_path / "out", ["atlas_gt"], ratios=FrameRatios.load(table))
+    assert [f["time_s"] for f in rec["frames"]] == [0.0, 1.0, 2.0]
+    monkeypatch.setattr(sys, "argv", ["viewer_bundle", "--input-dir", str(tmp_path / "in"), "--out",
+                                      str(tmp_path / "out2"), "--clips", CLIP, "--tracks", "atlas_gt",
+                                      "--frame-ratios", table])
+    vb.main()
+    assert read(tmp_path / "out2" / CLIP / "clip.json")["frames"][2]["time_s"] == 2.0
+
+
+@pytest.mark.parametrize("fault,match", [
+    (lambda m: m.pop("fps_native"), "cannot make frame times"),
+    (lambda m: m.pop("frame_ratio"), "no `frame_ratio`"),
+    (lambda m: m["frames"][1].update(timestamp_sec=2.0), "1 of 3 frames carry"),
+])
+def test_a_clip_whose_frame_times_cannot_be_made_is_refused(tmp_path, fault, match):
+    clip = make_clip(tmp_path / "in", dataset="atlas120k", tracks=("atlas_gt",), frame_ratio=2)
+    (tmp_path / "out").mkdir()
+    m = read(clip / "frame_manifest.json")
+    fault(m)
+    (clip / "frame_manifest.json").write_text(json.dumps(m))
+    _fails(tmp_path, match, tracks=("atlas_gt",))
 
 
 def test_a_da3_clip_gets_its_frames_clouds_regions_graphs_and_a_catalog_entry(tmp_path):
@@ -274,9 +320,14 @@ def test_a_track_without_regions_or_with_a_graph_but_no_regions_is_refused(tmp_p
     (lambda s: s.update(width=H, height=W), "one label per pixel"),
     (lambda s: s.update(vertex_seg=s["vertex_seg"][:-1]), "one label per pixel"),
     (lambda s: s["vertex_seg"].__setitem__(0, 5), r"labels \[5\] are no class"),
-    (lambda s: s["vertex_seg"].__setitem__(0, -1), "no class"),
+    (lambda s: s["vertex_seg"].__setitem__(0, -1), r"labels \[-1\] are no class"),
     (lambda s: s["provenance"].update(stage="seed"), "neither anchor nor propagated"),
     (lambda s: s["vertex_seg"].__setitem__(0, 1.5), "not integers"),
+    (lambda s: s["classes"][0].update(color="#ff0000"), "class 1 is not"),
+    (lambda s: s["classes"][0].update(color=[0.1, 0.2]), "class 1 is not"),
+    (lambda s: s["classes"][0].update(name=["Liver"]), "class 1 is not"),
+    (lambda s: s["classes"][0].update(id="1"), "class '1' is not"),
+    (lambda s: s["classes"][0].update(id=0), "class 0 is not"),
 ])
 def test_regions_that_do_not_fit_the_clip_are_refused(tmp_path, fault, match):
     clip = make_clip(tmp_path / "in")
@@ -289,9 +340,30 @@ def test_regions_that_do_not_fit_the_clip_are_refused(tmp_path, fault, match):
 
 
 @pytest.mark.parametrize("fault,match", [
+    (lambda g: g["nodes"][0].update(id=3), "node 3 is not a region"),
+    (lambda g: g["nodes"][0].update(id="1"), "node '1' is not a region"),
+    (lambda g: g["nodes"][0].update(label=["x"]), "node 1 is not a region"),
+    (lambda g: g["nodes"][0].update(pos=[1.0, 2.0]), "node 1 is not a region"),
+    (lambda g: g["nodes"][0].update(pos=[1.0, 2.0, "3"]), "node 1 is not a region"),
+    (lambda g: g["edges"][0].update(dst=7), "edge of 1 and 7"),
+    (lambda g: g["edges"][0].update(relation=5), "edge of 1 and 2"),
+])
+def test_a_frame_graph_of_another_shape_or_off_the_frames_regions_is_refused(tmp_path, fault, match):
+    clip = make_clip(tmp_path / "in")
+    (tmp_path / "out").mkdir()
+    path = clip / "pc_vis" / "graph_frame_0001__sam3d.json"
+    g = read(path)
+    fault(g)
+    path.write_text(json.dumps(g))
+    _fails(tmp_path, match)
+    _fails(tmp_path, match, geometry="pi3x")
+
+
+@pytest.mark.parametrize("fault,match", [
     (lambda tg: tg["relations"][0].update(frames=["<img src=x onerror=alert(1)>"]), "relation of 1 and 2"),
     (lambda tg: tg["relations"][0].update(frames=[3]), "frames 0 to 2"),
     (lambda tg: tg["relations"][0].update(src="1"), "relation of"),
+    (lambda tg: tg["relations"][0].update(relation=["left"]), "relation of 1 and 2"),
     (lambda tg: tg["nodes"][0].update(present_frames=[0.5]), "node 1"),
     (lambda tg: tg["nodes"][0].update(label=["x"]), "node 1"),
 ])
@@ -303,6 +375,50 @@ def test_a_graph_through_time_of_another_shape_is_refused(tmp_path, fault, match
     fault(tg)
     path.write_text(json.dumps(tg))
     _fails(tmp_path, match)
+
+
+HIERARCHY = {"tracks": ["cholecseg8k", "sam3d"],
+             "nodes": [{"key": "cholecseg8k:1", "track": "cholecseg8k", "id": 1, "label": "Liver"},
+                       {"key": "sam3d:2", "track": "sam3d", "id": 2, "label": "obj 2"}],
+             "edges": [{"src": "cholecseg8k:1", "dst": "sam3d:2", "relation": "contains", "edge_type": "hierarchy"}]}
+
+
+@pytest.mark.parametrize("fault,match", [
+    (lambda h: h.update(tracks="cholecseg8k"), "tracks 'cholecseg8k' are not two of"),
+    (lambda h: h.update(tracks=["sam3d", "sam3d"]), "are not two of"),
+    (lambda h: h["nodes"][0].update(key=1), "node 1 is not a string key"),
+    (lambda h: h["nodes"][0].update(track="atlas_gt"), "node 'cholecseg8k:1' is not"),
+    (lambda h: h["nodes"][0].update(id="1"), "node 'cholecseg8k:1' is not"),
+    (lambda h: h["nodes"][0].update(label=None), "node 'cholecseg8k:1' is not"),
+    (lambda h: h["edges"][0].update(dst="sam3d:9"), "edge of 'cholecseg8k:1' and 'sam3d:9'"),
+    (lambda h: h["edges"][0].update(relation=["contains"]), "edge of 'cholecseg8k:1' and 'sam3d:2'"),
+])
+def test_a_hierarchy_of_another_shape_is_refused(tmp_path, fault, match):
+    clip = make_clip(tmp_path / "in", tracks=("cholecseg8k", "sam3d"))
+    (tmp_path / "out").mkdir()
+    h = json.loads(json.dumps(HIERARCHY))
+    fault(h)
+    (clip / "pc_vis" / "hierarchy_frame_0002.json").write_text(json.dumps(h))
+    _fails(tmp_path, match, tracks=("cholecseg8k", "sam3d"))
+
+
+@pytest.mark.parametrize("fault,match,geometry", [
+    (lambda m: m.update(n_frames=4), "frames 0 to 2 once each", "da3"),
+    (lambda m: m.update(frames=[], n_frames=0), "frames 0 to -1 once each", "da3"),
+    (lambda m: m["depth_info"].pop("depth_shape"), "depth_shape does not give", "da3"),
+    (lambda m: m["depth_info"].update(depth_shape=[2, H, W]), "depth_shape does not give", "da3"),
+    (lambda m: m["geometry_sources"]["pi3x"].pop("resolution"), "pi3x.resolution is missing", "pi3x"),
+    (lambda m: m.update(dataset="lapex"), "unknown dataset 'lapex'", "da3"),
+    (lambda m: m["frames"][1].pop("camera_forward_glb"), "frame 1 has no DA3 camera axes", "pi3x"),
+    (lambda m: m["frames"][1].pop("camera_forward_glb"), "frame 1 has no da3 placement", "da3"),
+])
+def test_a_manifest_that_does_not_describe_the_clip_is_refused(tmp_path, fault, match, geometry):
+    clip = make_clip(tmp_path / "in")
+    (tmp_path / "out").mkdir()
+    m = read(clip / "frame_manifest.json")
+    fault(m)
+    (clip / "frame_manifest.json").write_text(json.dumps(m))
+    _fails(tmp_path, match, geometry=geometry)
 
 
 def test_a_cloud_without_a_point_per_pixel_is_refused(tmp_path):
@@ -352,8 +468,11 @@ def test_a_clip_already_published_is_replaced_only_with_overwrite_and_only_once_
     (clip / "pc_vis" / "seg_frame_0002__sam3d.json").write_text(json.dumps(seg(two_regions(W, H))))
     (out / f".{CLIP}.old").mkdir()
     (out / f".{CLIP}.old" / "clip.json").write_text("{}")
+    (out / f".{CLIP}.partial" / "frames").mkdir(parents=True)
+    (out / f".{CLIP}.partial" / "frames" / "0009.jpg").write_bytes(b"left by an interrupted run")
     vb.bundle_clip(clip, out, ["sam3d"], overwrite=True)
     assert (out / CLIP / "regions" / "sam3d" / "0002.json").is_file() and not list(out.glob(".*"))
+    assert sorted(p.name for p in (out / CLIP / "frames").iterdir()) == ["0000.jpg", "0001.jpg", "0002.jpg"]
 
 
 def test_the_catalog_lists_every_clip_but_hidden_directories_in_reading_order(tmp_path):
@@ -381,24 +500,62 @@ def test_main_runs_every_clip_writes_the_catalog_and_exits_non_zero_on_a_failure
     monkeypatch.setattr(sys, "argv", argv[:5] + ["--clips", "nosuch", "--tracks", "sam3d"])
     with pytest.raises(SystemExit, match="no clip .* at: nosuch"):
         vb.main()
+    monkeypatch.setattr(sys, "argv", argv[:5] + ["--clips", "good", "--tracks", "sam3d", "sam3d"])
+    with pytest.raises(SystemExit, match="names a track twice"):
+        vb.main()
 
 
-def test_the_reader_returns_the_points_in_file_order_and_refuses_another_layout(tmp_path):
+def test_the_reader_returns_the_points_in_file_order(tmp_path):
     pts = grid_points(5, 2, 0.5)
-    path = tmp_path / "c.glb"
-    path.write_bytes(glb_bytes(pts))
-    assert read_point_cloud_glb(path).tolist() == pts.astype("f4").tolist()
-    (tmp_path / "x.glb").write_bytes(b"not a glb at all, but long enough")
-    with pytest.raises(ValueError, match="not a GLB"):
+    (tmp_path / "c.glb").write_bytes(glb_bytes(pts))
+    assert read_point_cloud_glb(tmp_path / "c.glb").tolist() == pts.astype("f4").tolist()
+
+
+def _edit_gltf(data: bytes, edit) -> bytes:
+    """Apply `edit` to the glTF JSON of a GLB and rebuild the file, keeping its binary chunk."""
+    json_len = struct.unpack_from("<I", data, 12)[0]
+    gltf = json.loads(data[20:20 + json_len])
+    edit(gltf)
+    js = json.dumps(gltf).encode()
+    js += b" " * (-len(js) % 4)
+    body = struct.pack("<I4s", len(js), b"JSON") + js + data[20 + json_len:]
+    return struct.pack("<4sII", b"glTF", 2, 12 + len(body)) + body
+
+
+def _patched(data: bytes, at: int, value: bytes) -> bytes:
+    out = bytearray(data)
+    out[at:at + len(value)] = value
+    return bytes(out)
+
+
+def _cut(data: bytes, end: int) -> bytes:
+    """The first `end` bytes, with the header's length set to match, so that the cut is found inside a chunk."""
+    return _patched(data[:end], 8, struct.pack("<I", end))
+
+
+@pytest.mark.parametrize("fault,match", [
+    (lambda d: b"not a glb at all, but long enough", "not a GLB"),
+    (lambda d: _patched(d, 4, struct.pack("<I", 3)), "GLB version 3"),
+    (lambda d: _patched(d, 8, struct.pack("<I", len(d) + 4)), "in a file of"),
+    (lambda d: _patched(d, 16, b"JSOM"), "first chunk is not JSON"),
+    (lambda d: _patched(d, 20 + struct.unpack_from("<I", d, 12)[0] + 4, b"BIM\0"), "second chunk is not binary"),
+    (lambda d: _cut(d, len(d) - 16), "runs past the end of the file"),
+    (lambda d: _cut(d, 30), "not a point-cloud GLB"),
+    (lambda d: _edit_gltf(d, lambda g: g.pop("accessors")), "not a point-cloud GLB"),
+    (lambda d: _edit_gltf(d, lambda g: g["meshes"][0]["primitives"].append({})), "one mesh of one primitive"),
+    (lambda d: _edit_gltf(d, lambda g: g["accessors"][0].update(componentType=5123)), "not tightly packed float32"),
+    (lambda d: _edit_gltf(d, lambda g: g["accessors"][0].update(type="VEC2")), "not tightly packed float32"),
+    (lambda d: _edit_gltf(d, lambda g: g["bufferViews"][0].update(byteStride=16)), "not tightly packed float32"),
+    (lambda d: _edit_gltf(d, lambda g: g["accessors"][0].update(count=g["accessors"][0]["count"] + 1)),
+     "runs past the end of its buffer view"),
+    (lambda d: _edit_gltf(d, lambda g: g["bufferViews"][0].update(byteLength=10 ** 6)),
+     "runs past the end of its buffer view"),
+])
+def test_the_reader_refuses_a_file_of_another_layout_or_cut_short(tmp_path, fault, match):
+    data = fault(glb_bytes(grid_points(5, 2, 0.5)))
+    (tmp_path / "x.glb").write_bytes(data)
+    with pytest.raises(ValueError, match=match):
         read_point_cloud_glb(tmp_path / "x.glb")
-    data = bytearray(glb_bytes(pts))
-    data[8:12] = struct.pack("<I", len(data) + 4)
-    (tmp_path / "y.glb").write_bytes(bytes(data))
-    with pytest.raises(ValueError, match="in a file of"):
-        read_point_cloud_glb(tmp_path / "y.glb")
-    (tmp_path / "z.glb").write_bytes(glb_bytes(pts, primitives=2))
-    with pytest.raises(ValueError, match="one mesh of one primitive"):
-        read_point_cloud_glb(tmp_path / "z.glb")
 
 
 def test_the_reader_reads_what_the_writer_wrote(tmp_path):

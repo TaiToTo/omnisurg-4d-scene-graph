@@ -560,7 +560,8 @@ python -m pipeline.track --input-dir /path/to/clips --tracks-root /path/to/track
 
 ```bash
 python -m pipeline.viewer_bundle --input-dir /path/to/clips --out /path/to/site/data \
-    --clips <clip> ... --tracks <track> ... [--geometry da3] [--overwrite]
+    --clips <clip> ... --tracks <track> ... [--geometry da3] [--overwrite] \
+    [--frame-ratios atlas120k_meta/frame_ratio.json]
 ```
 
 The stage writes the static files the web viewer (`viewer/`) reads. It
@@ -596,23 +597,40 @@ reconstruction whose clouds the viewer draws, `da3` or `pi3x`. Under
 The export stage builds the overlays on DA3's cloud. With `--geometry pi3x`
 the stage resamples each frame's labels onto Pi3X's grid, nearest pixel,
 and moves each node to its region's centroid on the Pi3X cloud, with axes
-from the region's spread. A node whose region has no point there is left
-out. Every other number of a graph is DA3's. The spatial relations were
-chosen from the nodes' DA3 positions in DA3's camera, so each node keeps
-its DA3 position as `graph_pos`, and each frame keeps DA3's camera axes as
-`graph_camera_forward` and `graph_camera_up`.
+from the region's spread. A node whose region kept no point on that grid
+is left out. Each node keeps its DA3 position as `graph_pos`, and each
+frame keeps DA3's camera axes as `graph_camera_forward` and
+`graph_camera_up`. Every other number of a graph is DA3's.
+
+A frame's time is `surgical_core.clip_time.frame_times`' value, which
+applies ATLAS-120k's `frame_ratio`. An ATLAS-120k clip extracted before the
+ratio was recorded in its manifest needs `--frame-ratios`, the measured
+ratios.
 
 The stage refuses:
 
 - a clip whose manifest does not list one frame per image, or does not give
-  DA3's grid, the geometry source's grid, or a frame's placement;
-- a frame without its cloud, or a cloud without one point per pixel;
-- an unknown track, a track of another dataset's classes, a track without
-  regions, or a scene graph on a frame without regions;
+  DA3's grid, the geometry source's grid, a frame's placement, or DA3's
+  camera axes under `--geometry pi3x`;
+- a clip whose frames' times cannot be made, or whose dataset is neither
+  `atlas120k` nor `cholecseg8k`;
+- a frame without its cloud, a cloud that is not a GLB of one float32 point
+  list, or a cloud without one point per pixel;
+- an unknown track, a track named twice, a track of another dataset's
+  classes, a track without regions, or a scene graph on a frame without
+  regions;
 - regions off DA3's grid, a label that is not an integer or of no listed
-  class, or a stage other than `anchor` or `propagated`;
+  class, a class without an integer id above 0, a string name and a colour
+  of three numbers, or a stage other than `anchor` or `propagated`;
+- a frame's scene graph with a node that is no region of the frame, has no
+  string label or no position of three numbers, or an edge that does not
+  join two of its nodes with a string relation;
+- a hierarchy that does not relate two of the bundle's tracks, or whose
+  nodes and edges are not string keys, integer ids and string labels and
+  relations;
 - a graph through time whose node ids, relation ends or frames are not
-  integers, frames from 0 to the clip's last;
+  integers, frames from 0 to the clip's last, or whose labels and relations
+  are not strings;
 - a clip already under `--out`, unless `--overwrite` is given.
 
 A refused clip leaves what was under `--out` as it was: a clip replaces an

@@ -61,10 +61,19 @@ def read_point_cloud_glb(path: str | Path) -> np.ndarray:
     `write_point_cloud_glb` writes it. The viewer indexes per-point labels by this order.
 
     Raises:
-        ValueError: the file is not a GLB of that shape. Reading another layout as this one would
-            return points in another order, and every label would land on the wrong point.
+        ValueError: the file is not a GLB of that shape, or is cut short. Reading another layout as this
+            one would return points in another order, and every label would land on the wrong point.
     """
     data = Path(path).read_bytes()
+    try:
+        return _positions(data, str(path))
+    except (struct.error, KeyError, IndexError, TypeError, json.JSONDecodeError, UnicodeDecodeError) as e:
+        # A file cut short, or a glTF without the keys read here, fails inside the parse with another error.
+        raise ValueError(f"{path}: not a point-cloud GLB ({type(e).__name__}: {e})") from e
+
+
+def _positions(data: bytes, path: str) -> np.ndarray:
+    """Return the `POSITION` points of a GLB's one primitive, in file order."""
     if len(data) < 20 or data[:4] != _GLB_MAGIC:
         raise ValueError(f"{path}: not a GLB file")
     version, length = struct.unpack_from("<II", data, 4)
@@ -79,6 +88,8 @@ def read_point_cloud_glb(path: str | Path) -> np.ndarray:
     if bin_type != _BIN_CHUNK:
         raise ValueError(f"{path}: the second chunk is not binary")
     blob = data[bin_at + 8:bin_at + 8 + bin_len]
+    if len(blob) != bin_len:
+        raise ValueError(f"{path}: the binary chunk of {bin_len} bytes runs past the end of the file")
 
     meshes = gltf.get("meshes", [])
     if len(meshes) != 1 or len(meshes[0].get("primitives", [])) != 1:
@@ -87,8 +98,10 @@ def read_point_cloud_glb(path: str | Path) -> np.ndarray:
     view = gltf["bufferViews"][accessor["bufferView"]]
     if accessor["componentType"] != _FLOAT or accessor["type"] != "VEC3" or view.get("byteStride", 12) != 12:
         raise ValueError(f"{path}: POSITION is not tightly packed float32 VEC3")
-    start = view.get("byteOffset", 0) + accessor.get("byteOffset", 0)
+    view_start, view_len = view.get("byteOffset", 0), view["byteLength"]
+    start = view_start + accessor.get("byteOffset", 0)
     count = accessor["count"]
-    if start + 12 * count > len(blob):
-        raise ValueError(f"{path}: POSITION runs past the end of the binary chunk")
+    # Past its buffer view, POSITION would read the colours that follow as coordinates.
+    if view_start + view_len > len(blob) or start + 12 * count > view_start + view_len:
+        raise ValueError(f"{path}: POSITION runs past the end of its buffer view")
     return np.frombuffer(blob, dtype="<f4", count=3 * count, offset=start).reshape(count, 3).copy()
