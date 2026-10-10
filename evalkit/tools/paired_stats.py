@@ -9,7 +9,7 @@ decides, with a Wilcoxon p-value reported beside it.
 
 The bootstrap resamples videos, not clips: a video's clips are not
 independent, and resampling them gives an interval too narrow. Below two
-videos there is no interval, only a point that would read as a verdict;
+videos there is no interval, only a point that would read as a mark;
 `boot_ci` refuses, and the row says None.
 
 The population is the one `check_comparable` compared, aligned per metric
@@ -18,7 +18,7 @@ are None on a clip with no hit. A shrunken population is printed as
 `[16/18 clips, 6/7 videos]`, never averaged silently.
 
 Each row records `cond - base`, the way the metric moved, and the metric's
-`sign`; `verdict` reads the two together, so a metric where less is better
+`sign`; `mark_of` reads the two together, so a metric where less is better
 (`VI_split`) or a reference value never marked (`time_IoU`) is not
 oriented by hand.
 
@@ -150,7 +150,7 @@ def boot_ci(d: np.ndarray, groups: np.ndarray | None = None, rng=None,
         ValueError: `groups` does not name one unit per difference, or
             there are fewer than two units to resample. With one unit
             every resample is the same one, and the point that comes out
-            is not an interval but reads as a verdict.
+            is not an interval but reads as a mark.
     """
     if rng is not None:
         raise TypeError(
@@ -169,7 +169,7 @@ def boot_ci(d: np.ndarray, groups: np.ndarray | None = None, rng=None,
         what = "difference" if groups is None else "video"
         raise ValueError(
             f"a bootstrap over {units} {what} has no interval: every resample is the same one, "
-            "and the point it gives would read as a verdict"
+            "and the point it gives would read as a mark"
         )
     rng = _boot_rng(d, groups, seed)
     if groups is None:
@@ -185,8 +185,8 @@ def boot_ci(d: np.ndarray, groups: np.ndarray | None = None, rng=None,
     return float(np.percentile(means, 2.5)), float(np.percentile(means, 97.5))
 
 
-# The verdict. One definition, here; every script that prints a star
-# borrows `verdict` rather than deciding one.
+# The mark. One definition, here; every script that prints a star
+# borrows `mark_of` rather than deciding one.
 #
 # The decision is the video-level bootstrap 95 % interval not straddling
 # zero, read in the metric's direction, and nothing else. The clip-level
@@ -206,11 +206,11 @@ def boot_ci(d: np.ndarray, groups: np.ndarray | None = None, rng=None,
 # one from no mark to a star or a cross. When the rule changes, run every
 # script that prints a mark and compare before and after; scanning saved
 # analyses misses the tools that compute an interval on the spot.
-VERDICT_RULE = "the video-level bootstrap 95 % CI does not straddle zero (p is reported, never decisive)"
+MARK_RULE = "the video-level bootstrap 95 % CI does not straddle zero (p is reported, never decisive)"
 
 
-def verdict(ci95_video: tuple[float, float] | list[float] | None, sign: int = +1) -> str:
-    """A star (better), a cross (worse) or nothing (not distinguishable), from the video-level interval.
+def mark_of(ci95_video: tuple[float, float] | list[float] | None, sign: int = +1) -> str:
+    """Return the mark of the video-level interval: a star (better), a cross (worse) or nothing.
 
     Args:
         ci95_video: `[lo, hi]` of the video-level bootstrap of `cond - base`;
@@ -239,8 +239,8 @@ def verdict(ci95_video: tuple[float, float] | list[float] | None, sign: int = +1
 
 
 def is_star(ci95_video, sign: int = +1) -> bool:
-    """Whether `verdict` gives a star, for a caller that wants the truth value alone."""
-    return verdict(ci95_video, sign) == "★"
+    """Whether `mark_of` gives a star, for a caller that wants the truth value alone."""
+    return mark_of(ci95_video, sign) == "★"
 
 
 def _sd(x: np.ndarray) -> float | None:

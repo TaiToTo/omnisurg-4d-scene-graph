@@ -46,7 +46,7 @@ SEED_KEYS = ("points_per_side", "seed_edge_gain", "seed_smooth",
 VIZ_DIR = "viz"
 
 # What a cell of the matrix says about a condition. Letters, not marks: a mark
-# beside a condition's name reads as a verdict, and the only verdict is `paired_stats.verdict`.
+# beside a condition's name reads as a mark, and the only mark is the one `paired_stats.mark_of` gives.
 SCORED, LABELS_ONLY, PROVENANCE_ONLY, NOT_RUN = "S", "L", "P", "-"
 
 

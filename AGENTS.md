@@ -40,7 +40,7 @@ The pilot measurements were scored by the *pilot evaluator* (`eval_code_sha =
 repository. The evaluator is checked against it where it lives, taking the
 paths of the pilot evaluator and its scores as arguments.
 
-The verdict rule is already settled and is held to the same standard: **a
+The mark rule is already settled and is held to the same standard: **a
 claim gets a star only when the video-level bootstrap 95 % CI does not straddle
 zero.** p-values are reported alongside, never decisive. One definition, in
 `paired_stats`; scripts borrow it rather than reimplementing a star.
@@ -101,7 +101,7 @@ pipeline stage is done only when its output equals the workbench's, byte for
 byte, apart from the exceptions `docs/porting.md` names. Nothing is frozen
 during the port.
 
-What is permanent is on this page: the freeze rule, the verdict rule, the
+What is permanent is on this page: the freeze rule, the mark rule, the
 layout, and the conventions below.
 
 ---
