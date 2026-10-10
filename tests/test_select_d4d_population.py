@@ -3,8 +3,9 @@
 The made-up census holds a side for each reason of the rule, on clips of two specimens and three
 sessions. Each refusal has a test that plants its fault:
 
+- an empty list of clips, and a list that holds a clip twice;
 - a census cut short, and a census that lacks one clip;
-- a clip the list does not hold, and a clip held twice;
+- a clip the list does not hold, a clip held twice, and two clips held in another order;
 - a side that carries an `error`, and a side with a point cloud and no `active`.
 
 The files in `d4d_meta/` are checked against one another, against the rule's thresholds, and for
@@ -98,7 +99,7 @@ def test_main_writes_the_population_and_the_clips_with_a_kept_side(tmp_path):
 
 def test_a_census_cut_short_is_refused(tmp_path):
     c = census()
-    with pytest.raises(ValueError, match="lacks 2 of the 4 clips"):
+    with pytest.raises(SystemExit, match="lacks 2 of the 4 clips"):
         main(write_inputs(tmp_path, c[:2], keys(c)))
     assert not (tmp_path / "out").exists()
 
@@ -119,6 +120,24 @@ def test_a_clip_held_twice_is_refused():
     c = census()
     with pytest.raises(ValueError, match=r"holds a clip twice: \['specimen_1/s_a/Clip_2'\]"):
         check_census(c + [c[1]], keys(c))
+
+
+def test_a_census_of_the_listed_clips_in_another_order_is_refused():
+    c = census()
+    with pytest.raises(ValueError, match="another order than the list, first at line 2: specimen_1/s_b/Clip_1"):
+        check_census([c[0], c[2], c[1], c[3]], keys(c))
+
+
+def test_an_empty_list_of_clips_is_refused(tmp_path):
+    with pytest.raises(SystemExit, match="lists no clip"):
+        main(write_inputs(tmp_path, [], []))
+    assert not (tmp_path / "out").exists()
+
+
+def test_a_list_that_holds_a_clip_twice_is_refused(tmp_path):
+    c = census()
+    with pytest.raises(SystemExit, match=r"lists a clip twice: \['specimen_1/s_a/Clip_1'\]"):
+        main(write_inputs(tmp_path, c, keys(c) + keys(c)[:1]))
 
 
 def test_a_side_that_carries_an_error_is_refused():
@@ -145,7 +164,7 @@ def test_the_list_of_clips_holds_271_clips_once_in_order():
     assert all(re.fullmatch(r"specimen_\d/\d{4}_\d\d_\d\d-\d\d_\d\d_\d\d/Clip_\d+", k) for k in clips)
 
 
-def test_the_committed_population_was_selected_by_this_rule_from_every_listed_clip():
+def test_the_committed_population_agrees_with_the_list_and_with_its_own_counts():
     population = json.loads((META / "population.json").read_text(encoding="utf-8"))
     clips = read_clips(str(META / "census_clips.txt"))
     assert population["thresholds"] == select([])["thresholds"]

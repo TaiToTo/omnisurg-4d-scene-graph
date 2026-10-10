@@ -88,13 +88,15 @@ are kept, together with 240 clips whose camera is still.
 `population.json` and `clips.txt` are byte copies of the workbench's, and
 `pipeline/select_d4d_population.py` writes them again, byte for byte, from the
 workbench's census. `census_clips.txt` holds the keys the upstream loader
-yields, in its order, on the development machine's copy of D4D; the census
-holds the same keys in the same order.
+yields, in its order, on the development machine's copy of D4D. The census
+holds the same keys in the same order, and the step refuses one that does
+not, since `population.json` lists the sides in the census's order.
 
 ## Who reads these
 
 `pipeline/select_d4d_population.py` reads the census and `census_clips.txt`,
-refuses a census that lacks a listed clip, and writes `population.json` and
+refuses a census that does not hold each listed clip once and in order, and
+writes `population.json` and
 `clips.txt`:
 
 ```bash

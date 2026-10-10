@@ -978,7 +978,9 @@ Every command takes those paths as arguments.
     `tissue_motion.json` was not checked. The script then takes the pixels
     above 0 and dilates them, so those masks most likely grow at their
     border (inferred, not measured). Whether that changes any of the 45
-    `tissue_moving` sides is not measured. Decide whether the two scripts
+    `tissue_moving` sides is not measured. The census's own instrument
+    masks, which `gt_blk_frac` is measured on, are not affected: the
+    workbench's `d4d_io.instrument_mask` passes `interpolation=` by name. Decide whether the two scripts
     are ported or their files kept as data, and whether the motion record
     is made again with the masks resized by nearest neighbour.
 23. **The tissue's motion when a side was scanned.** A side's scan is taken

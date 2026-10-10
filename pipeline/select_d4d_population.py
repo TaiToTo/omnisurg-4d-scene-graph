@@ -4,8 +4,9 @@
 side or leaves it out for one reason. The step writes `population.json`, which lists the kept sides and
 counts the sides of each reason, and `clips.txt`, which lists the clips with a kept side. It refuses:
 
+- a list of clips that is empty or holds a clip twice;
 - a census that lacks a clip of `--clips`, such as a census cut short;
-- a census that holds a clip `--clips` does not hold, or holds a clip twice;
+- a census that holds a clip `--clips` does not hold, holds a clip twice, or holds them in another order;
 - a side that carries an `error`, which the census recorded when it failed to measure the side;
 - a side with a point cloud and no `active`, whose tissue motion is unknown.
 
@@ -21,8 +22,8 @@ from pathlib import Path
 
 SIDES = ("start", "end")
 KEEP = "keep"
-# The least `gt_blk_frac` a kept side may have. The least in the census is 0.246, so the threshold leaves
-# out no side.
+# The least `gt_blk_frac` a kept side may have. It leaves out no side of the census; `d4d_meta/README.md`
+# gives the least.
 MIN_GT_BLOCK_FRAC = 0.20
 # A side whose tissue moved is left out. Its point cloud holds one shape, and the frames hold another.
 EXCLUDE_ACTIVE = True
@@ -31,16 +32,27 @@ MAX_GT_FRAME_GAP_S = 10.0
 
 
 def read_clips(path: str) -> list[str]:
-    """Read the clips a complete census holds, one `<specimen>/<session>/<clip>` per line."""
-    return Path(path).read_text(encoding="utf-8").split()
+    """Read the clips a complete census holds, one `<specimen>/<session>/<clip>` per line.
+
+    Raises:
+        ValueError: the list is empty or holds a clip twice.
+    """
+    clips = Path(path).read_text(encoding="utf-8").split()
+    if not clips:
+        raise ValueError(f"{path} lists no clip")
+    twice = sorted(k for k, n in Counter(clips).items() if n > 1)
+    if twice:
+        raise ValueError(f"{path} lists a clip twice: {twice}")
+    return clips
 
 
 def check_census(census: list[dict], clips: list[str]) -> None:
-    """Refuse a census that does not hold each of `clips` once, or that holds a side the rule cannot classify.
+    """Refuse a census that does not hold each of `clips` once and in order, or holds a side the rule cannot classify.
 
     Raises:
-        ValueError: a clip of `clips` is missing, a clip is not in `clips` or appears twice, a side carries
-            an `error`, or a side has a point cloud and no `active`.
+        ValueError: a clip of `clips` is missing, a clip is not in `clips` or appears twice, the clips are
+            not in the order of `clips`, a side carries an `error`, or a side has a point cloud and no
+            `active`.
     """
     keys = [c["key"] for c in census]
     held = set(keys)
@@ -52,6 +64,10 @@ def check_census(census: list[dict], clips: list[str]) -> None:
     twice = sorted(k for k, n in Counter(keys).items() if n > 1)
     if extra or twice:
         raise ValueError(f"the census holds clips the list does not: {extra}, or holds a clip twice: {twice}")
+    if keys != clips:
+        first = next(i for i, (a, b) in enumerate(zip(keys, clips)) if a != b)
+        raise ValueError(f"the census holds its clips in another order than the list, first at line {first + 1}: "
+                         f"{keys[first]}, where the list has {clips[first]}")
     for c in census:
         for side in SIDES:
             s = c[side]
@@ -119,7 +135,10 @@ def main(argv: list[str] | None = None) -> None:
     args = ap.parse_args(argv)
 
     census = json.loads(Path(args.census).read_text(encoding="utf-8"))
-    check_census(census, read_clips(args.clips))
+    try:
+        check_census(census, read_clips(args.clips))
+    except ValueError as e:
+        raise SystemExit(str(e)) from e
     population = select(census)
 
     out = Path(args.out)

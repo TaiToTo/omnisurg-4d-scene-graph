@@ -207,8 +207,11 @@ for each reason, and `clips.txt`, which lists the clips with a kept side.
 
 The step refuses, before it writes anything:
 
+- a list of clips that is empty or holds a clip twice;
 - a census that lacks a clip of `--clips`, such as a census cut short;
 - a census that holds a clip `--clips` does not hold, or holds a clip twice;
+- a census whose clips are not in the order of `--clips`, since
+  `population.json` lists the sides in the census's order;
 - a side that carries an `error`, which the census wrote when it failed to
   measure the side;
 - a side with a point cloud and no `active`.
