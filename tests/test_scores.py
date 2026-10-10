@@ -21,6 +21,8 @@ from evalkit.tools.scores import (
     metric_keys,
     ruler,
     sign_of,
+    sign_of_key,
+    signs_of,
     split_key,
 )
 
@@ -370,6 +372,24 @@ def test_every_metric_has_a_direction_and_the_reference_values_have_none():
     assert sign_of("VI_split") == -1 and sign_of("time_IoU") == 0 and sign_of("unlabelled_share") == 0
     with pytest.raises(KeyError):
         sign_of("inst_F1_50")
+
+
+def test_a_key_takes_its_direction_from_the_pilot_s_table_or_from_its_metric():
+    assert signs_of(pilot_json()) == dict(scores.PILOT_SIGNS)
+    assert sign_of_key(pilot_json(), "underseg_error") == -1
+    assert sign_of_key(evaluator_json(), metric_key("VI_split", "tissue")) == -1
+    assert sign_of_key(evaluator_json(), "time_IoU") == 0
+
+
+@pytest.mark.parametrize("make, key", [
+    (pilot_json, "VI_split"),  # in the pilot's rows, with no direction in its table
+    (pilot_json, metric_key("F1_50", "all")),
+    (lambda: evaluator_json(views=("all",)), metric_key("F1_50", "tissue")),  # a view not scored
+    (evaluator_json, "inst_F1_50"),
+])
+def test_a_key_with_no_direction_on_the_json_is_refused(make, key):
+    with pytest.raises(ValueError, match="not a key with a direction on this JSON"):
+        sign_of_key(make(), key)
 
 
 def test_defined_clips_keeps_the_clips_where_both_sides_have_a_value():

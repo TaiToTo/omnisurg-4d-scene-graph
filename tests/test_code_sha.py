@@ -60,7 +60,7 @@ def test_one_changed_byte_in_a_table_or_a_module_is_a_new_evaluator(tmp_path, na
 def test_a_tool_can_change_or_appear_without_moving_the_sha(tmp_path):
     pkg = copy_package(tmp_path)
     (pkg / TOOLS_DIR_NAME / "__init__.py").write_text("x = 1\n")
-    (pkg / TOOLS_DIR_NAME / "paired_stats.py").write_text("VERDICT_RULE = 'ci'\n")
+    (pkg / TOOLS_DIR_NAME / "paired_stats.py").write_text("MARK_RULE = 'ci'\n")
     assert eval_code_sha(pkg) == eval_code_sha()
 
 
@@ -156,7 +156,7 @@ def plant_import(pkg: Path, line: str) -> None:
     ("from surgical_core.cholec import *", "surgical_core.cholec"),
     ("import surgical_core.atlas120k as a", "surgical_core.atlas120k"),
     ("from evalkit.tools import paired_stats", "evalkit.tools"),
-    ("from evalkit.tools.paired_stats import verdict", "evalkit.tools.paired_stats"),
+    ("from evalkit.tools.paired_stats import mark_of", "evalkit.tools.paired_stats"),
     ("from . import tools", "evalkit.tools"),
     ("from .tools import paired_stats", "evalkit.tools"),
     ("import scipy", "scipy"),
