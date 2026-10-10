@@ -72,3 +72,21 @@ jobs:
       - run: pip install -e ".[render,tools,stereomis]" pytest
       - run: python -c "import surgical_core.geometry.render, surgical_core.stereomis, scipy.stats, matplotlib, trimesh"
       - run: pytest
+
+  # The viewer is a web page with tests of its own, run by Node. The build is
+  # run too, since a page whose imports do not resolve still passes its tests.
+  viewer:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: viewer
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: viewer/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build

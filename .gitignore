@@ -16,6 +16,7 @@ outputs/
 # Node / viewer
 node_modules/
 viewer/dist/
+viewer/.vite/
 
 # NFS silly-rename leftovers (appear when an open file is deleted on NFS)
 .nfs[0-9a-f]*

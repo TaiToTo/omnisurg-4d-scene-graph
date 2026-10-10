@@ -486,12 +486,36 @@ below.
     `ipcai2027_experiment/task22_atlas100/out/manifest/videos.json`.
   - The readers: `surgical_core/atlas/clip_rects.py` and `frame_ratio.py`,
     into `surgical_core/atlas120k/`.
-- **Viewer.**
-  - The `demo`, `workbench` and `depthcmp` pages.
-  - Their `src/` directories.
-  - `viewer/scripts/merge_geometry_sources.py` and
-    `verify_geometry_alignment.mjs`.
-  - `vite.config.js`, without the experiment routes.
+
+### The viewer
+
+The views of the `demo` page that show the scene graph are `viewer/`: the
+cloud with a track's regions on it, the scene graph from the frame's camera,
+the world stack with the camera's path, the graph through time, the three
+steps that follow a region, the three axes of an edge, the events and the
+graph drawn on the cloud. The page is written again on the bundle ("The
+public viewer reads a bundle"), from `viewer/demo.html` and
+`viewer/src/demo/`, with the modules of `src/graph/`, `src/workbench/` and
+`src/depthcmp/` it imports. Where it departs from the demo page:
+
+- It lists the clips from the bundle's catalog, where the demo asked the
+  development server (`/api/clips`) and narrowed the answer to a hand-written
+  list (`curated.js`). The development server only serves the bundle,
+  read-only; none of the workbench's routes that list or write files
+  remain.
+- It reads each region's shape from the labels, where the demo matched the
+  colour raster against the class colours; two classes of one colour are no
+  longer one region.
+- It shows one track at a time, chosen in the regions menu or the strip; the
+  demo's pair of tracks side by side was reachable only by address.
+- It shows the side panel in per-frame mode too, where the demo hid it.
+- The focus band reads spatial relations only; the demo mixed in the action
+  relations of CholecT50, where a clip has them.
+- A file the clip's record lists that does not load stops the frame with an
+  error, where the demo drew the frame without it.
+
+The workbench's `depthcmp` and `workbench` pages, which compare depth models
+and browse every clip for research, are not carried ("Not carried for now").
 
 ### Not carried for now
 
@@ -636,6 +660,29 @@ The second list holds what the paper's numbers do not use.
 - **The `kgt` seeds** of `ipcai2027_experiment/scripts/make_t5_seeds.py`,
   whose K is the clip's median count of the pilot's GT objects ("`kmerge`
   is a tool").
+- **The demo page's parts for a conference stand**, in `viewer/src/demo/`:
+  the guided tour (`tour.js`), the unattended mode that restarts it
+  (`kiosk.js`, `keymap.js`, `scripts/demo_account.sh` and the scripts that
+  stage the data on the stand's account), the catalog of clips with live 3D
+  tiles and video previews (`catalog.js`, `catalog3d.js`, `catalog_tree.js`,
+  `curated.js`), the marks and the project page in the About panel
+  (`about.js`, `logos.js`), and the address flags for the poster's captures
+  (`?graphmark=`, `?bg=` and the rest, and `capture_demo_shots.mjs`).
+- **The rest of the demo page's views**: the choice of depth model on
+  screen, the band of graph changes it no longer drew, the camera's pose
+  drawn on one frame, the ellipse glyphs as a choice, and the instrument
+  masks from SAM 3's text prompts (`scripts/export_instrument_mask.py`,
+  `inst_frame_*.json`), which only clips without annotation read.
+- **The `workbench` and `depthcmp` pages**, with `src/app/`, `src/catalog/`
+  and `src/geom/`: tools for comparing depth models and browsing every
+  clip, not views of a scene graph.
+- **`viewer/scripts/merge_geometry_sources.py`**, which copied a Pi3X run's
+  records into another manifest; the Pi3X stage writes them into the
+  clip's manifest itself.
+- **`viewer/scripts/verify_geometry_alignment.mjs`**, which checked the
+  demo's transfer of labels onto the Pi3X cloud against the clouds' colours.
+  The bundle stage makes that transfer now, by the same rule, and its tests
+  check the rule; a check on each clip's colours would be the stage's.
 
 What stays behind is listed in `repo_migration_plan.md`, in the section on
 what stays.
