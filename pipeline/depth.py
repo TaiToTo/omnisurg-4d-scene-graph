@@ -6,7 +6,8 @@ writes `depth_raw/depth_NNNNNN.npy`, `depth_vis/NNNN.jpg`,
 `depth_info` to the manifest. The bundle `results.npz` holds depth,
 confidence, intrinsics and world-to-camera extrinsics. The stage refuses:
 
-- a CholecSeg8k clip not cut to the endoscope's view (no `crop_info.json`);
+- a clip without `crop_info.json`, unless it is an ATLAS-120k clip: a
+  CholecSeg8k clip before the crop stage, or a LapEx clip;
 - a clip that already holds the stage's output, unless `--overwrite` is
   given, which removes that output first.
 
