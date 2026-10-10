@@ -326,6 +326,13 @@ Each stage is described in `docs/pipeline.md`.
   `specimen`. Run on the workbench's census, it writes the workbench's
   `population.json` and `pop_all.txt` byte for byte. It does not write
   `pop_moved.txt` or `pop_static.txt`, which nothing reads.
+- `ipcai2027_experiment/scripts/make_t5_seeds.py` is the per-frame stage,
+  `kmerge` and the tracking stage ("The granularity conditions"). They make
+  its seeds, ids aside, on 315 of 315 ATLAS-120k clips and 27 of 27
+  CholecSeg8k clips. Its unmerged arm, `t5_floor`, scored the same as
+  `rgb_center18` (`ch_rgb_center` on CholecSeg8k) on every key, so the
+  floor is tracked without `--seed-labels`. The `kgt` seeds are not carried
+  for now.
 
 ### Not yet extracted anywhere
 
@@ -370,18 +377,6 @@ below.
     with GT unless given `--clips`. The dispatcher is ported in a branch of
     its own, with `run_conditions.py`, which spreads a tracked condition
     over the GPUs in the same way.
-  - The seeds of the granularity result, which
-    `ipcai2027_experiment/scripts/make_t5_seeds.py` made. The script is not
-    ported: the per-frame stage, `kmerge` and the tracking stage make the
-    same seeds ("The granularity conditions" in `docs/pipeline.md`). On each
-    clip's seed frame, `kmerge`'s map at K = 6, 8, 10 and 12 holds the
-    regions of the workbench's seed of that K: on 315 of 315 ATLAS-120k
-    clips, and on 27 of 27 CholecSeg8k clips the ported extraction stage
-    wrote. Only the ids differ, and the tracking stage numbers the regions
-    again. The arm left unmerged, the floor, is tracked without
-    `--seed-labels`. It is the workbench's `rgb_center18` (`ch_rgb_center`
-    on CholecSeg8k), which the pilot evaluator scored alike with `t5_floor`
-    on every key. The `kgt` seeds are listed under "Not carried for now".
   - The paper's tables: `ipcai2027_experiment/atlas97/scripts/print_status_tables.py`,
     which the manuscript names with `summary97.py` as the source of every
     table; from `ipcai2027_experiment/scripts/`, `claims_grid.py`,
@@ -586,11 +581,9 @@ The second list holds what the paper's numbers do not use.
     `--overwrite`, so that no clip of a population is replaced without
     someone looking at it.
 - **`scripts/extract_cholec_frames.py`**, which no condition ran.
-- **The `kgt` seeds of the granularity result**, which
-  `ipcai2027_experiment/scripts/make_t5_seeds.py` merged to the clip's
-  median count of the pilot evaluator's GT objects ("`kmerge` is a tool").
-  Given the workbench's K of each clip, `kmerge` merges these seeds as the
-  workbench did. It takes one K for the whole population, though.
+- **The `kgt` seeds** of `ipcai2027_experiment/scripts/make_t5_seeds.py`,
+  whose K is the clip's median count of the pilot's GT objects ("`kmerge`
+  is a tool").
 
 What stays behind is listed in `repo_migration_plan.md`, in the section on
 what stays.
