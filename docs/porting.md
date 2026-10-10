@@ -328,6 +328,23 @@ Each stage is described in `docs/pipeline.md`.
   `specimen`. Run on the workbench's census, it writes the workbench's
   `population.json` and `pop_all.txt` byte for byte. It does not write
   `pop_moved.txt` or `pop_static.txt`, which nothing reads.
+- `depth_sam_tracking_experiment/track_sam3.py`, as the `single` mode of
+  `run_track_conditions.py` runs it, is `pipeline/track.py`. The worker of
+  `ipcai2027_experiment/scripts/run_per_frame_seg.py` is
+  `pipeline/per_frame.py`. The workbench's drivers passed
+  `--seed_inst_thresh 1.0`, so that `--seed_auto` chose the centre frame; the
+  tracking stage seeds there without it. On the GPU machine, each stage
+  wrote the workbench's files byte for byte on
+  `adrenalectomy__16GPCUPkXYQ__gt_0004`,
+  `adrenalectomy__16GPCUPkXYQ__tile_0007` and `VID01_s15_80_crop`. The
+  workbench ran at the determinism measurement's commit, and wrote the same
+  bytes twice in each case before the comparison. The settings compared:
+  - the tracking stage: those of `op_edge_center` and `rgb_center18`, and
+    those of `op_edge_center` under `forward_from_first`;
+  - the per-frame stage: those of `op_edge_perframe`,
+    `op_rgb_perframe_pps24` and `op_edge_pf_pps8_pi3x`.
+
+  Every case masked the edge ring; `--keep-edge-ring` was not compared.
 - `ipcai2027_experiment/scripts/make_t5_seeds.py` is the per-frame stage,
   `kmerge` and the tracking stage ("The granularity conditions"). They make
   its seeds, ids aside, on 315 of 315 ATLAS-120k clips and 27 of 27
@@ -362,36 +379,6 @@ below.
     `depth_sam_tracking_experiment/run_all17_pipeline.sh` runs before the
     crop and the depth stage. `extract_cholec_frames.py`, which the take
     list named, ran in no condition.
-  - Segmentation and tracking, from `depth_sam_tracking_experiment/`:
-    `track_sam3.py`, `sam3d_core.py` (`num_to_natural` and `get_sam`),
-    `loaders.py` (`CholecGtLoader`), `depth_source.py` (DA3 and the `pi3`
-    swap), `viz_common.py` and `sam_env.py`. From
-    `ipcai2027_experiment/scripts/`: `run_per_frame_seg.py`, whose five
-    modes `geom_blend.sam_input_image` passes to `geometry.sam_input_image`
-    unchanged, and `run_conditions.py`, which spreads one tracked condition
-    over the GPUs and imports the command from `run_track_conditions.py`.
-    From `seg_quality_experiment/scripts/`: `run_track_conditions.py`, whose
-    `MODES` hold the operating point's flags (`--seed_auto --bidir
-    --max_frames 0`). The operating point's `--seed_inst_thresh 1.0` is not
-    in `MODES`: the drivers `ipcai2027_experiment/atlas97/scripts/run_batch97.sh`
-    and `ipcai2027_experiment/task11_atlas13/scripts/run_batch.sh` pass it
-    after `--`, and neither driver moves. The ported stage needs no such
-    flag, because it seeds on the centre frame and never chooses a seed
-    frame from GT ("Two propagation rules, and no seed chosen from GT").
-    `eval_atlas_gt_clips.py`, which `run_track_conditions.py` imports for
-    its list of clips, only re-exports `gt_clips` from the pilot evaluator's
-    `eval_gt_clips.py`; the ported stage reads the population file instead.
-    `get_sam`, five lines that paint the mask generator's masks into one
-    map, is written again in the stage from what it does; the mask generator
-    comes from the `segment-anything` package. `loaders.py` returns a black
-    image for a missing frame; the port raises. The worker of
-    `run_per_frame_seg.py` becomes the per-frame segmentation stage, which
-    runs the clips it is given, or every clip with depth, in order on one
-    device, and refuses labels an earlier run left. Its dispatcher ran one
-    clip per GPU, resumed a run by counting its labels, and took every clip
-    with GT unless given `--clips`. The dispatcher, with `run_conditions.py`
-    and the `single` mode of `run_track_conditions.py`, is
-    `pipeline/condition_population.py` ("Pipeline stages already ported").
   - The paper's tables: `ipcai2027_experiment/atlas97/scripts/print_status_tables.py`,
     which the manuscript names with `summary97.py` as the source of every
     table; from `ipcai2027_experiment/scripts/`, `claims_grid.py` and
