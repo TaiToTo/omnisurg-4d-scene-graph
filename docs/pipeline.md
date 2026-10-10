@@ -393,3 +393,68 @@ The stage needs the `track` extra and the SAM ViT-H weights, as the
 tracking stage does.
 
 `python -m pipeline.per_frame --help` lists the options.
+
+## The viewer bundle stage
+
+```bash
+python -m pipeline.viewer_bundle --input-dir /path/to/clips --out /path/to/site/data \
+    --clips <clip> ... --tracks <track> ... [--geometry da3] [--overwrite]
+```
+
+The stage writes the static files the web viewer (`viewer/`) reads. It
+reads the clouds the depth stages wrote, and the overlays the export stage
+writes into `pc_vis/`:
+
+- per track and frame, the regions, `seg_frame_NNNN__<track>.json`, and the
+  scene graph, `graph_frame_NNNN__<track>.json`;
+- per track, the scene graph through time, `temporal_graph__<track>.json`;
+- per frame, `hierarchy_frame_NNNN.json`, which relates the regions of two
+  tracks.
+
+`--tracks` names the tracks the viewer offers, in its order: `cholecseg8k`,
+`atlas_gt`, `gt_tracked`, `sam3d` or `sam3d_edge`. `--geometry` names the
+reconstruction whose clouds the viewer draws, `da3` or `pi3x`. Under
+`--out` the stage writes:
+
+- `catalog.json`: the clips under `--out`, which the viewer lists.
+- `<clip>/clip.json`: the clip's dataset, procedure and video; the geometry
+  source and its pixel grid; per frame its time, its cloud's centroid and
+  the camera's position and axes; per track its names, the class ids of its
+  instruments, and the frames it has regions and graphs on; and the frames
+  with a hierarchy.
+- `<clip>/frames/NNNN.jpg`: the frames.
+- `<clip>/clouds/NNNN.glb`: the point clouds, copied.
+- `<clip>/regions/<track>/NNNN.json`: the label of each point of the cloud,
+  in the cloud's order, run-length coded as `[label, count, ...]`, with the
+  classes' names and colours and the frame's stage, `anchor` or
+  `propagated`.
+- `<clip>/graphs/<track>/NNNN.json` and `temporal.json`: the scene graphs.
+- `<clip>/hierarchy/NNNN.json`: a hierarchy between two published tracks.
+
+The export stage builds the overlays on DA3's cloud. With `--geometry pi3x`
+the stage resamples each frame's labels onto Pi3X's grid, nearest pixel,
+and moves each node to its region's centroid on the Pi3X cloud, with axes
+from the region's spread. A node whose region has no point there is left
+out. Every other number of a graph is DA3's. The spatial relations were
+chosen from the nodes' DA3 positions in DA3's camera, so each node keeps
+its DA3 position as `graph_pos`, and each frame keeps DA3's camera axes as
+`graph_camera_forward` and `graph_camera_up`.
+
+The stage refuses:
+
+- a clip whose manifest does not list one frame per image, or does not give
+  DA3's grid, the geometry source's grid, or a frame's placement;
+- a frame without its cloud, or a cloud without one point per pixel;
+- an unknown track, a track of another dataset's classes, a track without
+  regions, or a scene graph on a frame without regions;
+- regions off DA3's grid, a label that is not an integer or of no listed
+  class, or a stage other than `anchor` or `propagated`;
+- a graph through time whose node ids, relation ends or frames are not
+  integers, frames from 0 to the clip's last;
+- a clip already under `--out`, unless `--overwrite` is given.
+
+A refused clip leaves what was under `--out` as it was: a clip replaces an
+earlier copy only once every file is written. The stage runs every clip,
+rewrites `catalog.json`, and exits with an error if one failed.
+
+`python -m pipeline.viewer_bundle --help` lists the options.

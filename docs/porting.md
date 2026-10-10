@@ -175,6 +175,20 @@ Where they and this document differ, this document holds.
     the workbench's `outputs/cholec_gt`, which nothing here writes to. Each
     of them holds depth, so the crop stage refuses to replace one even with
     `--overwrite`.
+17. **The public viewer reads a bundle.** The workbench's viewer read the
+    export stage's files from its development server, which listed the
+    clips through `/api/clips`, and drew a 10 MB colour raster per frame and
+    track. A page on the public internet has no such server. The stage
+    `pipeline.viewer_bundle` writes what the viewer reads instead: a catalog
+    of the clips, and per clip the frames, the clouds of one geometry
+    source, and per track the labels of the cloud's points, run-length
+    coded, with the scene graphs. A clip's overlays go from about 600 MB to
+    under 1 MB. The workbench's viewer resampled the overlays onto the Pi3X
+    cloud and placed the nodes on it in the browser, on every frame load;
+    the stage does both once, so the labels the viewer reads always index
+    the cloud it draws. Track names and instrument classes come from the
+    bundle, the instrument classes from the class tables' `tool` type, so
+    the viewer names no track and no dataset.
 
 ## What moves
 
@@ -909,3 +923,19 @@ Every command takes those paths as arguments.
     machine therefore runs both stages under one numpy on one CPU. Decide
     whether the stage keeps this sort, or sorts stably and lists the change
     among the differences from the workbench that the byte check allows.
+21. **What the public viewer may publish.** A bundle holds a clip's frames
+    as JPEG, its masks as labels, and the scene graphs built on them.
+    CholecSeg8k's frames come from Cholec80, and ATLAS-120k's from public
+    videos; whether each dataset's terms allow its frames and masks on a
+    public page, and with which attribution, is read from the terms before a
+    bundle is put online. The workbench's demo also named the authors, their
+    university and their funders, with the funders' marks; AE-CAI is under
+    double-blind revision, so what the page says about who made it waits on
+    HTL's anonymity rules ("Prepare the release").
+22. **The size of the point clouds.** A bundled clip is 60 to 90 MB, and its
+    clouds are 97 % of it: a GLB holds one float32 position and one RGBA
+    colour per pixel, 2.8 MB on DA3's grid and 4 MB on Pi3X's. A clip of 15
+    frames takes about a minute to load on a 10 Mbit/s line. Quantised
+    positions or a compressed GLB would shrink them several times, if the
+    encoding keeps the points in their order, since the labels index them
+    by order. Decide with the place the bundles are hosted.
