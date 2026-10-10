@@ -267,12 +267,23 @@ The workbench tests that touch the ported modules are counted in
 
 Each stage is described in `docs/pipeline.md`.
 
-- `scripts/run_cholec_depth.py` is `pipeline/depth.py`. The ported stage
-  neither detects nor fills a border: the CholecSeg8k runs passed
-  `--no-border-inpaint`, and the ATLAS-120k runs left `--border-inpaint` at
-  `auto`.
-- `scripts/regen_cholec_glb.py` is `pipeline/point_clouds.py`.
-- `pi3_wrapper/scripts/run_pi3_depth.py` is `pipeline/pi3x.py`.
+- The depth stages:
+  - `scripts/run_cholec_depth.py` is `pipeline/depth.py`. The ported stage
+    neither detects nor fills a border: the CholecSeg8k runs passed
+    `--no-border-inpaint`, and the ATLAS-120k runs left `--border-inpaint`
+    at `auto`.
+  - `scripts/regen_cholec_glb.py` is `pipeline/point_clouds.py`.
+  - `pi3_wrapper/scripts/run_pi3_depth.py` is `pipeline/pi3x.py`.
+
+  On the GPU machine, each of the three stages wrote the workbench's files
+  byte for byte on `adrenalectomy__16GPCUPkXYQ__gt_0004`,
+  `adrenalectomy__16GPCUPkXYQ__tile_0007` and `VID01_s15_80_crop`. The
+  Pi3X stage's manifest differed in `runtime_sec` alone. The workbench ran
+  at the determinism measurement's commit, and wrote the same bytes twice
+  in each case before the comparison. The depth stage wrote its point
+  clouds. The point-cloud stage read the bundle that the workbench's depth
+  stage had stored on that machine. Both sides ran DA3 at commit
+  `41736238` and `pi3` at commit `9fa3ddb3`.
 - `scripts/measure_determinism.py` is `pipeline/byte_check.py`, which checks
   every stage, not the depth stage alone.
 - `scripts/extract_atlas_frames.py`, as
