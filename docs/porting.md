@@ -341,7 +341,15 @@ below.
     seed. The ids differ, because `kmerge` keeps the per-frame map's ids
     and the workbench numbered each seed's regions from 0. Once the tracking
     stage numbers the regions again, the ids are equal too. The tracking stage
-    seeds the same frame as the workbench on every clip. The `kgt` seed
+    seeds the same frame as the workbench on every clip. On CholecSeg8k's 27
+    clips the same holds for every arm, `kgt` given the manifest's K. There
+    `kmerge` reads only clips the ported extraction stage wrote: on 10 of
+    the workbench's 27 clips two frames share one `timestamp_sec`, and
+    `read_clip` refuses the clip ("CholecSeg8k clips whose frames run out
+    of order"). The evaluator refuses a condition tracked from these seeds
+    until "Seeds made outside the tracking stage" is decided, since the
+    tracking stage records `seed_source` `external` for a seed read with
+    `--seed-labels`. The floor is tracked without one. The `kgt` seed
     waits on "The K of the `kgt` seeds".
   - The paper's tables: `ipcai2027_experiment/atlas97/scripts/summary97.py`
     and `print_status_tables.py`, which the manuscript names as the source
@@ -928,7 +936,16 @@ Every command takes those paths as arguments.
     the evaluator a GT object is one class's whole region in a frame, and
     which classes count depends on the view. So this K needs a definition of
     its own, as the `matched` K of `kmerge` does ("`kmerge` is a tool").
-    `kmerge` takes K as a number and computes none from the GT. Decide
-    whether `kgt` is made again with a K defined under the evaluator, and in
-    which view, or stays in the workbench, where what it measured is a
-    reference value.
+    `kmerge` takes K as a number and computes none from the GT. Given the
+    workbench's K of each clip, `kmerge` merges the `kgt` seed of every clip
+    as the workbench did: 315 of 315 on ATLAS-120k, 27 of 27 on
+    CholecSeg8k. Only the K is missing, not the merge. `kmerge --k` takes one
+    K for the whole population, though. Decide whether `kgt`:
+    - is made again with a K defined under the evaluator, and in which view;
+    - is made again with the workbench's K of each clip, carried as data,
+      which needs a way to give `kmerge` one K per clip;
+    - or stays in the workbench, where what it measured is a reference
+      value.
+
+    Its seed is made from the GT, so how the evaluator scores it is also
+    part of "Seeds made outside the tracking stage".

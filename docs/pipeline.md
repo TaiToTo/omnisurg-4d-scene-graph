@@ -326,7 +326,8 @@ The stage reads the depth stage's bundle, and Pi3X's with
   label map per frame, at the depth's resolution, -1 where no object is.
 - `seed_info.json` beside the labels: the seed frame, whether the stage
   carried both ways (`bidir`), the frames labelled and the settings the
-  seed was made with.
+  seed was made with. Its `seed_source` is `sam`, or `external` when the
+  seed was read with `--seed-labels`.
 - `<tracks-root>/<clip>/viz/montage_track_<track-base>_<tag>.png`: every
   frame's labels, one colour per object.
 
@@ -397,12 +398,14 @@ tracking stage does.
 ## The granularity conditions
 
 The granularity result tracks seeds merged to a fixed number of regions, K.
-Three commands make each of its conditions:
+Three commands make each condition whose seed is merged to K:
 
 1. The per-frame segmentation stage cuts every frame of each clip with the
    `rgb` input, at 24 points per side.
 2. `evalkit.tools.kmerge` merges each frame of that condition down to K
-   regions, and writes the merged maps as a condition of their own.
+   regions, and writes the merged maps as a condition of their own. That
+   condition is scored too: the granularity result compares tracking with
+   it, both merged to K.
 3. The tracking stage reads the merged map of the seed frame with
    `--seed-labels`, and carries its regions both ways from the middle frame.
 
@@ -417,11 +420,40 @@ python -m pipeline.track --input-dir /path/to/clips --tracks-root /path/to/track
 ```
 
 The paper's granularity result merges to K = 10. The conditions at K = 6, 8
-and 12 are made the same way. The floor condition is tracked from the
-unmerged map: it skips `kmerge`, and its `--seed-labels` names the per-frame
-condition, `'/path/to/tracks/{clip}/track_rgb_rgb_per_frame'`. The tracking
-stage numbers the seed regions again, so the ids that `kmerge` and the
-per-frame stage write do not change the seed.
+and 12 are made the same way. The tracking stage numbers the seed regions
+again, so the ids that `kmerge` and the per-frame stage write do not change
+the seed. On CholecSeg8k the commands are the same, with `--dataset
+cholecseg8k --clips cholecseg8k_meta/clips.txt`, on clips the ported
+extraction stage wrote.
+
+The floor condition is the unmerged seed tracked. It needs no `kmerge` and no
+`--seed-labels`: the tracking stage cuts the seed frame itself.
+
+```bash
+python -m pipeline.track --input-dir /path/to/clips --tracks-root /path/to/tracks --tag rgb \
+    --rule both_ways_from_centre --sam-input rgb --track-base rgb --points-per-side 24 \
+    --sam-ckpt sam_vit_h_4b8939.pth
+```
+
+This is the condition the workbench named `rgb_center18` on ATLAS-120k and
+`ch_rgb_center` on CholecSeg8k. The workbench's floor, `t5_floor`, was tracked
+from the unmerged per-frame map instead. The pilot evaluator scored the two
+alike: every key of `t5_floor` equals that of `rgb_center18` on all 315
+clips, and that of `ch_rgb_center` on all 27. That the ported per-frame stage
+and tracking stage cut the same seed is read from their code, which calls
+the same mask generator with the same settings, and has not been run.
+
+The evaluator refuses every condition tracked with `--seed-labels`: the
+stage records `seed_source` `external`, and the evaluator scores only `sam`
+and `per_frame`, whatever `--propagation` states. So the conditions merged
+to K are not scored until the evaluator's rule for such a seed is decided,
+in "Seeds made outside the tracking stage" in `docs/porting.md`. The floor
+and the per-frame conditions, merged or not, record `sam` and `per_frame`.
+
+The evaluator names a score JSON by its `--out`. The pilot's tables read
+the floor as `t5_floor`, K = 10 as `t5_k10`, and the per-frame condition
+merged to 10 as `op_rgb_perframe_pps24_k10` (`ch_rgb_perframe_pps24_k10` on
+CholecSeg8k).
 
 `kmerge` merges every frame, and the tracking stage reads the seed frame's
 map only. `kmerge` reads each clip as the evaluator does, so a clip needs its
