@@ -218,6 +218,7 @@ copy to read the RGB clips, and the ported copies read `evalkit.classes`.
 |---|---|---|---|
 | `paired_stats.py` | `ipcai2027_experiment/scripts/paired_stats.py` | `extract/03-metrics` (#3) | `VERDICT_RULE` does not change. The comparability check is `scores.check_comparable`, which applies the rule of `docs/evaluation.md`, in place of the pilot's, and the statistics are taken on the clips it compared. `video_of` is defined here rather than delegated. Each row records the metric's `sign` and `verdict` reads the interval in it, so a metric where smaller is better, or a reference value that is never marked, is not oriented by the caller. A bootstrap over fewer than two units refuses rather than return a point. |
 | `compare_eval.py` | `depth_sam_tracking_experiment/compare_eval.py` | `extract/03-metrics` (#3) | It refuses to mix shas through `scores.check_comparable`, which also compares dataset, class set, view and mode. The table prints each metric's direction and no mark: the workbench's circle and cross followed the sign of the mean difference, a second verdict beside `paired_stats.verdict`. The per-clip list, the chart and `wins` follow the question's primary metric, named with `--key`; the directions of the pilot keys come from `scores.PILOT_SIGNS`, the one table `paired_stats` reads too. |
+| `paired_table.py` | `ipcai2027_experiment/atlas97/scripts/summary97.py` | — | Ported as `evalkit/tools/paired_table.py`. It prints the rows of `summary97.py`: each key's mean difference, with the mark of `paired_stats.verdict`. It departs from the workbench in three places: it refuses a table whose conditions are not all comparable, leaves a cell on one video without a value, and refuses a reference value as a key. It leaves out the four `t12_*` rows ("Conditions seeded from GT masks") and the `t5_kgt` row ("`kmerge` is a tool"). On the pilot's 38 score JSONs, every number and mark equals the workbench's. Its rows on the evaluator's scores are open ("The paired table on the evaluator's scores"). |
 | `track_metrics.py` | `depth_sam_tracking_experiment/track_metrics.py` | `extract/03-metrics` (#3) | It imports `BACKGROUND`, `_gt_idmap` and `_load_depth` from the pilot's `eval_track`; they come from the evaluator instead. `MIN_AREA` is removed ("No minimum object size, anywhere"). It is a tool, outside the evaluator, and its values are reference values ("No measure over time carries a star"). Its GT track is open ("The GT track of `track_metrics`"). |
 | `surgical_core/clip_time.py` | `surgical_core/clip_time.py` | `extract/03-metrics` (#3) | English only. |
 | `surgical_core/viewer/labels.py`, `palette.py` | `surgical_core/viewer/` | `extract/03-metrics` (#3) | English only. `label_table_of` and `cholec_gt_table` move to a new `gt_tables.py`, the one viewer module that imports `evalkit`; `labels.py` builds its table from plain data, so a video with no class table gets one too. The rest of `surgical_core/viewer` is below, under "Not yet extracted anywhere". |
@@ -352,9 +353,9 @@ below.
     over the GPUs in the same way.
   - The input of one condition: `ipcai2027_experiment/scripts/make_t5_seeds.py`,
     which makes the seeds of the granularity result.
-  - The paper's tables: `ipcai2027_experiment/atlas97/scripts/summary97.py`
-    and `print_status_tables.py`, which the manuscript names as the source
-    of every table; from `ipcai2027_experiment/scripts/`, `claims_grid.py`,
+  - The paper's tables: `ipcai2027_experiment/atlas97/scripts/print_status_tables.py`,
+    which the manuscript names with `summary97.py` as the source of every
+    table; from `ipcai2027_experiment/scripts/`, `claims_grid.py`,
     `arms_paired.py`, `lovo_verdict.py`, which names the videos a verdict
     rests on, and `summarize_20.py`, the StereoMIS table; and
     `ipcai2027_experiment/task15_granularity/scripts/claims_table.py` and
@@ -584,13 +585,14 @@ while the evaluator is built and reviewed is worked out in `docs/workstreams.md`
    missing condition.
 4. **Port the toolkit onto it.** Each tool is done when its tests pass, and:
    - on the pilot's score JSONs, it writes the same bytes as the workbench
-     version (the bootstrap is seeded). This holds for every tool. The
-     pilot's JSONs lack the fields the evaluator now writes (class set, view,
-     mode, input hashes, versions, propagation rule); a tool reads them all the
-     same, taking the missing fields as the pilot evaluator's, and raises
-     when a JSON has some of the fields but not all. Dropping this check
-     would let a tool lose behaviour the workbench version had without
-     anyone noticing;
+     version (the bootstrap is seeded), apart from the departures its row
+     names. `paired_table` translates its labels and is compared value by
+     value. The pilot's JSONs lack the fields the evaluator now writes
+     (class set, view, mode, input hashes, versions, propagation rule); a
+     tool reads them all the same, taking the missing fields as the pilot
+     evaluator's, and raises when a JSON has some of the fields but not all.
+     Dropping this check would let a tool lose behaviour the workbench
+     version had without anyone noticing;
    - what only the evaluator's JSONs carry is checked by a self-test that
      plants the fault: `compare_eval` refuses a mix of shas, and a mix of
      modes or class sets under one sha; `condition_inventory` reports a
@@ -777,7 +779,8 @@ Every command takes those paths as arguments.
     line at six for the same reason. Whether the interval gets a floor
     above two, and where, is a decision about the paper's populations, not
     the code's; until it is made, a subset's interval is read for its sign
-    only, as `--drop-video` says.
+    only, as `--drop-video` says. `paired_table`'s floor of five clips per
+    cell is decided with this one.
 10. **The edge ring of the tracker's input.** The tracking stage builds two
     inputs with `sam_input_image`: the seed frame's, in the `--sam_input`
     mode, and the tracker's, in the `--track_base` mode, which may be
@@ -1029,7 +1032,9 @@ Every command takes those paths as arguments.
     - how a name says what varies between conditions: the input, where the
       seed came from, and the propagation rule;
     - where the table lives that maps each workbench name to its name here.
-      That table is the only place a workbench name appears.
+      That table is the only place a workbench name appears;
+    - whether `paired_table.PILOT_BLOCKS`, which reads the pilot's score
+      JSONs by their tags, keeps those tags or takes them from that table.
 23. **How LapEx is scored.** The evaluator holds class tables for
     ATLAS-120k and CholecSeg8k only, so it cannot read a LapEx clip.
     `kmerge` reads a condition through the evaluator, so it cannot merge
@@ -1059,3 +1064,16 @@ Every command takes those paths as arguments.
       workbench's reading, fixed before the numbers, gave the merge a star
       only if it had one at both K = 8 and K = 10. The paper merges to 10
       ("`kmerge` is a tool").
+24. **The paired table on the evaluator's scores.** `paired_table` prints
+    the pilot's table. It does not yet print one from the evaluator's
+    scores:
+    - the six `t5_*` rows wait on "Seeds made outside the tracking stage";
+    - the paper reports two propagation rules ("What the paper measures"),
+      and a table holds one, so the table is printed once per rule;
+    - the evaluator records `objects.predicted` in place of
+      `n_regions_mean`, so the table would have no column of regions.
+
+    Decide which block answers which of the paper's three questions
+    ("Primary metrics"), which rows each rule's table holds, which keys and
+    views it prints, and whether it prints `objects.predicted`. Until then
+    the keys come from `--keys`.
