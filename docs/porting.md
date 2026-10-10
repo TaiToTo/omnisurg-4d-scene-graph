@@ -221,6 +221,7 @@ copy to read the RGB clips, and the ported copies read `evalkit.classes`.
 | `lovo_verdict.py` | `ipcai2027_experiment/scripts/lovo_verdict.py` | — | Ported as `evalkit/tools/leave_one_video_out.py`. It leaves each video out in turn and names the videos whose removal changes the mark of `paired_stats.verdict`. It departs from the workbench in four places: the direction of each key comes from the table `paired_stats` reads, so the `_labeled` and `_tissue` keys are taken; `--keys` has no default; a key on three videos or fewer is refused, where the workbench printed that no video changed the mark; and a row prints how far the mean moved beside the ratio of widths, and names no cause. On the pilot's scores its rows equal the workbench's, with `verdict` named `mark`. Not carried: `--fairness-json`, `--doms` and `--keys all`. |
 | `compare_eval.py` | `depth_sam_tracking_experiment/compare_eval.py` | `extract/03-metrics` (#3) | It refuses to mix shas through `scores.check_comparable`, which also compares dataset, class set, view and mode. The table prints each metric's direction and no mark: the workbench's circle and cross followed the sign of the mean difference, a second verdict beside `paired_stats.verdict`. The per-clip list, the chart and `wins` follow the question's primary metric, named with `--key`; the directions of the pilot keys come from `scores.PILOT_SIGNS`, the one table `paired_stats` reads too. |
 | `paired_table.py` | `ipcai2027_experiment/atlas97/scripts/summary97.py` | — | Ported as `evalkit/tools/paired_table.py`. It prints the rows of `summary97.py`: each key's mean difference, with the mark of `paired_stats.verdict`. It departs from the workbench in three places: it refuses a table whose conditions are not all comparable, leaves a cell on one video without a value, and refuses a reference value as a key. It leaves out the four `t12_*` rows ("Conditions seeded from GT masks") and the `t5_kgt` row ("`kmerge` is a tool"). On the pilot's 38 score JSONs, every number and mark equals the workbench's. Its rows on the evaluator's scores are open ("The paired table on the evaluator's scores"). |
+| `arms_paired.py` | `ipcai2027_experiment/scripts/arms_paired.py` | — | Ported as `evalkit/tools/arms_paired.py`. It prints one key's paired difference for several pairs of conditions, one line per pair. It departs from the workbench in five places: it reads one score JSON per condition, where the workbench read the per-clip F1 that `pps_f1.py` writes and no score JSON holds; a pair is `base:cond` and its line is `cond − base`, the reverse of the workbench's `a:b`; a condition with no score JSON is refused, where the workbench skipped the pair; it refuses a table whose conditions are not all comparable, with the check `paired_table` uses; and it marks a line in its key's direction, and never marks a key of direction 0. On the same per-clip values, every line equals the workbench's from the column after the pair's name on. It carries none of the workbench's 21 default pairs ("The pairs `arms_paired` reports"). |
 | `track_metrics.py` | `depth_sam_tracking_experiment/track_metrics.py` | `extract/03-metrics` (#3) | It imports `BACKGROUND`, `_gt_idmap` and `_load_depth` from the pilot's `eval_track`; they come from the evaluator instead. `MIN_AREA` is removed ("No minimum object size, anywhere"). It is a tool, outside the evaluator, and its values are reference values ("No measure over time carries a star"). Its GT track is open ("The GT track of `track_metrics`"). |
 | `surgical_core/clip_time.py` | `surgical_core/clip_time.py` | `extract/03-metrics` (#3) | English only. |
 | `surgical_core/viewer/labels.py`, `palette.py` | `surgical_core/viewer/` | `extract/03-metrics` (#3) | English only. `label_table_of` and `cholec_gt_table` move to a new `gt_tables.py`, the one viewer module that imports `evalkit`; `labels.py` builds its table from plain data, so a video with no class table gets one too. The rest of `surgical_core/viewer` is below, under "Not yet extracted anywhere". |
@@ -379,13 +380,16 @@ below.
     over the GPUs in the same way.
   - The paper's tables: `ipcai2027_experiment/atlas97/scripts/print_status_tables.py`,
     which the manuscript names with `summary97.py` as the source of every
-    table; from `ipcai2027_experiment/scripts/`, `claims_grid.py`,
-    `arms_paired.py` and `summarize_20.py`, the StereoMIS table; and
+    table; from `ipcai2027_experiment/scripts/`, `claims_grid.py` and
+    `summarize_20.py`, the StereoMIS table; and
     `ipcai2027_experiment/task15_granularity/scripts/claims_table.py` and
     `settle_inputs.py`. `claims_table.py` and `claims_grid.py` read
     `outputs/atlas`, the 13-video set, and `outputs/cholec_gt`.
-    `arms_paired.py` pairs arms the port leaves out; ported, the pairs it
-    reads are the paper's.
+    `claims_grid.py` reads the rows whose granularity is not matched from
+    the analysis JSONs of `ipcai2027_experiment/scripts/pps_f1.py`: the
+    per-clip F1 that `settle_inputs.f1_prop` computes from the labels, which
+    no score JSON holds. `ipcai2027_experiment/scripts/export_prop_pps.py`
+    draws a figure from the same JSONs.
   - LapEx's comparisons, from `ipcai2027_experiment/scripts/`, which the
     manuscript reports and does not release. `lapex_kcurve.py` merges the
     `rgb` condition at 24 points per side to fixed K with `kmerge`, and
@@ -1157,3 +1161,16 @@ Every command takes those paths as arguments.
     before the D4D numbers are reported whether the rule keeps this
     stand-in, written down beside it, or the motion is measured up to the
     time of each scan.
+28. **The pairs `arms_paired` reports.** The workbench's script compared
+    21 pairs of inputs by default, on the 13-video ATLAS-120k set and on
+    CholecSeg8k. Two of the pairs compare inputs the paper's conditions
+    ran: `rgb_edge` with `rgb`, and `normal_edge` with `normal`.
+    `paired_table.PILOT_BLOCKS` compares `rgb_edge` with `rgb`, and never
+    `normal_edge` with `normal`. The port carries no list of pairs, because
+    the tags of the conditions scored again wait on "Condition names".
+    Decide:
+    - which pairs the paper reports with the tool;
+    - whether the rows of `claims_grid.py` whose granularity is not
+      matched read the evaluator's scores through this tool, or
+      `pps_f1.py` is ported to write the F1 they read, and
+      `export_prop_pps.py` with it.
