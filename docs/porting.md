@@ -335,6 +335,19 @@ Each stage is described in `docs/pipeline.md`.
   `rgb_center18` (`ch_rgb_center` on CholecSeg8k) on every key, so the
   floor is tracked without `--seed-labels`. The `kgt` seeds are not carried
   for now.
+- `ipcai2027_experiment/scripts/run_conditions.py`, with the `single` mode
+  of `run_track_conditions.py`, and the dispatcher of `run_per_frame_seg.py`
+  are `pipeline/condition_population.py`. It was checked on the paper's 29
+  ATLAS-120k and 14 CholecSeg8k conditions:
+  - each clip's command gives the stage the settings the workbench's gave;
+  - the workbench's records hold the values the driver expects, but lack
+    `depth_source` and `point_grids`, which the scripts did not yet write;
+  - `ch_edge_center` and `ch_edge_perframe` most likely kept the edge ring
+    (inferred from their dates), so a run that is to equal them passes
+    `--keep-edge-ring`.
+
+  The scripts skipped a clip by counting its labels. The driver refuses
+  labels whose record holds other settings.
 
 ### Not yet extracted anywhere
 
@@ -376,9 +389,9 @@ below.
     runs the clips it is given, or every clip with depth, in order on one
     device, and refuses labels an earlier run left. Its dispatcher ran one
     clip per GPU, resumed a run by counting its labels, and took every clip
-    with GT unless given `--clips`. The dispatcher is ported in a branch of
-    its own, with `run_conditions.py`, which spreads a tracked condition
-    over the GPUs in the same way.
+    with GT unless given `--clips`. The dispatcher, with `run_conditions.py`
+    and the `single` mode of `run_track_conditions.py`, is
+    `pipeline/condition_population.py` ("Pipeline stages already ported").
   - The paper's tables: `ipcai2027_experiment/atlas97/scripts/print_status_tables.py`,
     which the manuscript names with `summary97.py` as the source of every
     table; from `ipcai2027_experiment/scripts/`, `claims_grid.py` and
@@ -591,7 +604,11 @@ The second list holds what the paper's numbers do not use.
     (`--gt-pad-factor`); and `--gt-stride`, `--keep-duplicates`,
     `--dry-run` and `--no-clean`;
   - `run_per_frame_seg.py`: `--point_grids_dir`, `--frames gt`, `--smooth`,
-    and `--seed_topk`, which every run passed as 0.
+    and `--seed_topk`, which every run passed as 0; and its dispatcher's
+    `--force` and `--log-root`.
+  - `run_conditions.py` and `run_track_conditions.py`: the `gt_seed` and
+    `consensus` modes, `--force`, `--log-root`, and the Hugging Face
+    settings they put in each process's environment.
   - `run_atlas97_depth.sh`: its `setsid nohup` wrapping and timestamped
     log lines, which belong to the shell it was run from, and
     `--overwrite`, so that no clip of a population is replaced without
