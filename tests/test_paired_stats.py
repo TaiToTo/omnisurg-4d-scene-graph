@@ -304,7 +304,7 @@ def test_the_pair_computes_the_keys_it_is_named_and_only_those():
 
 
 def test_a_value_that_rounds_to_zero_keeps_two_digits():
-    # The mark follows the sign of the interval's end; -0.0 would hide it.
+    # An end written as -0.0 would lose its ✗.
     assert PS.round_keeping_sign(-2.4e-05) == -2.4e-05 and PS.round_keeping_sign(0.0) == 0.0
     assert PS.round_keeping_sign(0.123449) == 0.1234
     assert PS.format_signed(-2.4e-05) == "-2.40e-05" and PS.format_signed(0.0) == "+0.0000"
@@ -313,8 +313,8 @@ def test_a_value_that_rounds_to_zero_keeps_two_digits():
 
 @pytest.mark.parametrize("ci, written, mark", [((2.03e-05, 0.01509), [2e-05, 0.0151], "★"),
                                                ((-0.01509, -2.03e-05), [-0.0151, -2e-05], "✗")])
-def test_an_interval_end_near_zero_is_written_so_that_its_mark_reads_back(monkeypatch, ci, written, mark):
-    # Rounded to four places alone, either end would be written as 0.0 and read back with no mark.
+def test_an_interval_end_near_zero_keeps_its_star_or_cross(monkeypatch, ci, written, mark):
+    # Rounded to four places alone, either end would be written as 0.0, which gives neither ★ nor ✗.
     monkeypatch.setattr(PS, "boot_ci", lambda d, groups, **kw: ci)
     a, b = pilot_scores("base", 0.0, 5), pilot_scores("cond", 0.03, 6)
     r = PS.compare_pair(a, b, keys=["inst_F1_50"])["metrics"]["inst_F1_50"]

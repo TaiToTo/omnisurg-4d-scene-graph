@@ -246,8 +246,9 @@ def is_star(ci95_video, sign: int = +1) -> bool:
 def round_keeping_sign(x: float) -> float:
     """Round to four places, and write a value that would round to zero at two significant digits.
 
-    `verdict` reads a mark from the sign of an interval's end. An end of
-    2.4e-05 written as 0.0 would lose its star, and one of -2.4e-05 its cross.
+    `verdict` gives ★ or ✗ from the side of zero on which an interval's ends
+    lie. An end of 2.4e-05 written as 0.0 would lose its ★, and an end of
+    -2.4e-05 its ✗.
     """
     r = round(float(x), 4)
     return r if r != 0.0 or float(x) == 0.0 else float(f"{float(x):.2g}")
@@ -276,7 +277,7 @@ def _stats_of(va: np.ndarray, vb: np.ndarray, kvids: np.ndarray, sign: int) -> d
     n_videos = int(len(np.unique(kvids)))
     w = stats.wilcoxon(d, zero_method="wilcox") if np.any(d != 0) else None
     ci_clip = None if len(d) < 2 else [round(x, 4) for x in boot_ci(d, None)]
-    # A table reads the mark back from the written interval, so an end near zero keeps its sign.
+    # A table gives ★ or ✗ from the interval written here, so an end near zero keeps its sign.
     ci_video = None if n_videos < 2 else [round_keeping_sign(x) for x in boot_ci(d, kvids)]
     pv = wilcoxon_video(d, kvids)
     return dict(

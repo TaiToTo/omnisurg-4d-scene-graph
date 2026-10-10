@@ -121,15 +121,15 @@ def test_a_cell_is_the_pair_statistics_of_paired_stats_on_the_key(tmp_path):
         f"p={r['wilcoxon_p']:.5f}★ (8 clips, 4 videos)")
 
 
-def test_a_row_is_starred_in_both_only_when_both_datasets_give_a_star(tmp_path):
+def test_a_row_is_marked_double_star_only_when_both_its_cells_are_marked_star(tmp_path):
     dirs = write_table(tmp_path, {("atlas120k", "t5_k10"): 0.10, ("cholecseg8k", "t5_k10"): 0.10,
                                   ("atlas120k", "rgb_center18"): 0.05, ("cholecseg8k", "ch_rgb_center"): -0.05})
     rows, _, _ = CT.build(dirs, PILOT_KEY)
     both = {claim.name: all(CT.star_in(p, PILOT_KEY) for p in cells) for claim, cells in rows}
-    # Every claim whose compared condition is `t5_k10` gets a star in both;
-    # the rgb tracking claim gets a star and a cross, and the edge one nothing.
+    # Every claim whose compared condition is `t5_k10` is marked ★ in both datasets;
+    # the rgb tracking claim is marked ★ in one and ✗ in the other, and the edge one neither.
     assert [both[c.name] for c in CT.CLAIMS] == [True, False, False, True, True]
-    assert "→ 3 / 5 rows get a star in both datasets" in CT.render(rows, None, PILOT_KEY, markdown=False)
+    assert "→ 3 of 5 rows are marked ★★" in CT.render(rows, None, PILOT_KEY, markdown=False)
 
 
 def test_a_key_where_less_is_better_is_read_in_its_direction(tmp_path):
@@ -141,19 +141,19 @@ def test_a_key_where_less_is_better_is_read_in_its_direction(tmp_path):
     assert "✗" in CT.format_cell(rows[0][1][0], KEY)
 
 
-def test_a_condition_without_a_score_json_is_not_measured_and_its_row_gets_no_star(tmp_path):
+def test_a_condition_without_a_score_json_is_not_measured_and_its_row_is_not_marked(tmp_path):
     dirs = write_table(tmp_path, {("atlas120k", "t5_k10"): 0.05, ("cholecseg8k", "t5_k10"): 0.05},
                        skip={("cholecseg8k", "ch_rgb_center")})
     rows, _, _ = CT.build(dirs, PILOT_KEY)
     assert rows[0][1][1] == CT.Unmeasured(("ch_rgb_center",))
     assert CT.format_cell(rows[0][1][1], PILOT_KEY) == "not measured: no ch_rgb_center.json"
     assert not all(CT.star_in(p, PILOT_KEY) for p in rows[0][1])
-    assert "→ 2 / 5 rows get a star in both datasets; 2 rows have a cell not measured" in CT.render(
+    assert "→ 2 of 5 rows are marked ★★; 2 rows have a cell not measured" in CT.render(
         rows, None, PILOT_KEY, markdown=False)
 
 
-def test_an_interval_that_ends_near_zero_keeps_its_star_and_shows_its_end(tmp_path, monkeypatch):
-    # Written at four places alone, the lower end would be 0.0: no star, and printed as +0.0000.
+def test_an_interval_that_ends_near_zero_stays_marked_and_shows_its_end(tmp_path, monkeypatch):
+    # Written at four places alone, the lower end would be 0.0: no ★, and printed as +0.0000.
     monkeypatch.setattr(PS, "boot_ci", lambda d, groups, **kw: (2.03e-05, 0.01509))
     rows, _, _ = CT.build(write_table(tmp_path), PILOT_KEY)
     assert CT.star_in(rows[0][1][0], PILOT_KEY)
@@ -188,7 +188,7 @@ def test_a_key_with_no_direction_is_refused(tmp_path):
 
 
 def test_a_reference_value_is_refused_as_the_key(tmp_path):
-    # No star marks it, so every row would read as one without a star.
+    # It has no better direction, so no cell could be marked ★ or ✗.
     with pytest.raises(ValueError, match="'time_IoU' is a reference value"):
         CT.build(write_table(tmp_path), "time_IoU")
 
@@ -227,10 +227,10 @@ def test_a_table_of_two_propagation_rules_is_refused(tmp_path):
         CT.build(dirs, KEY)
 
 
-def test_pilot_jsons_leave_the_stages_declared_and_the_table_says_so(tmp_path):
+def test_pilot_jsons_leave_the_stages_unchecked_and_the_table_says_so(tmp_path):
     rows, rule, _ = CT.build(write_table(tmp_path), PILOT_KEY)
     assert rule is None
-    assert "each stage is as declared" in CT.render(rows, rule, PILOT_KEY, markdown=True)
+    assert "no row's stage is checked" in CT.render(rows, rule, PILOT_KEY, markdown=True)
 
 
 # ---------------------------------------------------------------- the columns

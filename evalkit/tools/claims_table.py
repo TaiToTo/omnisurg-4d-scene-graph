@@ -2,12 +2,13 @@
 
 Each claim names a pair of conditions in each dataset, and a stage: both
 propagated, or a per-frame condition against a propagated one. A cell holds
-`cond − base` of one key, its video-level 95 % interval, the clip-level
-Wilcoxon p and the mark of `paired_stats.verdict`, all from
-`paired_stats.compare_pair`. A row gets ★★ only when both of its cells get
-a star. A condition with no score JSON leaves its cell "not measured" and
-the command exits non-zero, unless `--allow-unmeasured`. What the table
-refuses is listed under `build`.
+`cond − base` of one key, its video-level 95 % interval and the clip-level
+Wilcoxon p, from `paired_stats.compare_pair`. A cell is marked ★ when the
+whole interval lies on the better side of zero, and ✗ when it lies on the
+worse side (`paired_stats.verdict`). A row is marked ★★ when both of its
+cells are marked ★. A condition with no score JSON leaves its cell "not
+measured", and the command exits non-zero unless `--allow-unmeasured`.
+What the table refuses is listed under `build`.
 
 Usage:
     python -m evalkit.tools.claims_table --key F1_50/geometric \\
@@ -40,7 +41,7 @@ STAGES: Mapping[str, tuple[bool, bool]] = {PROPAGATED: (False, False), PER_FRAME
 
 @dataclass(frozen=True)
 class Unmeasured:
-    """Stand in for a cell whose pair lacks a score JSON.
+    """A cell whose pair lacks a score JSON.
 
     Attributes:
         missing: The tags of the pair that have no score JSON.
@@ -201,8 +202,8 @@ def build(dirs: Mapping[str, str], key: str) -> tuple[list[tuple[Claim, list[dic
     columns = {ds: read_column(dirs[ds], sorted({t for c in CLAIMS for t in c.pairs[ds]})) for ds in DATASETS}
     loaded = {f"{ds}/{t}": s for ds, col in columns.items() for t, s in col.items() if s is not None}
 
-    # The checks that hold across cells: one dataset and population per column, one rule per table, a key that
-    # can be marked.
+    # The checks that hold across cells: one dataset and population per column, one rule per table, a key with
+    # a better direction.
     differ = check_columns(columns)
     rule = check_one_rule(loaded)
     for name, s in loaded.items():
@@ -211,8 +212,8 @@ def build(dirs: Mapping[str, str], key: str) -> tuple[list[tuple[Claim, list[dic
         except KeyError:
             raise ValueError(f"{key!r} is not a key with a direction in {name}'s score JSON") from None
         if sign == 0:
-            raise ValueError(f"{key!r} is a reference value: no star marks it, so it goes in a table that carries "
-                             "none")
+            raise ValueError(f"{key!r} is a reference value, which has no better direction, so no cell could be "
+                             "marked ★ or ✗")
 
     # Each cell, refused with its claim and its dataset named.
     rows = []
@@ -228,13 +229,13 @@ def build(dirs: Mapping[str, str], key: str) -> tuple[list[tuple[Claim, list[dic
 
 
 def star_in(pair: dict | Unmeasured, key: str) -> bool:
-    """Return whether `paired_stats.verdict` gives a cell a star; a cell not measured or not defined gets none."""
+    """Return whether a cell is marked ★; a cell not measured, or whose key is defined on no clip, is not."""
     r = None if isinstance(pair, Unmeasured) else pair["metrics"].get(key)
     return r is not None and is_star(r["ci95_video"], r["sign"])
 
 
 def format_cell(pair: dict | Unmeasured, key: str) -> str:
-    """Write one cell: the difference, the video interval, the clip-level p, the mark and the population."""
+    """Write one cell: the difference, the video interval, the clip-level p, ★ or ✗, and the population."""
     if isinstance(pair, Unmeasured):
         return "not measured: no " + ", ".join(f"{t}.json" for t in pair.missing)
     r = pair["metrics"].get(key)
@@ -258,11 +259,11 @@ def unmeasured(rows: list[tuple[Claim, list[dict | Unmeasured]]]) -> list[str]:
 
 def render(rows: list[tuple[Claim, list[dict | Unmeasured]]], rule: str | None, key: str, markdown: bool,
            differ: Mapping[str, dict] | None = None) -> str:
-    """Write the table, as text or as markdown, with its header and the counts of rows starred and not measured."""
-    stage_note = ("the pilot evaluator's JSONs record no propagation rule, so each stage is as declared"
+    """Write the table as text or markdown, with its header and the counts of rows marked ★★ and not measured."""
+    stage_note = ("the pilot evaluator's JSONs record no propagation rule, so no row's stage is checked"
                   if rule is None else f"propagation rule {rule}; each stage is checked against the rules recorded")
     lines = [f"# Claims of the granularity result, on {key}",
-             f"# ★ / ✗: {VERDICT_RULE}. ★★: a star in both datasets.",
+             f"# ★ better, ✗ worse, when {VERDICT_RULE}. ★★: ★ in both datasets.",
              f"# {stage_note}"]
     lines += [f"# note: library versions differ in {column} between {tags}: {versions}"
               for column, pairs in (differ or {}).items() for tags, versions in pairs.items()]
@@ -276,7 +277,7 @@ def render(rows: list[tuple[Claim, list[dict | Unmeasured]]], rule: str | None, 
         for (claim, cells), b in zip(rows, both):
             lines += ["", f"{'★★' if b else '  '} [{claim.stage}] {claim.name}"]
             lines += [f"    {ds:12s} {format_cell(p, key)}" for ds, p in zip(DATASETS, cells)]
-    lines += ["", f"→ {sum(both)} / {len(rows)} rows get a star in both datasets; "
+    lines += ["", f"→ {sum(both)} of {len(rows)} rows are marked ★★; "
                   f"{len(unmeasured(rows))} rows have a cell not measured"]
     return "\n".join(lines)
 
@@ -320,7 +321,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     except (ValueError, OSError) as e:
         raise SystemExit(str(e)) from e
     print(render(rows, rule, args.key, args.markdown, differ))
-    # A claim whose cell lacks a score JSON would leave the table without a word, as a row with no star.
+    # Without the exit, a row whose cell lacks a score JSON would look like a row not marked ★★.
     missing = unmeasured(rows)
     if missing and not args.allow_unmeasured:
         print(f"{len(missing)} row(s) have a cell not measured: {missing}; pass --allow-unmeasured to accept them",
