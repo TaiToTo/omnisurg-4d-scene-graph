@@ -259,6 +259,29 @@ and no summary is written.
 
 `python -m pipeline.extract_lapex --help` lists the options.
 
+## The D4D population
+
+```bash
+python -m pipeline.select_d4d_population --census /path/to/census.json \
+    --clips d4d_meta/census_clips.txt --out d4d_meta
+```
+
+The D4D measurements score sides, not clips. The step selects the sides by
+the rule in `d4d_meta/README.md`, from a census of their inputs. It writes
+`population.json`, which lists the kept sides and counts the sides left out
+for each reason, and `clips.txt`, which lists the clips with a kept side.
+
+The step refuses, before it writes anything:
+
+- a list of clips that is empty, holds a clip twice, or holds a line that is
+  not `<specimen>/<session>/<clip>`;
+- a census that does not hold each clip of the list once and in its order,
+  such as a census cut short;
+- a side that carries an `error`, which the census wrote when it failed to
+  measure the side;
+- a field the rule reads that is missing or holds a value of the wrong kind,
+  such as a side with a point cloud and no `active`, or a `NaN`.
+
 ## The depth stage
 
 ```bash

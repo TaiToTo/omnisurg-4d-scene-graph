@@ -77,6 +77,7 @@ omnisurg-4d-scene-graph/
 ├── sam3_wrapper/      promptable segmentation and tracking (SAM 3)
 ├── atlas120k_meta/    crop rectangles, frame ratios, clip population (no video)
 ├── cholecseg8k_meta/  crop rectangles, clip population (no video)
+├── d4d_meta/          census clip list, scored sides (no frame or point cloud)
 ├── viewer/
 ├── docs/              evaluation.md, review.md, porting.md, data_contract.md, pipeline.md
 ├── tests/

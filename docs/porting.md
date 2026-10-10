@@ -307,6 +307,19 @@ Each stage is described in `docs/pipeline.md`.
   writing the clips before it. It writes `extraction_summary.json` only
   after a run over every case, where the script replaced it with the
   count of the cases it was given.
+- `ipcai2027_experiment/scripts/d4d_population.py` is
+  `pipeline/select_d4d_population.py`. The step also reads
+  `d4d_meta/census_clips.txt`, which the script had no list of, and refuses
+  what the script selected from anyway:
+  - a census cut short, as `d4d_census.py --limit` cuts it;
+  - a side that carries an `error`, which the script counted as `no_gt`;
+  - a field missing or of the wrong kind, such as a side with a point cloud
+    and no `active`, which the script took for still tissue.
+
+  It reads the specimen from the key, where the script read the census's
+  `specimen`. Run on the workbench's census, it writes the workbench's
+  `population.json` and `pop_all.txt` byte for byte. It does not write
+  `pop_moved.txt` or `pop_static.txt`, which nothing reads.
 
 ### Not yet extracted anywhere
 
@@ -388,9 +401,10 @@ below.
     scored against D4D's structured-light surfaces, and the camera
     trajectory, scored against D4D's optical tracker.
     - `d4d_io.py` reads D4D through the upstream loader `d4d.loader`,
-      which the port depends on and does not copy.
-    - `d4d_census.py` and `d4d_population.py` fix the population from the
-      inputs alone, before any score is read.
+      which the port depends on and does not copy. How it depends on the
+      loader is open ("How this repository depends on D4D's loader").
+    - `d4d_census.py` measures the inputs the population is selected from,
+      before any score is read. `d4d_population.py` is ported (above).
     - `d4d_depth.py` makes depth on the frames the GT was taken at, and
       `d4d_seed.py` makes the seed regions on the same frames.
       `d4d_seed.py` copies the tracking stage's seed step instead of
@@ -404,8 +418,8 @@ below.
     - `d4d_pose.py` scores the trajectory with `pose_metrics` and
       `pose_controls`.
 
-    D4D's data is on the workbench's GPU machine only, so the D4D scripts
-    are checked there.
+    The development machine holds D4D's data and the workbench's D4D
+    outputs, so a D4D script that needs no GPU is checked there.
   - What the viewer reads, and no score does: `export_viewer_dataset.py`
     and `build_temporal_graph.py`, which build the graphs;
     `export_instrument_mask.py`; `run_atlas_pipeline.sh`, which made the
@@ -1077,3 +1091,43 @@ Every command takes those paths as arguments.
     ("Primary metrics"), which rows each rule's table holds, which keys and
     views it prints, and whether it prints `objects.predicted`. Until then
     the keys come from `--keys`.
+25. **How this repository depends on D4D's loader.** The workbench imports
+    `d4d.loader` from a clone of https://github.com/reubendocea/d4d at
+    commit `efe12d26`, put on `PYTHONPATH`. pip cannot install the loader
+    from that commit. The project is named `d4d-surgical`, and its package
+    find rule includes only `d4d_surgical*`, while the package is `d4d/`, so
+    the wheel pip builds holds no module. PyPI holds no `d4d-surgical`, and
+    its `d4d` is an unrelated project. The repository has no licence file,
+    though its `pyproject.toml` declares MIT. The ways open, none chosen:
+    - upstream fixes the find rule and adds a licence file, and an extra
+      pins that commit;
+    - a fork carries the fix, and an extra pins the fork's commit;
+    - no extra: the README says to put the clone on `PYTHONPATH`, and the
+      D4D reader refuses to run without it.
+
+    The census and the D4D reader wait on this. The population step needs
+    no loader.
+26. **Two inputs of the census whose code no repository holds.** The census
+    reads `moved_camera` from `clip_table.json`, and `active` from the
+    record of the tissue's motion, `tissue_motion.json`. Scripts in the
+    dataset's directory wrote both files, and neither the workbench nor
+    upstream tracks them. `detect_tissue_motion.py` passes
+    `cv2.INTER_NEAREST` to `cv2.resize` as its third positional argument,
+    which is `dst`, so it resizes bilinearly an instrument mask whose size is
+    not the depth map's. In 11 of the 271 clips the masks are 894 × 714 and
+    the frames 640 × 512. Whether the resizing changes any of the 45
+    `tissue_moving` sides is not measured. `gt_blk_frac` is not affected.
+    Decide whether the two scripts are ported or their files kept as data,
+    and whether the motion record is made again with the masks resized by
+    nearest neighbour.
+27. **The tissue's motion when a side was scanned.** The record of the
+    tissue's motion covers the clip only, so `active` is taken at the clip's
+    first moment for `start` and at its last for `end`. The scans lie
+    outside the clip: at the median, the `start` scan 4.4 s before the
+    clip's first frame, and the `end` scan 4.3 s after its last. The record also stops
+    sampling 0.5 to 1.7 s before a clip's last frame, so no `end` side is
+    `active`, and all 45 `tissue_moving` sides are `start` sides. Whether the
+    tissue moved when a side was scanned is measured for no side. Decide
+    before the D4D numbers are reported whether the rule keeps this
+    stand-in, written down beside it, or the motion is measured up to the
+    time of each scan.
