@@ -287,6 +287,48 @@ Each stage is described in `docs/pipeline.md`.
   and an image whose size is not the rectangle's frame. It also refuses to
   replace a cropped clip that holds a later stage's output.
 
+### The viewer, already ported
+
+The workbench's `demo` page, `viewer/demo.html` with `viewer/src/demo/`, is
+`viewer/`. The port keeps what shows the scene graph:
+
+- the point clouds, with the regions painted on them or not;
+- the graph in the camera's view, beside the camera frame and its masks;
+- World mode, and its map of every stacked frame in one camera;
+- the band of regions through time, and the graph through time;
+- a region followed through time, with its edge to a neighbour and its
+  events, shown on the cloud;
+- the graph drawn on the cloud.
+
+It departs from the page in these ways:
+
+- It reads `catalog.json`, which `pipeline/viewer_catalog.py` writes. The
+  page asked the development server for its clips (`/api/clips`) and kept
+  a table of datasets, tracks and chosen clips in its code. A clip's depth
+  model and its tracks' names are now in the catalog.
+- It is a static page: it needs no route of the development server, so a
+  built page can be published as it is.
+- It refuses what the page let through: a catalog or a clip without what the
+  viewer reads; a frame without the pose of the clip's depth model, where the
+  page kept DA3's; and, on another depth model's cloud, a graph without labels
+  on its frame, which the page drew at DA3's coordinates.
+- The band of a followed region reads spatial edges only and keeps one word
+  per frame by a fixed order, as the workbench's later
+  `viewer/src/workbench/node_relations.js` does. The page kept the word read
+  last, of any edge type.
+- The World map takes the stack's origin from the stack, as the workbench's
+  later `viewer/src/workbench/nodelink.js` does. The page derived it again,
+  and the map slid off the clouds when frame 0 did not load.
+- Text taken from the data is escaped before it reaches the page's markup.
+- The camera frame and the graph in the camera's view are shown in
+  per-frame mode too; the page hid them there outside its tour.
+- A plate of the graph through time says "annotated" for an annotated frame
+  and "seed" for a seed; the page said "seed" for both.
+
+The functions the page borrowed from the workbench's `src/graph/`,
+`src/workbench/` and `src/catalog/` are in `viewer/src/lib/`, with their
+tests. The page's other parts are under "Not carried for now".
+
 ### Not yet extracted anywhere
 
 This list comes from the take list in `repo_migration_plan.md`, checked
@@ -400,13 +442,6 @@ below.
     `ipcai2027_experiment/task22_atlas100/out/manifest/videos.json`.
   - The readers: `surgical_core/atlas/clip_rects.py` and `frame_ratio.py`,
     into `surgical_core/atlas120k/`.
-- **Viewer.**
-  - The `demo`, `workbench` and `depthcmp` pages.
-  - Their `src/` directories.
-  - `viewer/scripts/merge_geometry_sources.py` and
-    `verify_geometry_alignment.mjs`.
-  - `vite.config.js`, without the experiment routes.
-
 ### Not carried for now
 
 This section lists what the port leaves out for now. It is left out because
@@ -483,6 +518,37 @@ The second list holds what the paper's numbers do not use.
   `depth_sam_tracking_experiment/track_sam3_consensus.py` and
   `track_sam3_3d.py`. `consensus` is a mode of `run_track_conditions.py`,
   and the manuscript reports no consensus condition.
+- **The demo page's parts that do not show the graph**, in the workbench's
+  `viewer/src/demo/` unless named otherwise. They served a staffed booth, a
+  poster, or the reconstruction on its own:
+  - the guided tour, `tour.js`, and its hooks in `main.js` (the tour's clip,
+    its choice of node, its panel layouts, the camera-pose marker, the
+    faded and hidden clouds);
+  - the booth: attract mode and the key list in `kiosk.js` and `keymap.js`,
+    "Reset all", the booth's error surface, and the scripts that staged
+    and checked the booth (`viewer/scripts/stage_demo_data.mjs`,
+    `stage_demo_app.sh`, `demo_account.sh`, `verify_demo_booth.mjs`,
+    `check_demo_data.mjs`);
+  - the catalog over the page: `catalog.js`, `catalog3d.js`,
+    `catalog_tree.js`, `curated.js`, the preview videos
+    (`scripts/export_clip_previews.py`) and the links to the videos;
+  - the About panel with its marks and QR code: `about.js`, `logos.js` and
+    `src/assets/site-qr.svg`;
+  - the poster's capture: the URL flags `graphmark` to `campose` and
+    `viewer/scripts/capture_demo_shots.mjs`;
+  - the cloud's "Tissue only" and "Tools only", which drop the instruments
+    and the flying pixels at depth steps: `depth_filter.js` and
+    `cloudDropMask` in `seg.js`. Porting them needs each track's instrument
+    classes in the catalog, which the evaluator's class tables give;
+  - the switch between depth models, the band of relation changes the page
+    kept hidden, the choice of an ellipse for a node, and clips with no
+    track, which showed the reconstruction alone.
+- **The workbench's other viewer pages**: `workbench`, which compares two
+  segmentations of a clip, and `depthcmp`, which compares depth models,
+  with `viewer/scripts/merge_geometry_sources.py` and
+  `verify_geometry_alignment.mjs`. They examine the reconstruction, not the
+  graph. "The skill-classification code and the other 18 viewer pages"
+  under "Open questions" holds the rest.
 - **Graphs built again**: `scripts/export_graph_cleanup_compare.py`, which
   builds each graph twice for a comparison page, and
   `scripts/backfill_depth_rel.py`, which adds `depth_rel` to graphs written
@@ -909,3 +975,23 @@ Every command takes those paths as arguments.
     machine therefore runs both stages under one numpy on one CPU. Decide
     whether the stage keeps this sort, or sorts stably and lists the change
     among the differences from the workbench that the byte check allows.
+21. **Where the public viewer and its data live.** The viewer is a static
+    page, and a published copy needs the files of every clip it lists. The
+    files the viewer reads come to about 600 MB for a 30-frame CholecSeg8k
+    clip with two tracks and 500 MB for a 21-frame ATLAS-120k clip with
+    three. Five sixths of it is segmentation frames: JSON with a colour per
+    pixel and a region per vertex, about 11 MB a frame, which gzip cuts to
+    about 0.5 MB. Decide which clips are published and where; whether a
+    host that compresses JSON is enough or the export writes a compact
+    binary segmentation; and what the datasets' licences allow to be
+    published: the camera frames and masks of CholecSeg8k (CC BY-NC-SA 4.0)
+    and of ATLAS-120k, whose videos come from YouTube.
+22. **Where a track's name and kind are defined.** The viewer shows a track
+    by the name, the kind (annotation or automatic, seeded or not) and the
+    badges that `pipeline/viewer_catalog.py` lists for its id. The table
+    lists the five ids of the workbench's export: `cholecseg8k`,
+    `atlas_gt`, `gt_tracked`, `sam3d` and `sam3d_edge`. `gt_tracked` is one
+    GT frame carried by SAM 3 ("Conditions seeded from GT"). When the export
+    stages are ported, decide whether they write each track's description
+    into the clip, so that the catalog copies it, and which tracks a
+    published clip carries.
