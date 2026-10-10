@@ -30,7 +30,7 @@ from evalkit.tools.paired_stats import (
     SEED_SCHEME,
     boot_ci,
     format_signed,
-    load_json,
+    load_pairs,
     mark_of,
     round_keeping_sign,
     video_of,
@@ -198,18 +198,10 @@ def main() -> None:
     args = ap.parse_args()
 
     # Every pair's two JSONs, read before any is compared.
-    pairs, loaded = [], {}
-    for pair in [p.strip() for p in args.pairs.split(",") if p.strip()]:
-        try:
-            base, sep, cond = pair.partition(":")
-            if not (sep and base and cond) or ":" in cond:
-                raise ValueError("--pairs takes <base>:<cond>")
-            for tag in (base, cond):
-                if tag not in loaded:
-                    loaded[tag] = load_json(tag, args.eval_dir)
-        except (ValueError, OSError) as e:
-            raise SystemExit(f"{pair}: {e}") from e
-        pairs.append((pair, base, cond))
+    try:
+        pairs, loaded = load_pairs(args.pairs, args.eval_dir)
+    except (ValueError, OSError) as e:
+        raise SystemExit(f"--pairs: {e}") from e
 
     # One rule for the whole run, because all its pairs go into one JSON.
     try:
@@ -235,7 +227,8 @@ def main() -> None:
     if rule is not None:
         out["propagation"] = rule
     out["pairs"] = {}
-    for pair, base, cond in pairs:
+    for base, cond in pairs:
+        pair = f"{base}:{cond}"
         try:
             out["pairs"][pair] = leave_each_out_of_pair(loaded[base], loaded[cond], keys)
         except ValueError as e:
