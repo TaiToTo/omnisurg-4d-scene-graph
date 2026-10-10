@@ -1,18 +1,18 @@
-"""Name the videos a verdict rests on: leave each video out in turn, and take the verdict again.
+"""Leave each video out in turn, and name the videos whose removal changes the mark.
 
-For each pair of conditions and each key, the verdict is `paired_stats.verdict`
-on the video-level bootstrap of `cond - base`, read in the key's direction.
-A video whose removal changes the mark holds the verdict: the claim then
-says something about that video, not about the population.
+For each pair of conditions and each key, `paired_stats.verdict` reads the
+video-level bootstrap interval of `cond - base` in the key's direction and
+gives a mark: a star, a cross or none. A video whose removal changes the mark
+is named. The mark then depends on that one video, not on the population.
 
-This is not a test. A subset has fewer videos, so its interval is read for
-its sign only. Leaving a video out moves the mean and changes the interval's
-width, and either can change the mark. So each row records the mean without
-the video and the ratio of widths, and the printout says neither is the cause.
+It computes no p-value. A subset has fewer videos, so its interval is read
+for its sign only. Leaving a video out moves the mean and changes the width
+of the interval, and either can change the mark. Each row records both, and
+the printout names no cause.
 
 Usage:
-    python -m evalkit.tools.lovo_verdict --eval-dir /path/to/scores \\
-        --pairs base:cond,base:other --keys inst_F1_50,SQ,boundary_F --out /path/to/lovo.json
+    python -m evalkit.tools.leave_one_video_out --eval-dir /path/to/scores \\
+        --pairs base:cond,base:other --keys inst_F1_50,SQ,boundary_F --out /path/to/left_out.json
 """
 from __future__ import annotations
 
@@ -36,11 +36,12 @@ from evalkit.tools.paired_stats import (
 )
 from evalkit.tools.scores import check_comparable, check_one_rule, defined_clips, rows_of
 
-# A video is left out only while this many videos remain, so a key on no more videos than this is refused. On
-# two videos the bootstrap has four distinct resamples, and its interval is the range of the two video means: a
-# mark there says only that both means have one sign.
+# A video is left out only while this many videos remain, so a key on this many videos or fewer is refused.
 MIN_VIDEOS_AFTER_DROP = 3
-# An interval taken on fewer videos than this is printed with a warning that it is thin.
+# A resample that draws one video three times has a chance of 1 in 27, above 2.5 %, so on three videos the
+# interval runs from the lowest video mean to the highest. The printout says so on such a row.
+RANGE_VIDEOS = 3
+# An interval on fewer videos than this is printed as thin.
 THIN_VIDEOS = 5
 
 
@@ -64,25 +65,25 @@ def _ci(ci: Sequence[float]) -> str:
 
 
 def direction(summary: dict, key: str) -> int:
-    """Return which way `key` is better on this JSON, refusing a key no mark can be read on.
+    """Return which way `key` is better on this JSON, refusing a key that is never marked.
 
     Raises:
         ValueError: The key has no direction in the table `paired_stats`
             reads, or its direction is 0. A key of direction 0, such as the
             reference value `time_IoU` or the count `n_regions_mean`, is
-            never marked, so no video can hold its mark.
+            never marked, so leaving a video out cannot change its mark.
     """
     try:
         sign = sign_of_key(summary, key)
     except KeyError:
         raise ValueError(f"{key}: no direction is known for this key, so no mark can be read on it") from None
     if sign == 0:
-        raise ValueError(f"{key} has direction 0 and is never marked, so no video can hold its mark")
+        raise ValueError(f"{key} has direction 0 and is never marked, so leaving a video out cannot change its mark")
     return sign
 
 
-def lovo(d: np.ndarray, vids: np.ndarray, sign: int) -> dict:
-    """Take the verdict on all the videos together, then again with each video left out.
+def leave_each_out(d: np.ndarray, vids: np.ndarray, sign: int) -> dict:
+    """Compute the mark on all the videos, then again with each video left out.
 
     Args:
         d: The paired differences `cond - base`, one per clip.
@@ -91,68 +92,64 @@ def lovo(d: np.ndarray, vids: np.ndarray, sign: int) -> dict:
 
     Returns:
         `n_clips`, `n_videos` and `sign`; `delta` and `ci95_video`, as
-        `cond - base` and not turned by `sign`; `verdict`, read in the
-        key's direction; `n_flips` and `flips`, the videos whose removal
-        changes the mark; and `per_video`, one row per video left out,
-        with `video`, `n_clips` (its clips), `n_videos_wo` (the videos
-        left), `own_delta` (its clips' mean difference), `delta_wo`,
-        `ci95_wo`, `ci_width_ratio` (the interval's width without the
-        video over its width with every video, None when that is zero)
-        and `verdict_wo`. A video is left out only while
-        `MIN_VIDEOS_AFTER_DROP` videos remain.
+        `cond - base` and not turned by `sign`; `mark`, read in the key's
+        direction; `n_flips` and `flips`, the videos whose removal changes
+        the mark; and `per_video`, one row per video left out, with
+        `video`, `n_clips` (its clips), `n_videos_wo` (the videos left),
+        `own_delta` (its clips' mean difference), `delta_wo`, `ci95_wo`,
+        `ci_width_ratio` (the interval's width without the video over its
+        width with every video, None when that is zero) and `mark_wo`.
+        Every video is left out once.
 
     Raises:
-        ValueError: `sign` is not +1 or -1; the clips come from fewer than
-            two videos, where the bootstrap has no interval; or they come
-            from no more than `MIN_VIDEOS_AFTER_DROP` videos, where no
-            video can be left out.
+        ValueError: `sign` is not +1 or -1, or the clips come from no more
+            than `MIN_VIDEOS_AFTER_DROP` videos, where no video can be left
+            out.
     """
     if sign not in (1, -1):
         raise ValueError(f"sign is +1 or -1, not {sign!r}: a reference value is never marked")
     d = np.asarray(d, dtype=np.float64)
     vids = np.asarray(vids)
+    videos = sorted(set(vids.tolist()))
+    if len(videos) <= MIN_VIDEOS_AFTER_DROP:
+        raise ValueError(f"the clips come from {len(videos)} video(s): leaving one out would leave fewer than "
+                         f"{MIN_VIDEOS_AFTER_DROP}, so no video can be left out and none can be named")
     full_ci = list(boot_ci(d, vids))
     full = verdict(full_ci, sign)
-    n_videos = len(set(vids.tolist()))
-    if n_videos <= MIN_VIDEOS_AFTER_DROP:
-        raise ValueError(f"{n_videos} videos: leaving one out would leave fewer than {MIN_VIDEOS_AFTER_DROP}, "
-                         "so no video can be left out and none can be named")
     per = []
-    for v in sorted(set(vids.tolist())):
+    for v in videos:
         m = vids != v
-        n_wo = len(set(vids[m].tolist()))
-        if n_wo < MIN_VIDEOS_AFTER_DROP:
-            continue
         ci = list(boot_ci(d[m], vids[m]))
         per.append(dict(
-            video=v, n_clips=int((~m).sum()), n_videos_wo=n_wo,
+            video=v, n_clips=int((~m).sum()), n_videos_wo=len(videos) - 1,
             own_delta=_r(d[~m].mean()), delta_wo=_r(d[m].mean()),
             ci95_wo=[_r(ci[0]), _r(ci[1])],
             ci_width_ratio=_r((ci[1] - ci[0]) / (full_ci[1] - full_ci[0])) if full_ci[1] != full_ci[0] else None,
-            verdict_wo=verdict(ci, sign)))
-    flips = [p["video"] for p in per if p["verdict_wo"] != full]
-    return dict(n_clips=int(len(d)), n_videos=int(n_videos),
-                # `delta` is `cond - base` and `verdict` is read in the key's
+            mark_wo=verdict(ci, sign)))
+    flips = [p["video"] for p in per if p["mark_wo"] != full]
+    return dict(n_clips=int(len(d)), n_videos=len(videos),
+                # `delta` is `cond - base` and `mark` is read in the key's
                 # direction, so the direction stays with them.
                 sign=int(sign), delta=_r(d.mean()), ci95_video=[_r(full_ci[0]), _r(full_ci[1])],
-                verdict=full, n_flips=len(flips), flips=flips, per_video=per)
+                mark=full, n_flips=len(flips), flips=flips, per_video=per)
 
 
-def lovo_pair(ja: dict, jb: dict, keys: Sequence[str]) -> dict:
-    """Take `lovo` on every key of one pair, over the clips `check_comparable` compared.
+def leave_each_out_of_pair(ja: dict, jb: dict, keys: Sequence[str]) -> dict:
+    """Run `leave_each_out` on every key of one pair, over the clips `check_comparable` compared.
 
     Args:
         ja: The base condition's score JSON.
         jb: The compared condition's score JSON.
-        keys: The keys to take the verdict on.
+        keys: The keys to compute the mark on.
 
     Returns:
-        Key to `lovo`'s result. A key defined on no common clip is left out.
+        `eval_code`, from the check, and `metrics`, key to the result of
+        `leave_each_out`. A key defined on no common clip is left out.
 
     Raises:
         ValueError: The two JSONs are not comparable, a key has no
             direction to read a mark in, a key is in no row of either JSON,
-            or a key's clips come from too few videos (`lovo`).
+            or a key's clips come from too few videos (`leave_each_out`).
     """
     chk = check_comparable(ja, jb)
     a, b = rows_of(ja), rows_of(jb)
@@ -170,34 +167,39 @@ def lovo_pair(ja: dict, jb: dict, keys: Sequence[str]) -> dict:
         vids = np.array([video_of(c) for c in ks])
         d = np.array([b[c][k] for c in ks], dtype=np.float64) - np.array([a[c][k] for c in ks], dtype=np.float64)
         try:
-            res[k] = lovo(d, vids, sign)
+            res[k] = leave_each_out(d, vids, sign)
         except ValueError as e:
             raise ValueError(f"{k}: {e}") from e
-    return res
+    return dict(eval_code=chk["eval_code"], metrics=res)
 
 
-def _thin(n_videos: int) -> str:
-    return f"  <- an interval on {n_videos} videos is thin" if n_videos < THIN_VIDEOS else ""
+def _note(n_videos: int) -> str:
+    """Say when an interval on this many videos is the range of the video means, or thin."""
+    if n_videos <= RANGE_VIDEOS:
+        return f"  <- on {n_videos} videos the interval is the range of the video means"
+    if n_videos < THIN_VIDEOS:
+        return f"  <- an interval on {n_videos} videos is thin"
+    return ""
 
 
 def _print_key(k: str, r: dict) -> None:
     lower = " (lower is better)" if r["sign"] < 0 else ""
-    print(f"  {k}{lower}  Δ={_f(r['delta'])} {_ci(r['ci95_video'])} {r['verdict'] or 'no mark'}"
-          f" ({r['n_clips']} clips / {r['n_videos']} videos){_thin(r['n_videos'])}")
+    print(f"  {k}{lower}  Δ={_f(r['delta'])} {_ci(r['ci95_video'])} {r['mark'] or 'no mark'}"
+          f" ({r['n_clips']} clips / {r['n_videos']} videos){_note(r['n_videos'])}")
     if not r["n_flips"]:
-        print("    no single video left out changes the verdict")
+        print("    no single video left out changes the mark")
         return
-    print(f"    {r['n_flips']} video(s) change the verdict when left out:")
+    print(f"    {r['n_flips']} video(s) change the mark when left out:")
     for p in r["per_video"]:
-        if p["verdict_wo"] == r["verdict"]:
+        if p["mark_wo"] == r["mark"]:
             continue
-        # Both the mean and the width move; which of them changed the mark is not read from either alone.
+        # Both the mean and the width move, and neither alone says which of them changed the mark.
         w = p["ci_width_ratio"]
         width = "" if w is None else f", the interval {w:.2f} times as wide"
         print(f"      without {p['video']} ({p['n_clips']} clips, its own Δ={_f(p['own_delta'])}):"
-              f" Δ={_f(p['delta_wo'])} {_ci(p['ci95_wo'])} {p['verdict_wo'] or 'no mark'}"
+              f" Δ={_f(p['delta_wo'])} {_ci(p['ci95_wo'])} {p['mark_wo'] or 'no mark'}"
               f" ({p['n_videos_wo']} videos, the mean moved {_f(p['delta_wo'] - r['delta'])}{width})"
-              f"{_thin(p['n_videos_wo'])}")
+              f"{_note(p['n_videos_wo'])}")
 
 
 def main() -> None:
@@ -205,8 +207,8 @@ def main() -> None:
     ap.add_argument("--eval-dir", required=True, help="The directory of the score JSONs, one <tag>.json per condition.")
     ap.add_argument("--pairs", required=True, help="<base>:<cond>, comma-separated.")
     ap.add_argument("--keys", required=True,
-                    help="The keys to take the verdict on, comma-separated; each must have a direction.")
-    ap.add_argument("--out", default="", help="Write the verdicts of every pair to this JSON.")
+                    help="The keys to compute the mark on, comma-separated; each must have a direction.")
+    ap.add_argument("--out", default="", help="Write the marks of every pair to this JSON.")
     args = ap.parse_args()
 
     # Every pair's two JSONs, read before any is compared.
@@ -240,26 +242,25 @@ def main() -> None:
     except ValueError as e:
         raise SystemExit(f"--keys: {e}") from e
 
-    # The verdicts of each pair, printed as they come.
-    out = {"verdict_rule": VERDICT_RULE, "seed_scheme": SEED_SCHEME, "min_videos_after_drop": MIN_VIDEOS_AFTER_DROP}
-    # A pilot JSON records no rule, and the workbench wrote no evaluator or bootstrap, so none is written.
+    # The marks of each pair, printed as they come.
+    out = {"mark_rule": VERDICT_RULE, "n_boot": N_BOOT, "seed": SEED, "seed_scheme": SEED_SCHEME,
+           "min_videos_after_drop": MIN_VIDEOS_AFTER_DROP}
+    # A pilot JSON records no rule, so none is written.
     if rule is not None:
-        out.update(propagation=rule, n_boot=N_BOOT, seed=SEED, eval_code={})
+        out["propagation"] = rule
     out["pairs"] = {}
     for pair, base, cond in pairs:
         try:
-            res = lovo_pair(loaded[base], loaded[cond], keys)
+            out["pairs"][pair] = leave_each_out_of_pair(loaded[base], loaded[cond], keys)
         except ValueError as e:
             raise SystemExit(f"{pair}: {e}") from e
         print(f"\n===== {cond} vs {base} =====")
+        res = out["pairs"][pair]["metrics"]
         for k in keys:
             if k in res:
                 _print_key(k, res[k])
             else:
                 print(f"  {k}: (defined on no clip of both conditions)")
-        out["pairs"][pair] = res
-        if rule is not None:
-            out["eval_code"][pair] = check_comparable(loaded[base], loaded[cond])["eval_code"]
 
     if args.out:
         os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
