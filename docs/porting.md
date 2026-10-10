@@ -219,6 +219,7 @@ copy to read the RGB clips, and the ported copies read `evalkit.classes`.
 |---|---|---|---|
 | `paired_stats.py` | `ipcai2027_experiment/scripts/paired_stats.py` | `extract/03-metrics` (#3) | The rule does not change; `VERDICT_RULE` and `verdict` are named `MARK_RULE` and `mark_of`. The comparability check is `scores.check_comparable`, which applies the rule of `docs/evaluation.md`, in place of the pilot's, and the statistics are taken on the clips it compared. `video_of` is defined here rather than delegated. Each row records the metric's `sign` and `mark_of` reads the interval in it, so a metric where smaller is better, or a reference value that is never marked, is not oriented by the caller. An end of `ci95_video` that would round to zero at four places is written at two significant digits (`round_keeping_sign`), so a table gives the same ★ or ✗ from the written interval; the workbench wrote 0.0, which gives neither. `compare_pair` takes `keys`, and refuses one the evaluator does not write in the JSON's views. A bootstrap over fewer than two units refuses rather than return a point. |
 | `lovo_verdict.py` | `ipcai2027_experiment/scripts/lovo_verdict.py` | — | Ported as `evalkit/tools/leave_one_video_out.py`. It leaves each video out in turn and names the videos whose removal changes the mark that `paired_stats.mark_of` gives. It departs from the workbench in four places: the direction of each key comes from the table `paired_stats` reads, so the `_labeled` and `_tissue` keys are taken; `--keys` has no default; a key on three videos or fewer is refused, where the workbench printed that no video changed the mark; and a row prints how far the mean moved beside the ratio of widths, and names no cause. On the pilot's scores its rows equal the workbench's, with `verdict` named `mark`. Not carried: `--fairness-json`, `--doms` and `--keys all`. |
+| `print_status_tables.py` | `ipcai2027_experiment/atlas97/scripts/print_status_tables.py` | — | Ported as `evalkit/tools/print_status_tables.py`. It prints four tables from the analysis JSONs that four workbench scripts wrote, and computes nothing new: each geometry input against rgb merged to one K, identity over time, the pairs of `kmerge --pairs`, and a classic watershed. Each JSON's path is an argument, where the workbench read fixed paths under its own tree. Every mark is the one `paired_stats.mark_of` gives on the stored interval, in the direction of the pilot key the column holds (`scores.PILOT_SIGNS`), and a mark a JSON stores must equal it. The identity table carries no mark ("No measure over time carries a star"); the workbench marked it through `lovo_verdict.TRACK_SIGN`. A section title names what the table compares, not the workbench's task id. The tool refuses what the workbench printed regardless: a table's rows missing or extra, a matched row the analysis found broken, conditions measured against different GT tracks under one header, and classic JSONs that differ in stride or in dropping instruments. On the stored JSONs, every row of its tables holds the workbench's numbers, marks and names, the identity table's marks aside. Its inputs come from scripts this plan does not move ("The inputs of `print_status_tables`"). |
 | `compare_eval.py` | `depth_sam_tracking_experiment/compare_eval.py` | `extract/03-metrics` (#3) | It refuses to mix shas through `scores.check_comparable`, which also compares dataset, class set, view and mode. The table prints each metric's direction and no mark: the workbench's circle and cross followed the sign of the mean difference, a second rule for a mark besides `paired_stats.mark_of`. The per-clip list, the chart and `wins` follow the question's primary metric, named with `--key`; the directions of the pilot keys come from `scores.PILOT_SIGNS`, the one table `paired_stats` reads too. |
 | `paired_table.py` | `ipcai2027_experiment/atlas97/scripts/summary97.py` | — | Ported as `evalkit/tools/paired_table.py`. It prints the rows of `summary97.py`: each key's mean difference, with the mark that `paired_stats.mark_of` gives. It departs from the workbench in three places: it refuses a table whose conditions are not all comparable, leaves a cell on one video without a value, and refuses a reference value as a key. It leaves out the four `t12_*` rows ("Conditions seeded from GT masks") and the `t5_kgt` row ("`kmerge` is a tool"). On the pilot's 38 score JSONs, every number and mark equals the workbench's. Its rows on the evaluator's scores are open ("The paired table on the evaluator's scores"). |
 | `arms_paired.py` | `ipcai2027_experiment/scripts/arms_paired.py` | — | Ported as `evalkit/tools/arms_paired.py`. It prints one key's paired difference for several pairs of conditions, one line per pair. It departs from the workbench in five places: it reads one score JSON per condition, where the workbench read the per-clip F1 that `pps_f1.py` writes and no score JSON holds; a pair is `base:cond` and its line is `cond − base`, the reverse of the workbench's `a:b`; a condition with no score JSON is refused, where the workbench skipped the pair; it refuses a table whose conditions are not all comparable, with the check `paired_table` uses; and it marks a line in its key's direction, and never marks a key of direction 0. On the same per-clip values, every line equals the workbench's from the column after the pair's name on. It carries none of the workbench's 21 default pairs ("The pairs `arms_paired` reports"). |
@@ -392,10 +393,8 @@ below.
     with GT unless given `--clips`. The dispatcher, with `run_conditions.py`
     and the `single` mode of `run_track_conditions.py`, is
     `pipeline/condition_population.py` ("Pipeline stages already ported").
-  - The paper's tables: `ipcai2027_experiment/atlas97/scripts/print_status_tables.py`,
-    which the manuscript names with `summary97.py` as the source of every
-    table; from `ipcai2027_experiment/scripts/`, `claims_grid.py` and
-    `summarize_20.py`, the StereoMIS table; and
+  - The paper's tables: from `ipcai2027_experiment/scripts/`,
+    `claims_grid.py` and `summarize_20.py`, the StereoMIS table; and
     `ipcai2027_experiment/task15_granularity/scripts/settle_inputs.py`.
     `claims_grid.py` reads `outputs/atlas`, the 13-video set, and
     `outputs/cholec_gt`.
@@ -1255,3 +1254,17 @@ Every command takes those paths as arguments.
     granularity result answers a question whose primary metrics are already
     fixed ("Primary metrics" in `docs/evaluation.md`). Decide with it which
     population the ATLAS-120k column reads.
+33. **The inputs of `print_status_tables`.** The tool prints four tables, and
+    no ported tool writes the JSON of any of them. The four are written by
+    `task15_granularity/scripts/fair_merge_recheck.py --mode input_track`,
+    `scripts/summarize_track12.py`, `scripts/kmerge.py --pairs` and
+    `atlas97/scripts/classic_seg.py`, all under `ipcai2027_experiment/`.
+    None of them is in this plan's list of what moves, and the port of
+    `kmerge` leaves out `--pairs` and its `matched` K. The identity table
+    reads `summarize_track12`, which computes with `track_metrics` and its
+    `MIN_AREA` of 400 px, on the conditions seeded from GT (`t12_gtseed`,
+    `t12_paste`). Until this is decided, the tool reads the workbench's
+    JSONs as they are. Decide, table by table, whether the paper keeps the
+    table, and if so which ported tool writes its JSON. The identity table
+    waits on "The GT track of `track_metrics`" and "Conditions seeded from
+    GT" too.
