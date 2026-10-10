@@ -71,3 +71,22 @@ jobs:
       - run: pip install -e ".[render,tools]" pytest
       - run: python -c "import surgical_core.geometry.render, scipy.stats, matplotlib, trimesh"
       - run: pytest
+
+  # The viewer is a static page built with Node. Its tests cover the modules
+  # under viewer/src/lib/, and the build fails on an import that does not
+  # resolve, which no test of those modules would see.
+  viewer:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: viewer
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: viewer/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
