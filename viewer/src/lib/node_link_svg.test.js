@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { renderNodeLink } from './node_link_svg.js';
+import { nodeLabel, renderNodeLink } from './node_link_svg.js';
 
 const positions = new Map([[1, [10, 10]], [2, [100, 100]], [3, [200, 50]]]);
 const nodes = [
@@ -58,5 +58,14 @@ describe('renderNodeLink', () => {
     expect(svg).toContain('<title>A&lt;b&gt;&amp;&quot;c</title>');
     expect(svg).toContain('data-node-key="x&quot;y:1"');
     expect(svg).not.toContain('<b>');
+  });
+});
+
+describe('nodeLabel', () => {
+  it('puts a label right of its node, or left of it where it would leave the panel', () => {
+    expect(nodeLabel('obj 8', 50, 20, 5, 320, 1)).toMatch(/x="57.0"[^>]*opacity/);
+    const nearEdge = nodeLabel('obj 8', 300, 20, 5, 320, 1);
+    expect(nearEdge).toContain('x="293.0"');
+    expect(nearEdge).toContain('text-anchor="end"');
   });
 });

@@ -100,7 +100,7 @@ export function renderNodeFocus(el, { tg, nodeId, maxFrame, frame, onSeek, onEve
         const wSeg = Math.max(2, x(b) - x(a) + 2);
         parts.push(`<rect x="${x(a).toFixed(1)}" y="${y + 3}" width="${wSeg.toFixed(1)}" height="${EDGE_H - 6}" rx="3" `
           + `fill="${hexColor(RELATION_COLORS[rel] ?? 0x888888)}" fill-opacity="0.8">`
-          + `<title>${esc(labelOf(nodeId))} is ${esc(rel)} of ${esc(labelOf(other))} (frames ${a}–${b})</title></rect>`);
+          + `<title>${esc(labelOf(nodeId))} is ${esc(rel)} of ${esc(labelOf(other))} (frames ${esc(a)}–${esc(b)})</title></rect>`);
         if (wSeg > 30) parts.push(`<text class="nf-seg" x="${(x(a) + 4).toFixed(1)}" y="${y + EDGE_H / 2 + 3.5}">${esc(rel)}</text>`);
       }
       y += EDGE_H;
@@ -120,7 +120,7 @@ export function renderNodeFocus(el, { tg, nodeId, maxFrame, frame, onSeek, onEve
     parts.push(`<line x1="${cx.toFixed(1)}" y1="${TOP}" x2="${cx.toFixed(1)}" y2="${(cy - 6).toFixed(1)}" stroke="${col}" stroke-width="1" stroke-opacity="0.45" stroke-dasharray="2 2"/>`
       + `<g class="nf-event" data-idx="${k}">${ring}<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="6" fill="${col}"/>`
       + `<text class="nf-ev-num" x="${cx.toFixed(1)}" y="${(cy + 2.7).toFixed(1)}" text-anchor="middle">${k + 1}</text>`
-      + `<title>(${k + 1}) ${esc(ev.label)} at f${ev.f}; click to show it on the cloud</title></g>`);
+      + `<title>(${k + 1}) ${esc(ev.label)} at f${esc(ev.f)}; click to show it on the cloud</title></g>`);
   });
   if (!events.length) parts.push(`<text class="nf-val" x="${AXIS_L}" y="${y + ROW_H - 5}">none in this clip</text>`);
   y += ROW_H;

@@ -294,7 +294,7 @@ body.mode-world .in-frame, body:not(.mode-world) .in-world { display: none; }
   #layout { flex-direction: column; }
   #side { width: auto; max-width: none; padding: 10px 10px 0; }
   #split-side { display: none; }
-  #viewport { margin: 10px; height: 60vh; }
+  #viewport { margin: 10px; height: 70vh; }
   #nodelink-card { min-height: 260px; }
   #btn-reset-view { margin-left: 0; }
 }

@@ -397,7 +397,7 @@ tracking stage does.
 ## The viewer's catalog
 
 ```bash
-python -m pipeline.viewer_catalog --root /path/to/outputs --clips <clip path> ... \
+python -m pipeline.viewer_catalog --root /path/to/outputs --clips <clip path> ... [--tracks <track> ...] \
     [--geometry pi3x] [--geometry cholecseg8k=da3] (--in-place | --out /path/to/site/data)
 ```
 
@@ -405,7 +405,8 @@ The viewer opens the clips a catalog lists. A clip path is relative to
 `--root`, such as `cholec_gt/VID01_s15_80_crop`, and `@FILE` reads the
 paths from a file, one per line. `--geometry` names the depth model whose
 point clouds the viewer shows, for every clip or for one dataset; the
-default is DA3. The command writes `catalog.json`:
+default is DA3. `--tracks` lists only the tracks named, of those a clip
+has. The command writes `catalog.json`:
 
 - with `--in-place`, into `--root`, for a viewer served from the clips;
 - with `--out`, into a new directory, together with a copy of the files
@@ -425,8 +426,8 @@ The command refuses:
   without its temporal graph;
 - a frame with a segmentation and no graph of the same track, or the
   reverse, and an overlay of a frame past the last;
-- a clip listed twice, and a `--geometry` value that is not `SOURCE` or
-  `DATASET=SOURCE`;
+- a clip listed twice, a `--tracks` id the viewer does not name, and a
+  `--geometry` value that is not `SOURCE` or `DATASET=SOURCE`;
 - an `--out` directory that exists.
 
 One clip refused stops the run, and nothing is written.

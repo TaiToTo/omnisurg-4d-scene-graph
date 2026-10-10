@@ -101,7 +101,7 @@ function slabParts(fr, tracks, { dx, isFocus, caption, centroids, photo, focusKe
         const ring = focus ? ACCENT : partner ? PARTNER : '#4a5260';
         chips.push(`<g class="slab-chip" data-node-key="${esc(key)}" opacity="${lit ? 1 : 0.55}">`
           + `<circle cx="${c[0].toFixed(1)}" cy="${c[1].toFixed(1)}" r="${focus ? 7 : 6}" fill="#fbfaf7" stroke="${ring}" stroke-width="${focus || partner ? 1.8 : 0.9}"/>`
-          + `<text class="slab-id" x="${c[0].toFixed(1)}" y="${(c[1] + 3).toFixed(1)}">${cid}</text></g>`);
+          + `<text class="slab-id" x="${c[0].toFixed(1)}" y="${(c[1] + 3).toFixed(1)}">${esc(cid)}</text></g>`);
       }
     }
   }

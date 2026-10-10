@@ -8,6 +8,8 @@ import { RELATION_COLORS } from './relations.js';
 import { esc, hexColor } from './format.js';
 
 const DIM_OPACITY = 0.18;
+// About the width of one character of an 11 px label, to keep labels inside the panel.
+const LABEL_CHAR_W = 6;
 const NODE_R = 6;
 const DEFAULT_TINT = 0x12c2e9;
 
@@ -28,6 +30,19 @@ function nodeRadii(n, r) {
   else if (typeof n.elongation === 'number' && n.elongation >= 1) asp = n.elongation;
   const f = Math.sqrt(Math.min(3, Math.max(1 / 3, asp)));
   return [r * f, r / f];
+}
+
+/**
+ * Return a label's SVG text beside a node: right of it, or left of it where it would leave the panel.
+ *
+ * @param {number} x  the node's centre.
+ * @param {number} rx  the node's half-width.
+ */
+export function nodeLabel(label, x, y, rx, width, opacity) {
+  const right = x + rx + 2 + label.length * LABEL_CHAR_W <= width;
+  const lx = right ? x + rx + 2 : x - rx - 2;
+  return `<text class="nl-label" x="${lx.toFixed(1)}" y="${(y + 3).toFixed(1)}"${right ? '' : ' text-anchor="end"'} `
+    + `opacity="${opacity}">${esc(label)}</text>`;
 }
 
 /**
@@ -97,9 +112,7 @@ export function renderNodeLink(nodes, edges, positions, opts = {}) {
         + `rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}"${xf} fill="${fill}" opacity="${op}" `
         + `fill-opacity="${p ? 0.55 : 1}" stroke="${fill}" stroke-opacity="${op}">${title}</ellipse>`;
     }
-    if (showLabels && n.label) {
-      nodeSvg += `<text class="nl-label" x="${(x + rx + 2).toFixed(1)}" y="${(y + 3).toFixed(1)}" opacity="${op}">${esc(n.label)}</text>`;
-    }
+    if (showLabels && n.label) nodeSvg += nodeLabel(String(n.label), x, y, rx, width, op);
   }
   return `${open}${edgeSvg}${nodeSvg}</svg>`;
 }

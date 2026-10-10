@@ -6,7 +6,7 @@
 // World projection is calibrated per reference frame: a per-axis linear map
 // that takes that frame's own projected nodes onto its region centroids.
 import { regionEllipses, regionHulls } from './lib/regions.js';
-import { renderNodeLink } from './lib/node_link_svg.js';
+import { nodeLabel, renderNodeLink } from './lib/node_link_svg.js';
 import { esc, hexColor, rgbToHex } from './lib/format.js';
 import { containmentPartners } from './lib/relations.js';
 import { orderTracks, trackInfo } from './state.js';
@@ -281,7 +281,7 @@ export function renderWorldNodeLink(el, { world, refFrame, tracks, manifest, hov
       const xf = g.rot ? ` transform="rotate(${g.rot.toFixed(1)} ${pos[0].toFixed(1)} ${pos[1].toFixed(1)})"` : '';
       svg.push(`<ellipse class="nl-node${hov}" data-node-key="${esc(n.key)}" cx="${pos[0].toFixed(1)}" cy="${pos[1].toFixed(1)}" rx="${g.rx.toFixed(1)}" ry="${g.ry.toFixed(1)}"${xf} opacity="${op}" fill="${fill}" fill-opacity="0.55" stroke="${fill}">${title}</ellipse>`);
     }
-    if (n.label) svg.push(`<text class="nl-label" x="${(pos[0] + g.rx + 2).toFixed(1)}" y="${(pos[1] + 3).toFixed(1)}" opacity="${op}">${esc(n.label)}</text>`);
+    if (n.label) svg.push(nodeLabel(String(n.label), pos[0], pos[1], g.rx, W, op));
   }
   svg.push(`<text class="nl-ref-note" x="${(x0 + 4).toFixed(1)}" y="${(y0 + 12).toFixed(1)}">reference: frame ${refFrame}</text>`);
   const clamped = mapped.filter((m) => m.clamped).length;

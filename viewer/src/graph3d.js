@@ -258,7 +258,8 @@ export function pickKey(ev) {
   const r = canvas.getBoundingClientRect();
   raycaster.setFromCamera(new THREE.Vector2(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1), camera);
   const stage = onStage();
-  const targets = state.graph3d ? state.graph3dGroup.children.filter((o) => o.userData.nodeKey) : [];
+  // Glyph meshes only: a thread line is hit from far off, since a Line's pick radius is a world unit.
+  const targets = state.graph3d ? state.graph3dGroup.children.filter((o) => o.isMesh && o.userData.nodeKey) : [];
   stage?.group.traverse((o) => { if (o.isPoints) targets.push(o); });
   for (const hit of raycaster.intersectObjects(targets, false)) {
     if (hit.object.userData.nodeKey) return hit.object.userData.nodeKey;

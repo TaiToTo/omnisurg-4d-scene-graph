@@ -2,9 +2,9 @@
 // each frame, the graph in the camera's view, World mode's stack of frames,
 // the band of regions through time, and one region followed through time.
 //
-// The URL names what is on screen, so a view can be linked: `?clip=<path>`,
-// `track=<id>|both`, `mode=world`, `frame=<n>`, `focus=<track>:<id>`,
-// `view=overlay`, `worldframes=<n>`, `seg=1` and `graph=1`.
+// A link can open the page on a view: `?clip=<path>`, `track=<id>|both`,
+// `mode=world`, `frame=<n>`, `focus=<track>:<id>`, `view=overlay`,
+// `worldframes=<n>`, `seg=1` and `graph=1`. The page writes back the clip only.
 import * as THREE from 'three';
 import { state, trackInfo, orderTracks, onStage, cloudsOnScreen, focusFamily } from './state.js';
 import { canvas, clearGroup, invalidate, makeLabelSprite, measureSceneScale, resetView, setStatus, startRenderLoop, sz } from './scene.js';
@@ -12,7 +12,7 @@ import { clearCaches, fetchJSON, glbURL, loadCatalog, loadGLB, manifestURL, over
 import { groupClips } from './lib/catalog.js';
 import { adaptOverlays, manifestForSource } from './lib/overlays.js';
 import { cameraAxes, edgeAxes } from './lib/edge_axes.js';
-import { containmentPartners, topPartners } from './lib/relations.js';
+import { containmentPartners, temporalGraphProblem, topPartners } from './lib/relations.js';
 import { esc } from './lib/format.js';
 import { MAX_WORLD_FRAMES, nearestStacked, worldIndices } from './lib/sampling.js';
 import { applyRegionHighlight, applySegBlend, segToCanvas } from './cloud.js';
@@ -203,6 +203,8 @@ async function loadClip(path, { keepURL = false } = {}) {
     nfEvents: [], selectedEvent: null, trackingStrip: null, segByTrack: {}, graphByTrack: {}, hierarchy: null,
   });
   nfAxes = null;
+  drawnFrame = 0;
+  followPlaying = false;
   state.tracks = tracksFor(proposedTrack() ?? clip.tracks[0]);
   clearGroup(state.highlightGroup);
   el.nodeFocus.hidden = true;
@@ -467,13 +469,28 @@ async function switchMode(mode) {
   if (mode === state.mode || !state.manifest) return;
   clearEventHighlight(false);
   state.mode = mode;
-  state.loadSeq++;
-  if (mode !== 'world') setMapBig(false);
+  const seq = ++state.loadSeq;
+  if (mode !== 'world') {
+    setMapBig(false);
+    // Following a region alone and its motion belong to World mode.
+    state.isolateFocus = false;
+    if (followPlaying) { setPlaying(false); followPlaying = false; }
+    if (state.focusStage === 2) state.focusStage = 1;
+    syncFocusBar();
+  }
   syncModeUI();
   markFollowStage();
   if (mode === 'world') {
     const world = await enterWorld();
-    if (!world || state.mode !== 'world') return;
+    if (!world) {
+      // Not stale, and no stack: say so and go back to the frame on screen.
+      if (state.mode === 'world' && state.loadSeq === seq) {
+        showError('World mode could not be built for this clip');
+        await switchMode('frame');
+      }
+      return;
+    }
+    if (state.mode !== 'world') return;
     state.world = world;
     state.worldFocus = focusWorldFrame(world, state.frame, state.worldView);
     markFollowStage();
@@ -637,8 +654,12 @@ async function setFocusNode(key, { stage = null } = {}) {
 
   // Read the node's record through time.
   const [track, idStr] = key.split(':');
-  const tg = await fetchJSON(temporalURL(state.clip.path, track));
-  if (state.focusNode !== key) return;
+  const clip = state.clip;
+  const fetched = await fetchJSON(temporalURL(clip.path, track));
+  if (state.focusNode !== key || state.clip !== clip) return;
+  const problem = temporalGraphProblem(fetched);
+  if (problem) showError(`The record through time of ${track} cannot be read: ${problem}`);
+  const tg = problem ? null : fetched;
   state.nfTg = tg;
   state.nfNodeId = Number(idStr);
   const label = tg?.nodes?.find((n) => n.id === state.nfNodeId)?.label ?? `region ${idStr}`;
@@ -669,7 +690,7 @@ async function setFocusStage(n) {
   syncFocusBar();
   if (n >= 2 && state.mode !== 'world') {
     await switchMode('world');
-    if (state.mode !== 'world' || state.focusStage !== n) return;
+    if (state.mode !== 'world' || !state.world || state.focusStage !== n) return;
   }
   if (state.mode === 'world' && state.isolateFocus !== (n >= 2)) setIsolateFocus(n >= 2);
   if (n === 2 && !state.playing) { setPlaying(true); followPlaying = true; }
@@ -683,7 +704,7 @@ async function setFocusStage(n) {
 
 /** Keep only the followed region's points in the stacked frames, or show them whole again. */
 function setIsolateFocus(on) {
-  state.isolateFocus = !!on && !!state.focusNode && state.mode === 'world';
+  state.isolateFocus = !!on && !!state.focusNode && state.mode === 'world' && !!state.world;
   if (state.world) focusWorldFrame(state.world, state.frame, state.worldView);
   repaintClouds();
   resetView();

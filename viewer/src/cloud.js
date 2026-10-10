@@ -37,7 +37,7 @@ function useFullGeometry(obj) {
  * region is seen in its scene.
  */
 function applyIsolation(group, segByTrack) {
-  const on = state.isolateFocus && state.focusNode && !group.userData.isoContext;
+  const on = state.mode === 'world' && state.isolateFocus && state.focusNode && !group.userData.isoContext;
   const [track, idStr] = on ? state.focusNode.split(':') : [];
   eachPoints(group, (obj) => {
     useFullGeometry(obj);

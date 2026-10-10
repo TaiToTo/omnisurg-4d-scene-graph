@@ -10,11 +10,12 @@ that fails these checks stops the run, and nothing is written.
 
 Usage:
     python -m pipeline.viewer_catalog --root /path/to/outputs --clips cholec_gt/VID01_s15_80_crop ... \\
-        [--geometry pi3x] [--geometry cholecseg8k=da3] (--in-place | --out /path/to/site/data)
+        [--tracks <track> ...] [--geometry pi3x] [--geometry cholecseg8k=da3] (--in-place | --out /path/to/site/data)
 """
 
 import argparse
 import json
+import math
 import re
 import shutil
 from pathlib import Path
@@ -78,13 +79,23 @@ def parse_geometry(specs: list[str]) -> tuple[str, dict[str, str]]:
     return default or DEFAULT_GEOMETRY, by_dataset
 
 
+def is_vector(v, n: int) -> bool:
+    """Return whether `v` is a list of `n` finite numbers."""
+    return (isinstance(v, list) and len(v) == n
+            and all(isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x) for x in v))
+
+
 def glb_name(i: int, source: str) -> str:
     """Return the file name of frame `i`'s point cloud from `source`."""
     return f"frame_{i:04d}.glb" if source == DEFAULT_GEOMETRY else f"frame_{i:04d}__{source}.glb"
 
 
-def clip_entry(root: Path, rel: str, geometry: tuple[str, dict[str, str]]) -> tuple[dict, list[str]]:
+def clip_entry(root: Path, rel: str, geometry: tuple[str, dict[str, str]],
+               tracks: set[str] | None = None) -> tuple[dict, list[str]]:
     """Check one clip and return its catalog entry and the files the viewer reads, relative to the clip.
+
+    `tracks`, when given, names the tracks to list; a clip's other tracks are
+    left out, and neither checked nor copied.
 
     Raises:
         ValueError: the clip lacks something the viewer reads; the message names it.
@@ -117,20 +128,21 @@ def clip_entry(root: Path, rel: str, geometry: tuple[str, dict[str, str]]) -> tu
     problems = []
     for i, fr in enumerate(frames):
         pose = fr if source == DEFAULT_GEOMETRY else (fr.get("geometry_sources") or {}).get(source) or {}
-        if any(k not in pose for k in POSE_KEYS):
+        if not all(is_vector(pose.get(k), 3) for k in POSE_KEYS):
             problems.append(f"frame {i} has no {source} pose")
         for name in (f"pc_vis/{glb_name(i, source)}", f"input_images/{i:06d}.png"):
             if not (clip / name).is_file():
                 problems.append(f"no {name}")
             files.append(name)
-    if source != DEFAULT_GEOMETRY and not (manifest.get("geometry_sources") or {}).get(source, {}).get("resolution"):
-        problems.append(f"the manifest has no resolution for {source}")
+    resolution = (manifest.get("geometry_sources") or {}).get(source, {}).get("resolution")
+    if source != DEFAULT_GEOMETRY and not (is_vector(resolution, 2) and all(isinstance(x, int) and x > 0 for x in resolution)):
+        problems.append(f"the manifest has no resolution [W, H] for {source}")
 
     # Every track's segmentation and graph frames, and its temporal graph.
     found: dict[str, dict[str, set[int]]] = {}
     hierarchy = set()
     for p in (clip / "pc_vis").iterdir() if (clip / "pc_vis").is_dir() else []:
-        if m := OVERLAY_RE.match(p.name):
+        if (m := OVERLAY_RE.match(p.name)) and (tracks is None or m.group(3) in tracks):
             found.setdefault(m.group(3), {"seg_frame": set(), "graph_frame": set()})[m.group(1)].add(int(m.group(2)))
         elif m := HIERARCHY_RE.match(p.name):
             hierarchy.add(int(m.group(1)))
@@ -164,18 +176,22 @@ def clip_entry(root: Path, rel: str, geometry: tuple[str, dict[str, str]]) -> tu
     return entry, files
 
 
-def build_catalog(root: Path, clips: list[str], geometry: tuple[str, dict[str, str]]) -> tuple[dict, dict[str, list[str]]]:
-    """Check every clip and return the catalog and each clip's files.
+def build_catalog(root: Path, clips: list[str], geometry: tuple[str, dict[str, str]],
+                  tracks: list[str] | None = None) -> tuple[dict, dict[str, list[str]]]:
+    """Check every clip and return the catalog and each clip's files; `tracks` limits the tracks listed.
 
     Raises:
-        ValueError: one line per clip refused, all of them; or a clip listed twice.
+        ValueError: one line per clip refused, all of them; a clip listed twice; or a track the viewer does not name.
     """
     if len(set(clips)) != len(clips):
         raise ValueError("a clip is listed twice")
+    unknown = sorted(set(tracks or []) - set(TRACKS))
+    if unknown:
+        raise ValueError(f"--tracks {', '.join(unknown)}: not tracks the viewer names; known: {', '.join(TRACKS)}")
     entries, files, problems = [], {}, []
     for rel in clips:
         try:
-            entry, clip_files = clip_entry(root, rel, geometry)
+            entry, clip_files = clip_entry(root, rel, geometry, set(tracks) if tracks else None)
         except ValueError as e:
             problems.append(str(e))
             continue
@@ -220,6 +236,8 @@ def main() -> None:
     ap.add_argument("--root", required=True, help="The directory the clip paths are relative to.")
     ap.add_argument("--clips", nargs="+", required=True,
                     help="Clip paths under --root, in the order the viewer lists them. @FILE reads one per line.")
+    ap.add_argument("--tracks", nargs="+",
+                    help="The tracks to list, of those a clip has. Default: every track a clip has.")
     ap.add_argument("--geometry", action="append", default=[],
                     help=f"The depth model whose clouds the viewer shows: SOURCE for every clip, DATASET=SOURCE for "
                          f"one dataset. Default: {DEFAULT_GEOMETRY}.")
@@ -232,7 +250,7 @@ def main() -> None:
         raise SystemExit(f"no such directory: {root}")
     try:
         geometry = parse_geometry(args.geometry)
-        catalog, files = build_catalog(root, args.clips, geometry)
+        catalog, files = build_catalog(root, args.clips, geometry, args.tracks)
     except ValueError as e:
         raise SystemExit(f"nothing written:\n{e}")
     if args.in_place:

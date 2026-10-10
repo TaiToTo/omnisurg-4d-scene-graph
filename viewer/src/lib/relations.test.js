@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { partnerRelations, topPartners, relationRuns, frameRuns, nodeEvents, containmentPartners } from './relations.js';
+import { partnerRelations, topPartners, relationRuns, frameRuns, nodeEvents, containmentPartners, temporalGraphProblem } from './relations.js';
 
 const spatial = (src, dst, relation, frames) => ({ src, dst, relation, edge_type: 'spatial', frames });
 const action = (src, dst, relation, frames) => ({ src, dst, relation, edge_type: 'action', frames });
@@ -82,5 +82,30 @@ describe('containmentPartners', () => {
     expect(containmentPartners('gt:2', h)).toEqual(['auto:1', 'auto:3']);
     expect(containmentPartners('auto:1', h)).toEqual(['gt:2']);
     expect(containmentPartners('gt:9', null)).toEqual([]);
+  });
+});
+
+describe('temporalGraphProblem', () => {
+  const tg = () => ({ nodes: [{ id: 1, present_frames: [0, 1] }], relations: [spatial(1, 2, 'left', [0])] });
+
+  it('accepts a temporal graph of integer ids and frames', () => {
+    expect(temporalGraphProblem(tg())).toBeNull();
+  });
+
+  it('refuses markup or anything else in place of a frame, an id or a word', () => {
+    const plant = [
+      (g) => { g.relations[0].frames = ['<img src=x onerror=alert(1)>']; },
+      (g) => { g.nodes[0].present_frames = [0, '1']; },
+      (g) => { g.nodes[0].id = '1'; },
+      (g) => { g.relations[0].src = null; },
+      (g) => { g.relations[0].relation = 7; },
+      (g) => { delete g.relations; },
+    ];
+    for (const p of plant) {
+      const g = tg();
+      p(g);
+      expect(temporalGraphProblem(g)).toBeTypeOf('string');
+    }
+    expect(temporalGraphProblem(null)).toBeTypeOf('string');
   });
 });

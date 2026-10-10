@@ -141,3 +141,24 @@ export function containmentPartners(key, hierarchy) {
   }
   return out;
 }
+
+const isIntList = (v) => Array.isArray(v) && v.every(Number.isInteger);
+
+/**
+ * Return why a temporal graph cannot be read, or null when it can.
+ *
+ * Its ids and frames become numbers on the page and positions on the band, so
+ * anything else in them is refused rather than drawn.
+ */
+export function temporalGraphProblem(tg) {
+  if (!tg || !Array.isArray(tg.nodes) || !Array.isArray(tg.relations)) return 'it has no nodes or relations';
+  for (const n of tg.nodes) {
+    if (!Number.isInteger(n?.id) || !isIntList(n.present_frames ?? [])) return `node ${JSON.stringify(n?.id)} has an id or frames that are not integers`;
+  }
+  for (const r of tg.relations) {
+    if (!Number.isInteger(r?.src) || !Number.isInteger(r?.dst) || !isIntList(r.frames ?? []) || typeof r.relation !== 'string') {
+      return 'a relation has an end, frames or a word of the wrong type';
+    }
+  }
+  return null;
+}

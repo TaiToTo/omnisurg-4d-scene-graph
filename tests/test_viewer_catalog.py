@@ -102,6 +102,8 @@ FAULTS = {
         lambda c: [(c / f"pc_vis/{k}_0007__sam3d.json").write_text("{}") for k in ("seg_frame", "graph_frame")],
         "past the last"),
     "a frame without a pose": (edit_manifest(lambda m: m["frames"][1].pop("camera_up_glb")), "frame 1 has no da3 pose"),
+    "a pose that is not three numbers": (
+        edit_manifest(lambda m: m["frames"][0].update(glb_centroid=[0, "x", 1])), "frame 0 has no da3 pose"),
     "a frame count that disagrees with the frames": (edit_manifest(lambda m: m.update(n_frames=4)), "n_frames is 4"),
     "a dataset the viewer does not name": (edit_manifest(lambda m: m.update(dataset="lapex")), "dataset 'lapex'"),
     "a hierarchy frame past the last frame": (
@@ -127,7 +129,29 @@ def test_another_source_needs_its_pose_on_every_frame_and_its_resolution(tmp_pat
     (clip / "frame_manifest.json").write_text(json.dumps(m))
     with pytest.raises(ValueError) as e:
         build_catalog(tmp_path, ["c"], ("pi3x", {}))
-    assert "frame 2 has no pi3x pose" in str(e.value) and "no resolution for pi3x" in str(e.value)
+    assert "frame 2 has no pi3x pose" in str(e.value) and "no resolution [W, H] for pi3x" in str(e.value)
+
+
+def test_a_resolution_that_is_not_two_positive_integers_is_refused(tmp_path):
+    clip = make_clip(tmp_path, "c", pi3x=True)
+    m = json.loads((clip / "frame_manifest.json").read_text())
+    m["geometry_sources"]["pi3x"]["resolution"] = [4]
+    (clip / "frame_manifest.json").write_text(json.dumps(m))
+    with pytest.raises(ValueError, match=re.escape("no resolution [W, H] for pi3x")):
+        build_catalog(tmp_path, ["c"], ("pi3x", {}))
+
+
+def test_tracks_lists_only_the_tracks_named_and_leaves_the_others_out(tmp_path):
+    clip = make_clip(tmp_path, "c")
+    for kind in ("seg_frame", "graph_frame"):
+        (clip / f"pc_vis/{kind}_0000__sam3d_raw.json").write_text("{}")
+    with pytest.raises(ValueError, match="track 'sam3d_raw' is not one the viewer names"):
+        build_catalog(tmp_path, ["c"], DEFAULT)
+    catalog, files = build_catalog(tmp_path, ["c"], DEFAULT, ["sam3d"])
+    assert catalog["clips"][0]["tracks"] == ["sam3d"] and list(catalog["tracks"]) == ["sam3d"]
+    assert not any("cholecseg8k" in f or "sam3d_raw" in f for f in files["c"])
+    with pytest.raises(ValueError, match="--tracks mystery"):
+        build_catalog(tmp_path, ["c"], DEFAULT, ["mystery"])
 
 
 @pytest.mark.parametrize("rel", ["../c", "c/../d", "/c", "c/./d", "c?x=1", "c d"])
