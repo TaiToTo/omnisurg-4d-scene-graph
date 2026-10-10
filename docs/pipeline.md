@@ -393,3 +393,42 @@ The stage needs the `track` extra and the SAM ViT-H weights, as the
 tracking stage does.
 
 `python -m pipeline.per_frame --help` lists the options.
+
+## The viewer's catalog
+
+```bash
+python -m pipeline.viewer_catalog --root /path/to/outputs --clips <clip path> ... \
+    [--geometry pi3x] [--geometry cholecseg8k=da3] (--in-place | --out /path/to/site/data)
+```
+
+The viewer opens the clips a catalog lists. A clip path is relative to
+`--root`, such as `cholec_gt/VID01_s15_80_crop`, and `@FILE` reads the
+paths from a file, one per line. `--geometry` names the depth model whose
+point clouds the viewer shows, for every clip or for one dataset; the
+default is DA3. The command writes `catalog.json`:
+
+- with `--in-place`, into `--root`, for a viewer served from the clips;
+- with `--out`, into a new directory, together with a copy of the files
+  the viewer reads and no others, for a site to publish.
+
+The catalog names each clip's dataset, group, frame count, depth model and
+tracks, and each track's name as the viewer shows it. `viewer/README.md`
+lists the files of a clip the viewer reads.
+
+The command refuses:
+
+- a clip path that is not a relative path of plain names;
+- a manifest whose frame count disagrees with its frames, or of a dataset
+  the viewer does not name;
+- a frame without its point cloud, its camera pose or its image;
+- a clip without a track, a track the viewer does not name, and a track
+  without its temporal graph;
+- a frame with a segmentation and no graph of the same track, or the
+  reverse, and an overlay of a frame past the last;
+- a clip listed twice, and a `--geometry` value that is not `SOURCE` or
+  `DATASET=SOURCE`;
+- an `--out` directory that exists.
+
+One clip refused stops the run, and nothing is written.
+
+`python -m pipeline.viewer_catalog --help` lists the options.
