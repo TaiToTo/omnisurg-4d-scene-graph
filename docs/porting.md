@@ -217,6 +217,7 @@ copy to read the RGB clips, and the ported copies read `evalkit.classes`.
 | file | from the workbench | reviewed | work |
 |---|---|---|---|
 | `paired_stats.py` | `ipcai2027_experiment/scripts/paired_stats.py` | `extract/03-metrics` (#3) | `VERDICT_RULE` does not change. The comparability check is `scores.check_comparable`, which applies the rule of `docs/evaluation.md`, in place of the pilot's, and the statistics are taken on the clips it compared. `video_of` is defined here rather than delegated. Each row records the metric's `sign` and `verdict` reads the interval in it, so a metric where smaller is better, or a reference value that is never marked, is not oriented by the caller. A bootstrap over fewer than two units refuses rather than return a point. |
+| `lovo_verdict.py` | `ipcai2027_experiment/scripts/lovo_verdict.py` | — | Ported as `evalkit/tools/leave_one_video_out.py`. It leaves each video out in turn and names the videos whose removal changes the mark of `paired_stats.verdict`. It departs from the workbench in four places: the direction of each key comes from the table `paired_stats` reads, so the `_labeled` and `_tissue` keys are taken; `--keys` has no default; a key on three videos or fewer is refused, where the workbench printed that no video changed the mark; and a row prints how far the mean moved beside the ratio of widths, and names no cause. On the pilot's scores its rows equal the workbench's, with `verdict` named `mark`. Not carried: `--fairness-json`, `--doms` and `--keys all`. |
 | `compare_eval.py` | `depth_sam_tracking_experiment/compare_eval.py` | `extract/03-metrics` (#3) | It refuses to mix shas through `scores.check_comparable`, which also compares dataset, class set, view and mode. The table prints each metric's direction and no mark: the workbench's circle and cross followed the sign of the mean difference, a second verdict beside `paired_stats.verdict`. The per-clip list, the chart and `wins` follow the question's primary metric, named with `--key`; the directions of the pilot keys come from `scores.PILOT_SIGNS`, the one table `paired_stats` reads too. |
 | `paired_table.py` | `ipcai2027_experiment/atlas97/scripts/summary97.py` | — | Ported as `evalkit/tools/paired_table.py`. It prints the rows of `summary97.py`: each key's mean difference, with the mark of `paired_stats.verdict`. It departs from the workbench in three places: it refuses a table whose conditions are not all comparable, leaves a cell on one video without a value, and refuses a reference value as a key. It leaves out the four `t12_*` rows ("Conditions seeded from GT masks") and the `t5_kgt` row ("`kmerge` is a tool"). On the pilot's 38 score JSONs, every number and mark equals the workbench's. Its rows on the evaluator's scores are open ("The paired table on the evaluator's scores"). |
 | `track_metrics.py` | `depth_sam_tracking_experiment/track_metrics.py` | `extract/03-metrics` (#3) | It imports `BACKGROUND`, `_gt_idmap` and `_load_depth` from the pilot's `eval_track`; they come from the evaluator instead. `MIN_AREA` is removed ("No minimum object size, anywhere"). It is a tool, outside the evaluator, and its values are reference values ("No measure over time carries a star"). Its GT track is open ("The GT track of `track_metrics`"). |
@@ -242,10 +243,13 @@ Tests come with the file they test:
 - `test_condition_inventory_roots.py` comes with `condition_inventory`.
 - `pose_metrics` has no test in the workbench; its `selftest` is
   `tests/test_pose_metrics.py`, with the values worked out by hand.
+- `test_ipcai_guards.py`'s two tests of `oriented_verdict` come with
+  `leave_one_video_out`, as the tests of the direction in
+  `tests/test_leave_one_video_out.py`.
 
 All of these are in `$OMNISURG_SOURCE/depth_sam_tracking_experiment/tests/`,
-apart from the two tests of `kmerge` and `test_condition_inventory_roots.py`,
-which are in `$OMNISURG_SOURCE/tests/`.
+apart from the two tests of `kmerge`, `test_condition_inventory_roots.py` and
+`test_ipcai_guards.py`, which are in `$OMNISURG_SOURCE/tests/`.
 
 Not carried: `test_frozen_sha.py`, `test_eval_track_v2_regression.py`, its
 fixture `eval_track_v1.py`, and `test_eval_track_metrics.py`. All of them test
@@ -370,8 +374,7 @@ below.
   - The paper's tables: `ipcai2027_experiment/atlas97/scripts/print_status_tables.py`,
     which the manuscript names with `summary97.py` as the source of every
     table; from `ipcai2027_experiment/scripts/`, `claims_grid.py`,
-    `arms_paired.py`, `lovo_verdict.py`, which names the videos a verdict
-    rests on, and `summarize_20.py`, the StereoMIS table; and
+    `arms_paired.py` and `summarize_20.py`, the StereoMIS table; and
     `ipcai2027_experiment/task15_granularity/scripts/claims_table.py` and
     `settle_inputs.py`. `claims_table.py` and `claims_grid.py` read
     `outputs/atlas`, the 13-video set, and `outputs/cholec_gt`.
@@ -793,6 +796,11 @@ Every command takes those paths as arguments.
     the code's; until it is made, a subset's interval is read for its sign
     only, as `--drop-video` says. `paired_table`'s floor of five clips per
     cell is decided with this one.
+    `leave_one_video_out` keeps the workbench's two lines, which are
+    decided with this one. It leaves a video out only while three videos
+    remain, so on four videos each interval with a video left out is the
+    range of three video means; the printout says so. It prints an
+    interval on four videos as thin.
 10. **The edge ring of the tracker's input.** The tracking stage builds two
     inputs with `sam_input_image`: the seed frame's, in the `--sam_input`
     mode, and the tracker's, in the `--track_base` mode, which may be
