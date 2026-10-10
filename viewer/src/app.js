@@ -27,7 +27,8 @@ export const state = {
   clip: null,
   frame: 0,
   track: null,            // the track whose regions and graph the panels show
-  painted: false,         // its regions are painted on the cloud
+  both: false,            // the panels show both tracks the hierarchy relates, instead of `track` alone
+  painted: false,         // the shown tracks' regions are painted on the cloud
   mode: 'frame',          // 'frame' or 'world'
   worldView: 'spotlight', // 'spotlight' or 'overlay'
   show: 'all',            // 'all', 'tissue' or 'tools'
@@ -100,7 +101,16 @@ function view(context = false) {
   return { show: state.show, instruments: instrumentFilter(), isolate: isolating() && !context ? state.focusKey : null };
 }
 
-const paintedTracks = () => (state.painted && state.track ? [state.track] : []);
+/** The two tracks the clip's hierarchy relates, the annotation first, or null when it relates none. */
+function bothPair() {
+  const ts = state.clip?.hierarchy?.tracks;
+  if (!Array.isArray(ts) || ts.length !== 2 || !ts.every((t) => trackInfo(t))) return null;
+  return [...ts].sort((a, b) => Number(!trackInfo(a).semantic) - Number(!trackInfo(b).semantic));
+}
+
+/** The tracks the panels show: both tracks of the hierarchy, or the shown track alone. */
+const shownTracks = () => (state.both && bothPair()) || (state.track ? [state.track] : []);
+const paintedTracks = () => (state.painted ? shownTracks() : []);
 
 function paint(group, regionsByTrack, stats = null) {
   applySegBlend(group, regionsByTrack, paintedTracks(), view(), stats);
@@ -164,7 +174,7 @@ export async function openClip(id) {
   clearGroup(groups.hover);
   clearCaches();
   Object.assign(state, {
-    clip, world: null, mode: 'frame', focusKey: null, focusLabel: null, focusStage: 0, isolate: false,
+    clip, world: null, mode: 'frame', both: false, focusKey: null, focusLabel: null, focusStage: 0, isolate: false,
     temporal: null, events: [], selectedEvent: null, edge: null, mapBig: false, trackStrip: null, frame: 0,
     regionsByTrack: {}, graphByTrack: {}, hierarchy: null, hoverKey: null,
   });
@@ -398,28 +408,41 @@ function repaintAll(stats = null) {
   invalidate();
 }
 
-/** Paint the track's regions on the cloud, or, when they are already on it, take them off. */
+/** The word that names both tracks of the hierarchy, where a track id is expected. */
+export const BOTH = 'both';
+
+/**
+ * Paint a track's regions on the cloud, or both tracks' with `BOTH`; when they are already on it, take
+ * them off.
+ */
 export function toggleRegions(track) {
-  if (state.painted && state.track === track) {
+  const both = track === BOTH;
+  if (both ? !bothPair() : !trackInfo(track)) return;
+  if (state.painted && (both ? state.both : !state.both && state.track === track)) {
     state.painted = false;
   } else {
-    state.track = track;
+    state.both = both;
+    if (!both) state.track = track;
     state.painted = true;
   }
   afterTrackChange();
-  setStatus(state.painted ? `Regions on the cloud: ${trackInfo(track).name}` : 'Regions off: the cloud as reconstructed');
+  const name = both ? shownTracks().map((t) => trackInfo(t).short).join(' and ') : trackInfo(track).name;
+  setStatus(state.painted ? `Regions on the cloud: ${name}` : 'Regions off: the cloud as reconstructed');
 }
 
-/** Show another track in the panels without painting it. */
+/** Show another track in the panels, or both tracks with `BOTH`, without painting it. */
 export function setTrack(track) {
-  if (!trackInfo(track) || track === state.track) return;
-  state.track = track;
+  const both = track === BOTH;
+  if (both ? !bothPair() : !trackInfo(track)) return;
+  if (both ? state.both : !state.both && track === state.track) return;
+  state.both = both;
+  if (!both) state.track = track;
   afterTrackChange();
 }
 
 function afterTrackChange() {
-  // A followed region of another track is no longer on any panel.
-  if (state.focusKey && parseNodeKey(state.focusKey).track !== state.track) setFocusNode(null);
+  // A followed region of a track no longer shown is on no panel.
+  if (state.focusKey && !shownTracks().includes(parseNodeKey(state.focusKey).track)) setFocusNode(null);
   syncControls();
   repaintAll();
   updateThumbs();
@@ -475,12 +498,15 @@ export function showStatus(show, st) {
 export async function setFocusNode(key, { stage = null } = {}) {
   if (key && !trackInfo(parseNodeKey(key).track)) return;
   clearEventHighlight();
-  if (key && parseNodeKey(key).track !== state.track) {
+  if (key && !shownTracks().includes(parseNodeKey(key).track)) {
     state.track = parseNodeKey(key).track;
+    state.both = false;
     syncControls();
   }
   const had = !!state.focusKey;
   const wasIsolating = isolating();
+  // The graph through time of another track names other regions by the same ids.
+  if (!key || !had || parseNodeKey(key).track !== parseNodeKey(state.focusKey).track) state.temporal = null;
   state.focusKey = key;
   state.focusLabel = null;
   state.edge = null;
@@ -511,7 +537,6 @@ export async function setFocusNode(key, { stage = null } = {}) {
     syncFocusBar();
     renderBand();
   } else {
-    state.temporal = null;
     state.events = [];
     $('node-focus').hidden = true;
     $('nf-body').innerHTML = '';
@@ -697,7 +722,7 @@ function clearEventHighlight() {
 }
 
 function rebuildGraph3D() {
-  buildGraph3D({ on: state.graph3d, track: state.track, stage: stageEntry(), world: state.mode === 'world' ? state.world : null,
+  buildGraph3D({ on: state.graph3d, tracks: shownTracks(), stage: stageEntry(), world: state.mode === 'world' ? state.world : null,
     focusKey: state.focusKey });
   // The outline borrows the shapes just replaced, so it is drawn again on the new ones.
   setHover3D(state.graph3d ? state.hoverKey : null);
@@ -711,31 +736,40 @@ export function setGraph3D(on) {
 
 // ── The panels ──────────────────────────────────────────────────────────────
 
-/** The frame as an image, and with the shown track's regions over it, and the regions' legend. */
+/** The frame as an image, and with each shown track's regions over it, and the annotation's legend. */
 function updateThumbs() {
   const st = stageEntry();
   if (!state.clip || !st) return;
   $('thumb-rgb').src = frameImageURL(state.clip, st.i);
-  $('thumb-rgb2').src = frameImageURL(state.clip, st.i);
-  const regions = st.regionsByTrack[state.track];
-  const focus = new Set();
-  if (state.focusKey) {
-    const { track, id } = parseNodeKey(state.focusKey);
-    if (track === state.track) focus.add(id);
-  }
-  regionsToCanvas(regions, $('thumb-seg'), focus);
-  const info = trackInfo(state.track);
-  $('thumb-seg-cap').textContent = info ? info.name : 'Regions';
-  const badge = $('thumb-badge');
-  badge.hidden = !regions;
-  if (regions && info) {
-    const anchor = regions.stage === 'anchor';
-    badge.className = `cell-badge ${anchor ? (info.semantic ? 'badge-gt' : 'badge-sam') : 'badge-tracked'}`;
-    badge.textContent = anchor ? info.anchor_badge : info.tracked_badge;
-  }
+  const shown = shownTracks();
+  // One figure per shown track; the second stays hidden while one track is shown.
+  ['thumb-regions', 'thumb-regions2'].forEach((id, k) => {
+    const fig = $(id), track = shown[k];
+    fig.hidden = !track;
+    if (!track) return;
+    fig.querySelector('img').src = frameImageURL(state.clip, st.i);
+    const regions = st.regionsByTrack[track];
+    const focus = new Set();
+    if (state.focusKey) {
+      const key = parseNodeKey(state.focusKey);
+      if (key.track === track) focus.add(key.id);
+    }
+    regionsToCanvas(regions, fig.querySelector('canvas'), focus);
+    const info = trackInfo(track);
+    fig.querySelector('figcaption').textContent = shown.length > 1 ? info.short : info.name;
+    const badge = fig.querySelector('.cell-badge');
+    badge.hidden = !regions;
+    if (regions) {
+      const anchor = regions.stage === 'anchor';
+      badge.className = `cell-badge ${anchor ? (info.semantic ? 'badge-gt' : 'badge-sam') : 'badge-tracked'}`;
+      badge.textContent = anchor ? info.anchor_badge : info.tracked_badge;
+    }
+  });
   const legend = $('thumb-legend');
+  const semantic = shown.find((t) => trackInfo(t).semantic);
+  const regions = semantic ? st.regionsByTrack[semantic] : null;
   const present = regions ? new Set(regions.labels) : new Set();
-  const items = info?.semantic && regions ? regions.classes.filter((c) => present.has(c.id)) : [];
+  const items = regions ? regions.classes.filter((c) => present.has(c.id)) : [];
   legend.hidden = !items.length;
   legend.innerHTML = items.map((c) => `<span class="legend-item"><i style="background: rgb(${c.color.map((v) => Math.round(v * 255)).join(',')})"></i>${esc(c.name)}</span>`).join('');
 }
@@ -745,7 +779,7 @@ export function renderNodeLinkPanel() {
   const title = $('nodelink-title');
   if (state.mode === 'world' && state.world) {
     title.textContent = 'Scene graph · all stacked frames, in one camera';
-    const opts = { world: state.world, refFrame: state.stageFrame, track: state.track, frames: state.clip.frames,
+    const opts = { world: state.world, refFrame: state.stageFrame, tracks: shownTracks(), frames: state.clip.frames,
       hoverKey: state.hoverKey, focusKey: state.focusKey, equalize: state.worldView === 'overlay' };
     renderWorldNodeLink($('nodelink-body'), opts);
     if (state.mapBig) {
@@ -755,8 +789,8 @@ export function renderNodeLinkPanel() {
     }
   } else {
     title.textContent = 'Scene graph · camera view';
-    renderFrameNodeLink($('nodelink-body'), { graph: state.graphByTrack[state.track], regions: state.regionsByTrack[state.track],
-      track: state.track, hoverKey: state.hoverKey, focusKey: state.focusKey });
+    renderFrameNodeLink($('nodelink-body'), { tracks: shownTracks(), graphByTrack: state.graphByTrack,
+      regionsByTrack: state.regionsByTrack, hierarchy: state.hierarchy, hoverKey: state.hoverKey, focusKey: state.focusKey });
   }
 }
 
@@ -811,7 +845,7 @@ function renderTrackStrip_() {
 
 function rerenderStrip() {
   if (state.mode === 'world' && state.world) {
-    renderWorldStrip($('strip'), state.world, state.track, trackInfo(state.track), state.stageFrame, state.clip.frames,
+    renderWorldStrip($('strip'), state.world, shownTracks().map(trackInfo), state.stageFrame, state.clip.frames,
       (i) => seekFrame(i), {
         focusKey: state.focusKey, partnerKey: partnerKey(), cellH: Math.round(stripCellH * 1.3),
         imageURL: state.stripPhoto ? (i) => frameImageURL(state.clip, i) : null,
@@ -849,7 +883,10 @@ const PICK_RADIUS = 0.006;
 raycaster.params.Points.threshold = PICK_RADIUS;
 onSceneScale((s) => { raycaster.params.Points.threshold = PICK_RADIUS * s; });
 
-/** The node under the pointer: a drawn node, or the region of the point under it. */
+/**
+ * The node under the pointer: a drawn node, or the region of the point under it. With both tracks shown,
+ * the automatic region is picked before the annotated region that contains it.
+ */
 export function pickNode(canvas, ev) {
   const st = stageEntry();
   if (!st) return null;
@@ -858,12 +895,16 @@ export function pickNode(canvas, ev) {
   // The node shapes, not the threads between frames: a line is hit from far around it.
   const targets = state.graph3d ? groups.graph3d.children.filter((o) => o.isMesh && o.userData.nodeKey) : [];
   st.group.traverse((o) => { if (o.isPoints) targets.push(o); });
+  const order = [...shownTracks()].reverse();
   for (const hit of raycaster.intersectObjects(targets, false)) {
     if (hit.object.userData.nodeKey) return hit.object.userData.nodeKey;
     if (hit.index === undefined) continue;
     const i = srcVertexIndex(hit.object, hit.index);
-    const id = i >= 0 ? st.regionsByTrack[state.track]?.labels[i] : 0;
-    if (id) return nodeKey(state.track, id);
+    if (i < 0) continue;
+    for (const track of order) {
+      const id = st.regionsByTrack[track]?.labels[i];
+      if (id) return nodeKey(track, id);
+    }
   }
   return null;
 }
@@ -897,20 +938,27 @@ export function syncControls() {
   $('btn-graph3d').setAttribute('aria-pressed', String(state.graph3d));
   $('btn-strip-photo').classList.toggle('active', state.stripPhoto);
   $('btn-strip-photo').hidden = state.mode !== 'world';
+  // One item per track, and one for both tracks where the hierarchy relates two.
   const pop = $('regions-pop');
   pop.innerHTML = '';
-  for (const t of clip?.tracks ?? []) {
+  const pair = bothPair();
+  const items = (clip?.tracks ?? []).map((t) => ({ id: t.id, short: t.short, name: t.name, shown: !state.both && state.track === t.id }));
+  if (pair) {
+    items.push({ id: BOTH, short: 'Both', shown: state.both,
+      name: `${pair.map((t) => trackInfo(t).short).join(' and ')}, with the annotated region that contains each automatic one` });
+  }
+  for (const it of items) {
     const b = document.createElement('button');
     b.type = 'button';
     b.setAttribute('role', 'menuitemcheckbox');
-    const on = state.painted && state.track === t.id;
+    const on = state.painted && it.shown;
     b.setAttribute('aria-checked', String(on));
-    b.className = on ? 'active' : (state.track === t.id ? 'shown' : '');
-    b.innerHTML = `${esc(t.short)}<small>${esc(t.name)}</small>`;
-    b.addEventListener('click', () => { setRegionsMenu(false); toggleRegions(t.id); });
+    b.className = on ? 'active' : (it.shown ? 'shown' : '');
+    b.innerHTML = `${esc(it.short)}<small>${esc(it.name)}</small>`;
+    b.addEventListener('click', () => { setRegionsMenu(false); toggleRegions(it.id); });
     pop.appendChild(b);
   }
-  $('regions-now').textContent = state.painted ? trackInfo(state.track)?.short ?? 'on' : 'off';
+  $('regions-now').textContent = !state.painted ? 'off' : state.both ? 'Both' : trackInfo(state.track)?.short ?? 'on';
   $('btn-regions').classList.toggle('active', state.painted);
   syncFocusBar();
 }

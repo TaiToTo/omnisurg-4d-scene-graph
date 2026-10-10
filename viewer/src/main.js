@@ -4,7 +4,7 @@
 import { loadCatalog } from './data.js';
 import { initStage, invalidate, resetView, startRenderLoop } from './stage.js';
 import {
-  cycleCloudShow, onChange, onError, openClip, pickNode, refitPanels, setCloudShow, setFocusNode, setFocusStage, setGraph3D,
+  BOTH, cycleCloudShow, onChange, onError, openClip, pickNode, refitPanels, setCloudShow, setFocusNode, setFocusStage, setGraph3D,
   setHover, setIsolate, setMapBig, setPlaying, setRegionsMenu, setStatus, setStripCellHeight, setStripPhoto, setWorldView,
   seekFrame, setTrack, state, stepFrame, stripCellHeight, switchMode, syncControls, toggleRegions,
 } from './app.js';
@@ -28,13 +28,17 @@ function showError(msg) {
 
 const NODE_KEY = /^[a-z0-9_]+:\d+$/;
 
-/** Write the open clip, frame, mode, track and followed region into the address, without a history entry. */
+/**
+ * Write the open clip, frame, mode, track and followed region into the address, without a history entry.
+ * The track is `both` while both tracks of the hierarchy are shown.
+ */
 function writeAddress() {
   if (!state.clip) return;
   const u = new URL(location.href);
   u.search = '';
   u.searchParams.set('clip', state.clip.id);
-  if (state.track) u.searchParams.set('track', state.track);
+  if (state.both) u.searchParams.set('track', BOTH);
+  else if (state.track) u.searchParams.set('track', state.track);
   if (state.frame) u.searchParams.set('frame', String(state.frame));
   if (state.mode === 'world') u.searchParams.set('mode', 'world');
   if (state.focusKey) u.searchParams.set('focus', state.focusKey);
@@ -94,7 +98,7 @@ async function open(id, { frame = 0, mode = 'frame', track = null, focus = null 
   }
   const seq = state.clipSeq;
   const current = () => state.clipSeq === seq;
-  if (track && state.clip.trackById.has(track)) setTrack(track);
+  if (track === BOTH || state.clip.trackById.has(track)) setTrack(track);
   if (frame > 0 && frame < state.clip.n_frames) await seekFrame(frame);
   if (!current()) return;
   if (mode === 'world') await switchMode('world');
@@ -191,13 +195,14 @@ function wire() {
   new ResizeObserver(invalidate).observe($('viewport'));
 }
 
+// The keys whose action may run again while the key is held.
+const REPEATS = new Set(['ArrowLeft', 'ArrowRight']);
+
 function onKey(ev) {
   if (ev.defaultPrevented || ev.metaKey || ev.ctrlKey || ev.altKey) return;
   if (ev.target.closest?.('input:not([type=range]), select, textarea')) return;
   // Space and Enter on a focused control press that control, and nothing else.
   if ((ev.key === ' ' || ev.key === 'Enter') && ev.target.closest?.('button, a, [role=button]')) return;
-  // A held key repeats; each repeat of W, G or I would rebuild every cloud again.
-  if (ev.repeat) { ev.preventDefault(); return; }
   if (dialogOpen()) {
     if (ev.key === 'Escape' || ev.key === '?') { closeDialogs(); ev.preventDefault(); }
     return;
@@ -213,13 +218,15 @@ function onKey(ev) {
     r: () => resetView(state.clip.frames[state.frame]),
     p: () => state.mode === 'world' && setStripPhoto(!state.stripPhoto),
     i: () => cycleCloudShow(),
-    s: () => toggleRegions(state.track),
+    s: () => toggleRegions(state.both ? BOTH : state.track),
     o: () => state.focusKey && state.mode === 'world' && setIsolate(!state.isolate),
     '?': () => openDialog('keys-overlay'),
     Escape: () => (state.mapBig ? setMapBig(false) : state.focusKey && setFocusNode(null)),
   };
   if (!actions[k]) return;
   ev.preventDefault();
+  // A held arrow steps the frames; a held key of any other action would rebuild every cloud, or toggle, on each repeat.
+  if (ev.repeat && !REPEATS.has(k)) return;
   actions[k]();
 }
 

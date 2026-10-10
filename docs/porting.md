@@ -434,13 +434,20 @@ public viewer reads a bundle"), from `viewer/demo.html` and
 - It reads each region's shape from the labels, where the demo matched the
   colour raster against the class colours; two classes of one colour are no
   longer one region.
-- It shows one track at a time, chosen in the regions menu or the strip; the
-  demo's pair of tracks side by side was reachable only by address.
+- It shows one track, or the two tracks a clip's hierarchy relates, drawn
+  together and joined where an annotated region contains an automatic one.
+  The regions menu chooses. The demo's pair of tracks side by side was
+  reachable only by address.
 - It shows the side panel in per-frame mode too, where the demo hid it.
 - The focus band reads spatial relations only; the demo mixed in the action
   relations of CholecT50, where a clip has them.
+- The focus band takes a frame's relation from the edge stored from the
+  followed region, where the demo took whichever edge the file listed last.
+  The stored word is the one the edge's axes are checked against.
 - A file the clip's record lists that does not load stops the frame with an
   error, where the demo drew the frame without it.
+- A graph through time whose ids, frames or relations are not of their type
+  is refused with an error, and no band is drawn from it.
 
 The workbench's `depthcmp` and `workbench` pages, which compare depth models
 and browse every clip for research, are not carried ("Not carried for now").

@@ -7,8 +7,9 @@ describe('the plates', () => {
     expect(slabMap(1, 1)).toEqual([229.6, 85.9]);
   });
 
-  it('caption a plate with its frame, its time and whether it is the seed', () => {
-    expect(slabCaption(3, 12.34, false)).toBe('f3 · 12.3 s');
-    expect(slabCaption(0, null, true)).toBe('f0 · seed');
+  it('caption a plate with its frame, its time and how the regions were made on it', () => {
+    expect(slabCaption(3, 12.34)).toBe('f3 · 12.3 s');
+    expect(slabCaption(0, null, ['seed'])).toBe('f0 · seed');
+    expect(slabCaption(0, 0, ['annotated', 'seed'])).toBe('f0 · 0.0 s · annotated · seed');
   });
 });

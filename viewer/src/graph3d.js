@@ -1,12 +1,14 @@
 // Draw the scene graph in the 3D view: each node as the convex hull of its region's points, or as an
 // ellipsoid of its axes when the region is too small or flat for a hull; the edges as arcs coloured by
-// relation; in world mode, a dot per stacked frame joined by a line per node. Also the followed region's
-// path, the connector of a selected event, and the outline of a hovered node.
+// relation, and with two tracks the hierarchy's `contains` as dashed links; in world mode, a dot per
+// stacked frame joined by a line per node. Also the followed region's path, the connector of a selected
+// event, and the outline of a hovered node.
 import * as THREE from 'three';
 import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
 import { clearGroup, groups, invalidate, makeLabelSprite, sz } from './stage.js';
 import { fullGeometryOf } from './vertex_filter.js';
 import { FOCUS_COLOR, PARTNER_COLOR, RELATION_COLORS, hexColor, nodeKey } from './format.js';
+import { containmentPartners } from './node_link.js';
 
 const HULL_MIN = 8, HULL_MAX = 3000;
 // Ellipsoid radii in reference units (stage.sz), from the region's share of the image.
@@ -70,12 +72,12 @@ function edgeArc(a, b, color, opacity) {
  *
  * @param {object} p
  * @param {boolean} p.on  draw the graph; off, only the followed region's path is drawn.
- * @param {string} p.track
- * @param {object} p.stage  the frame on stage: {group, regionsByTrack, graphByTrack, offset}.
+ * @param {string[]} p.tracks  the tracks shown.
+ * @param {object} p.stage  the frame on stage: {group, regionsByTrack, graphByTrack, hierarchy, offset}.
  * @param {?object} p.world  the world stack, in world mode.
- * @param {?string} p.focusKey  the followed node; the others fade.
+ * @param {?string} p.focusKey  the followed node; the others fade, but for the regions it is paired with.
  */
-export function buildGraph3D({ on, track, stage, world = null, focusKey = null }) {
+export function buildGraph3D({ on, tracks, stage, world = null, focusKey = null }) {
   clearGroup(groups.graph3d);
   if (world && focusKey) drawFocusPath(world, focusKey, stage?.i);
   if (!on || !stage?.group) { invalidate(); return; }
@@ -83,16 +85,20 @@ export function buildGraph3D({ on, track, stage, world = null, focusKey = null }
   // The full geometry, since the labels index the full cloud and a view may draw a filtered copy.
   stage.group.traverse((o) => { if (!posAttr && o.isPoints) posAttr = fullGeometryOf(o)?.attributes?.position ?? null; });
   const offset = stage.offset ?? [0, 0, 0];
-  const graph = stage.graphByTrack?.[track];
-  const bright = (id) => !focusKey || nodeKey(track, id) === focusKey;
+  const family = focusKey ? new Set([focusKey, ...containmentPartners(focusKey, stage.hierarchy)]) : null;
+  const bright = (key) => !family || family.has(key);
   const posOf = new Map();
-  if (graph?.nodes && posAttr) {
+
+  // Each track's nodes and its relation edges.
+  for (const track of tracks) {
+    const graph = stage.graphByTrack?.[track];
+    if (!graph?.nodes || !posAttr) continue;
     const pts = regionPoints(stage.regionsByTrack?.[track]?.labels, posAttr, offset);
     for (const n of graph.nodes) {
       if (!Array.isArray(n.pos)) continue;
       const key = nodeKey(track, n.id);
       const p = n.pos.map((v, k) => v + offset[k]);
-      posOf.set(n.id, p);
+      posOf.set(key, p);
       const color = colorOf(n);
       let mesh = null;
       const region = pts?.get(n.id);
@@ -100,21 +106,24 @@ export function buildGraph3D({ on, track, stage, world = null, focusKey = null }
         const sample = region.length > HULL_MAX ? region.filter((_, i) => i % Math.ceil(region.length / HULL_MAX) === 0) : region;
         try {
           mesh = new THREE.Mesh(new ConvexGeometry(sample), new THREE.MeshBasicMaterial({
-            color, transparent: true, opacity: bright(n.id) ? 0.3 : 0.05, side: THREE.DoubleSide, depthWrite: false,
+            color, transparent: true, opacity: bright(key) ? 0.3 : 0.05, side: THREE.DoubleSide, depthWrite: false,
           }));
         } catch {
           mesh = null;   // coplanar points have no hull; the ellipsoid stands in
         }
       }
       if (!mesh) {
-        mesh = ellipsoid(n, color, bright(n.id) ? 0.6 : 0.08);
+        mesh = ellipsoid(n, color, bright(key) ? 0.6 : 0.08);
         mesh.position.set(...p);
       }
       mesh.renderOrder = 94;
       mesh.userData.nodeKey = key;
       groups.graph3d.add(mesh);
-      if (focusKey && key === focusKey) {
-        const outline = new THREE.Mesh(mesh.geometry, new THREE.MeshBasicMaterial({ color: FOCUS_COLOR, wireframe: true, transparent: true, opacity: 0.75, depthTest: false }));
+      // The followed node alone is outlined: the wireframes of the regions it contains would bury the cloud.
+      if (key === focusKey) {
+        const outline = new THREE.Mesh(mesh.geometry, new THREE.MeshBasicMaterial({
+          color: FOCUS_COLOR, wireframe: true, transparent: true, opacity: 0.75, depthTest: false,
+        }));
         outline.userData.sharedGeometry = true;
         outline.position.copy(mesh.position);
         outline.quaternion.copy(mesh.quaternion);
@@ -126,34 +135,52 @@ export function buildGraph3D({ on, track, stage, world = null, focusKey = null }
     const edges = graph.edges || [];
     if (edges.length <= MAX_EDGES) {
       for (const e of edges) {
-        const a = posOf.get(e.src), b = posOf.get(e.dst);
+        const ka = nodeKey(track, e.src), kb = nodeKey(track, e.dst);
+        const a = posOf.get(ka), b = posOf.get(kb);
         if (!a || !b) continue;
-        const touched = bright(e.src) || bright(e.dst);
-        for (const obj of edgeArc(a, b, RELATION_COLORS[e.relation] ?? 0x00ff88, touched ? 0.75 : 0.05)) groups.graph3d.add(obj);
+        for (const obj of edgeArc(a, b, RELATION_COLORS[e.relation] ?? 0x00ff88, bright(ka) || bright(kb) ? 0.75 : 0.05)) groups.graph3d.add(obj);
       }
     }
   }
-  if (world) drawThreads(world, track, bright);
+
+  // Which region of one track contains which of the other's, when two are shown.
+  if (tracks.length > 1) {
+    for (const e of stage.hierarchy?.edges || []) {
+      if (e.relation !== 'contains') continue;
+      const a = posOf.get(e.src), b = posOf.get(e.dst);
+      if (!a || !b) continue;
+      const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(...a), new THREE.Vector3(...b)]),
+        new THREE.LineDashedMaterial({ color: 0x39434f, transparent: true, opacity: family && !(family.has(e.src) && family.has(e.dst)) ? 0.06 : 0.5,
+          depthTest: false, dashSize: sz(0.012), gapSize: sz(0.009) }));
+      line.computeLineDistances();
+      line.renderOrder = 94;
+      groups.graph3d.add(line);
+    }
+  }
+  if (world) drawThreads(world, tracks, bright);
   invalidate();
 }
 
 /** World mode: each node's centroid in every stacked frame, as dots joined in time order. */
-function drawThreads(world, track, bright) {
-  const byId = new Map();
+function drawThreads(world, tracks, bright) {
+  const byKey = new Map();
   for (const wf of world.frames) {
-    for (const n of wf.graphByTrack[track]?.nodes || []) {
-      if (!Array.isArray(n.pos)) continue;
-      if (!byId.has(n.id)) byId.set(n.id, { color: colorOf(n), pts: [] });
-      byId.get(n.id).pts.push(new THREE.Vector3(n.pos[0] + wf.offset[0], n.pos[1] + wf.offset[1], n.pos[2] + wf.offset[2]));
+    for (const track of tracks) {
+      for (const n of wf.graphByTrack[track]?.nodes || []) {
+        if (!Array.isArray(n.pos)) continue;
+        const key = nodeKey(track, n.id);
+        if (!byKey.has(key)) byKey.set(key, { color: colorOf(n), pts: [] });
+        byKey.get(key).pts.push(new THREE.Vector3(n.pos[0] + wf.offset[0], n.pos[1] + wf.offset[1], n.pos[2] + wf.offset[2]));
+      }
     }
   }
-  for (const [id, e] of byId) {
-    const op = bright(id) ? 0.85 : 0.08;
+  for (const [key, e] of byKey) {
+    const op = bright(key) ? 0.85 : 0.08;
     if (e.pts.length >= 2) {
       const thread = new THREE.Line(new THREE.BufferGeometry().setFromPoints(e.pts),
         new THREE.LineBasicMaterial({ color: e.color, transparent: true, opacity: op * 0.7, depthTest: false }));
       thread.renderOrder = 93;
-      thread.userData.nodeKey = nodeKey(track, id);
+      thread.userData.nodeKey = key;
       groups.graph3d.add(thread);
     }
     for (const p of e.pts) {

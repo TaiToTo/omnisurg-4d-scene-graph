@@ -162,10 +162,37 @@ export function fetchGraph(clip, track, i) {
   return cachedJSON(`${clip.id}/graphs/${track}/${frameName(i)}.json`);
 }
 
-/** One track's scene graph through time, or null when the bundle has none. */
+/**
+ * What makes a graph through time unreadable, or null: the rule `pipeline.viewer_bundle` publishes by.
+ * Node ids and a relation's ends are integers, frames are integers from 0 to n - 1, a relation is a word
+ * and a label a string. The band draws these values, and one of another type draws a band that looks
+ * right and is not.
+ */
+export function temporalProblem(tg, n) {
+  if (!tg || typeof tg !== 'object') return 'it is not an object';
+  const { nodes = [], relations = [] } = tg;
+  if (!Array.isArray(nodes) || !Array.isArray(relations)) return 'its nodes or its relations are not a list';
+  const frames = (v = []) => Array.isArray(v) && v.every((f) => Number.isInteger(f) && f >= 0 && f < n);
+  const bad = nodes.find((x) => !Number.isInteger(x?.id) || !frames(x.present_frames)
+    || !['string', 'undefined'].includes(typeof x.label));
+  if (bad) return `node ${JSON.stringify(bad?.id)} is not an integer id with frames 0 to ${n - 1} and a label`;
+  const rel = relations.find((r) => !Number.isInteger(r?.src) || !Number.isInteger(r?.dst)
+    || typeof r.relation !== 'string' || !frames(r.frames));
+  if (rel) return `a relation of ${JSON.stringify(rel?.src)} and ${JSON.stringify(rel?.dst)} is not integer ids with a word and frames 0 to ${n - 1}`;
+  return null;
+}
+
+/**
+ * One track's scene graph through time, with its lists of nodes and relations, or null when the bundle has
+ * none. One that `temporalProblem` finds fault with is refused.
+ */
 export function fetchTemporal(clip, track) {
   if (!clip.trackById.get(track)?.temporal) return Promise.resolve(null);
-  return cachedJSON(`${clip.id}/graphs/${track}/temporal.json`);
+  return cachedJSON(`${clip.id}/graphs/${track}/temporal.json`, (tg) => {
+    const problem = temporalProblem(tg, clip.n_frames);
+    if (problem) throw new Error(`the ${track} graph through time of ${clip.id} is malformed: ${problem}`);
+    return { ...tg, nodes: tg.nodes ?? [], relations: tg.relations ?? [] };
+  });
 }
 
 /** Which regions of one track contain which of another's on frame `i`, or null. */
