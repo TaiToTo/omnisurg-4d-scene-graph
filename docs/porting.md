@@ -356,12 +356,8 @@ Each stage is described in `docs/pipeline.md`.
   `pipeline/depth_population.py` refuses. The depth stage now takes a
   StereoMIS clip without `crop_info.json`: the rectified views keep no black
   border (checked on 86 of the workbench's images). On the workbench's
-  clips, the driver's checks refuse:
-  - `P1__clip_0001`, whose Pi3X clouds hold 250,880 points: it was made
-    without `--max-points`;
-  - 5 masked clips of `P2_0`, whose `depth_info` records a filled border,
-    most likely the black paint at the frame's edge (inferred). The ported
-    stage fills none, so their `da3_masked` is not reproduced.
+  clips, the driver's checks refuse six clips ("The StereoMIS depth
+  outputs the ported stages do not reproduce").
 
 ### Not yet extracted anywhere
 
@@ -1267,3 +1263,27 @@ Every command takes those paths as arguments.
     granularity result answers a question whose primary metrics are already
     fixed ("Primary metrics" in `docs/evaluation.md`). Decide with it which
     population the ATLAS-120k column reads.
+33. **The StereoMIS depth outputs the ported stages do not reproduce.**
+    `pipeline.depth_stereomis` refuses six clips of the workbench's trees:
+    - 5 of the 6 masked clips of `P2_0` record `border_inpaint: true`, and
+      the same clips unpainted record false (checked). Their paint covers
+      11 to 26 % of the pixels and the edge of every frame; the sixth clip's
+      covers 3 % and no edge in 24 frames (checked). The workbench's stage
+      most likely took the paint for a border (inferred). The ported stage
+      fills none, so their `da3_masked` will change. All five are `slow`
+      clips: they enter `da3_masked` over every clip, over `slow` and in the
+      `P2_0` cell of the table by sequence, and no plain condition or
+      `pi3x_masked` (checked). The workbench's claims list cites the masked
+      result on the 19 clips painted at 1 % or more; the five are among the
+      18 such clips by a mean over every frame (checked), so most likely
+      among the 19 (inferred).
+    - `P1__clip_0001` (plain) holds Pi3X clouds of 250,880 points: it ran
+      without `--max-points`. The flag thins the GLB and the clouds' records
+      (`n_vertices`, `glb_centroid`, `median_vertices`) only; the workbench's
+      `run_pi3_depth.py` writes the bundle before it (checked), so no score
+      changes.
+
+    Decide whether the masked condition is measured with the ported stage
+    as it is, with new numbers on the five clips, or another way, and
+    whether the manuscript reports the masked result. Decide whether
+    `P1__clip_0001`'s Pi3X output is made again with the flag.
