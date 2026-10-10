@@ -336,42 +336,55 @@ Each stage is described in `docs/pipeline.md`.
   for now.
 - `ipcai2027_experiment/scripts/run_conditions.py`, with the `single` mode
   of `run_track_conditions.py`, and the dispatcher of `run_per_frame_seg.py`
-  are `pipeline/condition_population.py`. On the paper's conditions, 29 on
-  ATLAS-120k's 315 clips and 14 on CholecSeg8k's 27, each clip's command
-  gives the stage the settings that the clip's command in the workbench's
-  logs gave, read with each script's defaults. The edge ring is in neither
-  command: the workbench set it in a module, `EDGE_MASK_RING`, which removes
-  the ring since its commit `70755dec` of 2026-09-07. On ATLAS-120k, the
-  records hold `edge_ring_masked` `true`, so the driver's default, the
-  ring removed, makes them again. On CholecSeg8k, the labels of
-  `ch_edge_center` and `ch_edge_perframe` are dated 2026-08-13 and
-  2026-08-14 and carry no `seed_info.json`, so they were most likely made
-  with the ring kept (inferred from the dates; the labels were not
-  compared). Their clips run again under "CholecSeg8k clips whose frames
-  run out of order", and a run that is to equal them passes
-  `--keep-edge-ring`. `ch_edge_center_noring`, of 2026-09-17, records
-  `true`. On ATLAS-120k, the records of
-  the 29 conditions hold every key the driver checks, with the value it
-  expects, apart from `depth_source` in the tracked conditions and
-  `point_grids` in four per-frame ones, which the workbench's scripts did
-  not yet write. Their labels pass the driver's check on every clip. The
-  driver takes the clips from a population file, where the scripts took
-  every clip with GT. It skips a clip whose labels exist and whose
-  `seed_info.json` records the run's settings, where the scripts skipped a
-  clip by counting its labels. It refuses, before anything runs, labels of
-  other settings, which `run_conditions.py` and `run_track_conditions.py`
-  skipped once their count was complete and `run_per_frame_seg.py` refused
-  as well, and labels with a frame missing, which all three ran again. A
-  record of other settings after a clip ran stops the run with a non-zero
-  exit. `run_per_frame_seg.py` raised `SystemExit` there inside a worker
-  thread, which ended the thread alone: the run went on, left the clip out
-  of its results, and could exit 0. It refuses a tracker's input that burns
-  edges with a seed whose record holds no ring, which none of the paper's
-  conditions has: each tracks `rgb`. It passes `--device cuda`, where the
-  scripts left the device at `auto`. It takes `--gpus` with no default,
-  where the scripts took GPUs 0 to 7. It appends each clip's command and
-  output to the clip's log, where the scripts wrote the log anew, and prints
-  a line as each clip ends, as the scripts did.
+  are `pipeline/condition_population.py`. It was checked against the
+  workbench on the paper's conditions, 29 on ATLAS-120k's 315 clips and 14
+  on CholecSeg8k's 27:
+  - Each clip's command gives the stage the settings that the clip's
+    command in the workbench's logs gave, read with each script's defaults.
+  - On ATLAS-120k, the records of the 29 conditions hold every key the
+    driver checks, with the value it expects, apart from two keys the
+    workbench's scripts did not yet write: `depth_source` in the tracked
+    conditions and `point_grids` in four per-frame ones. Their labels pass
+    the driver's check on every clip.
+
+  No command in the workbench's logs names the edge ring, and the driver's
+  command names it only with `--keep-edge-ring`. The workbench set the ring
+  in a module, `EDGE_MASK_RING`, which removes the ring since its commit
+  `70755dec` of 2026-09-07.
+  - On ATLAS-120k, the records of the conditions whose inputs burn edges
+    hold `edge_ring_masked` `true`, so the driver's default, the ring
+    removed, makes them again.
+  - On CholecSeg8k, the labels of `ch_edge_center` and `ch_edge_perframe`
+    are dated 2026-08-13 and 2026-08-14 and carry no `seed_info.json`, so
+    they were most likely made with the ring kept (inferred from the dates;
+    the labels were not compared). A run that is to equal them passes
+    `--keep-edge-ring`. Their clips run again under "CholecSeg8k clips
+    whose frames run out of order". `ch_edge_center_noring`, of
+    2026-09-17, records `true`.
+
+  The driver differs from the scripts in these ways:
+  - It takes the clips from a population file, where the scripts took every
+    clip with GT.
+  - It skips a clip whose labels exist only when the clip's
+    `seed_info.json` records the run's settings. The scripts skipped a clip
+    by counting its labels.
+  - It refuses, before anything runs, labels of other settings.
+    `run_conditions.py` and `run_track_conditions.py` skipped such labels
+    once their count was complete; `run_per_frame_seg.py` refused them too.
+  - It refuses, before anything runs, labels with a frame missing, which all
+    three scripts ran again.
+  - A record of other settings after a clip ran stops the run with a
+    non-zero exit. `run_per_frame_seg.py` raised `SystemExit` there inside
+    a worker thread, which ended that thread alone: the run went on, left
+    the clip out of its results, and could exit 0.
+  - It refuses a tracker's input that burns edges with a seed whose record
+    holds no ring. None of the paper's conditions is refused: each tracks
+    `rgb`.
+  - It passes `--device cuda`, where the scripts left the device at `auto`.
+  - It takes `--gpus` with no default, where the scripts took GPUs 0 to 7.
+  - It appends each clip's command and output to the clip's log, where the
+    scripts wrote the log anew. It prints a line as each clip ends, as the
+    scripts did.
 
 ### Not yet extracted anywhere
 
@@ -389,15 +402,12 @@ below.
   - Segmentation and tracking, from `depth_sam_tracking_experiment/`:
     `track_sam3.py`, `sam3d_core.py` (`num_to_natural` and `get_sam`),
     `loaders.py` (`CholecGtLoader`), `depth_source.py` (DA3 and the `pi3`
-    swap), `viz_common.py` and `sam_env.py`. The scripts that ran them are
-    ported: `ipcai2027_experiment/scripts/run_per_frame_seg.py`, whose five
+    swap), `viz_common.py` and `sam_env.py`. From
+    `ipcai2027_experiment/scripts/`: `run_per_frame_seg.py`, whose five
     modes `geom_blend.sam_input_image` passes to `geometry.sam_input_image`
-    unchanged, `ipcai2027_experiment/scripts/run_conditions.py`, which
-    spread one tracked condition over the GPUs and imported the command
-    from `run_track_conditions.py`, and
-    `seg_quality_experiment/scripts/run_track_conditions.py` are
-    `pipeline/per_frame.py` and `pipeline/condition_population.py`
-    ("Pipeline stages already ported"). `run_track_conditions.py`'s
+    unchanged, and `run_conditions.py`, which spreads one tracked condition
+    over the GPUs and imports the command from `run_track_conditions.py`.
+    From `seg_quality_experiment/scripts/`: `run_track_conditions.py`, whose
     `MODES` hold the operating point's flags (`--seed_auto --bidir
     --max_frames 0`). The operating point's `--seed_inst_thresh 1.0` is not
     in `MODES`: the drivers `ipcai2027_experiment/atlas97/scripts/run_batch97.sh`
@@ -416,7 +426,9 @@ below.
     runs the clips it is given, or every clip with depth, in order on one
     device, and refuses labels an earlier run left. Its dispatcher ran one
     clip per GPU, resumed a run by counting its labels, and took every clip
-    with GT unless given `--clips`.
+    with GT unless given `--clips`. The dispatcher, with `run_conditions.py`
+    and the `single` mode of `run_track_conditions.py`, is
+    `pipeline/condition_population.py` ("Pipeline stages already ported").
   - The paper's tables: `ipcai2027_experiment/atlas97/scripts/print_status_tables.py`,
     which the manuscript names with `summary97.py` as the source of every
     table; from `ipcai2027_experiment/scripts/`, `claims_grid.py` and

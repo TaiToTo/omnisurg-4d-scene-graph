@@ -189,15 +189,18 @@ def test_the_record_each_stage_writes_holds_the_settings_the_driver_passes(run, 
     assert {k: info[k] for k in expected_record(stage, s)} == json.loads(json.dumps(expected_record(stage, s)))
 
 
-def test_seed_labels_made_outside_reach_the_stage(run):
+@pytest.mark.parametrize("in_tracks", [False, True])
+def test_seed_labels_made_outside_reach_the_stage(run, in_tracks):
+    # The seeds are in a directory per clip, or, with {clip} in the path, in a condition kmerge wrote beside the tracks.
     root, tracks, _ = run
+    seeds = str(tracks / "{clip}" / "track_rgb_k10") if in_tracks else str(root.parent / "seeds")
     for name, n in (("clip0", 5), ("clip1", 4)):
         make_clip(root, name, n=n)
-        (root.parent / "seeds" / name).mkdir(parents=True)
+        seed_dir = tracks / name / "track_rgb_k10" if in_tracks else root.parent / "seeds" / name
+        seed_dir.mkdir(parents=True)
         labels = np.zeros((H, W), int)
         labels[H // 2:] = 7
-        np.save(root.parent / "seeds" / name / f"label_{n // 2:04d}.npy", labels)
-    seeds = str(root.parent / "seeds")
+        np.save(seed_dir / f"label_{n // 2:04d}.npy", labels)
     s = settings("track", "--rule", "both_ways_from_centre", "--sam-input", "rgb", "--track-base", "rgb",
                  "--seed-min-area", "1", "--seed-labels", seeds)
     run_population("track", s, root, tracks, ["clip0", "clip1"], [0, 1])
@@ -265,6 +268,14 @@ def test_a_record_of_other_settings_after_a_clip_ran_stops_the_run(run, monkeypa
         json.dumps({**json.loads((d / "seed_info.json").read_text()), "seed_frame": 0})),
      r"clip0's seed_info.json records seed frame 0 of 5 frames labelled; both_ways_from_centre seeds frame 2 of 5"),
     (lambda d: (d / "seed_info.json").write_text(
+        json.dumps({**json.loads((d / "seed_info.json").read_text()), "frames": [0, 1, 2, 3]})),
+     r"clip0's seed_info.json records seed frame 2 of 4 frames labelled; both_ways_from_centre seeds frame 2 of 5"),
+    # A key the driver does not know, as a later version of the stage would write it.
+    (lambda d: (d / "seed_info.json").write_text(
+        json.dumps({**json.loads((d / "seed_info.json").read_text()), "track_edge_ring_masked": True})),
+     r"clip0's seed_info.json records other settings than this run passes: "
+     r"track_edge_ring_masked True, not \(no such key\)"),
+    (lambda d: (d / "seed_info.json").write_text(
         json.dumps({k: v for k, v in json.loads((d / "seed_info.json").read_text()).items() if k != "depth_source"})),
      r"clip0's seed_info.json records other settings than this run passes: depth_source \(no such key\), not 'da3'"),
     (lambda d: (d / "seed_info.json").write_text(
@@ -311,7 +322,8 @@ def test_a_clip_that_fails_is_reported_with_its_log_and_the_others_run(run):
     # The stage records the seed input's ring only, so a tracker's input that burns edges would keep no record of it.
     ("track", ["--rule", "both_ways_from_centre", "--sam-input", "rgb", "--track-base", "rgb_edge", "--sam-ckpt",
                "{ckpt}"], [0], r"--track-base rgb_edge burns edges and --sam-input rgb records no edge ring"),
-    ("track", ["--rule", "both_ways_from_centre", "--sam-input", "rgb", "--track-base", "normal_edge",
+    # The seed's input would burn edges, so the seed labels alone leave the ring unrecorded.
+    ("track", ["--rule", "both_ways_from_centre", "--sam-input", "normal_edge", "--track-base", "normal_edge",
                "--seed-labels", "nowhere"], [0], r"--track-base normal_edge burns edges and --seed-labels records no"),
 ])
 def test_a_run_that_cannot_make_the_condition_is_refused_before_anything_runs(run, stage, options, gpus, match):

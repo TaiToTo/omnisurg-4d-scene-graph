@@ -1,14 +1,15 @@
 """Run one condition of the tracking or the per-frame stage on every clip of a population, one clip per GPU at a time.
 
-Each clip runs as its own `python -m pipeline.track` or `python -m pipeline.per_frame`, which is given every
-setting of the condition. Its command and output are appended to `<tracks-root>/_logs/<labels>/<clip>.log`,
-where `<labels>` names the clip's label directory. A clip whose labels exist
-is skipped, so a stopped run continues where it was; before anything runs,
-the `seed_info.json` of each such clip must record this run's settings.
-After each clip, a record of other settings stops the run. A driver that is
-stopped stops its processes with it. At the end, every clip must hold one
-label map per image and a record of the settings; the command exits non-zero
-otherwise, and names the clips that fail.
+Each clip runs as a process of its own, `pipeline.track` or
+`pipeline.per_frame` given every setting of the condition. The command and
+the output of each process are appended to `<clip>.log` in
+`<tracks-root>/_logs/<labels>/`, where `<labels>` names the label directory.
+A clip whose labels exist is skipped, so a stopped run continues where it
+was; the `seed_info.json` of each such clip must first record this run's
+settings. After each clip, a record of other settings stops the run. A
+driver that is stopped stops its processes with it. At the end, every clip
+must hold one label map per image and a record of the settings; the command
+exits non-zero otherwise, and names the clips that fail.
 
 Usage:
     python -m pipeline.condition_population track --input-dir /path/to/clips --clips atlas120k_meta/clips.txt \\
@@ -31,7 +32,7 @@ from pathlib import Path
 from evalkit.evaluate import SEED_INFO, read_population
 from pipeline.depth_population import LOG_DIR, STOP_SIGNALS, stop
 from pipeline.per_frame import SMOOTH
-from pipeline.track import BUNDLE, DEPTH_SOURCES, PI3X_BUNDLE, RULES, SEED_SAM_KWARGS, window
+from pipeline.track import BUNDLE, DEPTH_SOURCES, PI3X_BUNDLE, RULES, SEED_SAM_KWARGS, seed_labels_dir, window
 from surgical_core.geometry.render import SAM_INPUT_MODES, uses_geom_edge
 
 # The command each clip runs, before its arguments.
@@ -172,10 +173,7 @@ def check_inputs(stage: str, s: argparse.Namespace, root: Path, clips: list[str]
     if absent:
         raise ValueError(f"{len(absent)} clip(s) of the population lack the depth under {root}: {absent[:5]}")
     if stage == "track" and s.seed_labels is not None:
-        # The directory `pipeline.track.read_seed_labels` reads a clip's seed regions from.
-        seeds = {c: (Path(s.seed_labels.replace("{clip}", c)) if "{clip}" in s.seed_labels
-                     else Path(s.seed_labels) / c) for c in clips}
-        absent = [c for c, d in seeds.items() if not d.is_dir()]
+        absent = [c for c in clips if not seed_labels_dir(s.seed_labels, c).is_dir()]
         if absent:
             raise ValueError(f"{len(absent)} clip(s) have no seed labels under {s.seed_labels}: {absent[:5]}")
 
@@ -289,8 +287,9 @@ def run_population(stage: str, s: argparse.Namespace, root: Path, tracks_root: P
     """Run the condition on the clips that lack its labels, one clip per GPU at a time, and check the population.
 
     Raises:
-        ValueError: `check_inputs` refuses the run, or a clip's labels exist and `check_population` refuses
-            them, before any process starts; or a clip's record holds other settings after it ran.
+        ValueError: `check_inputs` or `check_montages` refuses the run, or a clip's labels exist and
+            `check_population` refuses them, before any process starts; or a clip's record holds other settings
+            after it ran.
         RuntimeError: a process exited non-zero, or `check_population` refuses the population after the run.
             The message names each clip that failed, with its log, and each clip the check refuses.
     """
