@@ -96,7 +96,12 @@ in English.
   files equal the manifest's annotated frames on every window (522).
 - Tracks, `label_<frame>.npy` per frame: `depth_sam_tracking_experiment/out_w1_all/`
   (pps 24, the AE-CAI run, 2026-07-07) and `out_w1_pps{8,16,32,48}/`
-  (2026-07-09). Seed maps were not kept by those runs.
+  (2026-07-09). Seed maps were not kept by those runs. `run_track --seeds`
+  wrote them again here (`$AECAI_REV_WORK/seeds/`); `00_check/seed_maps_check.csv`
+  compares them with each frozen run's seed frame: equal in 319 of the 324
+  conditions of pps 8/16/24/32. In 4 pps-24 conditions the region set or its
+  numbering differs, and in 1 pps-8 condition the frozen seed frame holds one
+  region fewer. The scores never read these maps; they read the frozen tracks.
 - Per-window evaluation JSONs, frozen in the tag:
   `depth_sam_tracking_experiment/miccai2026_workshop/results/eval/w1/`.
 - Overlay and graph JSONs: `outputs/cholec_gt/<window>/pc_vis/`. Those of
@@ -144,10 +149,16 @@ in English.
 
 1. **Window population.** The numbers in `01`–`07` are on the 27 AE-CAI
    windows. `00_windows/` enumerates one window per CholecSeg8k clip
-   (86 kept, 15 excluded because they would start before the video does),
-   but those windows have not been extracted, depth-estimated or tracked.
-   Their frames lie on a different phase of the stride from the AE-CAI
-   windows, so none of the AE-CAI data can be reused.
+   (86 kept, 15 excluded because they would start before the video does);
+   their tables are under `enumerated/`. Their frames lie on a different
+   phase of the stride from the AE-CAI windows, so none of the AE-CAI data
+   is reused: each window is extracted by this repository's extractor
+   (unannotated frames at their true time, so no window runs out of order),
+   then cropped from its own frames and depth-estimated by the tagged
+   scripts, as the AE-CAI windows were. The crop found from the frames
+   varies between windows of one video as it did for the AE-CAI windows
+   (VID01's three AE-CAI windows: 435×622, 435×628, 442×618); two VID28
+   windows come out 383 and 409 px high where the AE-CAI window is 478.
 2. **"Clip" means a CholecSeg8k clip folder** (80 frames), not a run of
    consecutive folders. With runs there would be 41 windows.
 3. **The stride counts CholecSeg8k numbers**, as in the AE-CAI windows, not
