@@ -1,10 +1,12 @@
 """Test the StereoMIS reader on a sequence made up for the test.
 
-The calibration is two identical cameras side by side, so a view of one grey
-level stays that level when rectified. The ground truth moves the camera on
-circles that pass through the origin, one turn per clip, so each clip's RMS
-radius is the circle's radius. The video tests skip where FFmpeg is not
-installed. Each refusal has a test that plants its fault.
+The calibration is two identical cameras side by side, so rectifying leaves a
+view as it is. Each view of the video holds stripes one pixel wide of two
+colours, whose mean differs in red and blue, so a view halved by area takes
+that mean. The ground truth moves the camera on circles that pass through the
+origin, one turn per clip, so each clip's RMS radius is the circle's radius.
+The video tests skip where FFmpeg is not installed. Each refusal has a test
+that plants its fault.
 """
 
 import math
@@ -38,17 +40,20 @@ def _fresh_caches():
         f.cache_clear()
 
 
-def write_calibration(seq_dir: Path, res: tuple[int, int] = S.VIEW_SIZE, right_cc_y: float = 512) -> None:
-    """Write a calibration of two cameras without distortion, the right one `BASELINE_MM` to the right.
+def write_calibration(seq_dir: Path, res: tuple[int, int] = S.VIEW_SIZE, right_cc: tuple[float, float] = (640, 512),
+                      kc_0: float = 0.0) -> None:
+    """Write a calibration of two cameras, the right one `BASELINE_MM` to the right.
 
-    The cameras are identical unless the right one's principal point is moved down to `right_cc_y`.
+    The cameras are identical unless the right one's principal point is moved to `right_cc`. Both have the
+    radial distortion `kc_0`, none by default.
     """
     seq_dir.mkdir(parents=True, exist_ok=True)
     lines = []
-    for section, tx, cc_y in (("StereoLeft", 0.0, 512), ("StereoRight", -BASELINE_MM, right_cc_y)):
+    for section, tx, (cc_x, cc_y) in (("StereoLeft", 0.0, (640, 512)), ("StereoRight", -BASELINE_MM, right_cc)):
         lines.append(f"[{section}]")
-        lines += [f"res_x = {res[0]}", f"res_y = {res[1]}", "fc_x = 1000", "fc_y = 1000", "cc_x = 640", f"cc_y = {cc_y}"]
-        lines += [f"kc_{i} = 0" for i in range(5)]
+        lines += [f"res_x = {res[0]}", f"res_y = {res[1]}", "fc_x = 1000", "fc_y = 1000", f"cc_x = {cc_x}",
+                  f"cc_y = {cc_y}"]
+        lines += [f"kc_0 = {kc_0}"] + [f"kc_{i} = 0" for i in range(1, 5)]
         lines += [f"R_{i} = {1 if i in (0, 4, 8) else 0}" for i in range(9)]
         lines += [f"T_0 = {tx}", "T_1 = 0", "T_2 = 0"]
     (seq_dir / "StereoCalibration.ini").write_text("\n".join(lines) + "\n")
@@ -63,14 +68,18 @@ def write_gt(seq_dir: Path, t_m: np.ndarray, quat: np.ndarray | None = None) -> 
     np.savetxt(seq_dir / "groundtruth.txt", a)
 
 
-def levels(i: int) -> tuple[int, int]:
-    """The grey levels of frame `i`'s left and right views."""
-    return 20 + 20 * i, 230 - 20 * i
+# Each view's stripes lie this far above and below its colour, in every channel.
+STRIPE = 10
+
+
+def colours(i: int) -> tuple[np.ndarray, np.ndarray]:
+    """Return the RGB colours of frame `i`'s left and right views, each with red and blue at least 20 apart."""
+    return np.array([40 + 20 * i, 128, 220 - 20 * i]), np.array([220 - 20 * i, 64, 40 + 20 * i])
 
 
 @pytest.fixture(scope="module")
 def video_file(tmp_path_factory):
-    """Write, once, a video of `N_VIDEO_FRAMES` stacked frames at 60 frames a second, each view one grey level."""
+    """Write, once, a video of `N_VIDEO_FRAMES` stacked frames at 60 frames a second, each view striped."""
     if shutil.which("ffmpeg") is None:
         pytest.skip("FFmpeg is not installed")
     path = tmp_path_factory.mktemp("video") / "video.mp4"
@@ -78,12 +87,14 @@ def video_file(tmp_path_factory):
     frames = []
     for i in range(N_VIDEO_FRAMES):
         f = np.empty((h, w, 3), np.uint8)
-        f[: h // 2], f[h // 2:] = levels(i)
+        for top, colour in zip((0, h // 2), colours(i)):
+            f[top:top + h // 2, 0::2] = colour + STRIPE
+            f[top:top + h // 2, 1::2] = colour - STRIPE
         frames.append(f)
-    # Lossless H.264 in 4:4:4, so that a grey level comes back within one step of what was written.
+    # Lossless H.264 in RGB, so that every pixel comes back as it was written.
     subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24",
-                    "-s", f"{w}x{h}", "-r", "60", "-i", "-", "-c:v", "libx264", "-preset", "ultrafast", "-qp", "0",
-                    "-pix_fmt", "yuv444p", str(path)], input=b"".join(f.tobytes() for f in frames), check=True)
+                    "-s", f"{w}x{h}", "-r", "60", "-i", "-", "-c:v", "libx264rgb", "-preset", "ultrafast", "-qp", "0",
+                    "-pix_fmt", "rgb24", str(path)], input=b"".join(f.tobytes() for f in frames), check=True)
     return path
 
 
@@ -119,12 +130,28 @@ def test_a_flat_view_stays_flat_when_rectified(tmp_path):
 
 def test_each_view_is_rectified_by_its_own_camera(tmp_path):
     """The right camera's principal point sits 40 px lower, so the two maps differ and each side takes its own."""
-    write_calibration(tmp_path / "P1", right_cc_y=552)
+    write_calibration(tmp_path / "P1", right_cc=(640, 552))
     c = S.Calib(tmp_path, "P1")
     assert not np.array_equal(c.map_left[1], c.map_right[1])
     img = np.random.default_rng(0).integers(0, 256, (S.VIEW_SIZE[1], S.VIEW_SIZE[0], 3), dtype=np.uint8)
     for side, (mx, my) in (("l", c.map_left), ("r", c.map_right)):
         np.testing.assert_array_equal(c.rectify(img, side), cv2.remap(img, mx, my, cv2.INTER_LINEAR))
+
+
+def test_the_rectified_views_keep_no_black_border(tmp_path):
+    """Under barrel distortion, a rectification that kept every pixel of the view would leave black corners."""
+    write_calibration(tmp_path / "P1", kc_0=-0.3)
+    c = S.Calib(tmp_path, "P1")
+    white = np.full((S.VIEW_SIZE[1], S.VIEW_SIZE[0], 3), 255, np.uint8)
+    for side in ("l", "r"):
+        assert (c.rectify(white, side) > 0).all(), f"side {side}: the rectified view has black pixels"
+
+
+def test_both_rectified_cameras_share_one_principal_point(tmp_path):
+    """The right camera's principal point sits 40 px to the left; rectified, both views put it at one column."""
+    write_calibration(tmp_path / "P1", right_cc=(600, 512))
+    c = S.Calib(tmp_path, "P1")
+    assert c.P_left[0, 2] == pytest.approx(c.P_right[0, 2], abs=1e-9)
 
 
 def test_a_side_other_than_left_or_right_is_refused(tmp_path):
@@ -155,9 +182,23 @@ def test_each_position_decodes_its_own_frame_in_order_with_the_left_view_on_top(
     for f, left, right in got:
         assert left.shape == right.shape == (S.HALF_SIZE[1], S.HALF_SIZE[0], 3)
         assert left.dtype == right.dtype == np.uint8
-        lv, rv = levels(f)
-        assert np.abs(left.astype(int) - lv).max() <= 1, f"frame {f}: the left view is not frame {f}'s top half"
-        assert np.abs(right.astype(int) - rv).max() <= 1, f"frame {f}: the right view is not frame {f}'s bottom half"
+        lc, rc = colours(f)
+        assert np.abs(left.astype(int) - lc).max() <= 1, f"frame {f}: the left view is not frame {f}'s top half"
+        assert np.abs(right.astype(int) - rc).max() <= 1, f"frame {f}: the right view is not frame {f}'s bottom half"
+
+
+@needs_ffmpeg
+def test_the_views_come_back_in_rgb_order(video_seq):
+    [(_, left, right)] = S.iter_frame_set(video_seq, "P1", [0])
+    for view, colour in zip((left, right), colours(0)):
+        np.testing.assert_allclose(view.reshape(-1, 3).mean(0), colour, atol=1)
+
+
+@needs_ffmpeg
+def test_a_view_is_halved_by_area_so_its_stripes_average_out(video_seq):
+    """A pixel of the halved view covers two stripes; taking one pixel of the two would be `STRIPE` away."""
+    [(_, left, _)] = S.iter_frame_set(video_seq, "P1", [3])
+    assert np.abs(left.astype(int) - colours(3)[0]).max() <= 1
 
 
 @needs_ffmpeg
@@ -445,6 +486,16 @@ def test_a_sequence_is_cut_into_clips_and_each_is_marked_by_its_inputs(clip_seq)
     assert first["frames"] == list(range(4, 4 + SPAN, STRIDE))
     assert first["times"] == [f / FPS for f in first["frames"]]
     assert cl[1]["frames"][0] == 4 + SPAN
+
+
+def test_a_video_at_59_94_frames_a_second_takes_every_12th_frame(clip_seq, monkeypatch):
+    """Nine of the ten sequences declare 60000/1001 frames a second: 11.988 frames to 0.2 s, rounded to 12."""
+    fps = 60000 / 1001
+    monkeypatch.setattr(S, "video_info", lambda r, s: dict(width=1280, height=2048, n_frames=N_FRAMES, fps=fps))
+    assert S.clip_stride(clip_seq[0], "P2_0") == 12
+    first = S.clips(*clip_seq, "P2_0")[0]
+    assert first["stride"] == 12 and first["frames"][:3] == [4, 16, 28]
+    assert first["times"] == [f / fps for f in first["frames"]]
 
 
 def test_the_grid_starts_at_the_first_position_with_a_ground_truth_row(clip_seq, monkeypatch):
