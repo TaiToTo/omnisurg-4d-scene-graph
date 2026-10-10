@@ -3,7 +3,7 @@
 Each line gives the mean of `cond − base` over the clips both define the
 key on, its video-level bootstrap 95 % interval, how many clips moved up,
 stayed and moved down, the clip-level Wilcoxon p for reference, and the
-mark that `paired_stats.verdict` reads from the interval in the key's
+mark that `paired_stats.mark_of` reads from the interval in the key's
 direction. A key of direction 0, such as `time_IoU`, is never marked.
 
 The score JSONs of one table must pass `scores.check_comparable_table`.
@@ -20,7 +20,7 @@ from collections.abc import Mapping, Sequence
 import numpy as np
 
 from evalkit.tools.compare_eval import DIRECTION, metrics_of
-from evalkit.tools.paired_stats import VERDICT_RULE, boot_ci, load_json, verdict, video_of
+from evalkit.tools.paired_stats import MARK_RULE, boot_ci, load_json, mark_of, video_of
 from evalkit.tools.scores import check_comparable_table, defined_clips, is_pilot_json, rows_of
 
 # The width of the column that names a pair, as the workbench printed it; a longer name widens it.
@@ -65,7 +65,7 @@ def pair_row(base: Mapping, cond: Mapping, clips: Sequence[str], key: str, sign:
         video-level bootstrap interval, None below two videos; `up`, `same`
         and `down`, the clips on which `cond − base` is above, at or below
         zero; `p_clip`, the clip-level Wilcoxon p, None when no clip moved;
-        and `mark`, from `paired_stats.verdict`.
+        and `mark`, from `paired_stats.mark_of`.
 
     Raises:
         ValueError: `key` is defined on no clip of both conditions.
@@ -88,7 +88,7 @@ def pair_row(base: Mapping, cond: Mapping, clips: Sequence[str], key: str, sign:
         n_clips=len(kept), n_videos=n_videos, delta=float(d.mean()), ci95_video=ci,
         up=int((d > 0).sum()), same=int((d == 0).sum()), down=int((d < 0).sum()),
         p_clip=float(stats.wilcoxon(d, zero_method="wilcox").pvalue) if np.any(d != 0) else None,
-        mark=verdict(ci, sign),
+        mark=mark_of(ci, sign),
     )
 
 
@@ -165,7 +165,7 @@ def print_table(table: Mapping) -> None:
     print(f"{'pair':<{width}}{'Δ':>8}{'95% CI':>20}{'up-eq-down':>12}{'p':>9}")
     for base, cond, row in table["rows"]:
         print(format_row(base, cond, row, n_clips, n_videos, width))
-    print(f"\n★ / ✗: {VERDICT_RULE}.")
+    print(f"\n★ / ✗: {MARK_RULE}.")
 
 
 def main() -> None:

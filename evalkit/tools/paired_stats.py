@@ -246,7 +246,7 @@ def is_star(ci95_video, sign: int = +1) -> bool:
 def round_keeping_sign(x: float) -> float:
     """Round to four places, and write a value that would round to zero at two significant digits.
 
-    `verdict` gives ★ or ✗ from the side of zero on which an interval's ends
+    `mark_of` gives ★ or ✗ from the side of zero on which an interval's ends
     lie. An end of 2.4e-05 written as 0.0 would lose its ★, and an end of
     -2.4e-05 its ✗.
     """

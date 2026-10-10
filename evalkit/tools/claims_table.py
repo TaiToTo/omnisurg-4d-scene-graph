@@ -5,7 +5,7 @@ propagated, or a per-frame condition against a propagated one. A cell holds
 `cond − base` of one key, its video-level 95 % interval and the clip-level
 Wilcoxon p, from `paired_stats.compare_pair`. A cell is marked ★ when the
 whole interval lies on the better side of zero, and ✗ when it lies on the
-worse side (`paired_stats.verdict`). A row is marked ★★ when both of its
+worse side (`paired_stats.mark_of`). A row is marked ★★ when both of its
 cells are marked ★. A condition with no score JSON leaves its cell "not
 measured", and the command exits non-zero unless `--allow-unmeasured`.
 What the table refuses is listed under `build`.
@@ -24,7 +24,7 @@ import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
-from evalkit.tools.paired_stats import VERDICT_RULE, compare_pair, format_signed, is_star, sign_of_key, verdict
+from evalkit.tools.paired_stats import MARK_RULE, compare_pair, format_signed, is_star, mark_of, sign_of_key
 from evalkit.tools.scores import PER_FRAME, check_comparable_table, check_one_rule, load_scores, propagation_rule_of
 
 # The datasets of the table, in the order of its columns, each with the names its score JSONs record: the
@@ -249,7 +249,7 @@ def format_cell(pair: dict | Unmeasured, key: str) -> str:
     # A population the key shrank is shown against the pair's, never silently.
     if (r["n_clips"], r["n_videos"]) != (pair["n_clips"], pair["n_videos"]):
         size = f"{r['n_clips']}/{pair['n_clips']} clips, {r['n_videos']}/{pair['n_videos']} videos"
-    return f"{format_signed(r['delta_mean'])} {interval} p={p}{verdict(ci, r['sign'])} ({size})"
+    return f"{format_signed(r['delta_mean'])} {interval} p={p}{mark_of(ci, r['sign'])} ({size})"
 
 
 def unmeasured(rows: list[tuple[Claim, list[dict | Unmeasured]]]) -> list[str]:
@@ -263,7 +263,7 @@ def render(rows: list[tuple[Claim, list[dict | Unmeasured]]], rule: str | None, 
     stage_note = ("the pilot evaluator's JSONs record no propagation rule, so no row's stage is checked"
                   if rule is None else f"propagation rule {rule}; each stage is checked against the rules recorded")
     lines = [f"# Claims of the granularity result, on {key}",
-             f"# ★ better, ✗ worse, when {VERDICT_RULE}. ★★: ★ in both datasets.",
+             f"# ★ better, ✗ worse, when {MARK_RULE}. ★★: ★ in both datasets.",
              f"# {stage_note}"]
     lines += [f"# note: library versions differ in {column} between {tags}: {versions}"
               for column, pairs in (differ or {}).items() for tags, versions in pairs.items()]

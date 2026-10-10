@@ -325,7 +325,7 @@ def test_an_interval_end_near_zero_keeps_its_star_or_cross(monkeypatch, ci, writ
     monkeypatch.setattr(PS, "boot_ci", lambda d, groups, **kw: ci)
     a, b = pilot_scores("base", 0.0, 5), pilot_scores("cond", 0.03, 6)
     r = PS.compare_pair(a, b, keys=["inst_F1_50"])["metrics"]["inst_F1_50"]
-    assert r["ci95_video"] == written and PS.verdict(r["ci95_video"], r["sign"]) == mark
+    assert r["ci95_video"] == written and PS.mark_of(r["ci95_video"], r["sign"]) == mark
 
 
 def test_a_key_defined_on_no_common_clip_is_left_out_not_zeroed():

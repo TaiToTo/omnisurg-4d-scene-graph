@@ -1,6 +1,6 @@
 """Leave each video out in turn, and name the videos whose removal changes the mark.
 
-For each pair of conditions and each key, `paired_stats.verdict` reads the
+For each pair of conditions and each key, `paired_stats.mark_of` reads the
 video-level bootstrap interval of `cond - base` in the key's direction and
 gives a mark: a star, a cross or none. A video whose removal changes the mark
 is named. The mark then depends on that one video, not on the population.
@@ -24,16 +24,16 @@ from collections.abc import Sequence
 import numpy as np
 
 from evalkit.tools.paired_stats import (
+    MARK_RULE,
     N_BOOT,
     SEED,
     SEED_SCHEME,
-    VERDICT_RULE,
     boot_ci,
     format_signed,
     load_json,
+    mark_of,
     round_keeping_sign,
     sign_of_key,
-    verdict,
     video_of,
 )
 from evalkit.tools.scores import check_comparable, check_one_rule, defined_clips, rows_of
@@ -102,7 +102,7 @@ def leave_each_out(d: np.ndarray, vids: np.ndarray, sign: int) -> dict:
         raise ValueError(f"the clips come from {len(videos)} video(s): leaving one out would leave fewer than "
                          f"{MIN_VIDEOS_AFTER_DROP}, so no video can be left out and none can be named")
     full_ci = list(boot_ci(d, vids))
-    full = verdict(full_ci, sign)
+    full = mark_of(full_ci, sign)
     per = []
     for v in videos:
         m = vids != v
@@ -113,7 +113,7 @@ def leave_each_out(d: np.ndarray, vids: np.ndarray, sign: int) -> dict:
             own_delta=round_keeping_sign(d[~m].mean()), delta_wo=round_keeping_sign(d[m].mean()),
             ci95_wo=[round_keeping_sign(x) for x in ci],
             ci_width_ratio=None if width_ratio is None else round_keeping_sign(width_ratio),
-            mark_wo=verdict(ci, sign)))
+            mark_wo=mark_of(ci, sign)))
     flips = [p["video"] for p in per if p["mark_wo"] != full]
     return dict(n_clips=int(len(d)), n_videos=len(videos),
                 # `delta` is `cond - base` and `mark` is read in the key's
@@ -232,7 +232,7 @@ def main() -> None:
         raise SystemExit(f"--keys: {e}") from e
 
     # The marks of each pair, printed as they come.
-    out = {"mark_rule": VERDICT_RULE, "n_boot": N_BOOT, "seed": SEED, "seed_scheme": SEED_SCHEME,
+    out = {"mark_rule": MARK_RULE, "n_boot": N_BOOT, "seed": SEED, "seed_scheme": SEED_SCHEME,
            "min_videos_after_drop": MIN_VIDEOS_AFTER_DROP}
     # A pilot JSON records no rule, so none is written.
     if rule is not None:
