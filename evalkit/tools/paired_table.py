@@ -12,9 +12,6 @@ by hand.
 
 Usage:
     python -m evalkit.tools.paired_table --eval-dir /path/to/scores
-    # on the evaluator's scores, which spell each key with its view
-    python -m evalkit.tools.paired_table --eval-dir /path/to/scores \\
-        --keys F1_50/geometric,SQ/geometric,boundary_R_raw/geometric
 """
 from __future__ import annotations
 
@@ -152,7 +149,7 @@ def check_table(tags: Sequence[str], summaries: Mapping[str, Mapping], columns: 
     """Check that a table's conditions can share one table, and return what they share.
 
     Args:
-        tags: The table's conditions, in its order; each has a score JSON in `summaries`.
+        tags: The table's conditions, in its order, two at least; each has a score JSON in `summaries`.
         summaries: The score JSONs, by tag.
         columns: The keys the table reports, with their directions.
 
@@ -164,15 +161,18 @@ def check_table(tags: Sequence[str], summaries: Mapping[str, Mapping], columns: 
         which a condition differs from the first.
 
     Raises:
-        ValueError: Two conditions are not comparable, propagated under
-            two rules besides `per_frame` among the reasons; a key is in no
-            row of a condition; or a pilot JSON records no `n_regions_mean`.
+        ValueError: The table names fewer than two conditions; two
+            conditions are not comparable, propagated under two rules
+            besides `per_frame` among the reasons; a key is in no row of a
+            condition; or a pilot JSON records no `n_regions_mean`.
     """
-    # Every two conditions, each with itself too, so that a table of one
-    # condition still has its rows checked. Checking each against the first
+    # Every two conditions. A condition is checked only against another, so
+    # one condition alone would go unchecked. Checking each against the first
     # alone is not enough: a pilot JSON with no domain passes against any.
+    if len(tags) < 2:
+        raise ValueError(f"a table compares two conditions at least, and this one names {list(tags)}")
     versions_differ = {}
-    for a, b in itertools.combinations_with_replacement(tags, 2):
+    for a, b in itertools.combinations(tags, 2):
         try:
             chk = check_comparable(summaries[a], summaries[b])
         except ValueError as e:
@@ -236,15 +236,21 @@ def table_lines(blocks: Sequence, summaries: Mapping[str, Mapping], keys: Sequen
     """Return the lines of a table, from the score JSONs of the conditions it names.
 
     Raises:
-        ValueError: A condition has no score JSON, the table's conditions
-            cannot share a table (`check_table`), or its keys cannot be
-            reported (`columns_of`).
+        ValueError: A row compares a condition with itself, a condition has
+            no score JSON, the table's conditions cannot share a table
+            (`check_table`), or its keys cannot be reported (`columns_of`).
     """
-    # The keys and their directions, read from the first condition; `check_table` makes every other share its ruler.
+    # The conditions, two to a row, each with a score JSON. A row of one condition
+    # differs by zero everywhere, and `check_table` checks a condition only against another.
+    same = [label for _, rows in blocks for label, cond, base in rows if cond == base]
+    if same:
+        raise ValueError(f"rows {same} compare a condition with itself")
     tags = tags_of(blocks)
     missing = [t for t in tags if t not in summaries]
     if missing:
         raise ValueError(f"no score JSON for {missing}")
+
+    # The keys and their directions, read from the first condition; `check_table` makes every other share its ruler.
     columns = columns_of(summaries[tags[0]], keys)
     shared = check_table(tags, summaries, columns)
     clips = shared["clips"]

@@ -166,6 +166,17 @@ def test_a_condition_without_a_score_json_is_refused():
         PT.table_lines(one_row(), pair)
 
 
+def test_a_row_that_compares_a_condition_with_itself_is_refused():
+    pair = workbench_pair()
+    with pytest.raises(ValueError, match=r"rows \['pair'\] compare a condition with itself"):
+        PT.table_lines(one_row("cond", "cond"), pair)
+
+
+def test_a_table_of_one_condition_is_refused():
+    with pytest.raises(ValueError, match=r"two conditions at least, and this one names \['cond'\]"):
+        PT.check_table(["cond"], workbench_pair(), [("inst_F1_50", +1)])
+
+
 def test_a_key_in_no_row_is_refused():
     pair = workbench_pair()
     for r in pair["base"]["per_clip"]:
@@ -248,7 +259,7 @@ def test_differing_library_versions_are_noted_not_refused():
     assert "note: library versions differ between cond and base: {'numpy': ('2.0.0', '2.1.0')}" in lines
 
 
-def test_the_paper_s_table_names_each_row_once():
+def test_the_pilot_s_table_names_each_row_once():
     rows = [(cond, base) for _, block in PT.PILOT_BLOCKS for _, cond, base in block]
     labels = [label for _, block in PT.PILOT_BLOCKS for label, _, _ in block]
     assert len(set(rows)) == len(rows) and len(set(labels)) == len(labels)
@@ -264,7 +275,7 @@ def _run(tmp_path, *args):
                           capture_output=True, text=True, cwd=REPO)
 
 
-def test_the_command_prints_every_row_of_the_paper_s_table(tmp_path):
+def test_the_command_prints_every_row_of_the_pilot_s_table(tmp_path):
     _write(tmp_path, PT.tags_of(PT.PILOT_BLOCKS))
     out = _run(tmp_path)
     assert out.returncode == 0, out.stderr
