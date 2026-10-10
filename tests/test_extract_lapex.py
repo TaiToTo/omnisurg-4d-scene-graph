@@ -239,6 +239,15 @@ def test_the_command_extracts_every_case_and_counts_its_clips(release, tmp_path,
     assert summary["remap"] == {"0": 11}
 
 
+def test_a_run_over_some_cases_removes_the_summary_of_the_whole_release(release, tmp_path, monkeypatch):
+    monkeypatch.setattr(extract_lapex, "CASES", ("01", "02"))
+    out = tmp_path / "clips"
+    main(["--lapex-root", str(release), "--out", str(out)])
+    main(["--lapex-root", str(release), "--out", str(out), "--cases", "02", "--overwrite"])
+    assert not (out / "extraction_summary.json").exists()
+    assert sorted(p.name for p in out.iterdir()) == ["01__gt_0000040", "01__gt_0145160", "02__gt_038920"]
+
+
 def test_the_command_refuses_a_missing_case_before_any_is_extracted(release, tmp_path):
     out = tmp_path / "clips"
     with pytest.raises(SystemExit, match="no case directory .* for: 03"):
@@ -258,3 +267,13 @@ def test_the_command_extracts_the_other_cases_after_one_fails_and_writes_no_summ
     with pytest.raises(SystemExit, match="1 of 2 case\\(s\\) failed: 01"):
         main(["--lapex-root", str(release), "--out", str(out), "--cases", "01", "02"])
     assert sorted(p.name for p in out.iterdir()) == ["02__gt_038920"]
+
+
+def test_a_run_in_which_a_case_fails_removes_the_earlier_summary(release, tmp_path, monkeypatch):
+    monkeypatch.setattr(extract_lapex, "CASES", ("01", "02"))
+    out = tmp_path / "clips"
+    main(["--lapex-root", str(release), "--out", str(out)])
+    _write_jpeg(release / "01" / "seg" / "0145160_seg.jpg", _mask((18, 64)))
+    with pytest.raises(SystemExit, match="1 of 2 case\\(s\\) failed: 01"):
+        main(["--lapex-root", str(release), "--out", str(out), "--overwrite"])
+    assert not (out / "extraction_summary.json").exists()

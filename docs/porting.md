@@ -295,7 +295,9 @@ Each stage is described in `docs/pipeline.md`.
   even with it, a clip a later stage wrote into. It checks every frame of a
   case before it writes the case's clips, and goes on to the next case
   after a refusal, where the script stopped at the first fault after
-  writing the clips before it.
+  writing the clips before it. It writes `extraction_summary.json` only
+  after a run over every case, where the script replaced it with the
+  count of the cases it was given.
 
 ### Not yet extracted anywhere
 
@@ -926,7 +928,7 @@ Every command takes those paths as arguments.
 21. **How LapEx is scored.** The evaluator holds class tables for
     ATLAS-120k and CholecSeg8k only, so it cannot read a LapEx clip.
     `kmerge` reads a condition through the evaluator, so it cannot merge
-    one either. Four things are open before LapEx is scored again:
+    one either. Three things are open before LapEx is scored again:
     - **Its class table.** Each of LapEx's 11 classes needs a type. LapEx
       labels every pixel, and level 0 is interstitial space, a class. The
       extraction writes level 0 as 11, because the workbench's evaluators
@@ -943,10 +945,8 @@ Every command takes those paths as arguments.
       with such a pixel. The ported depth stage neither finds nor fills a
       border, and it refuses a LapEx clip, which has no `crop_info.json`.
       So LapEx needs depth made again, on frames cropped or filled, and its
-      predictions made again on that depth.
-    - **Its predictions' rule.** `run_per_frame_seg.py` wrote no
-      `seed_info.json` beside LapEx's predictions, so the evaluator reads no
-      propagation rule from them. The ported per-frame stage writes one.
+      predictions made again on that depth, by the ported per-frame stage,
+      which records their propagation rule.
     - **Its comparison.** The workbench averaged each case's clips first,
       then resampled the 30 case means, 2,000 times. `paired_stats`
       averages over clips and resamples the cases, 10,000 times. A case

@@ -7,8 +7,9 @@ clip holds one frame, the frame a mask was drawn on. The clip is named
 `frame_manifest.json`. A mask stores each pixel's class as a grey level,
 and the release's `metadata/segmented_entity.csv` names the levels. The
 stage keeps every level but one: it moves interstitial space from 0 to 11.
-A run that extracts every case it is given writes `extraction_summary.json`,
-which counts the clips of each case.
+A run that extracts every case of the release writes
+`extraction_summary.json`, which counts the clips of each case. Any other
+run removes the summary an earlier run wrote.
 
 Usage:
     python -m pipeline.extract_lapex --lapex-root /path/to/LapEx_dataset --out /path/to/clips \\
@@ -249,6 +250,9 @@ def main(argv: Sequence[str] | None = None) -> None:
         raise SystemExit(f"no case directory under {root} for: {', '.join(missing)}")
     out.mkdir(parents=True, exist_ok=True)
 
+    # Remove an earlier summary, which no longer counts the clips once this run replaces some.
+    (out / SUMMARY).unlink(missing_ok=True)
+
     # Extract every case, even after one fails, and list the failures at the end.
     counts, failed = {}, []
     for case in cases:
@@ -261,7 +265,10 @@ def main(argv: Sequence[str] | None = None) -> None:
     if failed:
         raise SystemExit(f"{len(failed)} of {len(cases)} case(s) failed: {', '.join(failed)}; no {SUMMARY} written")
 
-    # Record the clips of each case, once every case has been extracted.
+    # Record the clips of each case, once every case of the release has been extracted.
+    if sorted(cases) != sorted(CASES):
+        print(f"{sum(counts.values())} clips -> {out}; no {SUMMARY} written: {len(cases)} of {len(CASES)} cases given")
+        return
     summary = dict(cases=counts, n_clips=sum(counts.values()), remap={str(k): v for k, v in REMAP.items()},
                    design="A (seed = GT frame, 1 frame/clip)")
     with open(out / SUMMARY, "w") as f:

@@ -216,8 +216,11 @@ holds:
 - `frame_manifest.json`: the frame's time and video frame, the class table,
   the moved level, and the levels of the instruments and of the gauze.
 
-A run in which every case it was given is extracted writes
-`extraction_summary.json`, which counts the clips of each case. The frames
+A run that extracts every case of the release writes
+`extraction_summary.json`, which counts the clips of each case. Any other
+run, one given `--cases` or one in which a case is refused, removes the
+summary an earlier run wrote, so a summary always counts the clips of one
+run over the whole release. The frames
 are not cropped: they keep the black surround of the endoscope's view, so
 the depth stage refuses the clips.
 
