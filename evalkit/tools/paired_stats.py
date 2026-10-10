@@ -255,8 +255,12 @@ def round_keeping_sign(x: float) -> float:
 
 
 def format_signed(x: float) -> str:
-    """Write a value with its sign at four places, or in exponent form where four places would show zero."""
-    return f"{x:+.4f}" if abs(x) >= 5e-5 or x == 0 else f"{x:+.2e}"
+    """Write a value with its sign at four places, or, if it is not zero and at most 5e-05, in exponent form.
+
+    Four places would show such a value as zero, or 5e-05 as 0.0001. `round_keeping_sign` writes values just
+    below 5e-05 as 5e-05, so 5e-05 is printed as written.
+    """
+    return f"{x:+.4f}" if abs(x) > 5e-5 or x == 0 else f"{x:+.2e}"
 
 
 def _sd(x: np.ndarray) -> float | None:

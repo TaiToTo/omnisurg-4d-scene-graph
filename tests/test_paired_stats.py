@@ -311,6 +311,13 @@ def test_a_value_that_rounds_to_zero_keeps_two_digits():
     assert PS.format_signed(0.05) == "+0.0500"
 
 
+@pytest.mark.parametrize("x, written, printed", [(4.99e-05, 5e-05, "+5.00e-05"), (-4.99e-05, -5e-05, "-5.00e-05"),
+                                                 (6e-05, 0.0001, "+0.0001")])
+def test_a_value_is_printed_as_it_is_written_at_the_boundary_of_four_places(x, written, printed):
+    # 5e-05 printed at four places would read 0.0001, twice the value written.
+    assert PS.round_keeping_sign(x) == written and PS.format_signed(written) == printed
+
+
 @pytest.mark.parametrize("ci, written, mark", [((2.03e-05, 0.01509), [2e-05, 0.0151], "★"),
                                                ((-0.01509, -2.03e-05), [-0.0151, -2e-05], "✗")])
 def test_an_interval_end_near_zero_keeps_its_star_or_cross(monkeypatch, ci, written, mark):
