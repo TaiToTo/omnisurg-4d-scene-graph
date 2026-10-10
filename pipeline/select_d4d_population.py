@@ -4,11 +4,11 @@
 side or leaves it out for one reason. The step writes `population.json`, which lists the kept sides and
 counts the sides of each reason, and `clips.txt`, which lists the clips with a kept side. It refuses:
 
-- a list of clips that is empty or holds a clip twice;
-- a census that lacks a clip of `--clips`, such as a census cut short;
-- a census that holds a clip `--clips` does not hold, holds a clip twice, or holds them in another order;
+- a list of clips that is empty, holds a clip twice, or holds a line that is not `<specimen>/<session>/<clip>`;
+- a census that does not hold each clip of `--clips` once and in its order, such as a census cut short;
 - a side that carries an `error`, which the census recorded when it failed to measure the side;
-- a side with a point cloud and no `active`, whose tissue motion is unknown.
+- a field the rule reads that is missing or holds a value of the wrong kind, such as a side with a point
+  cloud and no `active`, whose tissue motion is unknown, or a `NaN`, which no threshold leaves out.
 
 Usage:
     python -m pipeline.select_d4d_population --census /path/to/census.json \\
@@ -17,6 +17,7 @@ Usage:
 
 import argparse
 import json
+import math
 from collections import Counter
 from pathlib import Path
 
@@ -35,11 +36,15 @@ def read_clips(path: str) -> list[str]:
     """Read the clips a complete census holds, one `<specimen>/<session>/<clip>` per line.
 
     Raises:
-        ValueError: the list is empty or holds a clip twice.
+        ValueError: the list is empty, holds a clip twice, or holds a line that is not three names joined by `/`.
     """
     clips = Path(path).read_text(encoding="utf-8").split()
     if not clips:
         raise ValueError(f"{path} lists no clip")
+    # A kept side's specimen is read from the first name of its key.
+    malformed = [k for k in clips if len(k.split("/")) != 3 or "" in k.split("/")]
+    if malformed:
+        raise ValueError(f"{path} lists a clip that is not `<specimen>/<session>/<clip>`: {malformed[0]}")
     twice = sorted(k for k, n in Counter(clips).items() if n > 1)
     if twice:
         raise ValueError(f"{path} lists a clip twice: {twice}")
@@ -51,8 +56,8 @@ def check_census(census: list[dict], clips: list[str]) -> None:
 
     Raises:
         ValueError: a clip of `clips` is missing, a clip is not in `clips` or appears twice, the clips are
-            not in the order of `clips`, a side carries an `error`, or a side has a point cloud and no
-            `active`.
+            not in the order of `clips`, a side carries an `error`, or a field the rule reads is missing or
+            holds a value of the wrong kind.
     """
     keys = [c["key"] for c in census]
     held = set(keys)
@@ -68,14 +73,52 @@ def check_census(census: list[dict], clips: list[str]) -> None:
         first = next(i for i, (a, b) in enumerate(zip(keys, clips)) if a != b)
         raise ValueError(f"the census holds its clips in another order than the list, first at line {first + 1}: "
                          f"{keys[first]}, where the list has {clips[first]}")
+    # Each field the rule reads is there and holds a value of its kind.
     for c in census:
+        check_bool(c, "moved_camera", c["key"])
         for side in SIDES:
             s = c[side]
+            where = f"{c['key']} {side}"
             if "error" in s:
-                raise ValueError(f"{c['key']} {side}: the census failed to measure the side: {s['error']}")
-            if s.get("present") and "active" not in s:
-                raise ValueError(f"{c['key']} {side}: the side has a point cloud and no `active`, so whether "
-                                 "the tissue moved is unknown")
+                raise ValueError(f"{where}: the census failed to measure the side: {s['error']}")
+            check_bool(s, "present", where)
+            if not s["present"]:
+                continue
+            if "active" not in s:
+                raise ValueError(f"{where}: the side has a point cloud and no `active`, so whether the tissue "
+                                 "moved is unknown")
+            check_bool(s, "active", where)
+            for name in ("gt_blk_frac", "frame_minus_gt_s"):
+                check_finite(s, name, where)
+
+
+def check_bool(record: dict, name: str, where: str) -> None:
+    """Refuse a record whose field `name` is missing or is neither true nor false.
+
+    Raises:
+        ValueError: the field is missing, or holds another value, such as the string `"false"`, which reads as true.
+    """
+    if name not in record:
+        raise ValueError(f"{where}: no `{name}`")
+    if not isinstance(record[name], bool):
+        raise ValueError(f"{where}: `{name}` is {record[name]!r}, not true or false")
+
+
+def check_finite(record: dict, name: str, where: str) -> None:
+    """Refuse a record whose field `name` is missing or is not a finite number.
+
+    Python's `json` reads `NaN` and `Infinity`, and a `NaN` compares false with every threshold, so a side
+    holding one would be kept.
+
+    Raises:
+        ValueError: the field is missing, or holds a value that is not a finite number, such as `NaN`, a
+            string, or true or false.
+    """
+    if name not in record:
+        raise ValueError(f"{where}: no `{name}`")
+    v = record[name]
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v):
+        raise ValueError(f"{where}: `{name}` is {v!r}, not a finite number")
 
 
 def classify(side: dict) -> str:
@@ -101,7 +144,7 @@ def select(census: list[dict]) -> dict:
             reasons[reason] = reasons.get(reason, 0) + 1
             if reason == KEEP:
                 kept.append({"key": c["key"], "side": side, "moved_camera": c["moved_camera"],
-                             "specimen": c["specimen"]})
+                             "specimen": c["key"].split("/")[0]})
     keys = {k["key"] for k in kept}
     moved = {k["key"] for k in kept if k["moved_camera"]}
     static = {k["key"] for k in kept if not k["moved_camera"]}

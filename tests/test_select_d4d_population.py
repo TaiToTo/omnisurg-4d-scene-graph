@@ -1,12 +1,12 @@
 """Test the selection of D4D's sides on a census made up for the test, and the files in `d4d_meta/`.
 
 The made-up census holds a side for each reason of the rule, on clips of two specimens and three
-sessions. Each refusal has a test that plants its fault:
+sessions, and no `specimen`, which the step reads from the key. Each refusal has a test that plants its fault:
 
-- an empty list of clips, and a list that holds a clip twice;
-- a census cut short, and a census that lacks one clip;
-- a clip the list does not hold, a clip held twice, and two clips held in another order;
-- a side that carries an `error`, and a side with a point cloud and no `active`.
+- an empty list of clips, a list that holds a clip twice, and a line that is not three names;
+- a census cut short or lacking one clip, a clip the list does not hold, a clip held twice, and clips out of order;
+- a side that carries an `error`, and a side with a point cloud and no `active`;
+- a field the rule reads that is missing or holds a value of the wrong kind, and a `NaN` in the file.
 
 The files in `d4d_meta/` are checked against one another, against the rule's thresholds, and for
 machine paths, email addresses and untranslated text.
@@ -22,6 +22,8 @@ from pipeline.select_d4d_population import (
     MAX_GT_FRAME_GAP_S, MIN_GT_BLOCK_FRAC, check_census, classify, kept_clips, main, read_clips, select)
 
 META = Path(__file__).resolve().parent.parent / "d4d_meta"
+# A field planted as `MISSING` is left out of the side.
+MISSING = object()
 PRIVATE = re.compile(r"/(home|var/autofs|mnt|Users)/|[぀-ヿ一-鿿！-｠]|[\w.+-]+@[\w-]+\.[\w.]+")
 
 
@@ -31,7 +33,7 @@ def side(**kw) -> dict:
 
 
 def clip(key: str, start: dict, end: dict, moved: bool = False) -> dict:
-    return {"key": key, "specimen": key.split("/")[0], "moved_camera": moved, "start": start, "end": end}
+    return {"key": key, "moved_camera": moved, "start": start, "end": end}
 
 
 def census() -> list[dict]:
@@ -155,6 +157,65 @@ def test_a_side_with_a_point_cloud_and_no_active_is_refused():
     assert classify(side()) == "keep"
     with pytest.raises(ValueError, match="specimen_2/s_c/Clip_1 end: the side has a point cloud and no `active`"):
         check_census(c, keys(c))
+
+
+@pytest.mark.parametrize("fields, message", [
+    # Without `present`, the rule would count the side as `no_gt`; with the string "false", as one with a point cloud.
+    ({"present": MISSING}, r"no `present`"),
+    ({"present": "false"}, r"`present` is 'false', not true or false"),
+    ({"active": None}, r"`active` is None, not true or false"),
+    ({"active": 1}, r"`active` is 1, not true or false"),
+    ({"gt_blk_frac": MISSING}, r"no `gt_blk_frac`"),
+    ({"gt_blk_frac": float("nan")}, r"`gt_blk_frac` is nan, not a finite number"),
+    ({"gt_blk_frac": "0.1"}, r"`gt_blk_frac` is '0.1', not a finite number"),
+    ({"gt_blk_frac": True}, r"`gt_blk_frac` is True, not a finite number"),
+    ({"frame_minus_gt_s": float("nan")}, r"`frame_minus_gt_s` is nan, not a finite number"),
+    ({"frame_minus_gt_s": float("-inf")}, r"`frame_minus_gt_s` is -inf, not a finite number"),
+])
+def test_a_side_whose_field_is_missing_or_of_the_wrong_kind_is_refused(fields, message):
+    c = census()
+    c[3]["start"] = {k: v for k, v in (side() | fields).items() if v is not MISSING}
+    with pytest.raises(ValueError, match=r"specimen_2/s_c/Clip_1 start: " + message):
+        check_census(c, keys(c))
+
+
+def test_a_side_without_a_point_cloud_needs_only_present():
+    c = census()
+    c[1]["end"] = {"present": False}
+    check_census(c, keys(c))
+
+
+@pytest.mark.parametrize("moved, message", [
+    (None, r"no `moved_camera`"),
+    ("no", r"`moved_camera` is 'no', not true or false"),
+])
+def test_a_clip_whose_moved_camera_is_missing_or_not_true_or_false_is_refused(moved, message):
+    c = census()
+    if moved is None:
+        del c[2]["moved_camera"]
+    else:
+        c[2]["moved_camera"] = moved
+    with pytest.raises(ValueError, match=r"specimen_1/s_b/Clip_1: " + message):
+        check_census(c, keys(c))
+
+
+def test_a_nan_in_the_census_file_is_refused(tmp_path):
+    # `json.dumps` writes NaN, `json.loads` reads it, and NaN compares false with both thresholds.
+    c = census()
+    c[0]["start"]["gt_blk_frac"] = float("nan")
+    assert classify(c[0]["start"]) == "keep"
+    args = write_inputs(tmp_path, c, keys(c))
+    assert "NaN" in (tmp_path / "census.json").read_text()
+    with pytest.raises(SystemExit, match="specimen_1/s_a/Clip_1 start: `gt_blk_frac` is nan, not a finite number"):
+        main(args)
+    assert not (tmp_path / "out").exists()
+
+
+@pytest.mark.parametrize("line", ["specimen_1/s_a", "specimen_1/s_a/Clip_1/x", "specimen_1//Clip_1"])
+def test_a_list_with_a_line_that_is_not_three_names_is_refused(tmp_path, line):
+    c = census()
+    with pytest.raises(SystemExit, match=f"not `<specimen>/<session>/<clip>`: {line}"):
+        main(write_inputs(tmp_path, c, keys(c) + [line]))
 
 
 def test_the_list_of_clips_holds_271_clips_once_in_order():

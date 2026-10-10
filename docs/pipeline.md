@@ -274,14 +274,21 @@ for each reason, and `clips.txt`, which lists the clips with a kept side.
 
 The step refuses, before it writes anything:
 
-- a list of clips that is empty or holds a clip twice;
+- a list of clips that is empty, holds a clip twice, or holds a line that is
+  not `<specimen>/<session>/<clip>`, since a kept side's specimen is read
+  from the first name of its key;
 - a census that lacks a clip of `--clips`, such as a census cut short;
 - a census that holds a clip `--clips` does not hold, or holds a clip twice;
 - a census whose clips are not in the order of `--clips`, since
   `population.json` lists the sides in the census's order;
 - a side that carries an `error`, which the census wrote when it failed to
   measure the side;
-- a side with a point cloud and no `active`.
+- a side with a point cloud and no `active`;
+- a field the rule reads that is missing or holds a value of the wrong kind:
+  `present`, `active` and `moved_camera` that are not true or false, and
+  `gt_blk_frac` and `frame_minus_gt_s` that are not finite numbers. Python's
+  `json` reads `NaN`, and a `NaN` compares false with every threshold, so a
+  side that holds one would be kept.
 
 ## The depth stage
 

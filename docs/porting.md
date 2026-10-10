@@ -318,7 +318,17 @@ Each stage is described in `docs/pipeline.md`.
   - a side that carries an `error`, which `d4d_census.py` wrote when it
     failed to measure the side, and which the script counted as `no_gt`;
   - a side with a point cloud and no `active`, which the script took for
-    still tissue.
+    still tissue;
+  - a side without `present`, which the script would have counted as
+    `no_gt`;
+  - another field the rule reads that is missing or holds a value of the
+    wrong kind, such as a `NaN`, which the script would have kept, since a
+    `NaN` compares false with every threshold. The workbench's census holds
+    none.
+
+  It reads a kept side's specimen from the first name of its key, where the
+  script read the census's `specimen`, which `d4d_census.py` wrote from the
+  key.
 
   Run on the workbench's census, the step writes the workbench's
   `population.json` byte for byte, and its `clips.txt` equals

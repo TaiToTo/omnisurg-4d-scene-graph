@@ -37,11 +37,15 @@ records:
 - `active`: whether the clip's first moment, for `start`, or its last, for
   `end`, falls inside an interval in which the tissue moves.
 
-For each clip it records `moved_camera`, whether the endoscope moves during
-the clip. `moved_camera` and `active` come from two files made from the
-dataset beforehand: a table of the clips, and a record of the tissue's motion
-over each clip, measured on the endoscope's stereo depth. The census itself is
-not here.
+For each clip it records `key`, the clip's `<specimen>/<session>/<clip>`, and
+`moved_camera`, whether the endoscope moves during the clip. `moved_camera`
+and `active` come from two files made from the dataset beforehand: a table of
+the clips, and a record of the tissue's motion over each clip, measured on the
+endoscope's stereo depth. The census itself is not here.
+
+`present`, `active` and `moved_camera` are true or false. `gt_blk_frac` and
+`frame_minus_gt_s` are finite numbers. Of a side without a point cloud, the
+rule reads only `present`.
 
 ## The population
 
@@ -82,7 +86,7 @@ are kept, together with 240 clips whose camera is still.
 | file | what it is | from the workbench |
 |---|---|---|
 | `census_clips.txt` | every clip the census measures, one `<specimen>/<session>/<clip>` per line, in the order the loader yields them | the keys of `ipcai2027_experiment/out/09/census.json` |
-| `population.json` | the counts above, the thresholds, and under `sides` one entry per kept side: `key`, `side`, `moved_camera`, `specimen` | `ipcai2027_experiment/out/09/population.json` |
+| `population.json` | the counts above, the thresholds, and under `sides` one entry per kept side: `key`, `side`, `moved_camera`, and `specimen`, the first name of `key` | `ipcai2027_experiment/out/09/population.json` |
 | `clips.txt` | the clips with at least one kept side, one per line, sorted | `ipcai2027_experiment/out/09/pop_all.txt` |
 
 `population.json` and `clips.txt` are byte copies of the workbench's, and
@@ -95,13 +99,15 @@ not, since `population.json` lists the sides in the census's order.
 ## Who reads these
 
 `pipeline/select_d4d_population.py` reads the census and `census_clips.txt`,
-refuses a census that does not hold each listed clip once and in order, and
-writes `population.json` and
-`clips.txt`:
+and writes `population.json` and `clips.txt`:
 
 ```bash
 python -m pipeline.select_d4d_population --census /path/to/census.json \
     --clips d4d_meta/census_clips.txt --out d4d_meta
 ```
+
+It refuses a census that does not hold each listed clip once and in order,
+and a census in which a field the rule reads is missing or holds a value of
+the wrong kind.
 
 `tests/test_select_d4d_population.py` pins what must hold between the files.
