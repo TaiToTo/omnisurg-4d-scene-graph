@@ -404,8 +404,7 @@ below.
   - The camera trajectory on StereoMIS, from `ipcai2027_experiment/scripts/`:
     the clip writer of `stereomis_io.py` (`--prepare`, with `--masked` for
     the clips whose instruments are painted black), `run_20.sh` and
-    `pose_controls.py`. The reader of `stereomis_io.py` is
-    `surgical_core/stereomis.py`. `run_20.sh` runs the DA3 stage and, through
+    `pose_controls.py`. `run_20.sh` runs the DA3 stage and, through
     `pi3_wrapper/scripts/queue_pi3_clips.sh`, the Pi3X stage with
     `--max-points 60000`. That flag thins the point cloud written to the
     GLB, and with it `glb_centroid`, `n_vertices` and `median_vertices`; the
@@ -586,13 +585,11 @@ The second list holds what the paper's numbers do not use.
     log lines, which belong to the shell it was run from, and
     `--overwrite`, so that no clip of a population is replaced without
     someone looking at it.
-  - `stereomis_io.py`: the audit that measured the offsets between video,
-    ground truth and depth (`--audit`, `_audit_depth`, `_audit_gt` and
-    their residuals), whose results the reader keeps as tables; the depth
-    maps (`depth_frames`, `load_depth`), which only the audit and
-    `pose_controls.py --check-sgbm` read; frames at full resolution
-    (`half=False`); and `extract_left`, `read_frame_set`, `population`,
-    `depth_summary` and `backproject`, which no run of the result calls.
+  - `stereomis_io.py`: the audit of the offsets (`--audit`), whose results
+    the reader keeps as tables; the depth maps (`load_depth`), which only
+    the audit and `pose_controls.py --check-sgbm` read; and `half=False`,
+    `extract_left`, `read_frame_set`, `population`, `depth_summary` and
+    `backproject`, which no run of the result calls.
 - **`scripts/extract_cholec_frames.py`**, which no condition ran.
 - **The `kgt` seeds** of `ipcai2027_experiment/scripts/make_t5_seeds.py`,
   whose K is the clip's median count of the pilot's GT objects ("`kmerge`
@@ -1184,64 +1181,30 @@ Every command takes those paths as arguments.
       `pps_f1.py` is ported to write the F1 they read, and
       `export_prop_pps.py` with it.
 29. **The times of a StereoMIS clip.** `surgical_core.stereomis.clips`
-    gives the frame at position n the time n divided by the video's
-    `r_frame_rate`. P1's video runs at a constant 60 frames a second. The
-    nine P2 videos declare 59.94 and do not hold it. On the eight that
-    hold clips of the population, the videos' own timestamps put a clip's
-    frames 0.217 s apart at the median, from 0.04 to 0.47 s, where the
-    times say 0.2 s, and a clip lasts 9 to 12 % longer than its 22.4 s.
-    `ate_rel` does not read the times: a position is a frame, and a frame
-    has its ground truth row. Two things read them. `rpe` pairs frames
-    1.0 s apart by the times, 1.10 s apart at the median by the
-    timestamps, and up to 1.37 s. The constant-motion control spaces its
-    positions by the times. Decide, before the StereoMIS result is
-    measured, whether the times come from the timestamps. Until then they
-    are the workbench's.
-30. **P1's offsets.** `surgical_core.stereomis` keeps the workbench's
-    tables. P1's mask and depth files are numbered by their frames'
-    positions (`DEPTH_FILE_OFFSET` 0), and every sequence's ground truth
-    row is its frame's position less 4 (`GT_ROW_OFFSET`). The workbench
-    measured P1's file offset against the frames P1 ships (`video_frames/`),
-    not against the video, and took the shipped frame N to be position N.
-    It is position N − 1. On 12 frames, in both views, the shipped frame N
-    differs from position N − 1 by 1.5 to 2.2 grey levels on average, and
-    from position N by 1.9 to 6.8. The workbench's residual, run on frames
-    decoded from P1's video as it is run on P2's, is least at −1 (10.97,
-    against 11.65 at 0). So P1's depth files are most likely numbered as
-    P2's are, one ahead of the position. P1's masks start at the shipped
-    frames' first number, 241, so they are most likely numbered so too.
-    The masks agree: on the 43 usable clips, every frame of P2 has a mask
-    of its own number, and no frame of P1 does. P1's clips take even
-    positions and its masks have odd numbers, so 504 of its 672 frames
-    take a mask one position away and 168 have none. With −1, those 504
-    have a mask of their own number.
-    With −1, P1's best ground truth offset is −5 rather than −6. The
-    workbench chose the common offset as the one whose largest loss over
-    the seven sequences it can read is least; with P1 at −1 that rule
-    picks −3 (6.25 %) rather than −4 (6.50 %). A change to the first table
-    changes the masks of P1's clips. A change to the second moves the
-    grid's start, since the grid starts at the first position that has a
-    row: every clip keeps its name and its ground truth rows, takes the
-    frames one position away, and has to be extracted and run through the
-    depth stages again, and every `ate_rel` changes. Decide before the
-    StereoMIS result is measured, and decide with it whether the grid's
-    start is fixed apart from the offset.
+    takes a frame's time as its position over the declared frame rate. The
+    P2 videos declare 59.94 frames a second and do not hold it: by their
+    timestamps a clip's frames are 0.217 s apart at the median, not 0.2 s.
+    `ate_rel` does not read the times. `rpe` and the constant-motion
+    control read them. Decide before the StereoMIS result is measured
+    whether the times come from the timestamps.
+30. **P1's offsets.** The workbench measured P1's file offset (0) against
+    the frames P1 ships, and took the shipped frame N to be position N. It
+    is position N − 1. Measured against the video, P1's file offset is most
+    likely −1, as P2's is. With −1, 504 of the 672 frames of P1's usable
+    clips get a mask of their own number, where none does now. With −1,
+    the workbench's rule for the common ground truth offset also picks −3
+    rather than −4. Every clip then takes the frames one position earlier,
+    is run through the depth stages again, and gets a new `ate_rel`. Decide
+    both offsets before the StereoMIS result is measured, and whether the
+    grid's start is fixed apart from them.
 31. **What fixes the StereoMIS clips.** `surgical_core.stereomis.clips`
-    computes the 86 clips, 43 of them usable, each time it runs: from the
-    tables of offsets and thresholds, and from the `stats.npy` of a stereo
-    depth export. The export is the workbench's `StereoMIS_depth`: depth
-    maps in mm on every 13th to 30th frame, a `summary.json` and a
-    `stats.npy` per sequence, whose first three columns are a map's file
-    number, its median in mm and its share of valid pixels. No tracked
-    file of the workbench makes it. The tables decide which frame is paired
-    with which ground truth row, so a change to one moves every `ate_rel`,
-    while the hash of the camera trajectory measures ("The camera
-    trajectory measures are hashed on their own") covers `pose_metrics`
-    only. Decide before the StereoMIS result is measured:
-    - whether the clips are kept as data, as ATLAS-120k's population is,
-      with each clip's name, frames, reason left out and stratum, and
-      `clips` refuses a result that differs from them;
-    - whether the hash covers the tables and the clip rule, or a score
-      records the hash of the clips it was measured on;
-    - whether the export is made again by code of this repository, or kept
-      as an input whose files are named by their hashes.
+    computes the 86 clips each time it runs. It reads the tables of offsets
+    and thresholds, and the `stats.npy` of the workbench's depth export
+    `StereoMIS_depth`, which no tracked file makes. A change to an offset
+    moves every `ate_rel`, but the hash of the camera trajectory measures
+    covers `pose_metrics` only. Decide before the StereoMIS result is
+    measured:
+    - whether the clips are kept as data, as ATLAS-120k's population is;
+    - whether the hash covers the tables and the clip rule;
+    - whether the export is made again here, or kept as an input named by
+      its hashes.
