@@ -553,3 +553,22 @@ python -m pipeline.track --input-dir /path/to/clips --tracks-root /path/to/track
 - The evaluator refuses a condition tracked with `--seed-labels` ("Propagation
   rule" in `docs/evaluation.md`). It scores the floor and the per-frame
   conditions.
+
+## The StereoMIS camera trajectory scores
+
+```bash
+python -m trajectory_eval.tools.score_stereomis --root /path/to/StereoMIS --depth-root /path/to/StereoMIS_depth \
+    --controls --out controls.json
+python -m trajectory_eval.tools.score_stereomis --root /path/to/StereoMIS --depth-root /path/to/StereoMIS_depth \
+    --methods da3 pi3x --clip-root /path/to/clips --shuffled --out methods.json
+```
+
+The command scores the camera trajectory of each usable StereoMIS clip
+against the ground truth, one row per clip and condition. `--controls`
+scores the static floor, the line floor and the stereo ceiling.
+`--methods` scores the poses the depth stages wrote into each clip, and
+`--shuffled` adds each method's poses in a shuffled order. `--suffix
+_masked` names the conditions of the clips extracted with
+`--mask-instruments`. Every row records `trajectory_code_sha`, the hash of
+the `trajectory_eval` modules that compute it. The command refuses a clip
+without a method's bundle, before anything is scored.
