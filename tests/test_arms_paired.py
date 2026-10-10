@@ -184,13 +184,13 @@ def test_different_library_versions_are_reported_not_refused(capsys):
 
 
 def test_a_key_the_jsons_do_not_report_is_refused():
-    with pytest.raises(ValueError, match="not a key these JSONs report"):
+    with pytest.raises(ValueError, match="F1_50/nowhere is not a key with a direction on this JSON"):
         AP.compare_pairs({"a": evaluator_scores(seed=1), "b": evaluator_scores(seed=2)}, [("a", "b")], "F1_50/nowhere")
 
 
 def test_a_pilot_key_with_no_direction_is_refused_for_that():
     # The pilot's JSONs hold VI_split, but no direction for it.
-    with pytest.raises(ValueError, match="VI_split has no direction in scores.PILOT_SIGNS"):
+    with pytest.raises(ValueError, match="VI_split is not a key with a direction on this JSON"):
         AP.compare_pairs(table_of_pilot_scores(), PAIRS, "VI_split")
 
 

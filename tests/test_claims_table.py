@@ -183,7 +183,8 @@ def test_a_shrunken_population_is_shown_against_the_pair_s(tmp_path):
 
 
 def test_a_key_with_no_direction_is_refused(tmp_path):
-    with pytest.raises(ValueError, match="not a key with a direction"):
+    # The message names the score JSON that refused the key.
+    with pytest.raises(ValueError, match=r"atlas120k/\w+: no_such_key is not a key with a direction on this JSON"):
         CT.build(write_table(tmp_path), "no_such_key")
 
 

@@ -19,9 +19,9 @@ from collections.abc import Mapping, Sequence
 
 import numpy as np
 
-from evalkit.tools.compare_eval import DIRECTION, metrics_of
+from evalkit.tools.compare_eval import DIRECTION
 from evalkit.tools.paired_stats import MARK_RULE, boot_ci, load_json, mark_of, video_of
-from evalkit.tools.scores import check_comparable_table, defined_clips, is_pilot_json, rows_of
+from evalkit.tools.scores import check_comparable_table, defined_clips, rows_of, sign_of_key
 
 # The width of the column that names a pair, as the workbench printed it; a longer name widens it.
 NAME_WIDTH = 34
@@ -107,31 +107,24 @@ def compare_pairs(summaries: Mapping[str, Mapping], pairs: Sequence[tuple[str, s
 
     Raises:
         ValueError: `scores.check_comparable_table` refuses the JSONs;
-            `key` is not a key they report or, on pilot JSONs, has no
-            direction in `scores.PILOT_SIGNS`; or it is defined on no clip
-            of a pair.
+            `key` has no direction on them (`scores.sign_of_key`); or it is
+            defined on no clip of a pair.
     """
     # What every JSON of the table shares.
     table = check_comparable_table(summaries)
     clips = table["clips"]
 
     # The key and which way it is better; comparable JSONs report the same keys.
-    first = next(iter(summaries.values()))
-    signs = dict(metrics_of(first))
-    if key not in signs and is_pilot_json(first):
-        raise ValueError(f"{key} has no direction in scores.PILOT_SIGNS, so no line can be marked on it; "
-                         f"the keys with one are {list(signs)}")
-    if key not in signs:
-        raise ValueError(f"{key} is not a key these JSONs report; the keys are {list(signs)}")
+    sign = sign_of_key(next(iter(summaries.values())), key)
 
     # One row per pair.
     rows = []
     for base, cond in pairs:
         try:
-            rows.append((base, cond, pair_row(summaries[base], summaries[cond], clips, key, signs[key])))
+            rows.append((base, cond, pair_row(summaries[base], summaries[cond], clips, key, sign)))
         except ValueError as e:
             raise ValueError(f"{base}:{cond}: {e}") from e
-    return dict(table, n_videos=len({video_of(c) for c in clips}), key=key, sign=signs[key], rows=rows)
+    return dict(table, n_videos=len({video_of(c) for c in clips}), key=key, sign=sign, rows=rows)
 
 
 def format_row(base: str, cond: str, row: Mapping, n_clips: int, n_videos: int, width: int = NAME_WIDTH) -> str:

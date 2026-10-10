@@ -295,11 +295,11 @@ def test_the_pair_computes_the_keys_it_is_named_and_only_those():
     assert got["sign"] == PILOT_SIGNS["inst_F1_50_labeled"]
     assert got["delta_mean"] == round(WORKBENCH["inst_F1_50"]["delta_mean"] + 0.01, 4)
     # A key named by mistake is refused, even where no clip defines it.
-    with pytest.raises(KeyError):
+    with pytest.raises(ValueError, match="not a key with a direction on this JSON"):
         PS.compare_pair(a, b, keys=["inst_F1_50_labelled"])
     ea, eb = evaluator_scores("base", 0.0, 5), evaluator_scores("cond", 0.03, 6)
     for spelt in ("F1_50/geometrc", "F1_50"):
-        with pytest.raises(KeyError, match="not keys the evaluator writes"):
+        with pytest.raises(ValueError, match="not a key with a direction on this JSON"):
             PS.compare_pair(ea, eb, keys=[spelt])
 
 

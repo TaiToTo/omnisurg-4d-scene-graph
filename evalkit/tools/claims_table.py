@@ -24,8 +24,15 @@ import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
-from evalkit.tools.paired_stats import MARK_RULE, compare_pair, format_signed, is_star, mark_of, sign_of_key
-from evalkit.tools.scores import PER_FRAME, check_comparable_table, check_one_rule, load_scores, propagation_rule_of
+from evalkit.tools.paired_stats import MARK_RULE, compare_pair, format_signed, is_star, mark_of
+from evalkit.tools.scores import (
+    PER_FRAME,
+    check_comparable_table,
+    check_one_rule,
+    load_scores,
+    propagation_rule_of,
+    sign_of_key,
+)
 
 # The datasets of the table, in the order of its columns, each with the names its score JSONs record: the
 # evaluator's, and the pilot evaluator's.
@@ -209,8 +216,8 @@ def build(dirs: Mapping[str, str], key: str) -> tuple[list[tuple[Claim, list[dic
     for name, s in loaded.items():
         try:
             sign = sign_of_key(s, key)
-        except KeyError:
-            raise ValueError(f"{key!r} is not a key with a direction in {name}'s score JSON") from None
+        except ValueError as e:
+            raise ValueError(f"{name}: {e}") from e
         if sign == 0:
             raise ValueError(f"{key!r} is a reference value, which has no better direction, so no cell could be "
                              "marked ★ or ✗")
