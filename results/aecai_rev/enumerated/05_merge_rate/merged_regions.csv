@@ -1,0 +1,383 @@
+clip,modality,frame,region,classes
+VID01_s15_14673_crop,depth,13,11,2 5 6 7 9 10
+VID01_s15_14673_crop,depth,14,11,2 5 6 7 9 10
+VID01_s15_14673_crop,depth,15,11,2 5 6 7 9 10
+VID01_s15_14673_crop,depth,16,11,2 5 6 9 10
+VID01_s15_14673_crop,depth,17,11,2 5 6 9 10
+VID01_s15_14673_crop,depth,18,11,5 6 10
+VID01_s15_14673_crop,depth,19,11,5 6 9 10
+VID01_s15_14673_crop,depth,20,11,5 6 9 10
+VID01_s15_14673_crop,depth,21,11,2 5 6 9 10
+VID01_s15_14673_crop,depth,22,11,2 5 6 9 10
+VID01_s15_14673_crop,depth,23,11,2 5 6 9 10
+VID01_s15_14673_crop,depth,24,11,2 5 6 9 10
+VID01_s15_14673_crop,depth,25,11,5 6 9 10
+VID01_s15_14673_crop,depth,26,11,5 6 9 10
+VID01_s15_14673_crop,depth,27,11,5 6 9 10
+VID01_s15_14673_crop,depth,28,11,5 6 9 10
+VID01_s15_14673_crop,depth,29,11,5 6 9 10
+VID01_s15_14673_crop,normal,13,7,5 10
+VID01_s15_14673_crop,normal,14,7,5 10
+VID01_s15_14673_crop,normal,15,7,5 10
+VID01_s15_14673_crop,normal,16,7,5 6 10
+VID01_s15_14673_crop,normal,17,7,5 6 10
+VID01_s15_14673_crop,normal,19,7,5 10
+VID01_s15_14673_crop,normal,20,7,5 10
+VID01_s15_14673_crop,normal,21,7,5 6 10
+VID01_s15_14673_crop,normal,22,7,5 10
+VID01_s15_14673_crop,normal,23,7,5 10
+VID01_s15_14673_crop,normal,24,7,5 10
+VID01_s15_14673_crop,normal,25,7,5 10
+VID01_s15_14673_crop,normal,26,7,5 10
+VID01_s15_14673_crop,normal,27,7,5 10
+VID01_s15_14673_crop,normal,28,7,5 10
+VID01_s15_14673_crop,normal,29,7,5 10
+VID01_s15_14753_crop,depth,8,3,2 5 6 7 10
+VID01_s15_14753_crop,depth,9,3,2 5 6 7 10
+VID01_s15_14753_crop,depth,10,3,2 5 6 7 10
+VID01_s15_14753_crop,depth,11,3,2 5 6 10
+VID01_s15_14753_crop,depth,12,3,2 5 6 10
+VID01_s15_14753_crop,depth,13,3,5 6 10
+VID01_s15_14753_crop,depth,14,3,2 5 6 10
+VID01_s15_14753_crop,depth,15,3,2 5 6 10
+VID01_s15_14753_crop,depth,16,3,2 5 6 10
+VID01_s15_14753_crop,depth,17,3,2 5 6 10
+VID01_s15_14753_crop,depth,18,3,2 5 6 10
+VID01_s15_14753_crop,depth,19,3,2 5 6 10
+VID01_s15_14753_crop,depth,20,3,2 5 6 10
+VID01_s15_14753_crop,depth,21,3,2 5 6 10
+VID01_s15_14753_crop,depth,22,3,2 5 6 10
+VID01_s15_14753_crop,depth,23,3,2 5 6 10
+VID01_s15_14753_crop,depth,24,3,2 5 6 10
+VID01_s15_14753_crop,depth,25,3,2 5 6 10
+VID01_s15_14753_crop,depth,26,3,2 5 6 10
+VID01_s15_14753_crop,depth,27,3,2 5 6 10
+VID01_s15_14753_crop,depth,28,3,2 5 6 10
+VID01_s15_14753_crop,normal,8,7,2 9
+VID01_s15_14753_crop,normal,9,7,2 9
+VID01_s15_14753_crop,normal,10,7,2 9
+VID01_s15_14753_crop,normal,11,7,2 9
+VID01_s15_14753_crop,normal,12,7,2 9
+VID01_s15_14753_crop,normal,13,7,2 9
+VID01_s15_14753_crop,normal,14,7,2 9
+VID01_s15_14753_crop,normal,15,7,2 9
+VID01_s15_14753_crop,normal,16,7,2 9
+VID01_s15_14753_crop,normal,17,7,2 9
+VID01_s15_14753_crop,normal,18,7,2 9
+VID01_s15_14753_crop,normal,19,7,2 9
+VID01_s15_14753_crop,normal,20,7,2 9
+VID01_s15_14753_crop,normal,21,7,2 9
+VID01_s15_14753_crop,normal,22,7,2 9
+VID01_s15_14753_crop,normal,23,7,2 9
+VID01_s15_14753_crop,normal,24,7,2 9
+VID01_s15_14753_crop,normal,25,7,2 9
+VID01_s15_14753_crop,normal,26,7,2 9
+VID01_s15_14753_crop,normal,27,7,2 9
+VID01_s15_14753_crop,normal,28,7,2 9
+VID01_s15_16159_crop,depth,13,14,5 6 10
+VID01_s15_16159_crop,depth,14,14,5 6 10
+VID01_s15_16159_crop,depth,15,14,5 6 10
+VID01_s15_16159_crop,depth,16,14,5 6 10
+VID01_s15_16159_crop,depth,17,14,5 6 10
+VID01_s15_16159_crop,depth,18,14,5 6 10
+VID01_s15_16159_crop,depth,19,14,5 6 10
+VID01_s15_16159_crop,depth,20,14,5 6 10
+VID01_s15_16159_crop,depth,21,14,5 6 10
+VID01_s15_16159_crop,depth,22,14,5 6 10
+VID01_s15_16159_crop,depth,23,14,5 6 10
+VID01_s15_16159_crop,depth,29,14,5 6 10
+VID01_s15_16159_crop,normal,16,8,5 10
+VID01_s15_16239_crop,depth,14,6,5 6 10
+VID01_s15_16239_crop,depth,16,6,5 6 10
+VID01_s15_16239_crop,depth,17,6,5 6 10
+VID01_s15_16399_crop,depth,0,17,5 6 10
+VID01_s15_16399_crop,depth,1,17,5 6 10
+VID01_s15_16399_crop,depth,2,17,5 6 10
+VID01_s15_16399_crop,depth,3,17,5 6 10
+VID01_s15_16399_crop,depth,4,17,5 6 10
+VID01_s15_16399_crop,depth,5,17,5 6 10
+VID01_s15_16399_crop,depth,6,17,5 6 10
+VID01_s15_16399_crop,depth,7,17,5 6 10
+VID01_s15_16399_crop,depth,13,17,5 6 10
+VID01_s15_16399_crop,depth,14,17,5 6 10
+VID01_s15_16399_crop,depth,15,17,5 6 10
+VID01_s15_16399_crop,depth,16,17,5 6 10
+VID01_s15_16399_crop,depth,17,17,5 6 10
+VID01_s15_16399_crop,normal,2,9,5 6 10
+VID01_s15_16399_crop,normal,6,9,5 6 10
+VID01_s15_16399_crop,normal,13,9,5 6 10
+VID01_s15_16399_crop,normal,14,9,5 6 10
+VID01_s15_28714_crop,normal,10,3,2 9
+VID01_s15_28714_crop,normal,11,3,2 9
+VID01_s15_28714_crop,normal,12,3,2 9
+VID01_s15_28714_crop,normal,14,3,2 9
+VID01_s15_28714_crop,normal,15,3,2 9
+VID01_s15_28714_crop,normal,16,3,2 9
+VID12_s15_19314_crop,depth,13,11,1 5
+VID12_s15_19314_crop,normal,13,6,1 2 5
+VID12_s15_19314_crop,normal,14,6,1 2 5
+VID12_s15_19314_crop,normal,15,6,1 2 5
+VID12_s15_19314_crop,normal,16,6,1 2 5
+VID12_s15_19314_crop,normal,17,6,1 2 5
+VID12_s15_19314_crop,normal,18,6,1 2 5
+VID12_s15_19394_crop,rgb,24,13,2 9
+VID12_s15_19394_crop,depth,24,4,1 2 3 4 6 9 10
+VID12_s15_19474_crop,rgb,17,46,1 5
+VID12_s15_19474_crop,normal,2,4,2 5 6 9 10
+VID12_s15_19474_crop,normal,3,4,2 5 6 9 10
+VID12_s15_19474_crop,normal,4,4,2 5 6 9 10
+VID12_s15_19474_crop,normal,5,4,2 5 6 9 10
+VID12_s15_19474_crop,normal,6,4,2 5 6 9 10
+VID12_s15_19474_crop,normal,7,4,2 6 9 10
+VID12_s15_19474_crop,normal,8,4,2 5 6 9 10
+VID12_s15_19474_crop,normal,9,4,2 6 9 10
+VID12_s15_19474_crop,normal,10,4,2 5 6 9 10
+VID12_s15_19474_crop,normal,11,4,2 6 9 10
+VID12_s15_19474_crop,normal,12,4,2 6 9 10
+VID12_s15_19474_crop,normal,13,4,2 6 9 10
+VID12_s15_19474_crop,normal,14,4,2 6 9
+VID12_s15_19474_crop,normal,15,4,2 6 9 10
+VID12_s15_19474_crop,normal,16,4,2 6 9 10
+VID12_s15_19474_crop,normal,17,4,2 6 9
+VID12_s15_19474_crop,normal,17,8,1 5
+VID12_s15_19474_crop,normal,18,4,2 5 6 9 10
+VID12_s15_19474_crop,normal,19,4,2 5 6 10
+VID12_s15_19474_crop,normal,20,4,2 5 6 10
+VID12_s15_19474_crop,normal,21,4,2 5 6 10
+VID12_s15_19474_crop,normal,22,4,2 5 6 10
+VID12_s15_19474_crop,normal,23,4,1 2 5 6 10
+VID12_s15_19554_crop,normal,12,5,5 6
+VID12_s15_19554_crop,normal,13,5,5 10
+VID12_s15_19554_crop,normal,14,5,5 10
+VID12_s15_19554_crop,normal,15,5,5 6 10
+VID12_s15_19554_crop,normal,16,5,5 6 10
+VID12_s15_19554_crop,normal,17,5,5 6 10
+VID12_s15_19714_crop,rgb,16,13,1 9
+VID12_s15_19714_crop,depth,16,6,1 9
+VID12_s15_19714_crop,normal,16,2,1 2 9
+VID25_s15_56_crop,depth,8,3,1 2 5 10
+VID25_s15_56_crop,depth,9,3,1 2 5 10
+VID25_s15_56_crop,depth,10,3,1 2 5 10
+VID25_s15_56_crop,depth,11,3,1 2 5 10
+VID25_s15_56_crop,depth,12,3,1 2 5 10
+VID25_s15_56_crop,depth,13,3,1 2 5 10
+VID25_s15_56_crop,depth,14,3,1 2 5 10
+VID25_s15_56_crop,depth,15,3,1 2 5 10
+VID25_s15_56_crop,depth,16,3,1 2 5 10
+VID25_s15_56_crop,depth,17,3,1 2 5 10
+VID26_s15_1669_crop,depth,19,1,2 5
+VID26_s15_1669_crop,normal,19,4,2 5
+VID26_s15_1989_crop,depth,12,4,1 5
+VID26_s15_1989_crop,depth,15,4,1 5
+VID26_s15_1989_crop,depth,17,4,1 5
+VID27_s15_454_crop,normal,0,7,2 5 10
+VID27_s15_454_crop,normal,1,7,2 5 10
+VID27_s15_454_crop,normal,2,7,2 5 10
+VID27_s15_454_crop,normal,3,7,2 5 10
+VID27_s15_454_crop,normal,4,7,2 5 10
+VID27_s15_454_crop,normal,5,7,2 5 10
+VID27_s15_454_crop,normal,6,7,2 5 10
+VID27_s15_454_crop,normal,7,7,2 5 10
+VID27_s15_454_crop,normal,13,7,2 5 10
+VID28_s15_54_crop,normal,12,7,1 5
+VID28_s15_54_crop,normal,13,7,1 2 5
+VID28_s15_54_crop,normal,14,7,1 2 5
+VID28_s15_54_crop,normal,15,7,1 2 5
+VID28_s15_54_crop,normal,16,7,1 2 5
+VID28_s15_54_crop,normal,17,7,1 2 4 5
+VID28_s15_54_crop,normal,18,7,1 2 3 4 5
+VID28_s15_54_crop,normal,20,7,1 3 4 5
+VID28_s15_54_crop,normal,23,7,1 2 3 4 5 10
+VID28_s15_54_crop,normal,24,7,1 2 5 10
+VID28_s15_54_crop,normal,25,7,1 3 5 10
+VID28_s15_54_crop,normal,26,7,1 2 3 4 5 10
+VID28_s15_54_crop,normal,27,7,1 2 3 4 5 10
+VID28_s15_54_crop,normal,28,7,1 2 3 4 5 10
+VID28_s15_54_crop,normal,29,7,1 2 3 4 5 10
+VID28_s15_294_crop,normal,1,5,1 5
+VID28_s15_294_crop,normal,15,5,1 3 5
+VID35_s15_594_crop,normal,13,4,2 5
+VID35_s15_594_crop,normal,14,4,2 5
+VID35_s15_594_crop,normal,15,4,2 5
+VID35_s15_594_crop,normal,16,4,2 5
+VID35_s15_594_crop,normal,17,4,2 5
+VID35_s15_594_crop,normal,24,4,2 5
+VID35_s15_594_crop,normal,25,4,2 5
+VID35_s15_594_crop,normal,26,4,2 5 10
+VID35_s15_594_crop,normal,27,4,2 5 10
+VID35_s15_594_crop,normal,28,4,2 5 10
+VID35_s15_914_crop,depth,7,5,5 10
+VID35_s15_914_crop,depth,14,5,5 10
+VID35_s15_914_crop,normal,2,5,2 5 10
+VID35_s15_914_crop,normal,3,5,2 5 10
+VID35_s15_914_crop,normal,4,5,2 5 10
+VID35_s15_914_crop,normal,6,5,2 5 10
+VID35_s15_914_crop,normal,7,5,2 5 10
+VID35_s15_914_crop,normal,13,5,2 5 10
+VID35_s15_914_crop,normal,14,5,2 5 10
+VID35_s15_914_crop,normal,15,5,2 5 10
+VID35_s15_914_crop,normal,17,5,2 5 10
+VID37_s15_342_crop,normal,16,2,2 5
+VID37_s15_502_crop,depth,2,4,4 5
+VID37_s15_502_crop,depth,5,4,4 5
+VID37_s15_502_crop,depth,6,4,4 5
+VID37_s15_502_crop,depth,13,4,4 5
+VID43_s15_281_crop,normal,8,5,5 10
+VID43_s15_281_crop,normal,13,5,5 10
+VID43_s15_281_crop,normal,14,5,5 10
+VID43_s15_281_crop,normal,19,5,5 10
+VID43_s15_281_crop,normal,20,5,5 10
+VID43_s15_281_crop,normal,21,5,5 10
+VID43_s15_281_crop,normal,24,5,5 10
+VID43_s15_521_crop,normal,3,5,5 10
+VID43_s15_521_crop,normal,4,5,5 10
+VID43_s15_521_crop,normal,5,5,5 10
+VID43_s15_521_crop,normal,8,5,5 10
+VID43_s15_521_crop,normal,19,5,5 10
+VID43_s15_521_crop,normal,20,5,5 10
+VID43_s15_521_crop,normal,21,5,5 10
+VID43_s15_521_crop,normal,22,5,5 10
+VID43_s15_521_crop,normal,23,5,5 10
+VID43_s15_601_crop,depth,0,7,2 5 10
+VID43_s15_601_crop,depth,1,7,2 5 10
+VID43_s15_601_crop,depth,2,7,2 5 10
+VID43_s15_601_crop,depth,3,7,2 5 10
+VID43_s15_601_crop,depth,4,7,2 5 10
+VID43_s15_601_crop,depth,5,7,2 5 10
+VID43_s15_601_crop,depth,6,7,2 5 10
+VID43_s15_601_crop,depth,7,7,2 5 10
+VID43_s15_601_crop,depth,8,7,2 5 10
+VID43_s15_601_crop,depth,9,7,2 5 10
+VID43_s15_601_crop,depth,10,7,2 5 10
+VID43_s15_601_crop,depth,11,7,2 5 10
+VID43_s15_601_crop,depth,12,7,2 5 10
+VID43_s15_601_crop,depth,13,7,2 5 10
+VID43_s15_601_crop,depth,14,7,2 5 10
+VID43_s15_601_crop,depth,15,7,2 5 10
+VID43_s15_601_crop,depth,16,7,2 5 10
+VID43_s15_601_crop,depth,17,7,2 5 10
+VID43_s15_601_crop,normal,6,10,5 10
+VID43_s15_601_crop,normal,7,10,5 10
+VID43_s15_601_crop,normal,8,10,5 10
+VID43_s15_601_crop,normal,9,10,5 10
+VID43_s15_601_crop,normal,10,10,5 10
+VID43_s15_601_crop,normal,11,10,5 10
+VID43_s15_601_crop,normal,13,10,5 10
+VID43_s15_601_crop,normal,14,10,5 10
+VID43_s15_601_crop,normal,15,10,5 10
+VID43_s15_601_crop,normal,16,10,5 10
+VID43_s15_601_crop,normal,17,10,5 10
+VID48_s15_455_crop,rgb,25,19,5 10
+VID48_s15_455_crop,depth,8,1,1 2 5
+VID48_s15_455_crop,depth,9,1,1 2 5 10
+VID48_s15_455_crop,depth,10,1,1 2 5 10
+VID48_s15_455_crop,depth,11,1,1 2 5
+VID48_s15_455_crop,depth,12,1,1 2 5 10
+VID48_s15_455_crop,depth,13,1,1 2 5 10
+VID48_s15_455_crop,depth,14,1,1 2 5 10
+VID48_s15_455_crop,depth,15,1,1 2 5 10
+VID48_s15_455_crop,depth,24,1,1 2 5 10
+VID48_s15_455_crop,depth,25,1,1 2 5 10
+VID48_s15_455_crop,depth,26,1,1 2 5 10
+VID48_s15_455_crop,depth,27,1,1 2 5 10
+VID48_s15_455_crop,depth,28,1,1 2 5 10
+VID48_s15_455_crop,normal,8,2,2 5
+VID48_s15_455_crop,normal,9,2,2 5
+VID48_s15_455_crop,normal,10,2,2 5
+VID48_s15_455_crop,normal,11,2,2 5
+VID48_s15_455_crop,normal,12,2,2 5
+VID48_s15_455_crop,normal,14,2,2 5
+VID48_s15_455_crop,normal,15,2,2 5
+VID48_s15_455_crop,normal,25,2,2 5 10
+VID48_s15_455_crop,normal,28,2,2 5
+VID48_s15_615_crop,depth,0,1,1 2 5
+VID48_s15_615_crop,depth,1,1,1 2 5 10
+VID48_s15_615_crop,depth,2,1,1 5
+VID48_s15_615_crop,depth,3,1,1 5
+VID48_s15_615_crop,depth,4,1,1 5
+VID48_s15_615_crop,depth,5,1,1 2 5
+VID48_s15_615_crop,depth,6,1,1 2 5
+VID48_s15_615_crop,depth,7,1,1 2 5
+VID48_s15_615_crop,depth,13,1,1 2 5
+VID48_s15_615_crop,depth,14,1,1 2 5
+VID48_s15_615_crop,depth,15,1,1 2 5
+VID48_s15_615_crop,depth,16,1,1 2 5
+VID48_s15_615_crop,depth,17,1,1 5
+VID52_s15_134_crop,depth,27,3,5 10
+VID52_s15_134_crop,depth,28,3,5 10
+VID52_s15_294_crop,depth,0,8,5 10
+VID52_s15_294_crop,depth,1,8,5 10
+VID52_s15_294_crop,depth,2,8,5 10
+VID52_s15_294_crop,depth,4,8,5 10
+VID52_s15_294_crop,depth,5,8,5 10
+VID52_s15_294_crop,depth,6,8,5 10
+VID52_s15_294_crop,depth,7,8,5 10
+VID52_s15_294_crop,depth,8,8,5 10
+VID52_s15_294_crop,depth,9,8,5 10
+VID52_s15_294_crop,depth,10,8,5 10
+VID52_s15_294_crop,depth,11,8,5 10
+VID52_s15_294_crop,depth,12,8,5 10
+VID52_s15_294_crop,depth,13,8,5 10
+VID52_s15_294_crop,depth,14,8,5 10
+VID52_s15_294_crop,depth,15,8,5 10
+VID52_s15_294_crop,depth,16,8,5 10
+VID52_s15_294_crop,depth,17,8,5 10
+VID52_s15_294_crop,normal,0,9,5 10
+VID52_s15_294_crop,normal,1,9,5 10
+VID52_s15_294_crop,normal,2,9,5 10
+VID52_s15_294_crop,normal,3,9,5 10
+VID52_s15_294_crop,normal,4,9,5 10
+VID52_s15_294_crop,normal,5,9,5 10
+VID52_s15_294_crop,normal,6,9,5 10
+VID52_s15_294_crop,normal,7,9,5 10
+VID52_s15_294_crop,normal,8,9,5 10
+VID52_s15_294_crop,normal,9,9,5 10
+VID52_s15_294_crop,normal,10,9,5 10
+VID52_s15_294_crop,normal,11,9,5 10
+VID52_s15_294_crop,normal,12,9,5 10
+VID52_s15_294_crop,normal,13,9,5 10
+VID52_s15_294_crop,normal,14,9,5 10
+VID52_s15_294_crop,normal,15,9,5 10
+VID52_s15_294_crop,normal,16,9,5 10
+VID52_s15_294_crop,normal,17,9,5 10
+VID52_s15_2560_crop,normal,13,11,2 9
+VID52_s15_2560_crop,normal,14,11,2 9
+VID52_s15_2560_crop,normal,15,11,2 9
+VID52_s15_2560_crop,normal,16,11,2 9
+VID52_s15_2560_crop,normal,17,11,2 9
+VID52_s15_2560_crop,normal,18,11,2 9
+VID52_s15_2560_crop,normal,19,11,2 9
+VID52_s15_2640_crop,normal,8,3,9 10
+VID52_s15_2640_crop,normal,9,3,9 10
+VID52_s15_2640_crop,normal,10,3,9 10
+VID52_s15_2640_crop,normal,11,3,9 10
+VID52_s15_2640_crop,normal,12,3,9 10
+VID52_s15_2640_crop,normal,13,3,9 10
+VID52_s15_2640_crop,normal,14,3,9 10
+VID52_s15_2640_crop,normal,15,3,9 10
+VID52_s15_2640_crop,normal,16,3,9 10
+VID52_s15_2640_crop,normal,17,3,9 10
+VID52_s15_2640_crop,normal,18,3,9 10
+VID52_s15_2640_crop,normal,19,3,9 10
+VID52_s15_2640_crop,normal,20,3,9 10
+VID52_s15_2640_crop,normal,22,3,9 10
+VID52_s15_2640_crop,normal,23,3,9 10
+VID55_s15_322_crop,depth,13,7,1 4 5 10
+VID55_s15_322_crop,depth,14,8,2 9
+VID55_s15_322_crop,depth,15,7,4 5 10
+VID55_s15_322_crop,depth,15,8,2 9
+VID55_s15_322_crop,depth,16,7,1 4 5 10
+VID55_s15_322_crop,depth,16,8,2 9
+VID55_s15_322_crop,depth,17,8,2 9
+VID55_s15_322_crop,normal,14,8,2 3 4 9 10
+VID55_s15_322_crop,normal,15,8,2 3 4 5 9 10
+VID55_s15_322_crop,normal,16,8,2 3 4 9 10
+VID55_s15_322_crop,normal,17,8,1 2 3 4 5 9 10
+VID55_s15_322_crop,normal,18,8,1 2 3 4 5 9 10
+VID55_s15_322_crop,normal,19,8,1 2 3 4 5 9 10
+VID55_s15_322_crop,normal,20,8,1 2 3 4 5 10
+VID55_s15_322_crop,normal,24,8,1 2 3 4 9 10
+VID55_s15_322_crop,normal,25,8,1 2 3 4 9 10
+VID55_s15_402_crop,normal,10,8,2 9
+VID55_s15_402_crop,normal,11,8,2 9
+VID55_s15_482_crop,depth,3,14,1 5

@@ -127,6 +127,13 @@ in English.
   from the frozen labels in 1 to 20 pixels (at most 1.1e-4 of the frame). The
   new pps 4/6/12 points therefore come from an environment that reproduces
   the frozen tracks up to a few pixels per frame.
+- Depth is not reproduced bit for bit in this environment. Re-estimating
+  `VID01_s15_80_crop` with the tagged `scripts/run_cholec_depth.py` here
+  gives depth within 0.0078 of the frozen depth (0.6 % of its maximum),
+  confidence within 0.057, extrinsics within 0.0023 and intrinsics within
+  1.2 px. The 27 AE-CAI windows keep their frozen depth; the 86 enumerated
+  windows' depth was estimated here, so a difference between the two
+  populations mixes the windows with this environment difference.
 
 ## 7. Table 1 reproduced
 
