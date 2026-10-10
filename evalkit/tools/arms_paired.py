@@ -3,8 +3,8 @@
 Each line gives the mean of `cond − base` over the clips both define the
 key on, its video-level bootstrap 95 % interval, how many clips moved up,
 stayed and moved down, the clip-level Wilcoxon p for reference, and the
-mark `paired_stats.verdict` gives the interval in the key's direction. A
-reference value, such as `time_IoU`, is never marked.
+mark that `paired_stats.verdict` reads from the interval in the key's
+direction. A reference value, such as `time_IoU`, is never marked.
 
 Every two score JSONs of the table are checked with
 `scores.check_comparable`. So one table holds one evaluator, dataset,
@@ -25,7 +25,7 @@ import numpy as np
 
 from evalkit.tools.compare_eval import DIRECTION, metrics_of
 from evalkit.tools.paired_stats import VERDICT_RULE, boot_ci, load_json, verdict, video_of
-from evalkit.tools.scores import check_comparable, check_one_rule, defined_clips, rows_of
+from evalkit.tools.scores import check_comparable, check_one_rule, defined_clips, is_pilot_json, rows_of
 
 # The width of the column that names a pair, as the workbench printed it.
 NAME_WIDTH = 34
@@ -90,7 +90,7 @@ def check_table(summaries: Mapping[str, Mapping]) -> dict:
 
 
 def pair_row(base: Mapping, cond: Mapping, clips: Sequence[str], key: str, sign: int) -> dict:
-    """The paired difference of `key` between two conditions, over the clips both define it on.
+    """Compare `key` between two conditions, over the clips both define it on.
 
     Args:
         base: The base condition's score JSON.
@@ -133,7 +133,7 @@ def pair_row(base: Mapping, cond: Mapping, clips: Sequence[str], key: str, sign:
 
 
 def compare_pairs(summaries: Mapping[str, Mapping], pairs: Sequence[tuple[str, str]], key: str) -> dict:
-    """The table: one row per pair, on one key, over a population every JSON shares.
+    """Build the table: one row per pair, on one key, over a population every JSON shares.
 
     Args:
         summaries: Every condition's score JSON, by tag.
@@ -147,14 +147,19 @@ def compare_pairs(summaries: Mapping[str, Mapping], pairs: Sequence[tuple[str, s
 
     Raises:
         ValueError: The JSONs are not comparable, `key` is not a key they
-            report, or it is defined on no clip of a pair.
+            report or, on pilot JSONs, has no direction in
+            `scores.PILOT_SIGNS`, or it is defined on no clip of a pair.
     """
     # What every JSON of the table shares.
     table = check_table(summaries)
     clips = table["clips"]
 
     # The key and which way it is better; comparable JSONs report the same keys.
-    signs = dict(metrics_of(next(iter(summaries.values()))))
+    first = next(iter(summaries.values()))
+    signs = dict(metrics_of(first))
+    if key not in signs and is_pilot_json(first):
+        raise ValueError(f"{key} has no direction in scores.PILOT_SIGNS, so no line can be marked on it; "
+                         f"the keys with one are {list(signs)}")
     if key not in signs:
         raise ValueError(f"{key} is not a key these JSONs report; the keys are {list(signs)}")
 
@@ -171,7 +176,7 @@ def compare_pairs(summaries: Mapping[str, Mapping], pairs: Sequence[tuple[str, s
 
 
 def format_row(base: str, cond: str, row: Mapping, n_clips: int, n_videos: int) -> str:
-    """One printed line: the pair, the mean difference, the interval, the moves, p and the mark.
+    """Write one line: the pair, the mean difference, the interval, the moves, p and the mark.
 
     The columns are the workbench's, so that a line can be compared with
     its line byte for byte. A row on fewer clips than the table says so.

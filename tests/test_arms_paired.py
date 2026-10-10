@@ -69,8 +69,11 @@ def rows(key: str, summaries=None, pairs=PAIRS) -> list[str]:
 
 
 # What the workbench's arms_paired printed for `PAIRS` on three keys of
-# `table_of_pilot_scores()`, each condition named by its tag. It marked
-# every key as if higher were better.
+# `table_of_pilot_scores()`, each condition named by its tag, with the clips
+# in sorted order, as `pps_f1.py` wrote them and `check_comparable` returns
+# them. The bootstrap's seed is drawn from the data in its order, so the
+# clips in the order of `CLIPS` give other intervals. It marked every key
+# as if higher were better.
 WORKBENCH_ROWS = {
     "inst_F1_50": [
         "rgb_edge_pf − rgb_pf               +0.0822   [+0.0519,+0.1117]      18-0-0   0.0000 ★",
@@ -147,6 +150,16 @@ def test_a_pair_that_never_moves_has_no_p():
     assert AP.format_row(base, cond, row, len(CLIPS), len(VIDEOS)).endswith(f"0-{len(CLIPS)}-0     none")
 
 
+def test_only_a_difference_of_exactly_zero_stays():
+    # 0.1 + 0.2 − 0.3 is 5.6e-17, not zero: the workbench counted it as staying, below 1e-9.
+    summaries = table_of_pilot_scores()
+    summaries["rgb_pf_again"] = copy.deepcopy(summaries["rgb_pf"])
+    summaries["rgb_pf"]["per_clip"][0]["inst_F1_50"] = 0.3
+    summaries["rgb_pf_again"]["per_clip"][0]["inst_F1_50"] = 0.1 + 0.2
+    row = AP.compare_pairs(summaries, [("rgb_pf", "rgb_pf_again")], "inst_F1_50")["rows"][0][2]
+    assert (row["up"], row["same"], row["down"]) == (1, len(CLIPS) - 1, 0)
+
+
 # ---------------------------------------------------------------- what a table refuses
 
 
@@ -220,6 +233,14 @@ def test_a_table_of_one_rule_and_per_frame_records_the_rule():
     assert (table["propagation"], table["sign"]) == ("both_ways_from_centre", +1)
 
 
+def test_the_header_names_the_table_s_rule(capsys):
+    table = AP.compare_pairs({"pf": evaluator_scores(propagation="per_frame", seed=1), "both": evaluator_scores(seed=2)},
+                             [("pf", "both")], "F1_50/geometric")
+    AP.print_table(table)
+    assert capsys.readouterr().out.startswith(f"{len(CLIPS)} clips / {len(VIDEOS)} videos, eval_code=aaaaaaaaaaaaaaaa, "
+                                              "propagation=both_ways_from_centre\n")
+
+
 def test_different_library_versions_are_reported_not_refused(capsys):
     summaries = {"a": evaluator_scores(seed=1), "b": evaluator_scores(seed=2), "c": evaluator_scores(seed=3)}
     summaries["c"]["versions"] = {"numpy": "2.1.0"}
@@ -232,7 +253,13 @@ def test_different_library_versions_are_reported_not_refused(capsys):
 
 def test_a_key_the_jsons_do_not_report_is_refused():
     with pytest.raises(ValueError, match="not a key these JSONs report"):
-        AP.compare_pairs(table_of_pilot_scores(), PAIRS, "F1_50/geometric")
+        AP.compare_pairs({"a": evaluator_scores(seed=1), "b": evaluator_scores(seed=2)}, [("a", "b")], "F1_50/nowhere")
+
+
+def test_a_pilot_key_with_no_direction_is_refused_for_that():
+    # The pilot's JSONs hold VI_split, but no direction for it.
+    with pytest.raises(ValueError, match="VI_split has no direction in scores.PILOT_SIGNS"):
+        AP.compare_pairs(table_of_pilot_scores(), PAIRS, "VI_split")
 
 
 def test_a_key_in_no_row_is_refused():

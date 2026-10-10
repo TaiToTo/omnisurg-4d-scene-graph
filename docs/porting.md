@@ -211,7 +211,7 @@ copy to read the RGB clips, and the ported copies read `evalkit.classes`.
 |---|---|---|---|
 | `paired_stats.py` | `ipcai2027_experiment/scripts/paired_stats.py` | `extract/03-metrics` (#3) | `VERDICT_RULE` does not change. The comparability check is `scores.check_comparable`, which applies the rule of `docs/evaluation.md`, in place of the pilot's, and the statistics are taken on the clips it compared. `video_of` is defined here rather than delegated. Each row records the metric's `sign` and `verdict` reads the interval in it, so a metric where smaller is better, or a reference value that is never marked, is not oriented by the caller. A bootstrap over fewer than two units refuses rather than return a point. |
 | `compare_eval.py` | `depth_sam_tracking_experiment/compare_eval.py` | `extract/03-metrics` (#3) | It refuses to mix shas through `scores.check_comparable`, which also compares dataset, class set, view and mode. The table prints each metric's direction and no mark: the workbench's circle and cross followed the sign of the mean difference, a second verdict beside `paired_stats.verdict`. The per-clip list, the chart and `wins` follow the question's primary metric, named with `--key`; the directions of the pilot keys come from `scores.PILOT_SIGNS`, the one table `paired_stats` reads too. |
-| `arms_paired.py` | `ipcai2027_experiment/scripts/arms_paired.py` | — | Ported as `evalkit/tools/arms_paired.py`. It prints one key's paired difference for several pairs of conditions, one line per pair. The workbench's script read one analysis JSON that `pps_f1.py` writes: the per-clip F1 of each input at 8 points per side, which `settle_inputs.f1_prop` computes from the labels and no score JSON holds. The port reads one score JSON per condition, takes the pairs as tags and the key as `--key`, and checks every two JSONs of the table with `scores.check_comparable`. It carries none of the workbench's 21 default pairs ("The pairs `arms_paired` reports"). The workbench's script marked a line as if more were better, which held for the F1 it read; the port marks a line in its key's direction, and never marks a reference value. On the same per-clip values, every row equals the workbench's byte for byte, apart from the marks of a key that is not better when higher. The values compared are the pilot's JSONs of five per-frame conditions on ATLAS-120k and four on CholecSeg8k, and the workbench's analysis JSONs of both datasets and both stages, read as score JSONs. |
+| `arms_paired.py` | `ipcai2027_experiment/scripts/arms_paired.py` | — | Ported as `evalkit/tools/arms_paired.py`. It prints one key's paired difference for several pairs of conditions, one line per pair. The workbench's script read one analysis JSON that `pps_f1.py` writes: the per-clip F1 of each input at 8 points per side, which `settle_inputs.f1_prop` computes from the labels and no score JSON holds. The port reads one score JSON per condition, takes the pairs as tags and the key as `--key`, and checks every two JSONs of the table with `scores.check_comparable`. A pair is `base:cond` and its line is `cond − base`, as `paired_stats` orders a pair; the workbench's `a:b` was `a − b`, so a pair copied from its command flips the sign. A condition with no score JSON is refused, where the workbench skipped a pair whose arm was missing. It carries none of the workbench's 21 default pairs ("The pairs `arms_paired` reports"). The workbench's script marked a line as if more were better, which held for the F1 it read; the port marks a line in its key's direction, and never marks a reference value. On the same per-clip values, every row equals the workbench's byte for byte, apart from the marks of a key that is not better when higher. The values compared are the pilot's JSONs of five per-frame conditions on ATLAS-120k and four on CholecSeg8k, and the workbench's analysis JSONs of both datasets and both stages, read as score JSONs. |
 | `track_metrics.py` | `depth_sam_tracking_experiment/track_metrics.py` | `extract/03-metrics` (#3) | It imports `BACKGROUND`, `_gt_idmap` and `_load_depth` from the pilot's `eval_track`; they come from the evaluator instead. `MIN_AREA` is removed ("No minimum object size, anywhere"). It is a tool, outside the evaluator, and its values are reference values ("No measure over time carries a star"). Its GT track is open ("The GT track of `track_metrics`"). |
 | `surgical_core/clip_time.py` | `surgical_core/clip_time.py` | `extract/03-metrics` (#3) | English only. |
 | `surgical_core/viewer/labels.py`, `palette.py` | `surgical_core/viewer/` | `extract/03-metrics` (#3) | English only. `label_table_of` and `cholec_gt_table` move to a new `gt_tables.py`, the one viewer module that imports `evalkit`; `labels.py` builds its table from plain data, so a video with no class table gets one too. The rest of `surgical_core/viewer` is below, under "Not yet extracted anywhere". |
@@ -340,7 +340,12 @@ below.
     rests on, and `summarize_20.py`, the StereoMIS table; and
     `ipcai2027_experiment/task15_granularity/scripts/claims_table.py` and
     `settle_inputs.py`. `claims_table.py` and `claims_grid.py` read
-    `outputs/atlas`, the 13-video set, and `outputs/cholec_gt`. With them,
+    `outputs/atlas`, the 13-video set, and `outputs/cholec_gt`.
+    `claims_grid.py` reads the rows whose granularity is not matched from
+    the analysis JSONs of `ipcai2027_experiment/scripts/pps_f1.py`: the
+    per-clip F1 that `settle_inputs.f1_prop` computes from the labels, which
+    no score JSON holds. `ipcai2027_experiment/scripts/export_prop_pps.py`
+    draws a figure from the same JSONs, with `arms_paired.boot_ci`. With them,
     `ipcai2027_experiment/task11_atlas13/scripts/check_provenance.py`, which
     makes no table: it checks each condition's `seed_info.json` against the
     settings the condition was meant to run with.
@@ -913,7 +918,13 @@ Every command takes those paths as arguments.
     CholecSeg8k. Two of the pairs compare inputs the paper's conditions
     ran: `rgb_edge` with `rgb`, and `normal_edge` with `normal`.
     `summary97.py` compares `rgb_edge`, `normal_edge`, `normal` and
-    `depth` with `rgb`, and never `normal_edge` with `normal`. The port
-    carries no list of pairs and takes them as tags, because the tags of
-    the conditions scored again are not fixed yet. Decide which pairs the
-    paper reports with the tool.
+    `depth` with `rgb`, and `rgb_edge` with `normal_edge`
+    (`rgbedge_center18 − op_edge_center`), and never `normal_edge` with
+    `normal`. The port carries no list of pairs and takes them as tags,
+    because the tags of the conditions scored again are not fixed yet.
+    Decide:
+    - which pairs the paper reports with the tool;
+    - whether the rows of `claims_grid.py` whose granularity is not
+      matched read the evaluator's scores through this tool, or
+      `pps_f1.py` is ported to write the F1 they read, and
+      `export_prop_pps.py` with it.
