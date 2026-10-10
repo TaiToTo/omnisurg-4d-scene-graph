@@ -572,3 +572,12 @@ _masked` names the conditions of the clips extracted with
 `--mask-instruments`. Every row records `trajectory_code_sha`, the hash of
 the `trajectory_eval` modules that compute it. The command refuses a clip
 without a method's bundle, before anything is scored.
+
+```bash
+python -m trajectory_eval.tools.stereomis_table controls.json methods.json [--out summary.json]
+```
+
+The table prints each condition's scores, and each condition's paired
+difference from `floor_static` on `ate_rel`, with its interval over
+sequences and its mark. It refuses rows that record two versions of the
+scorer or none, and a condition scored on other clips than the base.
