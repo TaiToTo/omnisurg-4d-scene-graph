@@ -34,9 +34,11 @@ PROV_NAME = "seed_info.json"
 # `tag` say where the labels are, not what made them; of `frames`, which is
 # that clip's own frame numbers, only the kind is kept. `bidir` says
 # whether the tracker ran both ways. A tag tracked both ways on some clips
-# and forward on others mixes two propagation rules.
+# and forward on others mixes two propagation rules. `seed_labels` names
+# seeds made outside the tracking stage, which is all that tells two merges
+# of one condition to different K apart.
 PROV_KEYS = ("sam_input", "depth_source", "seed_source", "track_base",
-             "seed_min_area", "seed_topk", "point_grids", "bidir")
+             "seed_min_area", "seed_topk", "point_grids", "bidir", "seed_labels")
 SEED_KEYS = ("points_per_side", "seed_edge_gain", "seed_smooth",
              "edge_ring_masked", "seed_sam_kwargs", "produced_by")
 
@@ -94,6 +96,15 @@ def frames_kind(v) -> str:
     return str(v)
 
 
+def condition_key(record: Mapping) -> str:
+    """Return what tells a clip's condition from another's: the fields of `PROV_KEYS` and `SEED_KEYS`, as JSON."""
+    si = record.get("seed_input") or {}
+    return json.dumps({**{k: record.get(k) for k in PROV_KEYS},
+                       **{k: si.get(k) for k in SEED_KEYS},
+                       "frames": frames_kind(record.get("frames"))},
+                      sort_keys=True, ensure_ascii=False)
+
+
 def read_conditions(track_root: str) -> dict:
     """The provenance under `track_root`, by tag.
 
@@ -125,12 +136,7 @@ def read_conditions(track_root: str) -> dict:
             # A broken provenance is reported, not hidden.
             out[tag]["notes"][f"unreadable provenance: {e}"].append(clip)
             continue
-        si = d.get("seed_input") or {}
-        key = json.dumps({**{k: d.get(k) for k in PROV_KEYS},
-                          **{k: si.get(k) for k in SEED_KEYS},
-                          "frames": frames_kind(d.get("frames"))},
-                         sort_keys=True, ensure_ascii=False)
-        out[tag]["keys"][key].append(clip)
+        out[tag]["keys"][condition_key(d)].append(clip)
     # The clips with labels and no provenance file, per clip: a tag can hold
     # both kinds, and skipping it would hide these from the mixed-condition check.
     for d in glob.glob(os.path.join(track_root, "*", "*", "")):
