@@ -336,55 +336,17 @@ Each stage is described in `docs/pipeline.md`.
   for now.
 - `ipcai2027_experiment/scripts/run_conditions.py`, with the `single` mode
   of `run_track_conditions.py`, and the dispatcher of `run_per_frame_seg.py`
-  are `pipeline/condition_population.py`. It was checked against the
-  workbench on the paper's conditions, 29 on ATLAS-120k's 315 clips and 14
-  on CholecSeg8k's 27:
-  - Each clip's command gives the stage the settings that the clip's
-    command in the workbench's logs gave, read with each script's defaults.
-  - On ATLAS-120k, the records of the 29 conditions hold every key the
-    driver checks, with the value it expects, apart from two keys the
-    workbench's scripts did not yet write: `depth_source` in the tracked
-    conditions and `point_grids` in four per-frame ones. Their labels pass
-    the driver's check on every clip.
+  are `pipeline/condition_population.py`. It was checked on the paper's 29
+  ATLAS-120k and 14 CholecSeg8k conditions:
+  - each clip's command gives the stage the settings the workbench's gave;
+  - the workbench's records hold the values the driver expects, but lack
+    `depth_source` and `point_grids`, which the scripts did not yet write;
+  - `ch_edge_center` and `ch_edge_perframe` most likely kept the edge ring
+    (inferred from their dates), so a run that is to equal them passes
+    `--keep-edge-ring`.
 
-  No command in the workbench's logs names the edge ring, and the driver's
-  command names it only with `--keep-edge-ring`. The workbench set the ring
-  in a module, `EDGE_MASK_RING`, which removes the ring since its commit
-  `70755dec` of 2026-09-07.
-  - On ATLAS-120k, the records of the conditions whose inputs burn edges
-    hold `edge_ring_masked` `true`, so the driver's default, the ring
-    removed, makes them again.
-  - On CholecSeg8k, the labels of `ch_edge_center` and `ch_edge_perframe`
-    are dated 2026-08-13 and 2026-08-14 and carry no `seed_info.json`, so
-    they were most likely made with the ring kept (inferred from the dates;
-    the labels were not compared). A run that is to equal them passes
-    `--keep-edge-ring`. Their clips run again under "CholecSeg8k clips
-    whose frames run out of order". `ch_edge_center_noring`, of
-    2026-09-17, records `true`.
-
-  The driver differs from the scripts in these ways:
-  - It takes the clips from a population file, where the scripts took every
-    clip with GT.
-  - It skips a clip whose labels exist only when the clip's
-    `seed_info.json` records the run's settings. The scripts skipped a clip
-    by counting its labels.
-  - It refuses, before anything runs, labels of other settings.
-    `run_conditions.py` and `run_track_conditions.py` skipped such labels
-    once their count was complete; `run_per_frame_seg.py` refused them too.
-  - It refuses, before anything runs, labels with a frame missing, which all
-    three scripts ran again.
-  - A record of other settings after a clip ran stops the run with a
-    non-zero exit. `run_per_frame_seg.py` raised `SystemExit` there inside
-    a worker thread, which ended that thread alone: the run went on, left
-    the clip out of its results, and could exit 0.
-  - It refuses a tracker's input that burns edges with a seed whose record
-    holds no ring. None of the paper's conditions is refused: each tracks
-    `rgb`.
-  - It passes `--device cuda`, where the scripts left the device at `auto`.
-  - It takes `--gpus` with no default, where the scripts took GPUs 0 to 7.
-  - It appends each clip's command and output to the clip's log, where the
-    scripts wrote the log anew. It prints a line as each clip ends, as the
-    scripts did.
+  The scripts skipped a clip by counting its labels. The driver refuses
+  labels whose record holds other settings.
 
 ### Not yet extracted anywhere
 
@@ -634,10 +596,8 @@ The second list holds what the paper's numbers do not use.
     and `--seed_topk`, which every run passed as 0; and its dispatcher's
     `--force` and `--log-root`.
   - `run_conditions.py` and `run_track_conditions.py`: the `gt_seed` and
-    `consensus` modes, `--force`, the `--log-root` of `run_conditions.py`,
-    and the Hugging Face cache and offline setting they put in each
-    process's environment, which the environment the driver runs in gives
-    instead.
+    `consensus` modes, `--force`, `--log-root`, and the Hugging Face
+    settings they put in each process's environment.
   - `run_atlas97_depth.sh`: its `setsid nohup` wrapping and timestamped
     log lines, which belong to the shell it was run from, and
     `--overwrite`, so that no clip of a population is replaced without
