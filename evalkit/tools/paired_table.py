@@ -1,4 +1,4 @@
-"""Print the paper's table of paired comparisons: a block per question, a row per pair of conditions.
+"""Print the pilot's table of paired comparisons: blocks of rows under headings, a row per pair of conditions.
 
 A row compares two conditions on a few keys. Each cell holds the mean of
 `cond − base` over the clips on which both define the key, and the mark
@@ -52,9 +52,9 @@ NO_VALUE = "—"
 # What follows a mark when the clips' signs disagree with it.
 SIGN_NOTE = "(sign)"
 
-# The paper's table: (heading, rows), each row (label, cond, base), whose
-# difference is `cond − base`.
-BLOCKS = (
+# The pilot's table, the rows of the workbench's `summary97.py`: (heading, rows), each row (label, cond, base),
+# whose difference is `cond − base`.
+PILOT_BLOCKS = (
     ("Does propagation beat per-frame segmentation?", (
         ("normals+edges: propagated − per frame", "op_edge_center", "op_edge_perframe"),
         ("RGB: propagated − per frame (pps24)", "rgb_center18", "op_rgb_perframe_pps24"),
@@ -64,7 +64,7 @@ BLOCKS = (
         ("K=8 − no merge", "t5_k8", "t5_floor"),
         ("K=10 − K=8 (the choice of K)", "t5_k10", "t5_k8"),
     )),
-    ("Merged RGB against normals+edges", (
+    ("Merged RGB against unmerged normals+edges (only the RGB seed is merged)", (
         ("K=10 − normals+edges", "t5_k10", "op_edge_center"),
         ("K=8 − normals+edges", "t5_k8", "op_edge_center"),
     )),
@@ -91,7 +91,7 @@ BLOCKS = (
 
 
 def tags_of(blocks: Sequence) -> list[str]:
-    """The conditions a table names, each once, in the order the table first names them."""
+    """List the conditions a table names, each once, in the order the table first names them."""
     seen = {}
     for _, rows in blocks:
         for _, cond, base in rows:
@@ -117,25 +117,30 @@ def load_conditions(blocks: Sequence, eval_dir: str) -> dict[str, dict]:
 
 
 def columns_of(summary: Mapping, keys: Sequence[str] = ()) -> list[tuple[str, int]]:
-    """The keys a table reports, each with the way it is better: `keys` when given, `PILOT_COLUMNS` on a pilot JSON.
+    """List the keys a table reports, each with the way it is better: `keys`, or `PILOT_COLUMNS` on a pilot JSON.
 
     Raises:
         ValueError: No keys are given for an evaluator JSON, whose table
-            keys are not settled; a key is not one the JSON reports; or a
-            key is a reference value, which no star marks and so goes in a
+            keys are not settled; a key is not one the JSON reports, or on
+            a pilot JSON has no direction in `scores.PILOT_SIGNS`; or a key
+            is a reference value, which no star marks and so goes in a
             table that carries none.
     """
     pilot = is_pilot_json(summary)
     known = list(PILOT_SIGNS) if pilot else metric_keys(summary)
+    markable = [k for k in known if sign_of_key(summary, k) != 0]
     if not keys:
         if not pilot:
             raise ValueError(f"the table's keys on the evaluator's scores are not settled; name them with --keys, "
-                             f"from {known}")
+                             f"from {markable}")
         keys = PILOT_COLUMNS
     out = []
     for key in keys:
+        if key not in known and pilot:
+            raise ValueError(f"{key} has no direction in scores.PILOT_SIGNS, so no mark can be read for it; "
+                             f"the keys the table can mark are {markable}")
         if key not in known:
-            raise ValueError(f"{key} is not a key this JSON reports; the keys are {known}")
+            raise ValueError(f"{key} is not a key this JSON reports; the keys the table can mark are {markable}")
         sign = sign_of_key(summary, key)
         if sign == 0:
             raise ValueError(f"{key} is a reference value: no star marks it, so it goes in a table that carries none")
@@ -219,7 +224,7 @@ def cell_of(base: Mapping, cond: Mapping, clips: list[str], key: str, sign: int)
 
 
 def mark_text(cell: Mapping) -> str:
-    """The cell's mark, with `SIGN_NOTE` when as many clips or more moved against the mark as with it."""
+    """Write the cell's mark, with `SIGN_NOTE` when as many clips or more moved against the mark as with it."""
     if cell["mark"] == "★" and cell["losses"] >= cell["wins"]:
         return "★" + SIGN_NOTE
     if cell["mark"] == "✗" and cell["wins"] >= cell["losses"]:
@@ -254,7 +259,8 @@ def table_lines(blocks: Sequence, summaries: Mapping[str, Mapping], keys: Sequen
              f"{NO_VALUE}: fewer than {MIN_CLIPS} clips or 2 videos define the key",
              "directions: " + ", ".join(f"{k} {DIRECTION[s]}" for k, s in columns)]
     if not shared["regions"]:
-        lines.append("regions: the evaluator records no count of regions, so the table has no column of them")
+        lines.append("regions: the evaluator records no n_regions_mean, only objects.predicted, per view and summed "
+                     "over the scored frames; the table has no column of it")
     for tag, differ in shared["versions_differ"].items():
         lines.append(f"note: library versions differ between {tags[0]} and {tag}: {differ}")
     lines.append("")
@@ -289,7 +295,7 @@ def table_lines(blocks: Sequence, summaries: Mapping[str, Mapping], keys: Sequen
 
 
 def main(argv: Sequence[str] | None = None) -> None:
-    """Print the paper's table from the score JSONs in the directory the arguments name."""
+    """Print the pilot's table from the score JSONs in the directory the arguments name."""
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--eval-dir", required=True, help="The directory of the score JSONs, one <tag>.json per condition.")
     ap.add_argument("--keys", default="",
@@ -298,7 +304,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     args = ap.parse_args(argv)
     keys = [k.strip() for k in args.keys.split(",") if k.strip()]
     try:
-        lines = table_lines(BLOCKS, load_conditions(BLOCKS, args.eval_dir), keys)
+        lines = table_lines(PILOT_BLOCKS, load_conditions(PILOT_BLOCKS, args.eval_dir), keys)
     except ValueError as e:
         raise SystemExit(str(e)) from e
     print("\n".join(lines))

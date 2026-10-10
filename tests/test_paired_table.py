@@ -15,8 +15,6 @@ import pytest
 from evalkit.tools import paired_table as PT
 from evalkit.tools.scores import CLIP_METRICS, FRAME_METRICS, PILOT_EVAL_CODE_SHA, metric_key
 
-pytest.importorskip("scipy", reason="paired_stats needs the `tools` extra")
-
 REPO = Path(__file__).resolve().parent.parent
 VIDEOS = ("adrenalectomy__16GPCUPkXYQ", "appendectomy__41RKDh3INiU", "gastric_surgery__4FHGGFZsPzw",
           "lar___7H7G-4sevQ", "rectopexy__IJfgUvxoTkM", "hemicolectomy__5YDMlxTl0k8", "nephrectomy__abc123")
@@ -153,7 +151,7 @@ def test_the_mark_reads_the_interval_in_the_key_s_direction(shift, mark):
     (lambda: evaluator_scores("x"), ["time_IoU"], "time_IoU is a reference value"),
     (lambda: evaluator_scores("x"), [metric_key("unlabelled_share", "all")], "is a reference value"),
     (lambda: evaluator_scores("x"), [metric_key("F1_50", "tissue")], "not a key this JSON reports"),
-    (lambda: pilot_scores("x"), ["F1_50/all"], "not a key this JSON reports"),
+    (lambda: pilot_scores("x"), ["F1_50/all"], "no direction in scores.PILOT_SIGNS"),
     (lambda: evaluator_scores("x"), [], "not settled; name them with --keys"),
 ])
 def test_a_key_the_table_cannot_report_is_refused(make, keys, said):
@@ -187,7 +185,7 @@ def test_the_evaluator_s_table_names_its_rule_and_has_no_column_of_regions():
     pair = {"base": evaluator_scores("base", propagation="per_frame"), "cond": evaluator_scores("cond", 0.05, seed=2)}
     lines = PT.table_lines(one_row(), pair, keys=[metric_key("F1_50", "geometric"), metric_key("VI_split", "all")])
     assert lines[0] == "atlas120k: 21 clips / 7 videos / eval_code_sha aaaaaaaa / propagation both_ways_from_centre"
-    assert any(line.startswith("regions: the evaluator records no count of regions") for line in lines)
+    assert any(line.startswith("regions: the evaluator records no n_regions_mean, only objects.predicted") for line in lines)
     row, _ = row_lines(lines)
     # VI_split is better lower, so a rise is a cross.
     assert row.split()[2] == "★" and row.split()[4] == "✗" and len(row.split()) == 5
@@ -251,8 +249,8 @@ def test_differing_library_versions_are_noted_not_refused():
 
 
 def test_the_paper_s_table_names_each_row_once():
-    rows = [(cond, base) for _, block in PT.BLOCKS for _, cond, base in block]
-    labels = [label for _, block in PT.BLOCKS for label, _, _ in block]
+    rows = [(cond, base) for _, block in PT.PILOT_BLOCKS for _, cond, base in block]
+    labels = [label for _, block in PT.PILOT_BLOCKS for label, _, _ in block]
     assert len(set(rows)) == len(rows) and len(set(labels)) == len(labels)
 
 
@@ -267,18 +265,18 @@ def _run(tmp_path, *args):
 
 
 def test_the_command_prints_every_row_of_the_paper_s_table(tmp_path):
-    _write(tmp_path, PT.tags_of(PT.BLOCKS))
+    _write(tmp_path, PT.tags_of(PT.PILOT_BLOCKS))
     out = _run(tmp_path)
     assert out.returncode == 0, out.stderr
-    for heading, rows in PT.BLOCKS:
+    for heading, rows in PT.PILOT_BLOCKS:
         assert heading in out.stdout
         for label, _, _ in rows:
             assert f"\n  {label} " in out.stdout
-    assert out.stdout.count(" CI [") == sum(len(rows) for _, rows in PT.BLOCKS)
+    assert out.stdout.count(" CI [") == sum(len(rows) for _, rows in PT.PILOT_BLOCKS)
 
 
 def test_the_command_stops_on_a_missing_condition_with_a_message_not_a_traceback(tmp_path):
-    tags = PT.tags_of(PT.BLOCKS)
+    tags = PT.tags_of(PT.PILOT_BLOCKS)
     _write(tmp_path, tags[1:])
     out = _run(tmp_path)
     assert out.returncode != 0 and "Traceback" not in out.stderr
@@ -286,7 +284,7 @@ def test_the_command_stops_on_a_missing_condition_with_a_message_not_a_traceback
 
 
 def test_the_command_stops_on_a_reference_value(tmp_path):
-    _write(tmp_path, PT.tags_of(PT.BLOCKS))
+    _write(tmp_path, PT.tags_of(PT.PILOT_BLOCKS))
     out = _run(tmp_path, "--keys", "inst_F1_50,time_IoU")
     assert out.returncode != 0 and "Traceback" not in out.stderr
     assert "time_IoU is a reference value" in out.stderr
