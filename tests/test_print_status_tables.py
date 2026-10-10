@@ -1,4 +1,4 @@
-"""The four tables of `print_status_tables`: each mark is the verdict's, and each refusal is shown on a planted fault."""
+"""The four tables of `print_status_tables`: each mark is `mark_of`'s, and each refusal is shown on a planted fault."""
 import copy
 import json
 import subprocess
@@ -54,7 +54,7 @@ def kmerge_pairs() -> dict:
 
 
 def classic(degenerate: bool = False, **setting) -> dict:
-    """A classic-segmentation JSON of one row, every key's interval below zero, its stored marks the verdict's."""
+    """A classic-segmentation JSON of one row, every key's interval below zero, its stored marks `mark_of`'s."""
     stored = "" if degenerate else "✗"
     pair = {k: cell(-0.1, DOWN, verdict=stored) for k, _ in PST.CLASSIC_KEYS}
     row = dict(n_clips=27, n_videos=17, degenerate=degenerate, arms={"normal": {"n": 2.7}, "rgb": {"n": 3.6}}, pair=pair)
@@ -65,7 +65,7 @@ def classic(degenerate: bool = False, **setting) -> dict:
 # ---------------------------------------------------------------- marks
 
 
-def test_a_mark_is_the_verdict_on_the_stored_interval():
+def test_a_mark_is_mark_of_on_the_stored_interval():
     lines = PST.input_track_lines(input_track())
     row = next(line for line in lines if line.startswith("in_edge_k0 "))
     assert row == ("in_edge_k0         6.0/ 6.0 +0.0100 ★ [+0.010,+0.020] +0.0100 ✗ [-0.020,-0.010]"
@@ -76,7 +76,7 @@ def test_a_mark_reads_the_interval_in_the_key_s_direction(monkeypatch):
     # Every key the four tables print is one where higher is better, so the
     # direction is planted: an interval below zero is a star where lower is better.
     monkeypatch.setitem(PST.PILOT_KEY_OF, "planted", "underseg_error")
-    assert PST.mark(DOWN, "planted") == "★" and PST.mark(UP, "planted") == "✗"
+    assert PST.mark_text(DOWN, "planted") == "★" and PST.mark_text(UP, "planted") == "✗"
 
 
 def test_the_identity_table_carries_no_mark():
@@ -86,7 +86,7 @@ def test_the_identity_table_carries_no_mark():
     assert lines[4].startswith("rgb/a:rgb/b") and "+0.2000 [+0.010,+0.020]   3-  1" in lines[4]
 
 
-def test_a_stored_mark_that_is_not_the_verdict_is_refused():
+def test_a_stored_mark_that_is_not_mark_of_s_is_refused():
     d = kmerge_pairs()
     d["pairs"][1]["verdict"] = "★"
     with pytest.raises(ValueError, match="stores the mark '★'"):

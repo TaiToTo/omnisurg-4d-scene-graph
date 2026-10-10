@@ -4,10 +4,10 @@ The four are: each geometry input against rgb, merged to one K
 (`fair_merge_recheck --mode input_track`); identity over time
 (`summarize_track12`); conditions merged to one K by `kmerge --pairs`;
 and a classic watershed, normal against rgb (`classic_seg`). The tables
-are pasted as printed, never copied by hand. Every mark is
-`paired_stats.verdict` on the stored video-level interval, read in the
-key's direction, and a mark a JSON stores must equal it. The measures of
-identity are reference values and carry no mark.
+are pasted as printed, never copied by hand. Every mark is the one
+`paired_stats.mark_of` gives on the stored video-level interval, read in
+the key's direction, and a mark a JSON stores must equal it. The measures
+of identity are reference values and carry no mark.
 
 Usage:
     python -m evalkit.tools.print_status_tables --input-track e1_input_track.json \\
@@ -20,7 +20,7 @@ import json
 import os
 from collections.abc import Sequence
 
-from evalkit.tools.paired_stats import VERDICT_RULE, verdict
+from evalkit.tools.paired_stats import MARK_RULE, mark_of
 from evalkit.tools.scores import PILOT_SIGNS
 
 SEPARATOR = "=" * 100
@@ -54,23 +54,23 @@ def load_analysis(path: str) -> dict:
         return json.load(f, parse_constant=refuse)
 
 
-def mark(ci: Sequence[float], key: str, stored: str | None = None, withheld: bool = False) -> str:
-    """Return `paired_stats.verdict` on a stored interval in `key`'s direction, or two spaces for no mark.
+def mark_text(ci: Sequence[float], key: str, stored: str | None = None, withheld: bool = False) -> str:
+    """Return the mark `paired_stats.mark_of` gives on a stored interval in `key`'s direction, or two spaces for none.
 
     Args:
         ci: The stored video-level 95 % interval of the difference.
         key: The analysis's name for the key, a key of `PILOT_KEY_OF`.
         stored: The mark the JSON stores beside the interval, if it stores one.
-        withheld: The analysis withheld the verdict on this row, so no mark is given.
+        withheld: The analysis withheld the mark on this row, so no mark is given.
 
     Raises:
         ValueError: `stored` is not the mark this gives. A JSON whose mark
             another rule decided is refused rather than printed under this one.
     """
-    m = "" if withheld else verdict(ci, PILOT_SIGNS[PILOT_KEY_OF[key]])
+    m = "" if withheld else mark_of(ci, PILOT_SIGNS[PILOT_KEY_OF[key]])
     if stored is not None and stored != m:
         raise ValueError(f"{key} {list(ci)}: the JSON stores the mark {stored!r}, "
-                         f"and paired_stats.verdict gives {m!r}")
+                         f"and paired_stats.mark_of gives {m!r}")
     return m or "  "
 
 
@@ -89,7 +89,7 @@ def input_track_lines(d: dict) -> list[str]:
     lines = [f"Inputs merged to one K, fair_merge_recheck --mode input_track / dataset {d['dataset']} / "
              f"stride {d['stride']} / {d['n_clips']} clips / {d['n_videos']} videos / {d['n_frames']} frames / "
              f"eval_code_sha {d['eval_code_sha'][:8]} / base {base}",
-             f"Δ = arm − {base}, both merged to the same K. Mark: {VERDICT_RULE}", "",
+             f"Δ = arm − {base}, both merged to the same K. Mark: {MARK_RULE}", "",
              f"{'arm':18s}{'regions':>8s} " + " ".join(f"{h:>26s}" for _, h in INPUT_TRACK_KEYS)]
 
     # One row per input and K: the regions of the two arms, then each key's difference, mark and interval.
@@ -101,7 +101,7 @@ def input_track_lines(d: dict) -> list[str]:
             for key, _ in INPUT_TRACK_KEYS:
                 v = d["pairs"][name][key]
                 ci = v["ci95_video"]
-                row += f" {v['delta']:+.4f} {mark(ci, key)} [{ci[0]:+.3f},{ci[1]:+.3f}]"
+                row += f" {v['delta']:+.4f} {mark_text(ci, key)} [{ci[0]:+.3f},{ci[1]:+.3f}]"
             lines.append(row)
         lines.append("")
     lines += ["k0 is compared with rgb pps24 unmerged, so the region counts differ. "
@@ -116,7 +116,7 @@ def input_track_lines(d: dict) -> list[str]:
             raise ValueError(f"{name}: the analysis found the matched row broken, so it is not a comparison")
         row = f"{name:14s} reached {m['n_reached']:.2f} / clamped {m['n_clamped']:3d} clips |"
         for key, _ in INPUT_TRACK_KEYS:
-            row += f" {m[key]['delta']:+.4f} {mark(m[key]['ci95_video'], key)}"
+            row += f" {m[key]['delta']:+.4f} {mark_text(m[key]['ci95_video'], key)}"
         bp = m["by_procedure"]
         pos_f1 = sum(1 for p in bp.values() if p["delta"]["full"] > 0)
         pos_bf = sum(1 for p in bp.values() if p["delta"]["boundary_F"] > 0)
@@ -159,14 +159,14 @@ def kmerge_pairs_lines(d: dict) -> list[str]:
     """Return the pairs `kmerge --pairs` compared, each at one K or at the matched region count.
 
     Raises:
-        ValueError: A stored mark is not `paired_stats.verdict`'s on its interval.
+        ValueError: A stored mark is not the one `paired_stats.mark_of` gives on its interval.
     """
     lines = [f"Merged pairs, kmerge --pairs / dataset {d['dataset']} / stride {d['stride']} / K {d['k_list']} / "
-             f"mark: {VERDICT_RULE}",
+             f"mark: {MARK_RULE}",
              "Δ = a − b: the per-frame stage's F1, both merged to the same K"]
     for p in d["pairs"]:
         ci = p["ci95_video"]
-        lines.append(f"  {p['a']} − {p['b']} @ {p['at']:8s} {p['delta']:+.4f} {mark(ci, 'f1', p['verdict'])} "
+        lines.append(f"  {p['a']} − {p['b']} @ {p['at']:8s} {p['delta']:+.4f} {mark_text(ci, 'f1', p['verdict'])} "
                      f"[{ci[0]:+.4f},{ci[1]:+.4f}] wins-losses {p['win']}-{p['lose']} / "
                      f"{p['n_clips']} clips {p['n_videos']} videos")
     return lines
@@ -178,7 +178,7 @@ def classic_lines(docs: Sequence[dict]) -> list[str]:
     Raises:
         ValueError: The JSONs differ in stride or in whether instruments
             were dropped, which the table's one header states; or a stored
-            mark is not `paired_stats.verdict`'s on its interval.
+            mark is not the one `paired_stats.mark_of` gives on its interval.
     """
     setting = {(d["stride"], d["drop_instruments"]) for d in docs}
     if len(setting) != 1:
@@ -198,7 +198,7 @@ def classic_lines(docs: Sequence[dict]) -> list[str]:
                 ci = v["ci95_video"]
                 # A row whose markers fell short of K holds no mark: one arm was
                 # not cut into K regions, so the comparison is not the one asked.
-                m = mark(ci, key, v["verdict"], withheld=r["degenerate"])
+                m = mark_text(ci, key, v["verdict"], withheld=r["degenerate"])
                 row += f" {v['delta']:+.4f} {m} [{ci[0]:+.3f},{ci[1]:+.3f}]"
             lines.append(row + ("  degenerate" if r["degenerate"] else ""))
     return lines
