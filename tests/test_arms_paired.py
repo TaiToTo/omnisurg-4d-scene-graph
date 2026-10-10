@@ -1,5 +1,8 @@
 """arms_paired prints the workbench's rows, marks a line only in its key's direction, and refuses a mixed table.
 
+`scores.check_comparable_table`, which refuses a mixed table, is tested
+with `paired_table`, which uses it too; here the command shows it is used.
+
 The rows are pinned to what the workbench's `arms_paired.py` printed on
 the same per-clip values, generated here and run through the workbench
 version once.
@@ -16,7 +19,7 @@ import pytest
 
 from evalkit.tools import arms_paired as AP
 from evalkit.tools.paired_stats import VERDICT_RULE, boot_ci, video_of
-from evalkit.tools.scores import PILOT_EVAL_CODE_SHA, check_comparable, metric_key
+from evalkit.tools.scores import PILOT_EVAL_CODE_SHA, metric_key
 
 pytest.importorskip("scipy", reason="the Wilcoxon test needs the `tools` extra")
 
@@ -163,90 +166,19 @@ def test_only_a_difference_of_exactly_zero_stays():
 # ---------------------------------------------------------------- what a table refuses
 
 
-def _plant(summaries: dict, fault: str) -> None:
-    """Change both conditions of the pair `normal_pf:normal_edge_pf` alike, so that the pair passes alone."""
-    if fault == "dataset":
-        # The pilot's first JSONs recorded no domain, and then the dataset is compared alone.
-        for s in summaries.values():
-            s["eval_version"] = None
-    for s in (summaries["normal_pf"], summaries["normal_edge_pf"]):
-        if fault == "sha":
-            s["eval_code_sha"] = "b" * 64
-        elif fault == "domain":
-            s["tissue_ignore"] = [3]
-        elif fault == "dataset":
-            s["dataset"] = "cholec"
-        elif fault == "clips":
-            s["clips"], s["per_clip"] = s["clips"][1:], s["per_clip"][1:]
-
-
-@pytest.mark.parametrize("fault, said", [
-    ("sha", "different evaluators"),
-    ("domain", "different domains"),
-    ("dataset", "different datasets"),
-    ("clips", "clip sets differ"),
-])
-def test_a_table_mixing_pilot_rulers_is_refused_though_each_pair_passes(fault, said):
-    summaries = table_of_pilot_scores()
-    _plant(summaries, fault)
-    pairs = [("rgb_pf", "rgb_edge_pf"), ("normal_pf", "normal_edge_pf")]
-    for base, cond in pairs:
-        check_comparable(summaries[base], summaries[cond])
-    with pytest.raises(ValueError, match=said):
-        AP.compare_pairs(summaries, pairs, "inst_F1_50")
-
-
-def test_a_json_that_records_no_domain_does_not_let_two_domains_through():
-    # Checked against `rgb_pf` alone, which records no domain, the other two pass.
-    summaries = table_of_pilot_scores()
-    summaries["rgb_pf"]["eval_version"] = None
-    summaries["normal_edge_pf"]["tissue_ignore"] = [3]
-    pairs = [("rgb_pf", "rgb_edge_pf"), ("rgb_pf", "normal_edge_pf")]
-    for base, cond in pairs:
-        check_comparable(summaries[base], summaries[cond])
-    with pytest.raises(ValueError, match="rgb_edge_pf and normal_edge_pf: .*different domains"):
-        AP.compare_pairs({t: summaries[t] for t in ("rgb_pf", "rgb_edge_pf", "normal_edge_pf")}, pairs, "inst_F1_50")
-
-
-@pytest.mark.parametrize("setting", [dict(class_set="benchmark"), dict(views=("all", "tissue")), dict(pilot=True)])
-def test_a_table_mixing_evaluator_settings_is_refused_though_each_pair_passes(setting):
-    summaries = {"a": evaluator_scores(seed=1), "b": evaluator_scores(seed=2),
-                 "c": evaluator_scores(seed=3, **setting), "d": evaluator_scores(seed=4, **setting)}
-    check_comparable(summaries["c"], summaries["d"])
-    with pytest.raises(ValueError, match="These differ"):
-        AP.compare_pairs(summaries, [("a", "b"), ("c", "d")], "F1_50/all")
-
-
-def test_a_table_holding_two_rules_is_refused_though_each_pair_passes():
-    pf = evaluator_scores(propagation="per_frame", seed=1)
-    fwd = evaluator_scores(propagation="forward_from_first", seed=2)
-    both = evaluator_scores(seed=3)
-    for cond in (fwd, both):
-        check_comparable(pf, cond)
-    with pytest.raises(ValueError, match="different rules"):
-        AP.compare_pairs({"pf": pf, "fwd": fwd, "both": both}, [("pf", "fwd"), ("pf", "both")], "F1_50/all")
-
-
-def test_a_table_of_one_rule_and_per_frame_records_the_rule():
-    summaries = {"pf": evaluator_scores(propagation="per_frame", seed=1), "both": evaluator_scores(seed=2)}
-    table = AP.compare_pairs(summaries, [("pf", "both")], "F1_50/geometric")
-    assert (table["propagation"], table["sign"]) == ("both_ways_from_centre", +1)
-
-
 def test_the_header_names_the_table_s_rule(capsys):
     table = AP.compare_pairs({"pf": evaluator_scores(propagation="per_frame", seed=1), "both": evaluator_scores(seed=2)},
                              [("pf", "both")], "F1_50/geometric")
     AP.print_table(table)
-    assert capsys.readouterr().out.startswith(f"{len(CLIPS)} clips / {len(VIDEOS)} videos, eval_code=aaaaaaaaaaaaaaaa, "
-                                              "propagation=both_ways_from_centre\n")
+    assert capsys.readouterr().out.startswith(f"atlas120k: {len(CLIPS)} clips / {len(VIDEOS)} videos, "
+                                              "eval_code=aaaaaaaaaaaaaaaa, propagation=both_ways_from_centre\n")
 
 
 def test_different_library_versions_are_reported_not_refused(capsys):
     summaries = {"a": evaluator_scores(seed=1), "b": evaluator_scores(seed=2), "c": evaluator_scores(seed=3)}
     summaries["c"]["versions"] = {"numpy": "2.1.0"}
     table = AP.compare_pairs(summaries, [("a", "b"), ("a", "c")], "F1_50/geometric")
-    assert table["versions_differ"] == {"a and c": {"numpy": ("2.0.0", "2.1.0")},
-                                        "b and c": {"numpy": ("2.0.0", "2.1.0")}}
+    assert table["versions_differ"] == {("a", "c"): {"numpy": ("2.0.0", "2.1.0")}}
     AP.print_table(table)
     assert "note: library versions differ between a and c: {'numpy': ('2.0.0', '2.1.0')}" in capsys.readouterr().out
 
@@ -300,16 +232,28 @@ def test_the_command_prints_the_workbench_s_rows(tmp_path):
     res = _run(tmp_path)
     assert res.returncode == 0, res.stderr
     lines = res.stdout.splitlines()
-    assert lines[0] == f"{len(CLIPS)} clips / {len(VIDEOS)} videos, eval_code={PILOT_EVAL_CODE_SHA[:16]}"
+    assert lines[0] == f"atlas: {len(CLIPS)} clips / {len(VIDEOS)} videos, eval_code={PILOT_EVAL_CODE_SHA[:16]}"
     head = next(i for i, line in enumerate(lines) if line.startswith("pair"))
     assert lines[head + 1:head + 1 + len(PAIRS)] == WORKBENCH_ROWS["inst_F1_50"]
     assert lines[-1] == f"★ / ✗: {VERDICT_RULE}."
 
 
 def test_the_command_refuses_a_mixed_table_and_names_the_two_conditions(tmp_path):
+    # Each pair passes alone: `normal_pf` and `normal_edge_pf` share the other evaluator.
     summaries = table_of_pilot_scores()
-    _plant(summaries, "sha")
+    for tag in ("normal_pf", "normal_edge_pf"):
+        summaries[tag]["eval_code_sha"] = "b" * 64
+    _write(tmp_path, summaries)
+    res = _run(tmp_path, pairs=[("rgb_pf", "rgb_edge_pf"), ("normal_pf", "normal_edge_pf")])
+    assert res.returncode != 0 and res.stdout == ""
+    assert "rgb_pf and normal_pf cannot share a table" in res.stderr and "different evaluators" in res.stderr
+
+
+def test_the_command_refuses_a_condition_with_no_score_json(tmp_path):
+    # The workbench skipped such a pair, and the table lost a line with nothing said.
+    summaries = table_of_pilot_scores()
+    del summaries["normal_edge_pf"]
     _write(tmp_path, summaries)
     res = _run(tmp_path)
     assert res.returncode != 0 and res.stdout == ""
-    assert "rgb_pf and normal_pf" in res.stderr and "different evaluators" in res.stderr
+    assert "normal_edge_pf.json" in res.stderr
