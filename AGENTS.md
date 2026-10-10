@@ -70,13 +70,15 @@ omnisurg-4d-scene-graph/
 ├── surgical_core/     cholec atlas120k stereomis geometry pointcloud preprocess viewer clip_time
 ├── evalkit/           the evaluator, hashed into eval_code_sha with its class tables
 │   └── tools/         what reads scores or predictions, never hashed: scores
-│                      paired_stats compare_eval condition_inventory pilot_check kmerge
-│                      pose_metrics (track_metrics: not yet ported)
+│                      paired_stats compare_eval condition_inventory check_provenance
+│                      pilot_check kmerge pose_metrics paired_table arms_paired
+│                      leave_one_video_out (track_metrics: not yet ported)
 ├── pipeline/          depth → segmentation → tracking → viewer export
 ├── recon3d_wrapper/   3D reconstruction — DA3 and Pi3 behind one interface
 ├── sam3_wrapper/      promptable segmentation and tracking (SAM 3)
 ├── atlas120k_meta/    crop rectangles, frame ratios, clip population (no video)
 ├── cholecseg8k_meta/  crop rectangles, clip population (no video)
+├── d4d_meta/          census clip list, scored sides (no frame or point cloud)
 ├── viewer/
 ├── docs/              evaluation.md, review.md, porting.md, data_contract.md, pipeline.md
 ├── tests/
