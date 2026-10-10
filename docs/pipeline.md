@@ -183,8 +183,10 @@ The stage refuses:
 - a frame or a mask whose size is not `src_w` × `src_h`, the size of the
   frames the rectangle was found on;
 - a cropped clip that already exists, unless `--overwrite` is given;
-- a cropped clip that holds anything a later stage wrote, such as
-  `depth_raw/`, even with `--overwrite`. Such a clip is removed by hand.
+- a cropped clip that holds anything a later stage wrote, even with
+  `--overwrite`: a file such as `depth_raw/`, or a key of the manifest that
+  the stage does not write, such as `depth_info`. Such a clip is removed by
+  hand.
 
 The stage writes the cropped clip as `<clip>_crop.part` and renames it when
 every file is written. Only then does `--overwrite` remove the earlier
