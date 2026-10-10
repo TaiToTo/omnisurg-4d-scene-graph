@@ -585,7 +585,9 @@ while the evaluator is built and reviewed is worked out in `docs/workstreams.md`
    missing condition.
 4. **Port the toolkit onto it.** Each tool is done when its tests pass, and:
    - on the pilot's score JSONs, it writes the same bytes as the workbench
-     version (the bootstrap is seeded). This holds for every tool. The
+     version (the bootstrap is seeded), apart from the departures its row
+     under "The toolkit around it" names. `paired_table` translates its
+     labels, so its output is compared value by value. The
      pilot's JSONs lack the fields the evaluator now writes (class set, view,
      mode, input hashes, versions, propagation rule); a tool reads them all the
      same, taking the missing fields as the pilot evaluator's, and raises
@@ -1027,12 +1029,15 @@ Every command takes those paths as arguments.
     (`make_t5_seeds.py`). A condition also has two names: its score's tag
     (`t12_rgb`) and its prediction directory (`track_rgb_t12_gtseed`).
     A score records its `track_dir_name`, so a condition renamed after
-    step 5 no longer matches its scores. Decide before step 5 writes new
-    conditions:
+    step 5 no longer matches its scores. `paired_table.PILOT_BLOCKS` names
+    17 conditions by their scores' tags, because it reads the pilot's score
+    JSONs by those names. Decide before step 5 writes new conditions:
     - how a name says what varies between conditions: the input, where the
       seed came from, and the propagation rule;
     - where the table lives that maps each workbench name to its name here.
-      That table is the only place a workbench name appears.
+      That table is the only place a workbench name appears;
+    - whether `PILOT_BLOCKS` keeps the workbench's tags or takes them from
+      that table.
 23. **How LapEx is scored.** The evaluator holds class tables for
     ATLAS-120k and CholecSeg8k only, so it cannot read a LapEx clip.
     `kmerge` reads a condition through the evaluator, so it cannot merge
@@ -1076,9 +1081,9 @@ Every command takes those paths as arguments.
     - the six rows of the `t5_*` conditions wait on "Seeds made outside
       the tracking stage", since the evaluator refuses their seeds;
     - a table holds one propagation rule besides `per_frame`, and the
-      author decided on 2026-10-10 that the paper reports the
-      `forward_from_first` conditions too, so the table is printed once
-      per rule, and the rows and tags under each rule are not fixed.
+      paper reports the `forward_from_first` conditions too ("What the
+      paper measures"). So the table is printed once per rule, and the
+      rows and tags under each rule are not fixed.
 
     `docs/evaluation.md` fixes the primary metric of each of the paper's
     three questions ("Primary metrics"). Decide which of the pilot's blocks
