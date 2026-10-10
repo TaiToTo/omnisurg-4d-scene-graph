@@ -1,13 +1,13 @@
 """Print the tables of four analyses from the JSONs those analyses wrote, computing nothing new.
 
-The four are: each geometry input against rgb, merged to one K
-(`fair_merge_recheck --mode input_track`); identity over time
-(`summarize_track12`); conditions merged to one K by `kmerge --pairs`;
-and a classic watershed, normal against rgb (`classic_seg`). The tables
-are pasted as printed, never copied by hand. Every mark is the one
-`paired_stats.mark_of` gives on the stored video-level interval, read in
-the key's direction, and a mark a JSON stores must equal it. The measures
-of identity are reference values and carry no mark.
+- each geometry input against rgb, merged to one K (`fair_merge_recheck --mode input_track`);
+- identity over time (`summarize_track12`), with no mark: its measures are reference values;
+- conditions merged to one K by `kmerge --pairs`;
+- a classic watershed, normal against rgb (`classic_seg`).
+
+Every mark is the one `paired_stats.mark_of` gives on the stored
+video-level interval, in the key's direction. A mark a JSON stores must
+equal it. The tables are pasted as printed, never copied by hand.
 
 Usage:
     python -m evalkit.tools.print_status_tables --input-track e1_input_track.json \\
