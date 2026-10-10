@@ -1,0 +1,218 @@
+{
+  "config": {
+    "tag": "paper/aecai2026-endolina-final",
+    "paths": {
+      "aecai_src": "${AECAI_REV_WORK}/aecai_src",
+      "work": "${AECAI_REV_WORK}",
+      "cholec_gt": "${OMNISURG_SOURCE}/outputs/cholec_gt",
+      "sam_ckpt": "${OMNISURG_SOURCE}/outputs/weights/sam_vit_h_4b8939.pth",
+      "hf_home": "${OMNISURG_SOURCE}/.hf_cache",
+      "cholecseg8k": "${CHOLECSEG8K_ROOT}",
+      "results": "./results/aecai_rev"
+    },
+    "seed": 0,
+    "windows": {
+      "population": "legacy27",
+      "samples": 30,
+      "stride": 15,
+      "seed_index": 15,
+      "min_annotated_frames": 5,
+      "legacy27": [
+        "VID01_s15_80_crop",
+        "VID01_s15_240_crop",
+        "VID01_s15_14859_crop",
+        "VID01_s15_16345_crop",
+        "VID12_s15_15750_crop",
+        "VID12_s15_19500_crop",
+        "VID12_s15_19900_crop",
+        "VID25_s15_162_crop",
+        "VID25_s15_402_crop",
+        "VID18_s15_979_crop",
+        "VID26_s15_1855_crop",
+        "VID27_s15_160_crop",
+        "VID27_s15_400_crop",
+        "VID35_s15_780_crop",
+        "VID43_s15_67_crop",
+        "VID43_s15_387_crop",
+        "VID48_s15_561_crop",
+        "VID52_s15_80_crop",
+        "VID52_s15_2746_crop",
+        "VID09_s15_832_crop",
+        "VID17_s15_1563_crop",
+        "VID20_s15_3260_crop",
+        "VID24_s15_0_crop",
+        "VID24_s15_9596_crop",
+        "VID28_s15_0_crop",
+        "VID37_s15_528_crop",
+        "VID55_s15_508_crop"
+      ]
+    },
+    "track": {
+      "modalities": [
+        "rgb",
+        "depth",
+        "normal"
+      ],
+      "points_per_side": [
+        8,
+        12,
+        16,
+        24,
+        32
+      ],
+      "points_per_side_extended": [
+        4,
+        6,
+        48
+      ],
+      "default_points_per_side": 24,
+      "track_base": "rgb",
+      "bidir": true,
+      "seed_min_area": 400,
+      "sam3_model_id": "facebook/sam3",
+      "sources": {
+        "4": "${AECAI_REV_WORK}/tracks/pps4",
+        "6": "${AECAI_REV_WORK}/tracks/pps6",
+        "8": "${OMNISURG_SOURCE}/depth_sam_tracking_experiment/out_w1_pps8",
+        "12": "${AECAI_REV_WORK}/tracks/pps12",
+        "16": "${OMNISURG_SOURCE}/depth_sam_tracking_experiment/out_w1_pps16",
+        "24": "${OMNISURG_SOURCE}/depth_sam_tracking_experiment/out_w1_all",
+        "32": "${OMNISURG_SOURCE}/depth_sam_tracking_experiment/out_w1_pps32",
+        "48": "${OMNISURG_SOURCE}/depth_sam_tracking_experiment/out_w1_pps48"
+      }
+    },
+    "score": {
+      "iou_thresholds": [
+        0.5,
+        0.75
+      ],
+      "legacy_min_area_px": 300,
+      "min_area_frac": 0.001,
+      "min_area_frac_sweep": [
+        0.0,
+        0.001,
+        0.005
+      ]
+    },
+    "stats": {
+      "n_boot": 10000,
+      "ci": 0.95,
+      "pairs": [
+        [
+          "normal",
+          "rgb"
+        ],
+        [
+          "normal",
+          "depth"
+        ],
+        [
+          "rgb",
+          "depth"
+        ]
+      ]
+    },
+    "identity": {
+      "match_iou": 0.5,
+      "gt_link_min_iou": 0.0,
+      "links": {
+        "consecutive_annotated": null,
+        "adjacent_samples": 1
+      },
+      "n_examples": 3
+    },
+    "classes": {
+      "names": {
+        "0": "background",
+        "1": "abdominal wall",
+        "2": "liver",
+        "3": "gastrointestinal tract",
+        "4": "fat",
+        "5": "grasper",
+        "6": "connective tissue",
+        "7": "blood",
+        "8": "cystic duct",
+        "9": "L-hook electrocautery",
+        "10": "gallbladder",
+        "11": "hepatic vein",
+        "12": "liver ligament"
+      },
+      "instrument": [
+        5,
+        9
+      ],
+      "tissue": [
+        1,
+        2,
+        3,
+        4,
+        6,
+        7,
+        8,
+        10,
+        11,
+        12
+      ],
+      "background": [
+        0
+      ]
+    }
+  },
+  "repo_commit": "7bb101200096c3cdfb0bf020f7f661119ad138dd",
+  "repo_dirty": true,
+  "tag": "paper/aecai2026-endolina-final",
+  "tag_commit": "e1d60001478c3da36c1759405bb35111f0b662b0",
+  "seed": 0,
+  "versions": {
+    "python": "3.12.3",
+    "numpy": "1.26.4",
+    "scipy": "1.17.1",
+    "platform": "Linux-6.8.0-90-generic-x86_64-with-glibc2.39"
+  },
+  "what": "item 5: instrument-tissue merge rate",
+  "overlay_thresholds": {
+    "contain_tau": 0.8,
+    "overlap_tau": 0.3
+  },
+  "classes": {
+    "names": {
+      "0": "background",
+      "1": "abdominal wall",
+      "2": "liver",
+      "3": "gastrointestinal tract",
+      "4": "fat",
+      "5": "grasper",
+      "6": "connective tissue",
+      "7": "blood",
+      "8": "cystic duct",
+      "9": "L-hook electrocautery",
+      "10": "gallbladder",
+      "11": "hepatic vein",
+      "12": "liver ligament"
+    },
+    "instrument": [
+      5,
+      9
+    ],
+    "tissue": [
+      1,
+      2,
+      3,
+      4,
+      6,
+      7,
+      8,
+      10,
+      11,
+      12
+    ],
+    "background": [
+      0
+    ]
+  },
+  "libraries": {
+    "numpy": "1.26.4",
+    "scipy": "1.17.1",
+    "pandas": "3.0.1"
+  }
+}

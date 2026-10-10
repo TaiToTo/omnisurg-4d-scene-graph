@@ -1,0 +1,134 @@
+# Every condition of the AE-CAI / HTL revision experiments.
+#
+# Paths are machine-specific, so each one names an environment variable and
+# `aecai_rev.config.load` refuses to start while one is unset:
+#   OMNISURG_SOURCE  the private workbench (holds outputs/cholec_gt and the
+#                    frozen tracks of the AE-CAI run)
+#   AECAI_REV_WORK   a work directory for the tagged source and every
+#                    intermediate output (seed maps, tracks, matches)
+#   CHOLECSEG8K_ROOT the CholecSeg8k release (video01/video01_00080/...)
+
+tag: paper/aecai2026-endolina-final
+
+paths:
+  aecai_src: ${AECAI_REV_WORK}/aecai_src
+  work: ${AECAI_REV_WORK}
+  cholec_gt: ${OMNISURG_SOURCE}/outputs/cholec_gt
+  sam_ckpt: ${OMNISURG_SOURCE}/outputs/weights/sam_vit_h_4b8939.pth
+  hf_home: ${OMNISURG_SOURCE}/.hf_cache
+  cholecseg8k: ${CHOLECSEG8K_ROOT}
+  results: results/aecai_rev
+
+seed: 0
+
+# The window population. `legacy27` is the AE-CAI evaluation set.
+windows:
+  population: legacy27
+  samples: 30          # sampled frames per window
+  stride: 15           # source frames between samples
+  seed_index: 15       # 0-based sample index of the seed (the 16th frame)
+  min_annotated_frames: 5
+  legacy27:
+    - VID01_s15_80_crop
+    - VID01_s15_240_crop
+    - VID01_s15_14859_crop
+    - VID01_s15_16345_crop
+    - VID12_s15_15750_crop
+    - VID12_s15_19500_crop
+    - VID12_s15_19900_crop
+    - VID25_s15_162_crop
+    - VID25_s15_402_crop
+    - VID18_s15_979_crop
+    - VID26_s15_1855_crop
+    - VID27_s15_160_crop
+    - VID27_s15_400_crop
+    - VID35_s15_780_crop
+    - VID43_s15_67_crop
+    - VID43_s15_387_crop
+    - VID48_s15_561_crop
+    - VID52_s15_80_crop
+    - VID52_s15_2746_crop
+    - VID09_s15_832_crop
+    - VID17_s15_1563_crop
+    - VID20_s15_3260_crop
+    - VID24_s15_0_crop
+    - VID24_s15_9596_crop
+    - VID28_s15_0_crop
+    - VID37_s15_528_crop
+    - VID55_s15_508_crop
+
+# The tracking run, as the AE-CAI run made it (run_w1_sam_input_ablation.sh).
+track:
+  modalities: [rgb, depth, normal]
+  # The grid the revision specifies, and the points added around it so that
+  # every modality's region count can bracket the GT instance count.
+  points_per_side: [8, 12, 16, 24, 32]
+  points_per_side_extended: [4, 6, 48]
+  default_points_per_side: 24
+  track_base: rgb
+  bidir: true
+  seed_min_area: 400
+  sam3_model_id: facebook/sam3
+  # Where each points_per_side value's tracks are. `{work}` is paths.work and
+  # `{source}` is OMNISURG_SOURCE. The four frozen AE-CAI sweep points are
+  # read in place; a value with no frozen run is tracked into the work dir.
+  sources:
+    4: ${AECAI_REV_WORK}/tracks/pps4
+    6: ${AECAI_REV_WORK}/tracks/pps6
+    8: ${OMNISURG_SOURCE}/depth_sam_tracking_experiment/out_w1_pps8
+    12: ${AECAI_REV_WORK}/tracks/pps12
+    16: ${OMNISURG_SOURCE}/depth_sam_tracking_experiment/out_w1_pps16
+    24: ${OMNISURG_SOURCE}/depth_sam_tracking_experiment/out_w1_all
+    32: ${OMNISURG_SOURCE}/depth_sam_tracking_experiment/out_w1_pps32
+    48: ${OMNISURG_SOURCE}/depth_sam_tracking_experiment/out_w1_pps48
+
+# Scoring.
+score:
+  iou_thresholds: [0.5, 0.75]
+  # The AE-CAI evaluator dropped GT connected components and predicted
+  # regions under 300 pixels. The revision states the cut as a fraction of
+  # the frame's valid area (pixels with finite, positive depth), applied to
+  # both sides.
+  legacy_min_area_px: 300
+  min_area_frac: 0.001
+  min_area_frac_sweep: [0.0, 0.001, 0.005]
+
+stats:
+  n_boot: 10000
+  ci: 0.95
+  pairs: [[normal, rgb], [normal, depth], [rgb, depth]]
+
+identity:
+  match_iou: 0.5
+  # GT instances are linked between consecutive annotated frames; a pair of
+  # same-class components is linked when its IoU is the largest left and
+  # above `gt_link_min_iou`. Each entry of `links` names a linking rule and
+  # the largest step, in sampled frames, it links across (null: any step).
+  # The first entry is the primary one; ID switches are counted over the
+  # same pairs of frames the rule links.
+  gt_link_min_iou: 0.0
+  links:
+    consecutive_annotated: null
+    adjacent_samples: 1
+  n_examples: 3
+
+# CholecSeg8k's 13 classes, split into instrument and tissue for the
+# instrument-tissue merge rate. Background is neither.
+classes:
+  names:
+    0: background
+    1: abdominal wall
+    2: liver
+    3: gastrointestinal tract
+    4: fat
+    5: grasper
+    6: connective tissue
+    7: blood
+    8: cystic duct
+    9: L-hook electrocautery
+    10: gallbladder
+    11: hepatic vein
+    12: liver ligament
+  instrument: [5, 9]
+  tissue: [1, 2, 3, 4, 6, 7, 8, 10, 11, 12]
+  background: [0]

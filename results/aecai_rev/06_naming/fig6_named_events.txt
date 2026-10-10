@@ -1,0 +1,5 @@
+# window VID12_s15_19900_crop, focus node 6, partner node 9
+t=4: L-hook electrocautery (node 6) re-enters the view
+t=20: L-hook electrocautery (node 6) moves from right of to above the gallbladder (node 9)
+t=26: L-hook electrocautery (node 6) moves from right of to above the gallbladder (node 9)
+t=28: L-hook electrocautery (node 6) moves from right of to above the gallbladder (node 9)
