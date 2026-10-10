@@ -29,7 +29,9 @@ from evalkit.tools.paired_stats import (
     SEED_SCHEME,
     VERDICT_RULE,
     boot_ci,
+    format_signed,
     load_json,
+    round_keeping_sign,
     sign_of_key,
     verdict,
     video_of,
@@ -45,23 +47,8 @@ RANGE_VIDEOS = 3
 THIN_VIDEOS = 5
 
 
-def _r(x: float) -> float:
-    """Round to four decimals, keeping a value that would round to zero at two significant digits.
-
-    A mark follows the sign of an interval's end. An end of -2.4e-05
-    written as -0.0 cannot be read back to its mark.
-    """
-    r = round(float(x), 4)
-    return r if r != 0.0 or float(x) == 0.0 else float(f"{float(x):.2g}")
-
-
-def _f(x: float) -> str:
-    """Print a difference with four decimals, or in exponent form where four decimals would show zero."""
-    return f"{x:+.4f}" if abs(x) >= 5e-5 or x == 0 else f"{x:+.2e}"
-
-
 def _ci(ci: Sequence[float]) -> str:
-    return f"[{_f(ci[0])}, {_f(ci[1])}]"
+    return f"[{format_signed(ci[0])}, {format_signed(ci[1])}]"
 
 
 def direction(summary: dict, key: str) -> int:
@@ -120,17 +107,19 @@ def leave_each_out(d: np.ndarray, vids: np.ndarray, sign: int) -> dict:
     for v in videos:
         m = vids != v
         ci = list(boot_ci(d[m], vids[m]))
+        width_ratio = (ci[1] - ci[0]) / (full_ci[1] - full_ci[0]) if full_ci[1] != full_ci[0] else None
         per.append(dict(
             video=v, n_clips=int((~m).sum()), n_videos_wo=len(videos) - 1,
-            own_delta=_r(d[~m].mean()), delta_wo=_r(d[m].mean()),
-            ci95_wo=[_r(ci[0]), _r(ci[1])],
-            ci_width_ratio=_r((ci[1] - ci[0]) / (full_ci[1] - full_ci[0])) if full_ci[1] != full_ci[0] else None,
+            own_delta=round_keeping_sign(d[~m].mean()), delta_wo=round_keeping_sign(d[m].mean()),
+            ci95_wo=[round_keeping_sign(x) for x in ci],
+            ci_width_ratio=None if width_ratio is None else round_keeping_sign(width_ratio),
             mark_wo=verdict(ci, sign)))
     flips = [p["video"] for p in per if p["mark_wo"] != full]
     return dict(n_clips=int(len(d)), n_videos=len(videos),
                 # `delta` is `cond - base` and `mark` is read in the key's
                 # direction, so the direction stays with them.
-                sign=int(sign), delta=_r(d.mean()), ci95_video=[_r(full_ci[0]), _r(full_ci[1])],
+                sign=int(sign), delta=round_keeping_sign(d.mean()),
+                ci95_video=[round_keeping_sign(x) for x in full_ci],
                 mark=full, n_flips=len(flips), flips=flips, per_video=per)
 
 
@@ -184,7 +173,7 @@ def _note(n_videos: int) -> str:
 
 def _print_key(k: str, r: dict) -> None:
     lower = " (lower is better)" if r["sign"] < 0 else ""
-    print(f"  {k}{lower}  Δ={_f(r['delta'])} {_ci(r['ci95_video'])} {r['mark'] or 'no mark'}"
+    print(f"  {k}{lower}  Δ={format_signed(r['delta'])} {_ci(r['ci95_video'])} {r['mark'] or 'no mark'}"
           f" ({r['n_clips']} clips / {r['n_videos']} videos){_note(r['n_videos'])}")
     if not r["n_flips"]:
         print("    no single video left out changes the mark")
@@ -196,9 +185,9 @@ def _print_key(k: str, r: dict) -> None:
         # Both the mean and the width move, and neither alone says which of them changed the mark.
         w = p["ci_width_ratio"]
         width = "" if w is None else f", the interval {w:.2f} times as wide"
-        print(f"      without {p['video']} ({p['n_clips']} clips, its own Δ={_f(p['own_delta'])}):"
-              f" Δ={_f(p['delta_wo'])} {_ci(p['ci95_wo'])} {p['mark_wo'] or 'no mark'}"
-              f" ({p['n_videos_wo']} videos, the mean moved {_f(p['delta_wo'] - r['delta'])}{width})"
+        print(f"      without {p['video']} ({p['n_clips']} clips, its own Δ={format_signed(p['own_delta'])}):"
+              f" Δ={format_signed(p['delta_wo'])} {_ci(p['ci95_wo'])} {p['mark_wo'] or 'no mark'}"
+              f" ({p['n_videos_wo']} videos, the mean moved {format_signed(p['delta_wo'] - r['delta'])}{width})"
               f"{_note(p['n_videos_wo'])}")
 
 
