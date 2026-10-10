@@ -4,8 +4,9 @@ Each check is shown refusing a planted fault:
 
 - a score JSON without the key, or with a key that has no direction;
 - a stage the propagation rules contradict, and two rules in one table;
-- a column given the other dataset's scores, a JSON of another dataset, and a JSON with no dataset;
-- a pair that is not comparable, and a column of two populations;
+- a column given the other dataset's scores, both columns given one dataset's, a JSON of another dataset,
+  and a JSON with no dataset;
+- a pair that is not comparable, and a column of two populations that no measured pair joins;
 - a reference value as the key;
 - a directory that is missing or holds none of the table's conditions, and a cell not measured.
 """
@@ -116,12 +117,12 @@ def test_a_cell_is_the_pair_statistics_of_paired_stats_on_the_key(tmp_path):
     assert cells[0] == PS.compare_pair(base, cond, keys=[PILOT_KEY])
     r = cells[0]["metrics"][PILOT_KEY]
     assert CT.format_cell(cells[0], PILOT_KEY) == (
-        f"{r['delta_mean']:+.4f} [{r['ci95_video'][0]:+.3f},{r['ci95_video'][1]:+.3f}] "
-        f"p={r['wilcoxon_p']}★ (8 clips, 4 videos)")
+        f"{r['delta_mean']:+.4f} [{r['ci95_video'][0]:+.4f}, {r['ci95_video'][1]:+.4f}] "
+        f"p={r['wilcoxon_p']:.5f}★ (8 clips, 4 videos)")
 
 
 def test_a_row_is_starred_in_both_only_when_both_datasets_give_a_star(tmp_path):
-    dirs = write_table(tmp_path, {("atlas120k", "t5_k10"): 0.05, ("cholecseg8k", "t5_k10"): 0.05,
+    dirs = write_table(tmp_path, {("atlas120k", "t5_k10"): 0.10, ("cholecseg8k", "t5_k10"): 0.10,
                                   ("atlas120k", "rgb_center18"): 0.05, ("cholecseg8k", "ch_rgb_center"): -0.05})
     rows, _, _ = CT.build(dirs, PILOT_KEY)
     both = {claim.name: all(CT.star_in(p, PILOT_KEY) for p in cells) for claim, cells in rows}
@@ -142,25 +143,25 @@ def test_a_key_where_less_is_better_is_read_in_its_direction(tmp_path):
 
 def test_a_condition_without_a_score_json_is_not_measured_and_its_row_gets_no_star(tmp_path):
     dirs = write_table(tmp_path, {("atlas120k", "t5_k10"): 0.05, ("cholecseg8k", "t5_k10"): 0.05},
-                       skip={("cholecseg8k", "t5_floor")})
+                       skip={("cholecseg8k", "ch_rgb_center")})
     rows, _, _ = CT.build(dirs, PILOT_KEY)
-    assert rows[0][1][1] == CT.Unmeasured(("t5_floor",))
-    assert CT.format_cell(rows[0][1][1], PILOT_KEY) == "not measured: no t5_floor.json"
+    assert rows[0][1][1] == CT.Unmeasured(("ch_rgb_center",))
+    assert CT.format_cell(rows[0][1][1], PILOT_KEY) == "not measured: no ch_rgb_center.json"
     assert not all(CT.star_in(p, PILOT_KEY) for p in rows[0][1])
-    assert "→ 2 / 5 rows get a star in both datasets; 1 rows have a cell not measured" in CT.render(
+    assert "→ 2 / 5 rows get a star in both datasets; 2 rows have a cell not measured" in CT.render(
         rows, None, PILOT_KEY, markdown=False)
 
 
-def test_the_star_is_the_mark_paired_stats_read_before_rounding(tmp_path, monkeypatch):
-    # The rounded interval [0.0, 0.0151] gives no star; the interval it was rounded from gives one.
+def test_an_interval_that_ends_near_zero_keeps_its_star_and_shows_its_end(tmp_path, monkeypatch):
+    # Written at four places alone, the lower end would be 0.0: no star, and printed as +0.0000.
     monkeypatch.setattr(PS, "boot_ci", lambda d, groups, **kw: (2.03e-05, 0.01509))
     rows, _, _ = CT.build(write_table(tmp_path), PILOT_KEY)
-    r = rows[0][1][0]["metrics"][PILOT_KEY]
-    assert r["ci95_video"] == [0.0, 0.0151] and CT.star_in(rows[0][1][0], PILOT_KEY)
+    assert CT.star_in(rows[0][1][0], PILOT_KEY)
+    assert "[+2.00e-05, +0.0151] p=" in CT.format_cell(rows[0][1][0], PILOT_KEY)
     assert "★ (8 clips" in CT.format_cell(rows[0][1][0], PILOT_KEY)
 
 
-def test_a_score_json_without_the_key_is_refused_not_shown_as_not_measured(tmp_path):
+def test_a_score_json_without_the_key_is_refused_not_shown_as_not_defined(tmp_path):
     dirs = write_table(tmp_path)
     rewrite(dirs, "cholecseg8k", "t5_k10", lambda d: [r.pop(PILOT_KEY) for r in d["per_clip"]])
     with pytest.raises(ValueError, match=r"Merging fixes over-splitting.*\(cholecseg8k\).*t5_k10.*holds no"):
@@ -202,8 +203,9 @@ def test_the_stages_are_checked_against_the_rules_the_evaluator_records(tmp_path
 
 
 @pytest.mark.parametrize("column, tag, said", [
-    ("atlas120k", "t5_floor", r"Merging fixes.*\(atlas120k\).*measured 'propagated'.*t5_floor.*'per_frame'"),
-    ("cholecseg8k", "ch_rgb_center", r"\(rgb, over-split\) \(cholecseg8k\).*ch_rgb_center the rule 'per_frame'"),
+    ("atlas120k", "rgb_center18", r"Merging fixes.*\(atlas120k\).*measured 'propagated'.*rgb_center18.*'per_frame'"),
+    ("cholecseg8k", "ch_edge_center",
+     r"\(normal_edge, over-split\) \(cholecseg8k\).*ch_edge_center the rule 'per_frame'"),
 ])
 def test_a_claim_on_propagated_regions_whose_condition_is_per_frame_is_refused(tmp_path, column, tag, said):
     dirs = write_table(tmp_path, layout="evaluator")
@@ -236,10 +238,18 @@ def test_pilot_jsons_leave_the_stages_declared_and_the_table_says_so(tmp_path):
 
 @pytest.mark.parametrize("layout", ["pilot", "evaluator"])
 def test_columns_given_each_other_s_scores_are_refused(tmp_path, layout):
-    # `t5_floor` and `t5_k10` are tags of both datasets, so the swapped columns would print each other's numbers.
+    # `t5_k10` is a tag of both datasets, so the swapped columns would print each other's numbers.
     dirs = write_table(tmp_path, layout=layout)
-    with pytest.raises(ValueError, match=r"atlas120k: t5_floor records the dataset '(cholec|cholecseg8k)', not one"):
+    with pytest.raises(ValueError, match=r"atlas120k: t5_k10 records the dataset '(cholec|cholecseg8k)', not one"):
         CT.build({"atlas120k": dirs["cholecseg8k"], "cholecseg8k": dirs["atlas120k"]},
+                 PILOT_KEY if layout == "pilot" else KEY)
+
+
+@pytest.mark.parametrize("layout", ["pilot", "evaluator"])
+def test_both_columns_given_one_dataset_s_scores_are_refused(tmp_path, layout):
+    dirs = write_table(tmp_path, layout=layout)
+    with pytest.raises(ValueError, match=r"cholecseg8k: t5_k10 records the dataset '(atlas|atlas120k)', not one"):
+        CT.build({"atlas120k": dirs["atlas120k"], "cholecseg8k": dirs["atlas120k"]},
                  PILOT_KEY if layout == "pilot" else KEY)
 
 
@@ -250,15 +260,15 @@ def test_a_json_of_another_dataset_in_a_column_is_refused(tmp_path):
         CT.build(dirs, PILOT_KEY)
 
 
-def test_a_column_of_two_populations_is_refused(tmp_path):
-    # The rgb pair shares no condition with the other pairs, so each pair alone would pass on its own clips.
-    dirs = write_table(tmp_path)
+def test_a_column_of_two_populations_that_no_measured_pair_joins_is_refused(tmp_path):
+    # Without `t5_k10`, the rgb pair shares no condition with the edge pair, so each pair alone would pass.
+    dirs = write_table(tmp_path, skip={("atlas120k", "t5_k10")})
     def first_six(doc):
         doc.update(clips=doc["clips"][:6], per_clip=doc["per_clip"][:6])
 
     for tag in ("op_rgb_perframe_pps24", "rgb_center18"):
         rewrite(dirs, "atlas120k", tag, first_six)
-    with pytest.raises(ValueError, match=r"atlas120k: .* cannot share a column"):
+    with pytest.raises(ValueError, match=r"atlas120k: .* cannot share a table"):
         CT.build(dirs, PILOT_KEY)
 
 
@@ -271,7 +281,7 @@ def test_library_versions_that_differ_in_a_column_are_noted_not_refused(tmp_path
 
 def test_a_json_that_records_no_dataset_is_refused(tmp_path):
     dirs = write_table(tmp_path)
-    rewrite(dirs, "atlas120k", "t5_floor", lambda d: d.pop("dataset"))
+    rewrite(dirs, "atlas120k", "rgb_center18", lambda d: d.pop("dataset"))
     with pytest.raises(ValueError, match="records no dataset"):
         CT.build(dirs, PILOT_KEY)
 
@@ -279,7 +289,7 @@ def test_a_json_that_records_no_dataset_is_refused(tmp_path):
 def test_a_pair_that_is_not_comparable_is_refused_with_its_column_named(tmp_path):
     dirs = write_table(tmp_path)
     rewrite(dirs, "cholecseg8k", "t5_k10", lambda d: d.update(eval_code_sha="b" * 64))
-    with pytest.raises(ValueError, match=r"cholecseg8k: .*t5_k10 cannot share a column: .*different evaluators"):
+    with pytest.raises(ValueError, match=r"cholecseg8k: .*t5_k10 cannot share a table: .*different evaluators"):
         CT.build(dirs, PILOT_KEY)
 
 
@@ -325,12 +335,12 @@ def test_the_command_prints_the_markdown_table(tmp_path):
 
 
 def test_the_command_exits_non_zero_on_a_cell_not_measured_unless_allowed(tmp_path):
-    dirs = write_table(tmp_path, skip={("cholecseg8k", "t5_floor")})
+    dirs = write_table(tmp_path, skip={("cholecseg8k", "ch_rgb_center")})
     cmd = [sys.executable, "-m", "evalkit.tools.claims_table", "--key", PILOT_KEY,
            *[f"--scores={ds}={d}" for ds, d in dirs.items()]]
     out = subprocess.run(cmd, capture_output=True, text=True, cwd=REPO)
-    assert out.returncode == 1 and "1 row(s) have a cell not measured" in out.stderr
-    assert "not measured: no t5_floor.json" in out.stdout
+    assert out.returncode == 1 and "2 row(s) have a cell not measured" in out.stderr
+    assert "not measured: no ch_rgb_center.json" in out.stdout
     assert subprocess.run([*cmd, "--allow-unmeasured"], capture_output=True, text=True, cwd=REPO).returncode == 0
 
 

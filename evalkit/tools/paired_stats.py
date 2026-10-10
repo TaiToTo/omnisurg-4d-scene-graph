@@ -243,13 +243,19 @@ def is_star(ci95_video, sign: int = +1) -> bool:
     return verdict(ci95_video, sign) == "★"
 
 
-def mark_of(row: dict) -> str:
-    """Return the mark of a row of `compare_pair`: `verdict` on its video-level interval before it was rounded.
+def round_keeping_sign(x: float) -> float:
+    """Round to four places, and write a value that would round to zero at two significant digits.
 
-    The row's `ci95_video` is rounded to four places, so `verdict` on it can drop a star whose interval ends
-    within 5e-5 of zero; a table reads the row's mark here rather than the rounded interval.
+    `verdict` reads a mark from the sign of an interval's end. An end of
+    2.4e-05 written as 0.0 would lose its star, and one of -2.4e-05 its cross.
     """
-    return row["verdict"]
+    r = round(float(x), 4)
+    return r if r != 0.0 or float(x) == 0.0 else float(f"{float(x):.2g}")
+
+
+def format_signed(x: float) -> str:
+    """Write a value with its sign at four places, or in exponent form where four places would show zero."""
+    return f"{x:+.4f}" if abs(x) >= 5e-5 or x == 0 else f"{x:+.2e}"
 
 
 def _sd(x: np.ndarray) -> float | None:
@@ -270,8 +276,8 @@ def _stats_of(va: np.ndarray, vb: np.ndarray, kvids: np.ndarray, sign: int) -> d
     n_videos = int(len(np.unique(kvids)))
     w = stats.wilcoxon(d, zero_method="wilcox") if np.any(d != 0) else None
     ci_clip = None if len(d) < 2 else [round(x, 4) for x in boot_ci(d, None)]
-    ci_video_raw = None if n_videos < 2 else boot_ci(d, kvids)
-    ci_video = None if ci_video_raw is None else [round(x, 4) for x in ci_video_raw]
+    # A table reads the mark back from the written interval, so an end near zero keeps its sign.
+    ci_video = None if n_videos < 2 else [round_keeping_sign(x) for x in boot_ci(d, kvids)]
     pv = wilcoxon_video(d, kvids)
     return dict(
         # A shrunken population is never averaged silently: the counts stay.
@@ -285,9 +291,6 @@ def _stats_of(va: np.ndarray, vb: np.ndarray, kvids: np.ndarray, sign: int) -> d
         wilcoxon_p_video=None if pv is None else round(pv, 5),
         ci95_clip=ci_clip,
         ci95_video=ci_video,
-        # The mark is read from the interval before it is rounded: an end within 5e-5 of zero rounds to 0.0, and
-        # a table reading the rounded interval would drop a star another tool gives the same pair.
-        verdict=verdict(ci_video_raw, sign),
     )
 
 
@@ -368,7 +371,7 @@ def _num(x: float | None, spec: str) -> str:
 
 
 def _interval(ci: list[float] | None) -> str:
-    return "none" if ci is None else f"[{ci[0]:+.4f}, {ci[1]:+.4f}]"
+    return "none" if ci is None else f"[{format_signed(ci[0])}, {format_signed(ci[1])}]"
 
 
 def _print_pair(base: str, cond: str, pair: dict, keys: Sequence[str]) -> None:

@@ -213,7 +213,7 @@ def test_the_pair_statistics_are_the_workbench_s():
     for key, want in WORKBENCH.items():
         got = res["metrics"][key]
         assert {k: got[k] for k in want} == want, key
-        assert set(got) - set(want) == {"sign", "verdict"}, key
+        assert set(got) - set(want) == {"sign"}, key
 
 
 def test_every_row_carries_the_direction_of_its_key():
@@ -303,13 +303,22 @@ def test_the_pair_computes_the_keys_it_is_named_and_only_those():
             PS.compare_pair(ea, eb, keys=[spelt])
 
 
-def test_the_row_s_mark_is_read_from_the_interval_before_it_is_rounded(monkeypatch):
-    # An interval whose lower end is 2e-5 is a star; rounded to four places it starts at 0.0 and would be none.
-    monkeypatch.setattr(PS, "boot_ci", lambda d, groups, **kw: (2.03e-05, 0.01509))
+def test_a_value_that_rounds_to_zero_keeps_two_digits():
+    # The mark follows the sign of the interval's end; -0.0 would hide it.
+    assert PS.round_keeping_sign(-2.4e-05) == -2.4e-05 and PS.round_keeping_sign(0.0) == 0.0
+    assert PS.round_keeping_sign(0.123449) == 0.1234
+    assert PS.format_signed(-2.4e-05) == "-2.40e-05" and PS.format_signed(0.0) == "+0.0000"
+    assert PS.format_signed(0.05) == "+0.0500"
+
+
+@pytest.mark.parametrize("ci, written, mark", [((2.03e-05, 0.01509), [2e-05, 0.0151], "★"),
+                                               ((-0.01509, -2.03e-05), [-0.0151, -2e-05], "✗")])
+def test_an_interval_end_near_zero_is_written_so_that_its_mark_reads_back(monkeypatch, ci, written, mark):
+    # Rounded to four places alone, either end would be written as 0.0 and read back with no mark.
+    monkeypatch.setattr(PS, "boot_ci", lambda d, groups, **kw: ci)
     a, b = pilot_scores("base", 0.0, 5), pilot_scores("cond", 0.03, 6)
     r = PS.compare_pair(a, b, keys=["inst_F1_50"])["metrics"]["inst_F1_50"]
-    assert r["ci95_video"] == [0.0, 0.0151] and PS.verdict(r["ci95_video"], r["sign"]) == ""
-    assert r["verdict"] == PS.mark_of(r) == "★"
+    assert r["ci95_video"] == written and PS.verdict(r["ci95_video"], r["sign"]) == mark
 
 
 def test_a_key_defined_on_no_common_clip_is_left_out_not_zeroed():
@@ -530,12 +539,11 @@ def _module_of(node: ast.ImportFrom, package: str) -> str:
     return ".".join(base + ([node.module] if node.module else []))
 
 
-VERDICTS = {"evalkit.tools.paired_stats.verdict", "evalkit.tools.paired_stats.is_star",
-            "evalkit.tools.paired_stats.mark_of"}
+VERDICTS = {"evalkit.tools.paired_stats.verdict", "evalkit.tools.paired_stats.is_star"}
 
 
 def _borrows_verdict(tree, package: str) -> bool:
-    """Whether the module calls `paired_stats.verdict`, `is_star` or `mark_of`, through whatever import form binds it.
+    """Whether the module calls `paired_stats.verdict` or `is_star`, through whatever import form binds it.
 
     Every name an import binds is resolved to the dotted thing it stands
     for, and every name or attribute chain the module uses is read through
