@@ -77,6 +77,7 @@ class Calib:
 
         Raises:
             FileNotFoundError: the sequence has no `StereoCalibration.ini`.
+            ValueError: the calibration is not for views of `VIEW_SIZE`.
         """
         cp = configparser.ConfigParser()
         path = Path(root) / seq / "StereoCalibration.ini"
@@ -95,7 +96,12 @@ class Calib:
             return np.array([g(section, f"kc_{i}") for i in range(5)])
 
         self.size = (int(g("StereoLeft", "res_x")), int(g("StereoLeft", "res_y")))
-        R = np.array([g("StereoRight", f"R_{i}") for i in range(9)]).reshape(3, 3)
+        # `K_half` is the masks' and depth maps' pixels only when a view is `VIEW_SIZE`, so a caller that reads it
+        # without decoding a frame is refused here too.
+        if self.size != VIEW_SIZE:
+            raise ValueError(f"{seq}: the calibration is for views of {self.size[0]}x{self.size[1]}, "
+                             f"not {VIEW_SIZE[0]}x{VIEW_SIZE[1]}")
+        R =np.array([g("StereoRight", f"R_{i}") for i in range(9)]).reshape(3, 3)
         # A column vector, which OpenCV 5 needs: its stereoRectify refuses a 1-D translation.
         T = np.array([g("StereoRight", f"T_{i}") for i in range(3)]).reshape(3, 1)
         self._Kl, self._dl = intrinsics("StereoLeft"), distortion("StereoLeft")
@@ -189,7 +195,7 @@ def iter_frame_set(root: Path, seq: str, frames):
 
     Raises:
         IndexError: a position is outside the video.
-        ValueError: the calibration's view is not the video's.
+        ValueError: the calibration is not for views of `VIEW_SIZE`.
         RuntimeError: the video ends before every frame wanted is decoded.
     """
     want = sorted({int(f) for f in frames})
@@ -199,8 +205,6 @@ def iter_frame_set(root: Path, seq: str, frames):
     if want[0] < 0 or want[-1] >= info["n_frames"]:
         raise IndexError(f"{seq}: positions {want[0]}-{want[-1]} are outside 0-{info['n_frames'] - 1}")
     c = calib(root, seq)
-    if c.size != VIEW_SIZE:
-        raise ValueError(f"{seq}: the calibration is for views of {c.size}, the video's are {VIEW_SIZE}")
     expr = "+".join(f"eq(n\\,{f})" for f in want)
     cmd = ["ffmpeg", "-v", "error", "-i", str(video_path(root, seq)), "-vf", f"select='{expr}'",
            "-vsync", "0", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"]
@@ -368,12 +372,18 @@ def load_depth_stats(depth_root: Path, seq: str) -> np.ndarray:
     """Return the depth export's `stats.npy`: one row per depth map, its file number, median in mm and valid share.
 
     Raises:
-        ValueError: the file holds no row, or fewer than 3 columns. With no row, every clip would be left out
-            as showing no surface.
+        ValueError: the file holds no row, fewer than 3 columns, or a file number that is not whole or that
+            repeats. With no row, every clip would be left out as showing no surface.
     """
     st = np.load(Path(depth_root) / seq / "stats.npy")
     if st.ndim != 2 or st.shape[0] == 0 or st.shape[1] < 3:
         raise ValueError(f"{seq}: stats.npy has shape {st.shape}, one row of at least 3 columns per map is expected")
+    numbers = st[:, 0]
+    if not np.array_equal(numbers, np.round(numbers)):
+        raise ValueError(f"{seq}: stats.npy holds a file number that is not whole")
+    # `clips` keys the maps by position, so a number given twice would keep one of its rows and drop the other.
+    if len(np.unique(numbers)) != len(numbers):
+        raise ValueError(f"{seq}: stats.npy holds a file number more than once")
     return st
 
 
@@ -417,6 +427,7 @@ def clips(root: Path, depth_root: Path, seq: str) -> tuple[dict, ...]:
 
     Raises:
         KeyError: the sequence has no measured offset, before anything is read.
+        ValueError: no depth map lies on a clip's positions, so whether it shows a surface cannot be measured.
     """
     off, file_off = measured_offset(GT_ROW_OFFSET, seq), measured_offset(DEPTH_FILE_OFFSET, seq)
     info = video_info(root, seq)
@@ -434,7 +445,10 @@ def clips(root: Path, depth_root: Path, seq: str) -> tuple[dict, ...]:
         if min(rows) < 0 or max(rows) >= n_gt:
             continue
         inside = [v for f, v in d_ok.items() if start <= f < start + span]
-        ok = float(np.mean(inside)) if inside else 0.0
+        if not inside:
+            raise ValueError(f"{seq}: no depth map lies on positions {start}-{start + span - 1}, so whether "
+                             f"{seq}__clip_{k:04d} shows a surface cannot be measured")
+        ok = float(np.mean(inside))
         c = tw[np.array(rows)]
         sp = float(np.sqrt(((c - c.mean(0)) ** 2).sum(1).mean()))
         drop = drop_of(ok, has_gt_jump(root, seq, frames[0], frames[-1]), sp)

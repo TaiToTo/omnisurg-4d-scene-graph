@@ -139,6 +139,12 @@ def test_a_sequence_without_a_calibration_is_refused(tmp_path):
         S.Calib(tmp_path, "P1")
 
 
+def test_a_calibration_for_another_view_size_is_refused(tmp_path):
+    write_calibration(tmp_path / "P1", res=(1280, 1000))
+    with pytest.raises(ValueError, match="1280x1000, not 1280x1024"):
+        S.Calib(tmp_path, "P1")
+
+
 # --------------------------------------------------------------------------- video
 
 
@@ -179,13 +185,6 @@ def test_a_video_that_ends_before_the_frames_wanted_is_refused(video_seq, monkey
     monkeypatch.setattr(S, "video_info", lambda root, seq: info)
     with pytest.raises(RuntimeError, match="3 frames wanted, 1 decoded"):
         list(S.iter_frame_set(video_seq, "P1", [7, 9, 10]))
-
-
-@needs_ffmpeg
-def test_a_calibration_for_another_view_size_is_refused(video_seq):
-    write_calibration(video_seq / "P1", res=(1280, 1000))
-    with pytest.raises(ValueError, match="calibration"):
-        list(S.iter_frame_set(video_seq, "P1", [0]))
 
 
 @needs_ffmpeg
@@ -493,4 +492,33 @@ def test_a_depth_export_without_a_row_is_refused(clip_seq):
     root, depth_root = clip_seq
     np.save(depth_root / "P2_0" / "stats.npy", np.zeros((0, 5)))
     with pytest.raises(ValueError, match="stats.npy"):
+        S.clips(root, depth_root, "P2_0")
+
+
+def test_a_clip_without_a_depth_map_is_refused(clip_seq):
+    """The planted fault: the export holds no map on clip 2, which would otherwise be left out as `no_surface`."""
+    root, depth_root = clip_seq
+    stats = np.load(depth_root / "P2_0" / "stats.npy")
+    positions = stats[:, 0] - 1
+    on_clip_2 = (positions >= 4 + 2 * SPAN) & (positions < 4 + 3 * SPAN)
+    np.save(depth_root / "P2_0" / "stats.npy", stats[~on_clip_2])
+    with pytest.raises(ValueError, match="P2_0__clip_0002 shows a surface cannot be measured"):
+        S.clips(root, depth_root, "P2_0")
+
+
+def test_a_depth_export_with_a_file_number_that_is_not_whole_is_refused(clip_seq):
+    root, depth_root = clip_seq
+    stats = np.load(depth_root / "P2_0" / "stats.npy")
+    stats[3, 0] += 0.5
+    np.save(depth_root / "P2_0" / "stats.npy", stats)
+    with pytest.raises(ValueError, match="not whole"):
+        S.clips(root, depth_root, "P2_0")
+
+
+def test_a_depth_export_with_a_file_number_given_twice_is_refused(clip_seq):
+    """The planted fault: a second row for one map, which `clips` would count once, by one of the two rows."""
+    root, depth_root = clip_seq
+    stats = np.load(depth_root / "P2_0" / "stats.npy")
+    np.save(depth_root / "P2_0" / "stats.npy", np.vstack([stats, [stats[3, 0], 10.0, 0.9]]))
+    with pytest.raises(ValueError, match="more than once"):
         S.clips(root, depth_root, "P2_0")
