@@ -1,14 +1,9 @@
 """Print the pilot's table of paired comparisons: blocks of rows under headings, a row per pair of conditions.
 
-A row compares two conditions on a few keys. Each cell holds the mean of
-`cond − base` over the clips on which both define the key, and the mark
-that `paired_stats.verdict` reads from the video-level bootstrap interval
-in the key's direction. A line under the row gives the first key's
-interval and its wins. Every two conditions of the table must pass
-`scores.check_comparable`. So one table holds one evaluator, dataset,
-class set, set of views, mode and population, and one propagation rule
-besides `per_frame`. The table is pasted as it is printed, never copied
-by hand.
+Each cell holds the mean of `cond − base` for one key, with the mark of
+`paired_stats.verdict`. A line under each row gives the first key's
+interval and wins. Every two conditions of the table must pass
+`scores.check_comparable`. The table is pasted as printed, never copied by hand.
 
 Usage:
     python -m evalkit.tools.paired_table --eval-dir /path/to/scores
