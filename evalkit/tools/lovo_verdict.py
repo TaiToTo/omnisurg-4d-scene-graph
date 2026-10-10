@@ -6,8 +6,9 @@ A video whose removal changes the mark holds the verdict: the claim then
 says something about that video, not about the population.
 
 This is not a test. A subset has fewer videos, so its interval is read for
-its sign only. Leaving a video out can narrow the interval as well as widen
-it, and the two mean opposite things, so each row records the ratio of widths.
+its sign only. Leaving a video out moves the mean and changes the interval's
+width, and either can change the mark. So each row records the mean without
+the video and the ratio of widths, and the printout says neither is the cause.
 
 Usage:
     python -m evalkit.tools.lovo_verdict --eval-dir /path/to/scores \\
@@ -22,12 +23,22 @@ from collections.abc import Sequence
 
 import numpy as np
 
-from evalkit.tools.paired_stats import SEED_SCHEME, VERDICT_RULE, boot_ci, load_json, sign_of_key, verdict, video_of
+from evalkit.tools.paired_stats import (
+    N_BOOT,
+    SEED,
+    SEED_SCHEME,
+    VERDICT_RULE,
+    boot_ci,
+    load_json,
+    sign_of_key,
+    verdict,
+    video_of,
+)
 from evalkit.tools.scores import check_comparable, check_one_rule, defined_clips, rows_of
 
-# A video is left out only while this many videos remain. On two videos the
-# bootstrap has four distinct resamples, and its interval is the range of the
-# two video means: a mark there says only that both means have one sign.
+# A video is left out only while this many videos remain, so a key on no more videos than this is refused. On
+# two videos the bootstrap has four distinct resamples, and its interval is the range of the two video means: a
+# mark there says only that both means have one sign.
 MIN_VIDEOS_AFTER_DROP = 3
 # An interval taken on fewer videos than this is printed with a warning that it is thin.
 THIN_VIDEOS = 5
@@ -57,20 +68,21 @@ def direction(summary: dict, key: str) -> int:
 
     Raises:
         ValueError: The key has no direction in the table `paired_stats`
-            reads, or it is a reference value. A reference value, such as
-            `time_IoU`, is never marked, so no video can hold its mark.
+            reads, or its direction is 0. A key of direction 0, such as the
+            reference value `time_IoU` or the count `n_regions_mean`, is
+            never marked, so no video can hold its mark.
     """
     try:
         sign = sign_of_key(summary, key)
     except KeyError:
         raise ValueError(f"{key}: no direction is known for this key, so no mark can be read on it") from None
     if sign == 0:
-        raise ValueError(f"{key} is a reference value and is never marked, so no video can hold its mark")
+        raise ValueError(f"{key} has direction 0 and is never marked, so no video can hold its mark")
     return sign
 
 
 def lovo(d: np.ndarray, vids: np.ndarray, sign: int) -> dict:
-    """Take the verdict on every video, then again with each video left out.
+    """Take the verdict on all the videos together, then again with each video left out.
 
     Args:
         d: The paired differences `cond - base`, one per clip.
@@ -90,8 +102,10 @@ def lovo(d: np.ndarray, vids: np.ndarray, sign: int) -> dict:
         `MIN_VIDEOS_AFTER_DROP` videos remain.
 
     Raises:
-        ValueError: `sign` is not +1 or -1, or the clips come from fewer
-            than two videos, where the bootstrap has no interval.
+        ValueError: `sign` is not +1 or -1; the clips come from fewer than
+            two videos, where the bootstrap has no interval; or they come
+            from no more than `MIN_VIDEOS_AFTER_DROP` videos, where no
+            video can be left out.
     """
     if sign not in (1, -1):
         raise ValueError(f"sign is +1 or -1, not {sign!r}: a reference value is never marked")
@@ -99,6 +113,10 @@ def lovo(d: np.ndarray, vids: np.ndarray, sign: int) -> dict:
     vids = np.asarray(vids)
     full_ci = list(boot_ci(d, vids))
     full = verdict(full_ci, sign)
+    n_videos = len(set(vids.tolist()))
+    if n_videos <= MIN_VIDEOS_AFTER_DROP:
+        raise ValueError(f"{n_videos} videos: leaving one out would leave fewer than {MIN_VIDEOS_AFTER_DROP}, "
+                         "so no video can be left out and none can be named")
     per = []
     for v in sorted(set(vids.tolist())):
         m = vids != v
@@ -110,12 +128,10 @@ def lovo(d: np.ndarray, vids: np.ndarray, sign: int) -> dict:
             video=v, n_clips=int((~m).sum()), n_videos_wo=n_wo,
             own_delta=_r(d[~m].mean()), delta_wo=_r(d[m].mean()),
             ci95_wo=[_r(ci[0]), _r(ci[1])],
-            # Whether the interval widened or narrowed decides how a flip
-            # reads: wider, the video carried the effect; narrower, it made the spread.
             ci_width_ratio=_r((ci[1] - ci[0]) / (full_ci[1] - full_ci[0])) if full_ci[1] != full_ci[0] else None,
             verdict_wo=verdict(ci, sign)))
     flips = [p["video"] for p in per if p["verdict_wo"] != full]
-    return dict(n_clips=int(len(d)), n_videos=int(len(set(vids.tolist()))),
+    return dict(n_clips=int(len(d)), n_videos=int(n_videos),
                 # `delta` is `cond - base` and `verdict` is read in the key's
                 # direction, so the direction stays with them.
                 sign=int(sign), delta=_r(d.mean()), ci95_video=[_r(full_ci[0]), _r(full_ci[1])],
@@ -135,28 +151,39 @@ def lovo_pair(ja: dict, jb: dict, keys: Sequence[str]) -> dict:
 
     Raises:
         ValueError: The two JSONs are not comparable, a key has no
-            direction to read a mark in, or a key's clips come from fewer
-            than two videos.
+            direction to read a mark in, a key is in no row of either JSON,
+            or a key's clips come from too few videos (`lovo`).
     """
     chk = check_comparable(ja, jb)
     a, b = rows_of(ja), rows_of(jb)
     res = {}
     for k in keys:
         sign = direction(ja, k)
+        # A key in no row is a wrong key or a wrong JSON, not a key undefined on every clip.
+        for tag, rows in ((ja.get("tag", "base"), a), (jb.get("tag", "cond"), b)):
+            if not any(k in r for r in rows.values()):
+                raise ValueError(f"{k} is in no row of {tag}")
         # Per key, the clips on which both conditions define it: `SQ` is None on a clip with no hit.
         ks = defined_clips(a, b, chk["clips"], k)
         if not ks:
             continue
         vids = np.array([video_of(c) for c in ks])
         d = np.array([b[c][k] for c in ks], dtype=np.float64) - np.array([a[c][k] for c in ks], dtype=np.float64)
-        res[k] = lovo(d, vids, sign)
+        try:
+            res[k] = lovo(d, vids, sign)
+        except ValueError as e:
+            raise ValueError(f"{k}: {e}") from e
     return res
+
+
+def _thin(n_videos: int) -> str:
+    return f"  <- an interval on {n_videos} videos is thin" if n_videos < THIN_VIDEOS else ""
 
 
 def _print_key(k: str, r: dict) -> None:
     lower = " (lower is better)" if r["sign"] < 0 else ""
     print(f"  {k}{lower}  Δ={_f(r['delta'])} {_ci(r['ci95_video'])} {r['verdict'] or 'no mark'}"
-          f" ({r['n_clips']} clips / {r['n_videos']} videos)")
+          f" ({r['n_clips']} clips / {r['n_videos']} videos){_thin(r['n_videos'])}")
     if not r["n_flips"]:
         print("    no single video left out changes the verdict")
         return
@@ -164,14 +191,13 @@ def _print_key(k: str, r: dict) -> None:
     for p in r["per_video"]:
         if p["verdict_wo"] == r["verdict"]:
             continue
+        # Both the mean and the width move; which of them changed the mark is not read from either alone.
         w = p["ci_width_ratio"]
-        why = "" if w is None else (
-            f", the interval {w:.2f} times as wide: "
-            + ("narrower, so this video made the spread" if w < 1 else "wider, so this video carried the effect"))
-        thin = f"  <- an interval on {p['n_videos_wo']} videos is thin" if p["n_videos_wo"] < THIN_VIDEOS else ""
+        width = "" if w is None else f", the interval {w:.2f} times as wide"
         print(f"      without {p['video']} ({p['n_clips']} clips, its own Δ={_f(p['own_delta'])}):"
               f" Δ={_f(p['delta_wo'])} {_ci(p['ci95_wo'])} {p['verdict_wo'] or 'no mark'}"
-              f" ({p['n_videos_wo']} videos{why}){thin}")
+              f" ({p['n_videos_wo']} videos, the mean moved {_f(p['delta_wo'] - r['delta'])}{width})"
+              f"{_thin(p['n_videos_wo'])}")
 
 
 def main() -> None:
@@ -216,9 +242,9 @@ def main() -> None:
 
     # The verdicts of each pair, printed as they come.
     out = {"verdict_rule": VERDICT_RULE, "seed_scheme": SEED_SCHEME, "min_videos_after_drop": MIN_VIDEOS_AFTER_DROP}
-    # A pilot JSON records no rule, so none is written.
+    # A pilot JSON records no rule, and the workbench wrote no evaluator or bootstrap, so none is written.
     if rule is not None:
-        out["propagation"] = rule
+        out.update(propagation=rule, n_boot=N_BOOT, seed=SEED, eval_code={})
     out["pairs"] = {}
     for pair, base, cond in pairs:
         try:
@@ -232,6 +258,8 @@ def main() -> None:
             else:
                 print(f"  {k}: (defined on no clip of both conditions)")
         out["pairs"][pair] = res
+        if rule is not None:
+            out["eval_code"][pair] = check_comparable(loaded[base], loaded[cond])["eval_code"]
 
     if args.out:
         os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)

@@ -1,5 +1,6 @@
 """The videos a verdict rests on: each check of `lovo_verdict` is shown to refuse what it should, or to name the video."""
 import json
+import os
 import random
 import subprocess
 import sys
@@ -110,23 +111,29 @@ def test_a_key_where_less_is_better_is_marked_in_its_direction():
     r = LV.lovo_pair(base, cond, ["underseg_error"])["underseg_error"]
     loser = next(p for p in r["per_video"] if p["video"] == LOSER)
     assert loser["delta_wo"] < 0 and loser["verdict_wo"] == "★"
-    d = np.array([-0.05, -0.04, -0.06, -0.05, -0.03, -0.05])
-    vids = np.array(["a", "a", "b", "b", "c", "c"])
+    d = np.array([-0.05, -0.04, -0.06, -0.05, -0.03, -0.05, -0.04, -0.05])
+    vids = np.array(["a", "a", "b", "b", "c", "c", "d", "d"])
     assert LV.lovo(d, vids, -1)["verdict"] == "★" and LV.lovo(d, vids, +1)["verdict"] == "✗"
 
 
 def test_the_delta_and_interval_stay_as_cond_minus_base_whatever_the_direction():
-    d = np.array([-0.05, -0.04, -0.06, -0.05, -0.03, -0.05])
-    vids = np.array(["a", "a", "b", "b", "c", "c"])
+    d = np.array([-0.05, -0.04, -0.06, -0.05, -0.03, -0.05, -0.04, -0.05])
+    vids = np.array(["a", "a", "b", "b", "c", "c", "d", "d"])
     up, down = LV.lovo(d, vids, +1), LV.lovo(d, vids, -1)
     assert (up["delta"], up["ci95_video"]) == (down["delta"], down["ci95_video"])
     assert up["delta"] < 0 and (up["sign"], down["sign"]) == (1, -1)
 
 
+@pytest.mark.parametrize("vids", [["a", "a", "b", "b", "c", "c", "c", "c"], ["a", "a", "a", "a", "b", "b", "b", "b"]])
+def test_a_key_on_three_videos_or_two_is_refused_since_no_video_can_be_left_out(vids):
+    # Leaving none out and printing that no video changes the verdict would claim a check that never ran.
+    d = np.array([0.05, 0.06, 0.04, 0.05, 0.03, 0.04, 0.05, 0.06])
+    with pytest.raises(ValueError, match=f"{len(set(vids))} videos: leaving one out would leave fewer than 3"):
+        LV.lovo(d, np.array(vids), +1)
+
+
 def test_a_video_is_left_out_only_while_three_videos_remain():
     d = np.array([0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08])
-    three = np.array(["a", "a", "b", "b", "c", "c", "c", "c"])
-    assert LV.lovo(d, three, +1)["per_video"] == []
     four = np.array(["a", "a", "b", "b", "c", "c", "d", "d"])
     rows = LV.lovo(d, four, +1)["per_video"]
     assert [p["video"] for p in rows] == ["a", "b", "c", "d"]
@@ -141,14 +148,14 @@ def test_fewer_than_two_videos_is_refused():
 def test_a_reference_value_is_refused():
     # No measure over time carries a star, so no video can hold its mark.
     base, cond = pilot_pair()
-    with pytest.raises(ValueError, match="time_IoU is a reference value"):
+    with pytest.raises(ValueError, match="time_IoU has direction 0 and is never marked"):
         LV.lovo_pair(base, cond, ["time_IoU"])
     ev = evaluator_scores("base", 0.0, 1)
     for key in ("time_IoU", metric_key("unlabelled_share", "all")):
-        with pytest.raises(ValueError, match="reference value"):
+        with pytest.raises(ValueError, match="has direction 0"):
             LV.direction(ev, key)
     with pytest.raises(ValueError, match="sign is"):
-        LV.lovo(np.array([0.1, 0.2, 0.3, 0.4]), np.array(["a", "a", "b", "b"]), 0)
+        LV.lovo(np.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]), np.array(list("aabbccdd")), 0)
 
 
 def test_a_key_with_no_direction_is_refused():
@@ -169,6 +176,20 @@ def test_a_key_defined_on_too_few_clips_is_counted_on_the_clips_both_define():
     base, cond = pilot_pair()
     r = LV.lovo_pair(base, cond, ["SQ"])["SQ"]
     assert (r["n_clips"], r["n_videos"]) == (13, 7)
+
+
+def test_a_key_in_no_row_is_refused():
+    # A key the JSON does not hold is a wrong key, not a key undefined on every clip.
+    base, cond = pilot_pair()
+    for row in cond["per_clip"]:
+        del row["SQ"]
+    with pytest.raises(ValueError, match="SQ is in no row of cond"):
+        LV.lovo_pair(base, cond, ["SQ"])
+
+
+def test_the_ratio_of_widths_is_none_when_the_whole_interval_has_no_width():
+    r = LV.lovo(np.full(8, 0.05), np.array(list("aabbccdd")), +1)
+    assert r["ci95_video"] == [0.05, 0.05] and all(p["ci_width_ratio"] is None for p in r["per_video"])
 
 
 def test_a_key_defined_on_no_common_clip_is_left_out():
@@ -224,7 +245,10 @@ def test_the_command_writes_the_verdicts_and_names_the_video(tmp_path):
     out = tmp_path / "lovo.json"
     run = _run(tmp_path, "--pairs", "base:cond", "--keys", "inst_F1_50,underseg_error", "--out", str(out))
     assert run.returncode == 0, run.stderr
-    assert f"without {LOSER}" in run.stdout and "narrower, so this video made the spread" in run.stdout
+    assert f"without {LOSER}" in run.stdout
+    # The row gives the mean's move and the width, and reads neither as the cause.
+    assert "the mean moved +0.0628, the interval 0.08 times as wide)" in run.stdout
+    assert "spread" not in run.stdout and "carried" not in run.stdout
     got = json.loads(out.read_text(encoding="utf-8"))
     assert list(got) == ["verdict_rule", "seed_scheme", "min_videos_after_drop", "pairs"]
     assert (got["verdict_rule"], got["seed_scheme"]) == (PS.VERDICT_RULE, PS.SEED_SCHEME)
@@ -236,7 +260,28 @@ def test_the_command_records_the_rule_of_evaluator_jsons(tmp_path):
     out = tmp_path / "lovo.json"
     run = _run(tmp_path, "--pairs", "base:cond", "--keys", metric_key("F1_50", "all"), "--out", str(out))
     assert run.returncode == 0, run.stderr
-    assert json.loads(out.read_text(encoding="utf-8"))["propagation"] == "both_ways_from_centre"
+    got = json.loads(out.read_text(encoding="utf-8"))
+    assert got["propagation"] == "both_ways_from_centre"
+    assert (got["n_boot"], got["seed"]) == (PS.N_BOOT, PS.SEED)
+    assert got["eval_code"] == {"base:cond": "a" * 16}
+
+
+def test_an_interval_on_fewer_than_five_videos_is_printed_as_thin(tmp_path):
+    # The evaluator's test scores have four videos: the whole interval and each one left out are thin.
+    _write(tmp_path, base=evaluator_scores("base", 0.0, 1), cond=evaluator_scores("cond", 0.05, 2))
+    run = _run(tmp_path, "--pairs", "base:cond", "--keys", metric_key("F1_50", "all"))
+    assert run.returncode == 0, run.stderr
+    assert "(8 clips / 4 videos)  <- an interval on 4 videos is thin" in run.stdout
+
+
+def test_out_takes_a_bare_file_name(tmp_path):
+    base, cond = pilot_pair()
+    _write(tmp_path, base=base, cond=cond)
+    run = subprocess.run([sys.executable, "-m", "evalkit.tools.lovo_verdict", "--eval-dir", ".", "--pairs", "base:cond",
+                          "--keys", "inst_F1_50", "--out", "lovo.json"],
+                         capture_output=True, text=True, cwd=tmp_path, env={**os.environ, "PYTHONPATH": str(REPO)})
+    assert run.returncode == 0, run.stderr
+    assert (tmp_path / "lovo.json").exists()
 
 
 def test_the_command_refuses_a_run_whose_pairs_hold_two_rules(tmp_path):
@@ -250,7 +295,7 @@ def test_the_command_refuses_a_reference_value_before_any_bootstrap(tmp_path):
     base, cond = pilot_pair()
     _write(tmp_path, base=base, cond=cond)
     run = _run(tmp_path, "--pairs", "base:cond", "--keys", "inst_F1_50,time_IoU")
-    assert run.returncode != 0 and "--keys: time_IoU is a reference value" in run.stderr
+    assert run.returncode != 0 and "--keys: time_IoU has direction 0" in run.stderr
     assert "=====" not in run.stdout
 
 
