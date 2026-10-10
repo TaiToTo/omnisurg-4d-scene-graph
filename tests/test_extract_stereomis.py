@@ -167,3 +167,23 @@ def test_the_command_extracts_the_sequences_named(decoded, tmp_path, monkeypatch
     assert [seq for seq, _ in calls] == ["P1", "P2_0"]
     assert sorted(p.name for p in out.iterdir()) == ["P1__clip_0000", "P1__clip_0002", "P2_0__clip_0000"]
     assert capsys.readouterr().out.splitlines()[-1] == f"3 clips in {out}"
+
+
+def test_two_clips_that_share_a_frame_are_refused_before_anything_is_decoded(decoded, tmp_path, monkeypatch):
+    root, calls = decoded
+    shared = (make_clip("P1", 0, [4, 16]), make_clip("P1", 1, [16, 28]))
+    monkeypatch.setattr(stereomis, "clips", lambda root, depth_root, seq: shared)
+    out = tmp_path / "clips"
+    out.mkdir()
+    with pytest.raises(ValueError, match="hold the same frame"):
+        E.extract_sequence(root, tmp_path / "depth", "P1", out, mask_instruments=False)
+    assert calls == [] and list(out.iterdir()) == []
+
+
+def test_an_image_that_cannot_be_written_leaves_no_clip(decoded, tmp_path, monkeypatch):
+    root, _ = decoded
+    monkeypatch.setattr(E.cv2, "imwrite", lambda path, img: False)
+    out = tmp_path / "clips"
+    with pytest.raises(RuntimeError, match="cannot write"):
+        E.extract_sequence(root, tmp_path / "depth", "P1", out, mask_instruments=False)
+    assert list(out.iterdir()) == []

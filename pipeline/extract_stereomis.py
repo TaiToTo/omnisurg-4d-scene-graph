@@ -26,7 +26,9 @@ import surgical_core.stereomis as stereomis
 
 
 def manifest(clip: dict, fps: float, n_masked: int) -> dict:
-    """Return a clip's `frame_manifest.json`, with the workbench's keys in the workbench's order.
+    """Return the contents of a clip's `frame_manifest.json`.
+
+    The keys and their order are the workbench's, so that a clip extracted here equals one extracted there.
 
     Args:
         clip: one of the dicts `stereomis.clips` returns.
@@ -43,10 +45,11 @@ def manifest(clip: dict, fps: float, n_masked: int) -> dict:
 
 
 def refuse_existing(clips: list[dict], out: Path) -> None:
-    """Refuse a clip whose directory, or temporary directory, exists under `out`.
+    """Refuse a clip whose directory, or whose `<clip>.partial`, exists under `out`.
 
     Raises:
-        FileExistsError: one does. A clip is not replaced: a later stage may have written into it.
+        FileExistsError: a clip's directory, or its `<clip>.partial`, exists. A clip is not replaced, because a
+            later stage may have written into it.
     """
     for c in clips:
         for d in (out / c["name"], out / f"{c['name']}.partial"):
@@ -57,19 +60,32 @@ def refuse_existing(clips: list[dict], out: Path) -> None:
 def extract_sequence(root: Path, depth_root: Path, seq: str, out: Path, mask_instruments: bool) -> list[Path]:
     """Write every usable clip of a sequence under `out`, and return the clip directories.
 
-    Each clip is written under a temporary name and moved into place when its manifest is written.
+    Each clip is written as `<clip>.partial` and renamed when its manifest is written.
+
+    Args:
+        root: the StereoMIS directory, which holds one directory per sequence.
+        depth_root: the depth export, which holds `<sequence>/stats.npy`.
+        seq: the sequence.
+        out: the directory the clips are written to.
+        mask_instruments: whether each image is painted black outside the tissue mask nearest its frame.
 
     Raises:
-        FileExistsError: a clip's directory, or the temporary one, exists already.
+        FileExistsError: a clip's directory, or its `<clip>.partial`, exists already.
+        ValueError: two clips, or two places of one clip, hold the same frame.
+        RuntimeError: an image cannot be written.
     """
-    # Find the clips, and refuse before decoding if one is there already.
+    # Find the clips, and refuse before decoding if a clip is there already.
     clips = [c for c in stereomis.clips(root, depth_root, seq) if c["usable"]]
     refuse_existing(clips, out)
     if not clips:
         return []
 
-    # Decode the sequence's frames in one pass, and write each left view into its clip as it arrives.
+    # Map each frame to its clip and place. A frame held twice would be written to one place only.
     owner = {f: (c, i) for c in clips for i, f in enumerate(c["frames"])}
+    if len(owner) != sum(len(c["frames"]) for c in clips):
+        raise ValueError(f"{seq}: two clips, or two places of one clip, hold the same frame")
+
+    # Decode the sequence's frames in one pass, and write each left view into its clip as it arrives.
     n_masked = {c["name"]: 0 for c in clips}
     try:
         for c in clips:
@@ -81,7 +97,9 @@ def extract_sequence(root: Path, depth_root: Path, seq: str, out: Path, mask_ins
                 if m is not None:
                     left = np.where(m[:, :, None], left, 0)
                     n_masked[c["name"]] += 1
-            cv2.imwrite(str(out / f"{c['name']}.partial" / "input_images" / ("%06d.png" % i)), left[:, :, ::-1])
+            path = out / f"{c['name']}.partial" / "input_images" / ("%06d.png" % i)
+            if not cv2.imwrite(str(path), left[:, :, ::-1]):
+                raise RuntimeError(f"cannot write {path}")
 
         # Write each clip's manifest, then move the clip into place.
         fps = stereomis.video_info(root, seq)["fps"]
