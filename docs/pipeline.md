@@ -266,29 +266,21 @@ python -m pipeline.select_d4d_population --census /path/to/census.json \
     --clips d4d_meta/census_clips.txt --out d4d_meta
 ```
 
-The D4D measurements score sides, not clips. `d4d_meta/README.md` defines a
-side, the census and the rule. The step reads the census and selects the
-sides the measurements score, by a rule that reads no score. It writes
+The D4D measurements score sides, not clips. The step selects the sides by
+the rule in `d4d_meta/README.md`, from a census of their inputs. It writes
 `population.json`, which lists the kept sides and counts the sides left out
 for each reason, and `clips.txt`, which lists the clips with a kept side.
 
 The step refuses, before it writes anything:
 
 - a list of clips that is empty, holds a clip twice, or holds a line that is
-  not `<specimen>/<session>/<clip>`, since a kept side's specimen is read
-  from the first name of its key;
-- a census that lacks a clip of `--clips`, such as a census cut short;
-- a census that holds a clip `--clips` does not hold, or holds a clip twice;
-- a census whose clips are not in the order of `--clips`, since
-  `population.json` lists the sides in the census's order;
+  not `<specimen>/<session>/<clip>`;
+- a census that does not hold each clip of the list once and in its order,
+  such as a census cut short;
 - a side that carries an `error`, which the census wrote when it failed to
   measure the side;
-- a side with a point cloud and no `active`;
-- a field the rule reads that is missing or holds a value of the wrong kind:
-  `present`, `active` and `moved_camera` that are not true or false, and
-  `gt_blk_frac` and `frame_minus_gt_s` that are not finite numbers. Python's
-  `json` reads `NaN`, and a `NaN` compares false with every threshold, so a
-  side that holds one would be kept.
+- a field the rule reads that is missing or holds a value of the wrong kind,
+  such as a side with a point cloud and no `active`, or a `NaN`.
 
 ## The depth stage
 

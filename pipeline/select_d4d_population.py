@@ -69,6 +69,7 @@ def check_census(census: list[dict], clips: list[str]) -> None:
     twice = sorted(k for k, n in Counter(keys).items() if n > 1)
     if extra or twice:
         raise ValueError(f"the census holds clips the list does not: {extra}, or holds a clip twice: {twice}")
+    # `population.json` lists the sides in the census's order, so another order writes other bytes.
     if keys != clips:
         first = next(i for i, (a, b) in enumerate(zip(keys, clips)) if a != b)
         raise ValueError(f"the census holds its clips in another order than the list, first at line {first + 1}: "
