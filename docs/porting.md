@@ -225,13 +225,6 @@ Each question says what it blocks and where its answer is written.
   Open: which version made the depth each scored ATLAS-120k condition
   read, and where it was the branch, whether that depth is made again.
   Answer in: `docs/pipeline.md`, the depth stage.
-- **The order of tied presence scores.** The tracking stage paints a
-  frame's objects in the order of their presence scores, through
-  `np.argsort`. On the prompted frame all of them tie, and above 16 tied
-  objects their order depends on numpy's build and the CPU. Where tied
-  masks overlap, a label can then differ between machines. Open: keep the
-  sort, or sort stably and list the change among the byte equality
-  exceptions. Answer in: `docs/pipeline.md`, the tracking stage.
 
 ### Tools and tables
 

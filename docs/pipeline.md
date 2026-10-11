@@ -505,6 +505,12 @@ A clip that fails keeps the labels an earlier run left: the stage replaces
 them only once it has written every file. The stage runs every clip and
 exits with an error if one failed.
 
+The stage does not promise the same labels byte for byte on another
+machine. On the seed frame every object's presence score ties, and
+`np.argsort` orders more than 16 tied objects by numpy's build and the
+CPU, so a label can differ where their masks overlap. Another GPU changes
+the tracker's arithmetic anyway.
+
 `--state-on-cpu` keeps the tracker's frames and the masks it stores for each
 frame in host memory. On the GPU they grow with the clip's length and its
 number of objects. The tracker's memory bank stays on the GPU.
