@@ -42,12 +42,17 @@ class Sam3VideoInstanceSession:
         model_id: the Hugging Face model id. The weights download on first use.
         device: "auto", "cpu" or "cuda". "auto" takes CUDA when there is one.
         gpu: the index of the GPU to use, set through `CUDA_VISIBLE_DEVICES`. None leaves the environment as it is.
+        state_on_cpu: keep the video's frames and the masks the tracker stores for each frame in host memory, and
+            copy each to `device` when the tracker reads it. On the GPU they grow with the clip's length and its
+            number of objects. The copies are exact, so the masks are the same. The tracker's memory bank stays
+            on `device`.
 
     Raises:
         RuntimeError: `gpu` is given after torch was imported. `CUDA_VISIBLE_DEVICES` would then have no effect.
     """
 
-    def __init__(self, model_id: str = DEFAULT_MODEL_ID, device: str = "auto", gpu: int | None = None) -> None:
+    def __init__(self, model_id: str = DEFAULT_MODEL_ID, device: str = "auto", gpu: int | None = None,
+                 state_on_cpu: bool = False) -> None:
         if gpu is not None:
             if "torch" in sys.modules:
                 raise RuntimeError("torch is already imported, so CUDA_VISIBLE_DEVICES cannot select the GPU")
@@ -63,13 +68,17 @@ class Sam3VideoInstanceSession:
         self.device = torch.device(device)
         self.model = Sam3TrackerVideoModel.from_pretrained(model_id).to(self.device, dtype=torch.float32)
         self.processor = Sam3TrackerVideoProcessor.from_pretrained(model_id)
+        self.state_on_cpu = state_on_cpu
         self._session = None
         self._size: tuple[int, int] | None = None
 
     def init_video(self, frames: np.ndarray) -> None:
         """Start a video: (T, H, W, 3) uint8 frames. Any earlier video and its prompts are dropped."""
+        # The frames are still resized and normalized on `device`, not on the CPU. The CPU gives slightly other
+        # values, which could change the labels.
+        storage = dict(inference_state_device="cpu", video_storage_device="cpu") if self.state_on_cpu else {}
         self._session = self.processor.init_video_session(video=frames, inference_device=self.device,
-                                                          dtype=self._torch.float32)
+                                                          dtype=self._torch.float32, **storage)
         self._size = (self._session.video_height, self._session.video_width)
 
     def add_masks(self, frame_idx: int, masks: Sequence[np.ndarray], obj_ids: Sequence[int]) -> None:
