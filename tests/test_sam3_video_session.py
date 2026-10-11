@@ -47,39 +47,27 @@ def test_an_output_without_a_logit_is_refused():
 
 
 class StandInProcessor:
-    """Record the arguments a video is started with, and start a session that keeps its state on `kept_on`.
-
-    Without `kept_on`, the session keeps its frames and its state where it is asked, as transformers' does.
-    """
-
-    def __init__(self, kept_on=None):
-        self.kwargs, self.kept_on = None, kept_on
+    """Record the arguments a video is started with, and start a session of a 4 x 6 video."""
 
     def init_video_session(self, video, inference_device, dtype, **kwargs):
         self.kwargs = kwargs
-        state = self.kept_on or kwargs.get("inference_state_device", inference_device)
-        return SimpleNamespace(video_height=4, video_width=6, inference_state_device=state,
-                               video_storage_device=kwargs.get("video_storage_device", inference_device))
+        return SimpleNamespace(video_height=4, video_width=6)
 
 
-def _starting(state_on_cpu, processor):
-    torch = pytest.importorskip("torch")
+def _starting(state_on_cpu):
     s = Sam3VideoInstanceSession.__new__(Sam3VideoInstanceSession)
-    s._torch, s.device, s.processor, s.state_on_cpu = torch, "cuda", processor, state_on_cpu
+    # A stand-in for torch, of which init_video reads only the dtype, so that these tests run without torch.
+    s._torch = SimpleNamespace(float32="float32")
+    s.device, s.processor, s.state_on_cpu = "cuda", StandInProcessor(), state_on_cpu
     s.init_video(np.zeros((2, 4, 6, 3), np.uint8))
     return s
 
 
-def test_a_235_frame_clip_ran_out_of_gpu_memory_so_state_on_cpu_keeps_frames_and_masks_in_host_memory():
-    s = _starting(True, StandInProcessor())
+def test_state_on_cpu_asks_the_processor_to_keep_frames_and_masks_in_host_memory():
+    s = _starting(True)
     assert s.processor.kwargs == {"inference_state_device": "cpu", "video_storage_device": "cpu"}
     assert s._size == (4, 6)
 
 
-def test_without_state_on_cpu_a_video_starts_as_before():
-    assert _starting(False, StandInProcessor()).processor.kwargs == {}
-
-
-def test_a_session_that_keeps_its_state_on_the_gpu_under_state_on_cpu_is_refused():
-    with pytest.raises(RuntimeError, match="not host memory"):
-        _starting(True, StandInProcessor(kept_on="cuda"))
+def test_without_state_on_cpu_the_processor_is_given_no_storage_device():
+    assert _starting(False).processor.kwargs == {}

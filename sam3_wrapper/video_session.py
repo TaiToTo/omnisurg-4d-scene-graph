@@ -43,8 +43,9 @@ class Sam3VideoInstanceSession:
         device: "auto", "cpu" or "cuda". "auto" takes CUDA when there is one.
         gpu: the index of the GPU to use, set through `CUDA_VISIBLE_DEVICES`. None leaves the environment as it is.
         state_on_cpu: keep the video's frames and the masks the tracker stores for each frame in host memory, and
-            copy each to `device` when the tracker reads it. On the GPU they grow with the clip's frames and
-            objects. The copies are exact, so the masks are the same.
+            copy each to `device` when the tracker reads it. On the GPU they grow with the clip's length and its
+            number of objects. The copies are exact, so the masks are the same. The tracker's memory bank stays
+            on `device`.
 
     Raises:
         RuntimeError: `gpu` is given after torch was imported. `CUDA_VISIBLE_DEVICES` would then have no effect.
@@ -72,17 +73,12 @@ class Sam3VideoInstanceSession:
         self._size: tuple[int, int] | None = None
 
     def init_video(self, frames: np.ndarray) -> None:
-        """Start a video: (T, H, W, 3) uint8 frames. Any earlier video and its prompts are dropped.
-
-        Raises:
-            RuntimeError: `state_on_cpu` is set and the session keeps its frames or its state elsewhere.
-        """
+        """Start a video: (T, H, W, 3) uint8 frames. Any earlier video and its prompts are dropped."""
+        # The frames are still resized and normalized on `device`, not on the CPU. The CPU gives slightly other
+        # values, which could change the labels.
         storage = dict(inference_state_device="cpu", video_storage_device="cpu") if self.state_on_cpu else {}
         self._session = self.processor.init_video_session(video=frames, inference_device=self.device,
                                                           dtype=self._torch.float32, **storage)
-        kept = {k: str(getattr(self._session, k, None)) for k in storage}
-        if any(v != "cpu" for v in kept.values()):
-            raise RuntimeError(f"the session keeps {kept}, not host memory as state_on_cpu asks")
         self._size = (self._session.video_height, self._session.video_width)
 
     def add_masks(self, frame_idx: int, masks: Sequence[np.ndarray], obj_ids: Sequence[int]) -> None:

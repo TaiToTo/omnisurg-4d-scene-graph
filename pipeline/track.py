@@ -394,8 +394,8 @@ def main() -> None:
     ap.add_argument("--gpu", type=int, default=None,
                     help="The index of the GPU to use. Default: what CUDA_VISIBLE_DEVICES says, or the first GPU.")
     ap.add_argument("--state-on-cpu", action="store_true",
-                    help="Keep the tracker's frames and stored masks in host memory, for a clip whose state does not "
-                         "fit on the GPU. The labels are the same.")
+                    help="Keep the tracker's frames and stored masks in host memory, for a clip whose frames and masks "
+                         "do not fit on the GPU. The labels are the same.")
     ap.add_argument("--overwrite", action="store_true", help="Replace a condition's labels an earlier run left.")
     args = ap.parse_args()
 
@@ -412,7 +412,7 @@ def main() -> None:
         raise SystemExit(f"no clip with depth under {root}")
     if not args.seed_labels and not args.sam_ckpt:
         raise SystemExit("--sam-ckpt is needed to cut the seed frames, unless --seed-labels gives them")
-    # Not recorded in seed_info.json, as the device is not: it moves the tracker's state, not a label.
+    # seed_info.json does not record the option. The option changes where frames and masks are kept, not the labels.
     tracker = Sam3VideoInstanceSession(args.model_id, device=args.device, gpu=args.gpu, state_on_cpu=args.state_on_cpu)
     segmenter = None if args.seed_labels else SeedSegmenter(args.sam_ckpt, str(tracker.device))
     print(f"{args.model_id} on {tracker.device}, {len(clips)} clip(s)")

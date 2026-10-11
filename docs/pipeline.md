@@ -500,17 +500,16 @@ The stage refuses:
 - Pi3X depth with another number of frames than DA3's.
 - a seed frame with no region of `--seed-min-area` pixels or more.
 - a condition an earlier run left, unless `--overwrite` is given.
-- with `--state-on-cpu`, a tracker session that keeps its frames or its state
-  elsewhere.
 
 A clip that fails keeps the labels an earlier run left: the stage replaces
 them only once it has written every file. The stage runs every clip and
 exits with an error if one failed.
 
 `--state-on-cpu` keeps the tracker's frames and the masks it stores for each
-frame in host memory, for a clip whose state does not fit on the GPU. On the
-GPU they grow with the clip's frames and objects. The copies are exact, so the
-labels do not change, and `seed_info.json` does not record the option.
+frame in host memory. On the GPU they grow with the clip's length and its
+number of objects. The tracker's memory bank stays on the GPU.
+The copies are exact, so the labels do not change. `seed_info.json`
+therefore does not record the option.
 
 The stage needs the `track` extra: `pip install -e ".[track]"`. The SAM
 ViT-H weights, `sam_vit_h_4b8939.pth`, are downloaded by hand; SAM 3's
