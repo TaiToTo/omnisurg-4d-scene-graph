@@ -381,10 +381,16 @@ def check_temporal(tg: dict, n: int, where: str) -> None:
     The viewer draws these numbers into the page, so a value of another kind is refused here.
 
     Raises:
-        ValueError: a node id, a relation's ends, or a frame is not such an integer, or a label not a string.
+        ValueError: the graph is not lists of nodes and relations, or a node id, a relation's ends or a frame,
+            the graph's own `frames` included, is not such an integer, or a label not a string.
     """
     def frames_ok(fs):
         return isinstance(fs, list) and all(type(f) is int and 0 <= f < n for f in fs)
+    if not (isinstance(tg, dict) and all(isinstance(tg.get(k, []), list) for k in ("nodes", "relations"))):
+        raise ValueError(f"{where}: not lists of nodes and relations")
+    # The viewer bounds where a node enters and leaves the view by these frames.
+    if not frames_ok(tg.get("frames", [])):
+        raise ValueError(f"{where}: its frames are not frames 0 to {n - 1}")
     for node in tg.get("nodes", []):
         if (type(node.get("id")) is not int or not frames_ok(node.get("present_frames", []))
                 or not isinstance(node.get("label", ""), str)):

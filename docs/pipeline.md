@@ -696,9 +696,10 @@ The stage refuses:
 - a hierarchy that does not relate two of the bundle's tracks, or whose
   nodes are not keyed `track:id` with integer ids and string labels, or
   whose edges do not join two of its nodes with a string relation;
-- a graph through time whose node ids, relation ends or frames are not
-  integers, frames from 0 to the clip's last, or whose labels and relations
-  are not strings;
+- a graph through time that is not lists of nodes and relations, whose
+  node ids, relation ends or frames, its own list of frames included, are
+  not integers, frames from 0 to the clip's last, or whose labels and
+  relations are not strings;
 - a clip already under `--out`, unless `--overwrite` is given.
 
 A refused clip leaves what was under `--out` as it was: a clip replaces an

@@ -99,7 +99,7 @@ def make_clip(root, n=3, dataset=None, tracks=("sam3d",), pi3x=True, name=CLIP, 
             (c / "pc_vis" / f"graph_frame_{i:04d}__{t}.json").write_text(json.dumps(graph(t)))
     for t in tracks:
         (c / "pc_vis" / f"temporal_graph__{t}.json").write_text(json.dumps(
-            {"track": t, "nodes": [{"id": 1, "label": "obj 1", "present_frames": list(range(n))}],
+            {"track": t, "frames": list(range(n)), "nodes": [{"id": 1, "label": "obj 1", "present_frames": list(range(n))}],
              "relations": [{"src": 1, "dst": 2, "relation": "left", "frames": [0, 1]}]}))
     manifest = {"n_frames": n, "fps_native": 30.0, "frames": frames,
                 "depth_info": {"depth_shape": [n, H, W]},
@@ -374,14 +374,19 @@ def test_a_frame_graph_of_another_shape_or_off_the_frames_regions_is_refused(tmp
     (lambda tg: tg["relations"][0].update(relation=["left"]), "relation of 1 and 2"),
     (lambda tg: tg["nodes"][0].update(present_frames=[0.5]), "node 1"),
     (lambda tg: tg["nodes"][0].update(label=["x"]), "node 1"),
+    (lambda tg: tg.update(frames=[0, 3]), "its frames are not frames 0 to 2"),
+    (lambda tg: tg.update(frames="0-2"), "its frames are not"),
+    (lambda tg: tg.update(nodes={"1": {}}), "not lists of nodes and relations"),
+    (lambda tg: [tg], "not lists of nodes and relations"),
 ])
 def test_a_graph_through_time_of_another_shape_is_refused(tmp_path, fault, match):
     clip = make_clip(tmp_path / "in")
     (tmp_path / "out").mkdir()
     path = clip / "pc_vis" / "temporal_graph__sam3d.json"
     tg = read(path)
-    fault(tg)
-    path.write_text(json.dumps(tg))
+    # A fault edits the graph in place, or returns what replaces it.
+    out = fault(tg)
+    path.write_text(json.dumps(tg if out is None else out))
     _fails(tmp_path, match)
 
 
