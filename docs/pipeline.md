@@ -627,8 +627,8 @@ The stage refuses:
   string label or no position of three numbers, or an edge that does not
   join two of its nodes with a string relation;
 - a hierarchy that does not relate two of the bundle's tracks, or whose
-  nodes and edges are not string keys, integer ids and string labels and
-  relations;
+  nodes are not keyed `track:id` with integer ids and string labels, or
+  whose edges do not join two of its nodes with a string relation;
 - a graph through time whose node ids, relation ends or frames are not
   integers, frames from 0 to the clip's last, or whose labels and relations
   are not strings;

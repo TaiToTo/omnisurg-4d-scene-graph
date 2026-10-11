@@ -49,8 +49,10 @@ export function nodeKey(track, id) {
   return `${track}:${id}`;
 }
 
-/** Split a node key into its track and its numeric id. */
+/** Split a node key into its track and its numeric id; refuse anything that is not a node key. */
 export function parseNodeKey(key) {
-  const at = String(key).lastIndexOf(':');
-  return { track: key.slice(0, at), id: Number(key.slice(at + 1)) };
+  const s = String(key);
+  const at = s.lastIndexOf(':');
+  if (at <= 0 || !/^\d+$/.test(s.slice(at + 1))) throw new Error(`not a node key: ${JSON.stringify(key)}`);
+  return { track: s.slice(0, at), id: Number(s.slice(at + 1)) };
 }

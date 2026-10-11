@@ -350,24 +350,25 @@ def check_graph(graph: dict, labels: np.ndarray, where: str) -> None:
 
 
 def check_hierarchy(h: dict, tracks: list[str], where: str) -> None:
-    """Check that a hierarchy relates two of the bundle's tracks, with string keys and labels.
+    """Check that a hierarchy relates two of the bundle's tracks, with nodes keyed `track:id` and string labels.
 
-    The viewer draws the labels and the relations into the page and joins the nodes by their keys.
+    The viewer draws the labels and the relations into the page, joins the nodes by their keys, and reads a
+    key's track and region id back out of it.
 
     Raises:
-        ValueError: `tracks` is not two of the bundle's tracks; a node has no string key, no track of the two,
-            no integer id or no string label; or an edge has no node keys of the hierarchy at its ends or no
-            string relation.
+        ValueError: `tracks` is not two of the bundle's tracks; a node has no track of the two, no integer id,
+            no string label or a key other than `track:id`; or an edge has no node keys of the hierarchy at its
+            ends or no string relation.
     """
     pair = h.get("tracks")
     if not (isinstance(pair, list) and len(pair) == 2 and set(pair) <= set(tracks) and pair[0] != pair[1]):
         raise ValueError(f"{where}: tracks {pair!r} are not two of {', '.join(tracks)}")
     keys = set()
     for node in h.get("nodes", []):
-        if (not isinstance(node.get("key"), str) or node.get("track") not in pair or type(node.get("id")) is not int
-                or not isinstance(node.get("label"), str)):
-            raise ValueError(f"{where}: node {node.get('key')!r} is not a string key of one of the two tracks "
-                             "with an integer id and a string label")
+        if (node.get("track") not in pair or type(node.get("id")) is not int or not isinstance(node.get("label"), str)
+                or node.get("key") != f"{node['track']}:{node['id']}"):
+            raise ValueError(f"{where}: node {node.get('key')!r} is not a node of one of the two tracks, keyed "
+                             "track:id, with an integer id and a string label")
         keys.add(node["key"])
     for e in h.get("edges", []):
         if e.get("src") not in keys or e.get("dst") not in keys or not isinstance(e.get("relation"), str):
