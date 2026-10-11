@@ -223,6 +223,7 @@ def test_earlier_output_is_refused_unless_replaced(release):
     stale.write_bytes(b"left by a longer run")
     with pytest.raises(ValueError, match="pass --overwrite"):
         extract_video(**release)
+    assert stale.exists()
     extract_video(**dict(release, overwrite=True))
     assert not stale.exists()
 
@@ -231,12 +232,13 @@ def test_a_refusal_writes_and_removes_nothing(release):
     # The last frame of the last clip written is the fault, so a stage that checked while writing would have
     # written two clips and removed the earlier output before finding it.
     extract_video(**release)
-    before = sorted(p.relative_to(release["out"]) for p in release["out"].rglob("*"))
+    out = release["out"]
+    before = {p.relative_to(out): p.read_bytes() if p.is_file() else None for p in out.rglob("*")}
     png = _source(release, "clip_0003") / "masks" / "frame_000135.png"
     Image.fromarray(np.ones((60, 80), np.uint8)).save(png)
     with pytest.raises(ValueError, match="not the mp4's"):
         extract_video(**dict(release, overwrite=True))
-    assert sorted(p.relative_to(release["out"]) for p in release["out"].rglob("*")) == before
+    assert {p.relative_to(out): p.read_bytes() if p.is_file() else None for p in out.rglob("*")} == before
     empty = release["out"].parent / "empty"
     empty.mkdir()
     with pytest.raises(ValueError, match="not the mp4's"):

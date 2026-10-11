@@ -18,13 +18,15 @@ from pathlib import Path
 import pytest
 
 REPO = Path(__file__).resolve().parent.parent
+# This file, as git names it.
+THIS = Path(__file__).resolve().relative_to(REPO).as_posix()
 
 # The most lines a header may have before its Usage.
 HEADER_LINES = 12
 
-# The modules longer than the cap when the rule was made, shortened by the
-# workstream `docs/short-headers`. A module is removed here when it is
-# shortened; a module that is short and still listed fails the ratchet.
+# The modules whose header was over the cap when the rule was made. The list
+# only shrinks: a module leaves it once its header is short, and a test fails
+# if a short module stays listed or a new one is added.
 STILL_LONG = frozenset({
     "evalkit/code_sha.py",
     "evalkit/pilot.py",
@@ -62,20 +64,23 @@ def header_length(source: str) -> int:
 
 
 def first_listed(repo: Path) -> frozenset[str]:
-    """`STILL_LONG` as the commit that added this file wrote it.
+    """`STILL_LONG` as the commit that added this file to `repo` wrote it.
 
     Raises:
-        RuntimeError: The history does not reach that commit (a shallow
-            clone), so what the list may hold cannot be known.
+        RuntimeError: `repo` is a shallow clone, or no commit in it adds this
+            file. git shows a shallow clone's oldest commit as adding every
+            file in it, so the list would be read from that commit.
     """
-    rel = Path(__file__).resolve().relative_to(repo).as_posix()
-    log = subprocess.run(["git", "-C", str(repo), "log", "--diff-filter=A", "--format=%H", "--", rel],
-                         check=True, capture_output=True).stdout.decode("utf-8").split()
+    def git(*args: str) -> str:
+        return subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True).stdout.decode("utf-8")
+
+    if git("rev-parse", "--is-shallow-repository").strip() == "true":
+        raise RuntimeError("the clone is shallow, so the commit that added the list may be missing; "
+                           "clone with the full history")
+    log = git("log", "--diff-filter=A", "--format=%H", "--", THIS).split()
     if not log:
-        raise RuntimeError(f"the commit that added {rel} is not in the history; clone with the full history")
-    source = subprocess.run(["git", "-C", str(repo), "show", f"{log[-1]}:{rel}"],
-                            check=True, capture_output=True).stdout.decode("utf-8")
-    return listed_in(source)
+        raise RuntimeError(f"no commit adds {THIS}")
+    return listed_in(git("show", f"{log[-1]}:{THIS}"))
 
 
 def listed_in(source: str) -> frozenset[str]:
@@ -100,9 +105,9 @@ def test_no_header_is_longer_than_the_cap():
 
 
 def test_a_listed_module_is_tracked_and_still_long():
-    """The ratchet: a module leaves `STILL_LONG` when shortened, and a stale entry is refused."""
+    """Every listed module is tracked and still over the cap; one that is now short must leave the list."""
     tracked = set(tracked_modules(REPO))
-    assert "tests/test_module_headers_are_short.py" in tracked, "the scan sees no module; this file is one"
+    assert THIS in tracked, "the scan sees no module; this file is one"
     missing = STILL_LONG - tracked
     assert not missing, f"listed but not tracked: {sorted(missing)}"
     short = {rel: header_length((REPO / rel).read_text(encoding="utf-8")) for rel in STILL_LONG}
@@ -134,6 +139,26 @@ def test_the_measure_counts_what_follows_a_usage_that_is_not_the_last_section():
     assert header_length(usage_in_prose) == 15 > HEADER_LINES
     indented_usage_is_prose = '"""Short.\n\n  Usage:\n    run it\n"""\n'
     assert header_length(indented_usage_is_prose) == 4
+
+
+def test_a_shallow_clone_is_refused(tmp_path, monkeypatch):
+    """The full history yields the first list, a.py; its depth-1 clone, which holds a later list, is refused."""
+    # This machine's git config, such as hooks or log.showRoot, must not decide the result.
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    src = tmp_path / "src"
+    (src / THIS).parent.mkdir(parents=True)
+    git = ["git", "-c", "user.name=test", "-c", "user.email=test@example.com"]
+    subprocess.run([*git, "init", "-q", str(src)], check=True, capture_output=True)
+    for names in (["a.py"], ["a.py", "b.py"]):
+        (src / THIS).write_text(f"STILL_LONG = frozenset({names!r})\n")
+        for args in (["add", THIS], ["commit", "-q", "-m", "list"]):
+            subprocess.run([*git, "-C", str(src), *args], check=True, capture_output=True)
+    assert first_listed(src) == {"a.py"}
+    shallow = tmp_path / "shallow"
+    subprocess.run([*git, "clone", "-q", "--depth", "1", src.as_uri(), str(shallow)], check=True, capture_output=True)
+    with pytest.raises(RuntimeError, match="the clone is shallow"):
+        first_listed(shallow)
 
 
 def test_the_list_is_read_back_from_a_version_of_this_file():

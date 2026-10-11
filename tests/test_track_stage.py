@@ -158,6 +158,7 @@ def test_labels_left_by_an_earlier_run_are_refused_unless_replaced(tmp_path):
     np.save(stale, np.zeros((H, W), np.int16))
     with pytest.raises(ValueError, match="pass --overwrite"):
         _run(tmp_path, clip)
+    assert stale.exists()
     _run(tmp_path, clip, overwrite=True)
     assert not stale.exists()
 
@@ -358,6 +359,7 @@ def test_a_run_that_fails_while_writing_leaves_no_partial_labels(tmp_path, monke
     assert sorted(p.name for p in lab_dir.iterdir()) == before
     assert [p.name for p in (tmp_path / "tracks" / clip.name).iterdir() if "partial" in p.name] == []
 
+
 class _StandInSession(StandInTracker):
     device = "cpu"
 
@@ -365,9 +367,18 @@ class _StandInSession(StandInTracker):
         super().__init__()
 
 
-def _main(monkeypatch, *argv):
-    monkeypatch.setattr(track, "Sam3VideoInstanceSession", _StandInSession)
-    monkeypatch.setattr(track, "SeedSegmenter", lambda ckpt, device: StandInSegmenter())
+class _StandInSeedSegmenter(StandInSegmenter):
+    def __init__(self, ckpt, device):
+        super().__init__()
+
+
+def _main(monkeypatch, *argv, session=None, segmenter=None):
+    """Run `main` with `session` for SAM 3 and `segmenter` for SAM; loading a model without one fails the test."""
+    def refuse(*a, **kw):
+        raise AssertionError("a model loaded")
+
+    monkeypatch.setattr(track, "Sam3VideoInstanceSession", session or refuse)
+    monkeypatch.setattr(track, "SeedSegmenter", segmenter or refuse)
     monkeypatch.setattr(sys, "argv", ["track", *argv])
     track.main()
 
@@ -381,8 +392,20 @@ def _argv(tmp_path, *extra):
 def test_main_runs_every_clip_with_depth(tmp_path, monkeypatch):
     _clip(tmp_path)
     _clip(tmp_path, name="VID02_s15_80_crop")
-    _main(monkeypatch, *_argv(tmp_path, "--sam-ckpt", "sam.pth"))
+    _main(monkeypatch, *_argv(tmp_path, "--sam-ckpt", "sam.pth"), session=_StandInSession,
+          segmenter=_StandInSeedSegmenter)
     assert sorted(p.name for p in (tmp_path / "tracks").iterdir()) == ["VID01_s15_80_crop", "VID02_s15_80_crop"]
+
+
+def test_main_refuses_a_missing_input_dir_before_the_models_load(tmp_path, monkeypatch):
+    with pytest.raises(SystemExit, match="no such directory"):
+        _main(monkeypatch, *_argv(tmp_path, "--sam-ckpt", "sam.pth"))
+
+
+def test_main_refuses_a_directory_without_clips_before_the_models_load(tmp_path, monkeypatch):
+    (tmp_path / "clips").mkdir()
+    with pytest.raises(SystemExit, match="no clip with depth under"):
+        _main(monkeypatch, *_argv(tmp_path, "--sam-ckpt", "sam.pth"))
 
 
 def test_main_refuses_a_mistyped_clip_before_the_models_load(tmp_path, monkeypatch):
@@ -391,10 +414,17 @@ def test_main_refuses_a_mistyped_clip_before_the_models_load(tmp_path, monkeypat
         _main(monkeypatch, *_argv(tmp_path, "--sam-ckpt", "sam.pth", "--clips", "VID99"))
 
 
-def test_main_refuses_to_cut_seeds_without_the_sam_weights(tmp_path, monkeypatch):
+def test_main_refuses_to_cut_seeds_without_the_sam_weights_before_the_models_load(tmp_path, monkeypatch):
     _clip(tmp_path)
     with pytest.raises(SystemExit, match="--sam-ckpt is needed"):
         _main(monkeypatch, *_argv(tmp_path))
+
+
+def test_main_with_seed_labels_does_not_load_sam(tmp_path, monkeypatch):
+    clip = _clip(tmp_path)
+    seeds = _seeds(tmp_path, clip, 0, np.zeros((H, W), int))
+    _main(monkeypatch, *_argv(tmp_path, "--seed-labels", seeds), session=_StandInSession)
+    assert (tmp_path / "tracks" / clip.name / "track_rgb_t").is_dir()
 
 
 def test_main_exits_with_an_error_when_a_clip_fails(tmp_path, monkeypatch):
@@ -402,5 +432,6 @@ def test_main_exits_with_an_error_when_a_clip_fails(tmp_path, monkeypatch):
     bad = _clip(tmp_path, name="VID02_s15_80_crop")
     (bad / "input_images" / "000003.png").unlink()
     with pytest.raises(SystemExit, match="1 of 2 clip.* failed: VID02_s15_80_crop"):
-        _main(monkeypatch, *_argv(tmp_path, "--sam-ckpt", "sam.pth"))
+        _main(monkeypatch, *_argv(tmp_path, "--sam-ckpt", "sam.pth"), session=_StandInSession,
+              segmenter=_StandInSeedSegmenter)
     assert (tmp_path / "tracks" / "VID01_s15_80_crop" / "track_rgb_t").is_dir()

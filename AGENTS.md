@@ -71,8 +71,9 @@ omnisurg-4d-scene-graph/
 ├── evalkit/           the evaluator, hashed into eval_code_sha with its class tables
 │   └── tools/         what reads scores or predictions, never hashed: scores
 │                      paired_stats compare_eval condition_inventory check_provenance
-│                      pilot_check kmerge pose_metrics paired_table arms_paired
-│                      leave_one_video_out claims_table (track_metrics: not yet ported)
+│                      pilot_check kmerge pose_metrics pose_controls paired_table
+│                      arms_paired leave_one_video_out claims_table print_status_tables
+│                      (track_metrics: not yet ported)
 ├── pipeline/          depth → segmentation → tracking → viewer export
 ├── recon3d_wrapper/   3D reconstruction — DA3 and Pi3 behind one interface
 ├── sam3_wrapper/      promptable segmentation and tracking (SAM 3)
@@ -80,7 +81,8 @@ omnisurg-4d-scene-graph/
 ├── cholecseg8k_meta/  crop rectangles, clip population (no video)
 ├── d4d_meta/          census clip list, scored sides (no frame or point cloud)
 ├── viewer/
-├── docs/              evaluation.md, review.md, porting.md, data_contract.md, pipeline.md
+├── docs/              evaluation.md, pilot_evaluator.md, review.md, porting.md,
+│                      data_contract.md, pipeline.md
 ├── tests/
 └── .github/workflows/ci.yml
 ```
@@ -94,9 +96,9 @@ and clips enter a measurement is data, kept in the population file under
 
 ## The port
 
-The port follows `docs/porting.md`: what moves, which version of it was
-already reviewed and where, the order of the steps, and what must hold before
-the next one. Read it before porting anything. The order is load-bearing: the
+The port follows `docs/porting.md`: what is ported and checked, what is not
+ported yet, the order of the steps, and what must hold before the next one.
+Read it before porting anything. The order is load-bearing: the
 evaluator is checked against the pilot scores before anything is re-scored. A
 pipeline stage is done only when its output equals the workbench's, byte for
 byte, apart from the exceptions `docs/porting.md` names. Nothing is frozen

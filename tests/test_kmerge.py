@@ -106,6 +106,7 @@ def test_merged_predictions_left_by_an_earlier_run_are_refused_unless_replaced(t
     np.save(stale, np.zeros((20, 30), np.int32))
     with pytest.raises(ValueError, match="pass --overwrite"):
         merge_condition("cholecseg8k", clips, tmp_path / "data", tmp_path / "tracks", "t", "t_k2", k=2)
+    assert stale.exists()
     merge_condition("cholecseg8k", clips, tmp_path / "data", tmp_path / "tracks", "t", "t_k2", k=2, overwrite=True)
     assert not stale.exists()
 

@@ -22,9 +22,13 @@ jobs:
         # project is developed on: a user runs whichever one they have.
         python-version: ["3.12", "3.13", "3.14"]
     steps:
-      # The whole history, not the default single commit: the personal-email
-      # check reads every commit's author, committer and message, and refuses a
-      # shallow clone rather than pass on the part it cannot see.
+      # The whole history, not the default single commit. Two checks read the
+      # history and refuse a shallow clone rather than pass on the part they
+      # cannot see:
+      # - the personal-email check reads every commit's author, committer and
+      #   message;
+      # - the module-header check reads `STILL_LONG` from the commit that added
+      #   its test.
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
@@ -72,3 +76,21 @@ jobs:
       - run: pip install -e ".[render,tools,stereomis]" pytest
       - run: python -c "import surgical_core.geometry.render, surgical_core.stereomis, scipy.stats, matplotlib, trimesh"
       - run: pytest
+
+  # The viewer is a web page with tests of its own, run by Node. The build is
+  # run too, since a page whose imports do not resolve still passes its tests.
+  viewer:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: viewer
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: viewer/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
