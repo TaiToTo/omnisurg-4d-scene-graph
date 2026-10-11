@@ -330,23 +330,25 @@ def test_a_run_that_cannot_make_the_condition_is_refused_before_anything_runs(ru
     assert not (tracks / "_calls").exists()
 
 
-@pytest.mark.parametrize("seed, ring", [
-    (["--sam-input", "rgb"], True),
-    (["--sam-input", "rgb", "--keep-edge-ring"], False),
-    (["--sam-input", "normal_edge", "--seed-labels", "{seeds}"], True),
+@pytest.mark.parametrize("seed, base, ring", [
+    (["--sam-input", "rgb"], "rgb_edge", True),
+    (["--sam-input", "rgb", "--keep-edge-ring"], "rgb_edge", False),
+    (["--sam-input", "normal_edge", "--seed-labels", "{seeds}"], "rgb_edge", True),
+    # The seed was cut elsewhere, so its input's edges are not this run's, and no input of the run burns edges.
+    (["--sam-input", "normal_edge", "--seed-labels", "{seeds}"], "rgb", None),
 ])
-def test_a_tracker_input_that_burns_edges_records_its_ring_whatever_made_the_seed(run, seed, ring):
-    # The seed's own record holds no ring for these seeds, so only the record's `edge_ring_masked` holds the tracker's.
+def test_the_driver_expects_the_edge_ring_the_tracking_stage_records(run, seed, base, ring):
+    # The seed's own record holds no ring for these seeds, so only the record's `edge_ring_masked` holds the run's.
     root, tracks, ckpt = run
     make_clip(root, "clip0")
     seeds = root.parent / "seeds"
     (seeds / "clip0").mkdir(parents=True)
     np.save(seeds / "clip0" / f"label_{N // 2:04d}.npy", np.zeros((H, W), int))
     external = "--seed-labels" in seed
-    s = settings("track", "--rule", "both_ways_from_centre", "--track-base", "rgb_edge", "--seed-min-area", "1",
+    s = settings("track", "--rule", "both_ways_from_centre", "--track-base", base, "--seed-min-area", "1",
                  *[o.replace("{seeds}", str(seeds)) for o in seed], sam_ckpt=None if external else ckpt)
     run_population("track", s, root, tracks, ["clip0"], [0])
-    info = json.loads((tracks / "clip0" / "track_rgb_edge_t" / "seed_info.json").read_text())
+    info = json.loads((tracks / "clip0" / f"track_{base}_t" / "seed_info.json").read_text())
     assert (info["seed_input"]["edge_ring_masked"], info["edge_ring_masked"]) == (None, ring)
 
 
