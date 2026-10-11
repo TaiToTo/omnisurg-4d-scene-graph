@@ -1,5 +1,4 @@
-"""The four tables of `print_status_tables`: each mark is `mark_of`'s, and each refusal is shown on a planted fault."""
-import copy
+"""The two tables of `print_status_tables`: each mark is `mark_of`'s, and each refusal is shown on a planted fault."""
 import json
 import subprocess
 import sys
@@ -14,8 +13,8 @@ REPO = Path(__file__).resolve().parent.parent
 UP, DOWN, ACROSS = [0.01, 0.02], [-0.02, -0.01], [-0.01, 0.02]
 
 
-def cell(delta: float, ci: list[float], **more) -> dict:
-    return {"delta": delta, "ci95_video": list(ci), **more}
+def cell(delta: float, ci: list[float]) -> dict:
+    return {"delta": delta, "ci95_video": list(ci)}
 
 
 def input_track() -> dict:
@@ -46,22 +45,6 @@ def identity() -> dict:
                 pairs={"rgb/a:rgb/b": {"n_clips": 4, "n_videos": 3, "metrics": metrics}})
 
 
-def kmerge_pairs() -> dict:
-    pair = dict(a="op_x", b="op_y", at="matched", delta=0.017, ci95_video=UP, verdict="★", n_clips=4, n_videos=3,
-                win=3, lose=1)
-    return dict(dataset="atlas97", stride=5, k_list=[2, 8], pairs=[pair, {**pair, "at": "k8", "ci95_video": ACROSS,
-                                                                           "verdict": ""}])
-
-
-def classic(degenerate: bool = False, **setting) -> dict:
-    """A classic-segmentation JSON of one row, every key's interval below zero, its stored marks `mark_of`'s."""
-    stored = "" if degenerate else "✗"
-    pair = {k: cell(-0.1, DOWN, verdict=stored) for k, _ in PST.CLASSIC_KEYS}
-    row = dict(n_clips=27, n_videos=17, degenerate=degenerate, arms={"normal": {"n": 2.7}, "rgb": {"n": 3.6}}, pair=pair)
-    return dict(dataset="cholec", k=8, markers="peak", **{"stride": 5, "drop_instruments": True, **setting},
-                by_sigma={"33.0": row})
-
-
 # ---------------------------------------------------------------- marks
 
 
@@ -84,28 +67,6 @@ def test_the_identity_table_carries_no_mark():
     lines = PST.identity_lines(identity())
     assert not any("★" in line or "✗" in line for line in lines)
     assert lines[4].startswith("rgb/a:rgb/b") and "+0.2000 [+0.010,+0.020]   3-  1" in lines[4]
-
-
-def test_a_stored_mark_that_is_not_mark_of_s_is_refused():
-    d = kmerge_pairs()
-    d["pairs"][1]["verdict"] = "★"
-    with pytest.raises(ValueError, match="stores the mark '★'"):
-        PST.kmerge_pairs_lines(d)
-    d = classic()
-    d["by_sigma"]["33.0"]["pair"]["boundary_F"]["verdict"] = ""
-    with pytest.raises(ValueError, match="boundary_F .* stores the mark ''"):
-        PST.classic_lines([d])
-
-
-def test_a_degenerate_row_has_no_mark_where_its_interval_excludes_zero():
-    lines = PST.classic_lines([classic(degenerate=True), classic()])
-    assert lines[2].endswith("  degenerate") and "✗" not in lines[2]
-    assert lines[3].count("✗") == len(PST.CLASSIC_KEYS)
-    # A degenerate row whose JSON stores a mark was decided by another rule.
-    d = classic(degenerate=True)
-    d["by_sigma"]["33.0"]["pair"]["labeled"]["verdict"] = "✗"
-    with pytest.raises(ValueError, match="stores the mark '✗'"):
-        PST.classic_lines([d])
 
 
 # ---------------------------------------------------------------- refusals
@@ -142,12 +103,6 @@ def test_the_identity_table_refuses_conditions_measured_against_different_gt_tra
         PST.identity_lines(d)
 
 
-@pytest.mark.parametrize("setting", [{"stride": 1}, {"drop_instruments": False}])
-def test_the_classic_table_refuses_files_with_another_setting(setting):
-    with pytest.raises(ValueError, match="differ in stride or in dropping instruments"):
-        PST.classic_lines([classic(), classic(**setting)])
-
-
 # ---------------------------------------------------------------- the command
 
 
@@ -164,34 +119,30 @@ def _run(*args):
 
 def test_the_command_prints_each_table_given_between_separators(tmp_path):
     run = _run("--input-track", _write(tmp_path, "e1.json", input_track()),
-               "--identity", _write(tmp_path, "e2.json", identity()),
-               "--kmerge-pairs", _write(tmp_path, "h2.json", kmerge_pairs()),
-               "--classic", _write(tmp_path, "c2.json", classic()), _write(tmp_path, "c1.json", classic(True)))
+               "--identity", _write(tmp_path, "e2.json", identity()))
     assert run.returncode == 0, run.stderr
     sections = run.stdout.split("\n\n" + PST.SEPARATOR + "\n")
-    assert [s.split(" ", 1)[0] for s in sections] == ["Inputs", "Identity", "Merged", "Classic"]
-    # The classic JSONs are printed in sorted order, whatever order they are named in.
-    assert sections[3].splitlines()[2].endswith("degenerate")
+    assert [s.split(" ", 1)[0] for s in sections] == ["Inputs", "Identity"]
 
 
 def test_the_command_prints_one_table_without_a_separator(tmp_path):
-    run = _run("--kmerge-pairs", _write(tmp_path, "h2.json", kmerge_pairs()))
+    run = _run("--identity", _write(tmp_path, "e2.json", identity()))
     assert run.returncode == 0, run.stderr
-    assert PST.SEPARATOR not in run.stdout and run.stdout.startswith("Merged pairs")
+    assert PST.SEPARATOR not in run.stdout and run.stdout.startswith("Identity over time")
 
 
 def test_the_command_refuses_no_table_and_prints_nothing_of_a_run_it_refuses(tmp_path):
     run = _run()
     assert run.returncode != 0 and "at least one analysis JSON" in run.stderr
-    bad = copy.deepcopy(kmerge_pairs())
-    bad["pairs"][0]["verdict"] = ""
+    bad = identity()
+    bad["conditions"]["rgb/b"]["n_gt_tracks"] = 99
     run = _run("--input-track", _write(tmp_path, "e1.json", input_track()),
-               "--kmerge-pairs", _write(tmp_path, "h2.json", bad))
-    assert run.returncode != 0 and "h2.json" in run.stderr and run.stdout == ""
+               "--identity", _write(tmp_path, "e2.json", bad))
+    assert run.returncode != 0 and "e2.json" in run.stderr and run.stdout == ""
 
 
 def test_the_command_refuses_a_value_that_is_not_a_number(tmp_path):
-    path = tmp_path / "h2.json"
-    path.write_text(json.dumps(kmerge_pairs()).replace("0.017", "NaN"), encoding="utf-8")
-    run = _run("--kmerge-pairs", str(path))
+    path = tmp_path / "e2.json"
+    path.write_text(json.dumps(identity()).replace("0.97", "NaN"), encoding="utf-8")
+    run = _run("--identity", str(path))
     assert run.returncode != 0 and "NaN" in run.stderr

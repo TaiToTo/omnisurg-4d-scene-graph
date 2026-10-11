@@ -1,23 +1,19 @@
-"""Print the tables of four analyses from the JSONs those analyses wrote, computing nothing new.
+"""Print the tables of two analyses from the JSONs those analyses wrote, computing nothing new.
 
 - each geometry input against rgb, merged to one K (`fair_merge_recheck --mode input_track`);
-- identity over time (`summarize_track12`), with no mark: its measures are reference values;
-- conditions merged to one K by `kmerge --pairs`;
-- a classic watershed, normal against rgb (`classic_seg`).
+- identity over time (`summarize_track12`), with no mark: its measures are reference values.
 
 Every mark is the one `paired_stats.mark_of` gives on the stored
-video-level interval, in the key's direction. A mark a JSON stores must
-equal it. The tables are pasted as printed, never copied by hand.
+video-level interval, in the key's direction. The tables are pasted as
+printed, never copied by hand.
 
 Usage:
-    python -m evalkit.tools.print_status_tables --input-track e1_input_track.json \\
-        --identity e2_track12.json --kmerge-pairs kmerge_pps_ci.json --classic classic_seg__*.json
+    python -m evalkit.tools.print_status_tables --input-track e1_input_track.json --identity e2_track12.json
 """
 from __future__ import annotations
 
 import argparse
 import json
-import os
 from collections.abc import Sequence
 
 from evalkit.tools.paired_stats import MARK_RULE, mark_of
@@ -31,14 +27,13 @@ KS = (0, 6, 8, 10, 12)
 # The keys of each table and their headings, in the order of its columns.
 INPUT_TRACK_KEYS = (("full", "F1@.5"), ("labeled", "F1 labeled"), ("boundary_F", "boundary F"),
                     ("boundary_R_raw", "boundary R raw"), ("GT_mIoU", "mIoU"))
-CLASSIC_KEYS = INPUT_TRACK_KEYS[1:]
 IDENTITY_KEYS = (("hold_mean", "hold"), ("idf1", "IDF1"), ("idsw_per_track", "IDsw/track"),
                  ("frag_per_track", "Frag/track"))
-# The pilot key each column holds. The analyses scored with the pilot
-# evaluator's functions but name a key by its domain alone, and `kmerge
-# --pairs` names its F1 at 0.5 `f1`; each column is read in its pilot key's direction.
+# The pilot key each column holds. The analysis scored with the pilot
+# evaluator's functions but names a key by its domain alone; each column is
+# read in its pilot key's direction.
 PILOT_KEY_OF = {"full": "inst_F1_50", "labeled": "inst_F1_50_labeled", "boundary_F": "boundary_F",
-                "boundary_R_raw": "boundary_R_raw", "GT_mIoU": "GT_mIoU", "f1": "inst_F1_50"}
+                "boundary_R_raw": "boundary_R_raw", "GT_mIoU": "GT_mIoU"}
 
 
 def load_analysis(path: str) -> dict:
@@ -54,24 +49,14 @@ def load_analysis(path: str) -> dict:
         return json.load(f, parse_constant=refuse)
 
 
-def mark_text(ci: Sequence[float], key: str, stored: str | None = None, withheld: bool = False) -> str:
+def mark_text(ci: Sequence[float], key: str) -> str:
     """Return the mark `paired_stats.mark_of` gives on a stored interval in `key`'s direction, or two spaces for none.
 
     Args:
         ci: The stored video-level 95 % interval of the difference.
         key: The analysis's name for the key, a key of `PILOT_KEY_OF`.
-        stored: The mark the JSON stores beside the interval, if it stores one.
-        withheld: The analysis withheld the mark on this row, so no mark is given.
-
-    Raises:
-        ValueError: `stored` is not the mark this gives. A JSON whose mark
-            another rule decided is refused rather than printed under this one.
     """
-    m = "" if withheld else mark_of(ci, PILOT_SIGNS[PILOT_KEY_OF[key]])
-    if stored is not None and stored != m:
-        raise ValueError(f"{key} {list(ci)}: the JSON stores the mark {stored!r}, "
-                         f"and paired_stats.mark_of gives {m!r}")
-    return m or "  "
+    return mark_of(ci, PILOT_SIGNS[PILOT_KEY_OF[key]]) or "  "
 
 
 def input_track_lines(d: dict) -> list[str]:
@@ -155,81 +140,22 @@ def identity_lines(d: dict) -> list[str]:
     return lines
 
 
-def kmerge_pairs_lines(d: dict) -> list[str]:
-    """Return the pairs `kmerge --pairs` compared, each at one K or at the matched region count.
-
-    Raises:
-        ValueError: A stored mark is not the one `paired_stats.mark_of` gives on its interval.
-    """
-    lines = [f"Merged pairs, kmerge --pairs / dataset {d['dataset']} / stride {d['stride']} / K {d['k_list']} / "
-             f"mark: {MARK_RULE}",
-             "Δ = a − b: the per-frame stage's F1, both merged to the same K"]
-    for p in d["pairs"]:
-        ci = p["ci95_video"]
-        lines.append(f"  {p['a']} − {p['b']} @ {p['at']:8s} {p['delta']:+.4f} {mark_text(ci, 'f1', p['verdict'])} "
-                     f"[{ci[0]:+.4f},{ci[1]:+.4f}] wins-losses {p['win']}-{p['lose']} / "
-                     f"{p['n_clips']} clips {p['n_videos']} videos")
-    return lines
-
-
-def classic_lines(docs: Sequence[dict]) -> list[str]:
-    """Return the table of the classic watershed, normal against rgb, one row per dataset, markers, K and smoothing.
-
-    Raises:
-        ValueError: The JSONs differ in stride or in whether instruments
-            were dropped, which the table's one header states; or a stored
-            mark is not the one `paired_stats.mark_of` gives on its interval.
-    """
-    setting = {(d["stride"], d["drop_instruments"]) for d in docs}
-    if len(setting) != 1:
-        raise ValueError(f"the JSONs differ in stride or in dropping instruments: {sorted(setting)}")
-    (stride, dropped), = setting
-    lines = [f"Classic segmentation, classic_seg: marker-controlled watershed, Δ = normal − rgb, "
-             f"instruments {'dropped' if dropped else 'kept'}, stride {stride}",
-             f"{'data':8s} {'markers':7s} {'K':>2s} {'σ':>4s} {'clips':>5s} {'videos':>6s} {'regions n/r':>12s} "
-             + " ".join(f"{h:>22s}" for _, h in CLASSIC_KEYS) + "  degenerate"]
-    for d in docs:
-        for sig, r in d["by_sigma"].items():
-            a = r["arms"]
-            row = (f"{d['dataset']:8s} {d['markers']:7s} {d['k']:2d} {float(sig):4.0f} {r['n_clips']:5d} "
-                   f"{r['n_videos']:6d} {a['normal']['n']:5.2f}/{a['rgb']['n']:5.2f} ")
-            for key, _ in CLASSIC_KEYS:
-                v = r["pair"][key]
-                ci = v["ci95_video"]
-                # A row whose markers fell short of K holds no mark: one arm was
-                # not cut into K regions, so the comparison is not the one asked.
-                m = mark_text(ci, key, v["verdict"], withheld=r["degenerate"])
-                row += f" {v['delta']:+.4f} {m} [{ci[0]:+.3f},{ci[1]:+.3f}]"
-            lines.append(row + ("  degenerate" if r["degenerate"] else ""))
-    return lines
-
-
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--input-track", default="", help="The JSON `fair_merge_recheck --mode input_track` wrote.")
     ap.add_argument("--identity", default="", help="The JSON `summarize_track12` wrote.")
-    ap.add_argument("--kmerge-pairs", default="", help="The JSON `kmerge --pairs` wrote.")
-    ap.add_argument("--classic", nargs="+", default=[],
-                    help="The JSONs `classic_seg` wrote, one per dataset, markers and K; printed in sorted order.")
     args = ap.parse_args()
-    if not (args.input_track or args.identity or args.kmerge_pairs or args.classic):
+    if not (args.input_track or args.identity):
         raise SystemExit("name at least one analysis JSON")
 
     # Every table, built before any is printed, so that a refused JSON prints nothing.
     sections = []
-    for path, build in ((args.input_track, input_track_lines), (args.identity, identity_lines),
-                        (args.kmerge_pairs, kmerge_pairs_lines)):
+    for path, build in ((args.input_track, input_track_lines), (args.identity, identity_lines)):
         if path:
             try:
                 sections.append(build(load_analysis(path)))
             except (KeyError, ValueError, OSError) as e:
                 raise SystemExit(f"{path}: {e!r}") from e
-    if args.classic:
-        paths = sorted(args.classic)
-        try:
-            sections.append(classic_lines([load_analysis(p) for p in paths]))
-        except (KeyError, ValueError, OSError) as e:
-            raise SystemExit(f"{', '.join(os.path.basename(p) for p in paths)}: {e!r}") from e
 
     print(f"\n\n{SEPARATOR}\n".join("\n".join(lines) for lines in sections))
 
