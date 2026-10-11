@@ -121,7 +121,7 @@ def frame_files(clip, folder: str, suffix: str) -> list[Path]:
     return files
 
 
-def instrument_mask(path: Path, size: tuple[int, int], interpolation: int = cv2.INTER_NEAREST) -> np.ndarray:
+def instrument_mask(path: Path, size: tuple[int, int]) -> np.ndarray:
     """Return the dilated instrument mask of one frame, true on an instrument, at `size` (width, height).
 
     Raises:
@@ -131,7 +131,7 @@ def instrument_mask(path: Path, size: tuple[int, int], interpolation: int = cv2.
     if raw is None:
         raise ValueError(f"{path}: not an image")
     if raw.shape != (size[1], size[0]):
-        raw = cv2.resize(raw, size, interpolation=interpolation)
+        raw = cv2.resize(raw, size, interpolation=cv2.INTER_NEAREST)
     kernel = np.ones((MASK_DILATE, MASK_DILATE), np.uint8)
     return cv2.dilate((raw > 0).astype(np.uint8), kernel) > 0
 

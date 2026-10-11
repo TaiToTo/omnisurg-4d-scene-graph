@@ -62,15 +62,16 @@ all 98 sessions and 5 specimens.
 
 ## Files
 
-| file | what it is | from the workbench |
-|---|---|---|
-| `census_clips.txt` | every clip the census measures, one `key` per line, in the order the loader yields them | the keys of `ipcai2027_experiment/out/09/census.json` |
-| `population.json` | the counts above, the thresholds, and under `sides` one entry per kept side: `key`, `side`, `moved_camera`, and `specimen`, the first name of `key` | `ipcai2027_experiment/out/09/population.json` |
-| `clips.txt` | the clips with at least one kept side, one per line, sorted | `ipcai2027_experiment/out/09/pop_all.txt` |
+| file | what it is |
+|---|---|
+| `census_clips.txt` | every clip the census measures, one `key` per line, in the order the loader yields them |
+| `population.json` | the counts above, the thresholds, and under `sides` one entry per kept side: `key`, `side`, `moved_camera`, and `specimen`, the first name of `key` |
+| `clips.txt` | the clips with at least one kept side, one per line, sorted |
 
-## Who reads these
+## What makes and reads these
 
-`pipeline/select_d4d_population.py` writes `population.json` and `clips.txt`
-from the census and `census_clips.txt`; `docs/pipeline.md` says how to run it
-and the two steps that make the census. `tests/test_select_d4d_population.py`
-pins what must hold between the files.
+`pipeline.d4d_tissue_motion` and `pipeline.d4d_census` make the census from
+the dataset. `pipeline.select_d4d_population` writes `population.json` and
+`clips.txt` from the census and `census_clips.txt`. `docs/pipeline.md` says
+how to run the three steps. `tests/test_select_d4d_population.py` pins what
+must hold between the files.

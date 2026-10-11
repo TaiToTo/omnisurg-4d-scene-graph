@@ -18,7 +18,6 @@ import json
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
-import cv2
 import numpy as np
 
 import surgical_core.d4d as d4d
@@ -39,9 +38,6 @@ MERGE_GAP_S = 0.6
 MIN_INTERVAL_S = 0.3
 # The camera stays still when its per-frame positions span no more than this, in metres.
 STILL_SPAN_M = 0.005
-# The dataset folder's `detect_tissue_motion.py` passed `cv2.INTER_NEAREST` as `cv2.resize`'s `dst`, so it
-# resized a mask of another size bilinearly.
-MASK_INTERPOLATION = cv2.INTER_LINEAR
 
 
 def camera_moves(clip) -> bool:
@@ -77,7 +73,7 @@ def series(depth: list[Path], masks: list[Path]) -> tuple[list[float], list[floa
     @functools.lru_cache(maxsize=64)
     def frame(i: int) -> tuple[np.ndarray, np.ndarray]:
         d = np.load(depth[i])
-        return d, d4d.instrument_mask(masks[i], (d.shape[1], d.shape[0]), MASK_INTERPOLATION)
+        return d, d4d.instrument_mask(masks[i], (d.shape[1], d.shape[0]))
 
     # Compare each sampled frame with the frame `lag` later.
     t, p90 = [], []
