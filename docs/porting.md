@@ -373,10 +373,11 @@ Each stage is described in `docs/pipeline.md`.
   script ran them. It takes the clips from `surgical_core.stereomis.clips`,
   where the script listed the directory, and refuses for both stages what
   `pipeline/depth_population.py` refuses. The depth stage now takes a
-  StereoMIS clip without `crop_info.json`: the rectified views keep no black
-  border (checked on 86 of the workbench's images). On the workbench's
-  clips, the driver's checks refuse six clips ("The StereoMIS depth
-  outputs the ported stages do not reproduce").
+  StereoMIS clip without `crop_info.json`: the rectification cuts the views
+  to the valid region, and the workbench's stage, which looked for a border
+  on every frame, recorded `border_inpaint: false` on all 43 plain clips
+  (checked). On the workbench's clips, the driver's checks refuse six clips
+  ("The StereoMIS depth outputs the ported stages do not reproduce").
 
 ### Not yet extracted anywhere
 
@@ -1324,18 +1325,17 @@ Every command takes those paths as arguments.
     by order. Decide with the place the bundles are hosted.
 35. **The StereoMIS depth outputs the ported stages do not reproduce.**
     `pipeline.depth_stereomis` refuses six clips of the workbench's trees:
-    - 5 of the 6 masked clips of `P2_0` record `border_inpaint: true`, and
-      the same clips unpainted record false (checked). Their paint covers
-      11 to 26 % of the pixels and the edge of every frame; the sixth clip's
-      covers 3 % and no edge in 24 frames (checked). The workbench's stage
-      most likely took the paint for a border (inferred). The ported stage
-      fills none, so their `da3_masked` will change. All five are `slow`
-      clips: they enter `da3_masked` over every clip, over `slow` and in the
-      `P2_0` cell of the table by sequence, and no plain condition or
-      `pi3x_masked` (checked). The workbench's claims list cites the masked
-      result on the 19 clips painted at 1 % or more; the five are among the
-      18 such clips by a mean over every frame (checked), so most likely
-      among the 19 (inferred).
+    - 5 of the 6 masked clips of `P2_0` record `border_inpaint: true`. The
+      workbench's stage looked for a border on every clip outside
+      ATLAS-120k, and where it covered 1 % or more of the frame, filled it
+      and zeroed the depth outside it; the five clips hold its
+      `endoscope_content_mask.npy` and `prep_images/`, and the sixth,
+      `clip_0008`, neither (checked). Their paint covers 11 to 26 % of the
+      pixels and the edge of every frame, so the stage took it for a border.
+      The ported stage fills none, so their `da3_masked` will change. All
+      five are `slow` clips: they enter `da3_masked` over every clip, over
+      `slow` and in the `P2_0` cell of the table by sequence, and no plain
+      condition or `pi3x_masked` (checked).
     - `P1__clip_0001` (plain) holds Pi3X clouds of 250,880 points: it ran
       without `--max-points`. The flag thins the GLB and the clouds' records
       (`n_vertices`, `glb_centroid`, `median_vertices`) only; the workbench's

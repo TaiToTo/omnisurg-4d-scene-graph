@@ -448,15 +448,19 @@ StereoMIS clip under `--input-dir`, one process per GPU, on CUDA only. The
 depth stage writes its point clouds; the Pi3X stage keeps at most 60,000
 points a cloud (`--max-points`), which leaves its poses alone. Each stage
 skips a clip that holds its record (`depth_info`, `geometry_sources.pi3x`),
-and writes its logs to `<input-dir>/_logs/<stage>_gpu<N>.log`. The command
-refuses what `pipeline.depth_population` refuses, for each stage:
+and writes its logs to `<input-dir>/_logs/<stage>_gpu<N>.log`. A clip that
+holds a stage's bundle without its record is run again; the stage refuses
+it until its files are removed or the stage is run on it with
+`--overwrite`. Neither record says whether the point clouds were written,
+so the command does not check them. The command refuses what
+`pipeline.depth_population` refuses, for each stage:
 
 - before any process starts: a usable clip that is not under
   `--input-dir`, and a clip with either stage's output made at another
-  setting, Pi3X clouds of more than 60,000 points included;
-- after each stage: a clip without its output, or with a bundle that is
-  not one frame per image; the Pi3X stage does not start after the depth
-  stage fails.
+  model or resolution, Pi3X clouds of more than 60,000 points included;
+- after each stage: a clip without its output, with depth that records a
+  filled border, or with a bundle that is not one frame per image; the
+  Pi3X stage does not start after the depth stage fails.
 
 ## The tracking stage
 

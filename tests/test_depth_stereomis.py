@@ -176,6 +176,15 @@ def test_pi3x_poses_that_are_not_one_per_image_are_refused(stand_in):
         driver.check_pi3x(stand_in, ["P1__clip_0000"])
 
 
+def test_pi3x_clouds_left_unthinned_are_refused_after_the_stage(stand_in):
+    make_clip(stand_in, "P1__clip_0000")
+    write_pi3x(stand_in, "P1__clip_0000", n=3)
+    edit_manifest(stand_in, "P1__clip_0000", unthinned)
+    with pytest.raises(ValueError, match=r"^1 with Pi3X output of another setting or version: "
+                                         r"\['P1__clip_0000 \(clouds of up to 250880 points\)'\]$"):
+        driver.check_pi3x(stand_in, ["P1__clip_0000"])
+
+
 def test_a_pi3x_bundle_of_another_version_or_unreadable_is_refused(stand_in):
     make_clip(stand_in, "P1__clip_0000")
     make_clip(stand_in, "P1__clip_0001")
@@ -190,13 +199,13 @@ def test_a_pi3x_bundle_of_another_version_or_unreadable_is_refused(stand_in):
 
 def test_the_command_takes_the_population_from_the_reader_and_exits_non_zero_on_a_refusal(stand_in, monkeypatch):
     make_clip(stand_in, "P1__clip_0000")
-    monkeypatch.setattr(driver, "usable_clips", lambda root, depth_root: ["P1__clip_0000"])
+    monkeypatch.setattr(driver, "usable_clips", lambda stereomis_root, depth_root: ["P1__clip_0000"])
     # `main` installs its stop handlers; the test process keeps its own.
     monkeypatch.setattr(driver.signal, "signal", lambda *a: None)
     argv = ["depth_stereomis", "--root", "x", "--depth-root", "y", "--input-dir", str(stand_in), "--gpus", "3"]
     monkeypatch.setattr(sys, "argv", argv)
     driver.main()
     assert calls(stand_in) == {"da3_gpu3": ["P1__clip_0000"], "pi3x_gpu3": ["P1__clip_0000"]}
-    monkeypatch.setattr(driver, "usable_clips", lambda root, depth_root: ["P1__clip_0000", "P1__clip_0009"])
+    monkeypatch.setattr(driver, "usable_clips", lambda stereomis_root, depth_root: ["P1__clip_0000", "P1__clip_0009"])
     with pytest.raises(SystemExit, match="FileNotFoundError"):
         driver.main()

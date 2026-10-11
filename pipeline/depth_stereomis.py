@@ -39,9 +39,10 @@ PI3X_BUNDLE = Path("exports/mini_npz/results__pi3x.npz")
 PI3X_SETTING = {"model": Pi3X.model_id, "pixel_limit": DEFAULT_PIXEL_LIMIT, "conf_thre": 0.0, "vo": False}
 
 
-def usable_clips(root: Path, depth_root: Path) -> list[str]:
+def usable_clips(stereomis_root: Path, depth_root: Path) -> list[str]:
     """Return the names of the clips `stereomis.clips` marks usable, sequence by sequence."""
-    return [c["name"] for seq in stereomis.SEQUENCES for c in stereomis.clips(root, depth_root, seq) if c["usable"]]
+    return [c["name"] for seq in stereomis.SEQUENCES
+            for c in stereomis.clips(stereomis_root, depth_root, seq) if c["usable"]]
 
 
 def pi3x_record(manifest: dict) -> dict | None:
