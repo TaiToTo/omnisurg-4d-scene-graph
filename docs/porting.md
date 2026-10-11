@@ -13,9 +13,9 @@ no check is recorded.
 |---|---|---|
 | evaluator, `evalkit/` | class tables, metrics, entry point, pilot mode | in pilot mode, every key shared with the pilot evaluator equal on 23 conditions × 315 clips, at `eval_code_sha` `a5d7ea46…` |
 | score tools, `evalkit/tools/` | every tool in the layout of `AGENTS.md` but `track_metrics` | `paired_table`, `arms_paired`, `claims_table`, `leave_one_video_out`, `print_status_tables`, `kmerge`: the workbench's values on the same inputs |
-| camera trajectory scorer, `trajectory_eval/` | `pose_metrics`, the scoring of a clip, `pose_controls`, `scores` | `pose_metrics`: the workbench's values on 1200 random, planar and static trajectories. The scoring of a clip and `pose_controls`: the workbench's 387 StereoMIS rows, every value, scored again from its stored outputs |
-| extraction and crop | ATLAS-120k, CholecSeg8k, LapEx, StereoMIS, the D4D population | the CholecSeg8k crop, 13 of the 27 CholecSeg8k clips and the D4D population: the workbench's bytes |
-| depth | DA3, Pi3X, point clouds, the population drivers | DA3, point clouds and Pi3X: the workbench's bytes on the GPU machine, on three clips |
+| camera trajectory scorer, `trajectory_eval/` | `pose_metrics`, the scoring of a clip, `pose_controls`, `scores`, `score_stereomis` | `pose_metrics`: the workbench's values on 1200 random, planar and static trajectories. The scoring of a clip, `pose_controls` and `score_stereomis`: the workbench's 387 StereoMIS rows, every value, scored again from its stored outputs |
+| extraction and crop | ATLAS-120k, CholecSeg8k, LapEx, StereoMIS, the D4D population | the CholecSeg8k crop, 13 of the 27 CholecSeg8k clips and the D4D population: the workbench's bytes. LapEx's 735 clips: the workbench's frames and masks, and its manifests apart from `depth_info` |
+| depth | DA3, Pi3X, point clouds, the population drivers | DA3, point clouds and Pi3X: the workbench's bytes on the GPU machine, on three clips. DA3 also on the 25 LapEx clips whose border the workbench did not fill |
 | segmentation and tracking | `track`, `per_frame`, `condition_population` | `track` and `per_frame`: the workbench's bytes on the GPU machine, on three clips. `condition_population`: the workbench's commands, for 43 conditions. The 40 segmenter inputs that `tests/test_render_outputs_are_pinned.py` pins: the workbench's, rendered with each case's ring setting |
 | viewer | `viewer/`, `pipeline/viewer_bundle` | — (new: the workbench's demo read other files) |
 
@@ -50,8 +50,6 @@ not compared:
   modules they need. Its byte check needs a clip whose tracking labels the
   workbench holds.
 - **The paper's tables**: the claims grid and the StereoMIS table.
-- **The StereoMIS scoring**: the command that scores each method and each
-  control on every clip.
 - **D4D**: the census, depth, seeds, the front/behind relation and the
   camera trajectory. The reader waits on "How this repository depends on
   D4D's loader".
@@ -151,6 +149,11 @@ only:
   thousand differs by one level. So frames are compared on one machine.
 - **The ATLAS-120k manifest key `pixel_source`.** The workbench's extractor
   gained it after the GPU machine's clips were extracted.
+- **LapEx's depth.** On 710 of the 735 clips, the workbench filled what it
+  took for the endoscope's border and set the depth there to 0. The
+  evaluator refuses a frame with depth 0. The depth stage takes the frames
+  whole, so its output on those clips differs. On the other 25 clips it
+  equals the workbench's.
 
 ## Open questions
 
@@ -341,8 +344,8 @@ Each question says what it blocks and where its answer is written.
   neither it nor `kmerge` reads a LapEx clip. Open:
   - its class table, where level 0, interstitial space, is a class that the
     extraction writes as 11;
-  - its depth: the workbench filled the endoscope's border on 710 of the
-    735 clips, leaving zeros the evaluator refuses;
+  - its crop rectangle: the evaluator requires `crop_info` or `crop` in the
+    manifest, and the extraction writes neither;
   - its comparison: the workbench resampled 30 case means, which weighs
     the cases unlike `paired_stats`.
 
