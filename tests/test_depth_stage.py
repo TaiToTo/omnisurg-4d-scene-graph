@@ -144,13 +144,10 @@ def test_a_cholecseg8k_clip_not_cut_to_the_view_is_refused(tmp_path):
     assert not (clip / "depth_raw").exists(), "refused before anything is written"
 
 
-def test_an_atlas120k_clip_needs_no_crop_info(tmp_path):
-    clip = make_clip(tmp_path, name="adrenalectomy__x__gt_0001", dataset="atlas120k", cropped=False)
-    check_cropped(clip, json.loads((clip / "frame_manifest.json").read_text()))
-
-
-def test_a_stereomis_clip_needs_no_crop_info(tmp_path):
-    clip = make_clip(tmp_path, name="P1__clip_0001", dataset="stereomis", cropped=False)
+@pytest.mark.parametrize("dataset, name", [
+    ("atlas120k", "adrenalectomy__x__gt_0001"), ("stereomis", "P1__clip_0001"), ("lapex", "01__gt_0145160")])
+def test_an_atlas120k_stereomis_or_lapex_clip_needs_no_crop_info(tmp_path, dataset, name):
+    clip = make_clip(tmp_path, name=name, dataset=dataset, cropped=False)
     check_cropped(clip, json.loads((clip / "frame_manifest.json").read_text()))
 
 

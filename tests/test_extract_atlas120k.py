@@ -210,6 +210,12 @@ def test_a_kept_clip_without_jpegs_is_refused(release):
         extract_video(**release)
 
 
+def test_a_frame_opencv_cannot_write_is_refused(release, monkeypatch):
+    monkeypatch.setattr("pipeline.extract_atlas120k.cv2.imwrite", lambda path, img: False)
+    with pytest.raises(RuntimeError, match="cannot write .*input_images"):
+        extract_video(**release)
+
+
 def test_a_short_clip_without_jpegs_is_still_recorded(release):
     for p in (_source(release, "clip_0005") / "images").iterdir():
         p.unlink()

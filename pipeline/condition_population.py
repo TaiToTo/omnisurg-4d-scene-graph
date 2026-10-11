@@ -23,14 +23,13 @@ Usage:
 import argparse
 import json
 import shlex
-import signal
 import subprocess
 import sys
 import time
 from pathlib import Path
 
 from evalkit.evaluate import SEED_INFO, read_population
-from pipeline.depth_population import LOG_DIR, STOP_SIGNALS, stop
+from pipeline.depth_population import LOG_DIR, install_stop_handlers
 from pipeline.per_frame import SMOOTH
 from pipeline.track import BUNDLE, DEPTH_SOURCES, PI3X_BUNDLE, RULES, SEED_SAM_KWARGS, seed_labels_dir, window
 from surgical_core.geometry.render import SAM_INPUT_MODES, uses_geom_edge
@@ -339,16 +338,6 @@ def build_parser() -> argparse.ArgumentParser:
     per_frame.add_argument("--sam-ckpt", required=True, help="The SAM ViT-H weights, sam_vit_h_4b8939.pth.")
     per_frame.add_argument("--edge-gain", type=float, default=1.0, help="How dark the burnt-in edges are.")
     return ap
-
-
-def install_stop_handlers() -> None:
-    """Stop the driver, and its processes with it, on a stop signal, but leave ignored a signal that is ignored.
-
-    Under `nohup` SIGHUP is ignored, and a handler would stop the run when the terminal closes.
-    """
-    for sig in STOP_SIGNALS:
-        if signal.getsignal(sig) is not signal.SIG_IGN:
-            signal.signal(sig, stop)
 
 
 def main() -> None:

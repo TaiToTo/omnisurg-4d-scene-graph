@@ -250,9 +250,18 @@ def stop(signum: int, frame) -> None:
     raise SystemExit(128 + signum)
 
 
+def install_stop_handlers() -> None:
+    """Install `stop` on every stop signal that is not ignored, and leave an ignored signal ignored.
+
+    Under `nohup` SIGHUP is ignored. A handler would replace that, and closing the terminal would stop the run.
+    """
+    for sig in STOP_SIGNALS:
+        if signal.getsignal(sig) is not signal.SIG_IGN:
+            signal.signal(sig, stop)
+
+
 def main() -> None:
-    for s in STOP_SIGNALS:
-        signal.signal(s, stop)
+    install_stop_handlers()
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--input-dir", required=True, help="The directory that holds the clips.")
     ap.add_argument("--clips", required=True, help="The population: one clip name per line.")
