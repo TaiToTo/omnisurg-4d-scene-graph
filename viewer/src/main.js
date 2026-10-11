@@ -102,16 +102,17 @@ async function open(id, { frame = '0', mode = 'frame', track = null, focus = nul
   const seq = state.clipSeq;
   const current = () => state.clipSeq === seq;
   const f = Number(frame);
+  const knownFrame = Number.isInteger(f) && f >= 0 && f < state.clip.n_frames;
   const knownTrack = track === BOTH ? !!state.clip.hierarchy : state.clip.trackById.has(track);
   const knownFocus = focus && NODE_KEY.test(focus) && state.clip.trackById.has(focus.split(':')[0]);
   const left = [
     ...(track && !knownTrack ? [`track ${track}`] : []),
-    ...(!(Number.isInteger(f) && f >= 0 && f < state.clip.n_frames) ? [`frame ${frame}`] : []),
+    ...(!knownFrame ? [`frame ${frame}`] : []),
     ...(focus && !knownFocus ? [`region ${focus}`] : []),
   ];
   if (left.length) showError(`This clip has no ${left.join(', ')}; the link opens without it.`);
   if (track && knownTrack) setTrack(track);
-  if (f > 0 && f < state.clip.n_frames) await seekFrame(f);
+  if (knownFrame && f > 0) await seekFrame(f);
   if (!current()) return;
   if (mode === 'world') await switchMode('world');
   if (!current()) return;

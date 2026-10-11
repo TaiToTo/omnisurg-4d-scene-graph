@@ -39,7 +39,26 @@ def backproject(depth, K, ext_w2c):
 
 
 def project_world_to_frame(Pw, K, ext_w2c):
-    """World points to pixel coordinates `(u, v)` and camera depth `Z`."""
+    """Project world points to pixel coordinates `(u, v)` and camera depth `Z`.
+
+    Args:
+        Pw: (N, 3) world points.
+        K: (3, 3) intrinsics.
+        ext_w2c: (3, 4) world-to-camera extrinsics.
+
+    Returns:
+        `(u, v, Z)`: each (N,), the pixel column and row of each point and its
+        depth in the camera.
+
+    Raises:
+        ValueError: `Pw` is not (N, 3), `K` is not (3, 3), or `ext_w2c` is not
+            (3, 4).
+    """
+    # The slices below would read a (4, 4) matrix too, and a (3,) point would broadcast into three points.
+    # The number of points is free, so the expected shape takes it from `Pw`.
+    _check_shape("Pw", Pw, (*np.shape(Pw)[:1], 3))
+    _check_shape("K", K, (3, 3))
+    _check_shape("ext_w2c", ext_w2c, (3, 4))
     R, t = ext_w2c[:, :3], ext_w2c[:, 3]
     with np.errstate(all="ignore"):
         Pc = (R @ Pw.T + t[:, None]).T

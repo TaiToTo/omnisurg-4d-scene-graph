@@ -164,7 +164,8 @@ def write_clip(clip_dir: Path, case: str, a: Annotated) -> None:
     there, byte for byte.
 
     Raises:
-        RuntimeError: OpenCV fails to write the frame or the mask; it reports a failure only by its return value.
+        RuntimeError: OpenCV fails to write the frame or the mask. OpenCV reports a failed write only by returning
+            False.
     """
     (clip_dir / "input_images").mkdir(parents=True)
     (clip_dir / "seg_masks").mkdir()

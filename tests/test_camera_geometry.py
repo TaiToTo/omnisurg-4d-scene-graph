@@ -120,3 +120,19 @@ def test_project_backproject_refuses_extrinsics_of_another_shape(ext):
     # The (3, 5) case is the planted fault: its slices would silently drop the last column.
     with pytest.raises(ValueError, match="ext_w2c must have shape"):
         project.backproject(np.ones((4, 4)), _intrinsics(), ext)
+
+
+@pytest.mark.parametrize("ext", [np.eye(4), np.eye(3), np.hstack([np.eye(3), np.zeros((3, 2))])])
+def test_projection_refuses_extrinsics_of_another_shape(ext):
+    # The (4, 4) case is the planted fault: its slices read a homogeneous matrix without a word.
+    with pytest.raises(ValueError, match="ext_w2c must have shape"):
+        project.project_world_to_frame(np.zeros((5, 3)), _intrinsics(), ext)
+
+
+@pytest.mark.parametrize("Pw, K, name", [(np.zeros((5, 3)), np.eye(4), "K"),
+                                         (np.zeros(3), _intrinsics(), "Pw"),
+                                         (np.zeros((5, 4)), _intrinsics(), "Pw")])
+def test_projection_refuses_intrinsics_or_points_of_another_shape(Pw, K, name):
+    # One point given as (3,) would broadcast into three wrong points.
+    with pytest.raises(ValueError, match=f"{name} must have shape"):
+        project.project_world_to_frame(Pw, K, _ext(np.eye(3), np.zeros(3)))

@@ -222,7 +222,11 @@ def window(rule: str, n: int) -> tuple[list[int], int, bool]:
 
 
 def write_montage(path: Path, labels: dict[int, np.ndarray], frames: list[int], shape: tuple[int, int]) -> None:
-    """Draw every frame's labels, one colour per object across the clip, with the frame's number above it."""
+    """Draw every frame's labels, one colour per object across the clip, with the frame's number above it.
+
+    Raises:
+        RuntimeError: OpenCV fails to write the montage. OpenCV reports a failed write only by returning False.
+    """
     ids = sorted({int(v) for lab in labels.values() for v in np.unique(lab) if v >= 0})
     rng = np.random.default_rng(2)
     lut = {g: rng.integers(40, 235, 3).astype(np.uint8) for g in ids}
@@ -242,7 +246,8 @@ def write_montage(path: Path, labels: dict[int, np.ndarray], frames: list[int], 
         r, c = divmod(k, MONTAGE_COLS)
         grid[r * (h + MONTAGE_BAR):(r + 1) * (h + MONTAGE_BAR), c * w:(c + 1) * w] = tile
     path.parent.mkdir(parents=True, exist_ok=True)
-    cv2.imwrite(str(path), cv2.cvtColor(grid, cv2.COLOR_RGB2BGR))
+    if not cv2.imwrite(str(path), cv2.cvtColor(grid, cv2.COLOR_RGB2BGR)):
+        raise RuntimeError(f"cannot write {path}")
 
 
 def run_track(clip_dir: Path, tracks_root: Path, tag: str, rule: str, segmenter, tracker, sam_input: str,
@@ -281,6 +286,7 @@ def run_track(clip_dir: Path, tracks_root: Path, tag: str, rule: str, segmenter,
             - the seed labels are of another shape or hold no region
             - no seed region is left
             - the tracker carries no frame
+        RuntimeError: OpenCV fails to write the montage.
     """
     # Check the settings, and refuse labels an earlier run left.
     for mode in (sam_input, track_base):

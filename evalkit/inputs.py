@@ -194,7 +194,8 @@ def read_clip(data_root: str | Path, tracks_root: str | Path, tag: str, clip: st
         ValueError: The manifest disagrees with the depth or the masks on
             disk, or leaves a frame's GT unknown (`gt_frames`); the frames'
             order in time is unknown; the clip has no GT frame; a GT frame
-            has no prediction; or a prediction is not an (H, W) integer map.
+            has no prediction; or a prediction is not an (H, W) integer map,
+            or holds an id outside int32.
         KeyError: A GT mask holds an id or a colour the table does not have.
     """
     clip_dir = Path(data_root) / clip
@@ -240,6 +241,10 @@ def read_clip(data_root: str | Path, tracks_root: str | Path, tag: str, clip: st
         r = np.load(p)
         if r.ndim != 2 or not np.issubdtype(r.dtype, np.integer):
             raise ValueError(f"{clip}: {p.name} is not an (H, W) integer map, got {r.dtype} of shape {r.shape}")
+        # A cast to int32 wraps an id outside its range onto another id, which would merge two regions.
+        lo, hi = np.iinfo(np.int32).min, np.iinfo(np.int32).max
+        if r.size and (int(r.min()) < lo or int(r.max()) > hi):
+            raise ValueError(f"{clip}: {p.name} holds region ids from {r.min()} to {r.max()}, outside int32")
         regions[i] = _resized(r.astype(np.int32), shape)
 
     shas = {

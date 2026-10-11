@@ -157,7 +157,12 @@ def check_size(path: Path, src_size: tuple[int, int]) -> None:
 
 
 def write_frame(dst: Path, jpg: Path, rect: Rect, size: tuple[int, int]) -> None:
-    """Cut a frame to the rectangle, resize it with area averaging and write it as PNG."""
+    """Cut a frame to the rectangle, resize it with area averaging and write it as PNG.
+
+    Raises:
+        RuntimeError: OpenCV fails to read the JPEG or to write the PNG. OpenCV reports a failed write only by
+            returning False.
+    """
     bgr = cv2.imread(str(jpg), cv2.IMREAD_COLOR)
     if bgr is None:
         raise RuntimeError(f"cannot read {jpg}")
@@ -165,7 +170,8 @@ def write_frame(dst: Path, jpg: Path, rect: Rect, size: tuple[int, int]) -> None
     img = bgr[y:y + h, x:x + w]
     if (img.shape[1], img.shape[0]) != size:
         img = cv2.resize(img, size, interpolation=cv2.INTER_AREA)
-    cv2.imwrite(str(dst), img)
+    if not cv2.imwrite(str(dst), img):
+        raise RuntimeError(f"cannot write {dst}")
 
 
 def write_mask(dst: Path, png: Path, rect: Rect, size: tuple[int, int], table: ClassTable) -> None:
@@ -291,15 +297,16 @@ def extract_video(atlas_root: Path, procedure: str, video: str, out: Path, rects
                   overwrite: bool = False) -> list[str]:
     """Extract one video's clips, write its report and return the names of the clips written.
 
-    Every check below is made before anything is written or removed, apart from one: a mask whose ids or
-    colours the class table lacks is found while it is written.
+    Every check below is made before anything is written or removed, apart from those made while a clip is
+    written: a mask whose ids or colours the class table lacks, and a frame OpenCV cannot read or write.
 
     Raises:
         FileNotFoundError: the release has no such video or no mp4 of it.
         KeyError: the video's frame ratio was not measured, or a kept clip has no confirmed rectangle.
         ValueError: the video already has output and `overwrite` is false, the step falls more than `step_tol`
             off `step_sec`, or a frame or mask to be written is not the mp4's size.
-        RuntimeError: a kept clip has no JPEG for its first frame, or the frame ratio fails its check.
+        RuntimeError: a kept clip has no JPEG for its first frame, the frame ratio fails its check, or OpenCV fails
+            to read or write a frame.
     """
     # Refuse output an earlier extraction left, unless asked to replace it. A frame left by an extraction that
     # wrote more frames would otherwise stay in the clip.

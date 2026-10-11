@@ -63,13 +63,15 @@ The stage refuses:
   no JPEGs;
 - a frame or a mask whose size is not the mp4's;
 - a mask with an id or a colour the class table lacks;
+- a frame it cannot read or write;
 - a video that already has output, unless `--overwrite` is given, which
   removes the video's clips and report first;
 - clips written that are not the population's.
 
 A refused video is left as it was: the stage writes and removes nothing
-until every check has passed, apart from the class table's, which is made
-while a mask is written.
+until every check has passed. The checks made while a clip is written are
+the exception: the class table's on each mask, and whether each frame can
+be read and written.
 
 `python -m pipeline.extract_atlas120k --help` lists the options.
 
@@ -137,6 +139,7 @@ The stage refuses:
 - an annotated image that is not the video's size, that matches no frame
   of its search window, or that matches a frame on the window's edge;
 - a video frame that cannot be decoded;
+- an image or a mask it cannot write;
 - a clip with fewer than two annotated frames, or whose annotated frames
   run at a rate CholecSeg8k numbers no video at;
 - a clip whose frames do not rise in the video;
@@ -512,6 +515,7 @@ The stage refuses:
   the depth, or empty.
 - Pi3X depth with another number of frames than DA3's.
 - a seed frame with no region of `--seed-min-area` pixels or more.
+- a montage it cannot write.
 - a condition an earlier run left, unless `--overwrite` is given.
 
 A clip that fails keeps the labels an earlier run left: the stage replaces
