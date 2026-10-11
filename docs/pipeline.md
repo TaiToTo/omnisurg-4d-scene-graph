@@ -261,31 +261,41 @@ and no summary is written.
 
 `python -m pipeline.extract_lapex --help` lists the options.
 
+## The StereoMIS clip list
+
+```bash
+python -m pipeline.select_stereomis_clips --root /path/to/StereoMIS --depth-root /path/to/StereoMIS_depth \
+    --out stereomis_meta/clips.json
+```
+
+The step writes the clip list that every StereoMIS stage and score reads.
+`stereomis_meta/README.md` gives the rule and the fields. `--depth-root`
+holds the depth export's `<sequence>/stats.npy`, which this step alone
+reads. The step refuses a list that `surgical_core.stereomis.read_clip_list`
+refuses, and then leaves `--out` as it was.
+
 ## The StereoMIS extraction stage
 
 ```bash
-python -m pipeline.extract_stereomis --root /path/to/StereoMIS --depth-root /path/to/StereoMIS_depth \
+python -m pipeline.extract_stereomis --root /path/to/StereoMIS --clips stereomis_meta/clips.json \
     --out /path/to/clips [--sequences P1 P2_0 ...] [--mask-instruments]
 ```
 
 The stage writes the clips the camera trajectory result is measured on.
-`--root` holds one directory per sequence, as StereoMIS ships it.
-`--depth-root` holds the depth export's `<sequence>/stats.npy`. The stage
-reads it to leave out the clips with no surface in view. The clips are
-those `surgical_core.stereomis.clips` marks usable: 112 frames, 12
-positions apart (0.2 s at the frame rate the video declares), cut from each
-sequence without overlap. Into each clip the stage writes:
+`--root` holds one directory per sequence, as StereoMIS ships it. The clips
+are those the clip list marks usable: 112 frames, 12 positions apart, cut
+from each sequence without overlap. Into each clip the stage writes:
 
 - `input_images/`: the left view of each frame, rectified and at half
   resolution, 640x512, numbered from 0.
 - `frame_manifest.json`: for each image its position in the video
-  (`native_frame`), its ground truth row (`gt_row`) and its time, and for
-  the clip its sequence, stride, stratum and the RMS radius of its true
-  trajectory (`span_mm`).
+  (`native_frame`), its ground truth row (`gt_row`) and its time, as the
+  clip list gives them, and for the clip its sequence, stride, stratum and
+  the RMS radius of its true trajectory (`span_mm`).
 
 With `--mask-instruments`, each image is painted black outside the tissue
-mask nearest its frame, and `instruments_masked` counts the images
-painted. A frame with no mask within two frames keeps its image. The
+mask the clip list gives its frame, and `instruments_masked` counts the
+images painted. A frame the list gives no mask keeps its image. The
 paper's main condition reads the clips extracted without
 `--mask-instruments`.
 
@@ -294,10 +304,12 @@ a clip as `<clip>.partial` and renames it when its manifest is written. A
 clip is not replaced, because the depth stages write into it. The stage
 refuses:
 
+- a clip list that `surgical_core.stereomis.read_clip_list` refuses;
 - a sequence that `--sequences` names twice;
 - a clip whose directory, or `<clip>.partial`, exists already, for every
   sequence named, before anything is decoded;
 - two clips, or two places of one clip, that hold the same frame;
+- a mask the clip list gives that is not there;
 - an image it cannot write.
 
 The stage needs the `stereomis` extra and FFmpeg.
@@ -439,12 +451,12 @@ until every check has passed.
 ### Every StereoMIS clip, with both models
 
 ```bash
-python -m pipeline.depth_stereomis --root /path/to/StereoMIS --depth-root /path/to/StereoMIS_depth \
-    --input-dir /path/to/clips [--gpus 0 1 2 3]
+python -m pipeline.depth_stereomis --clips stereomis_meta/clips.json --input-dir /path/to/clips \
+    [--gpus 0 1 2 3]
 ```
 
-The command runs the depth stage, then the Pi3X stage, on every usable
-StereoMIS clip under `--input-dir`, one process per GPU, on CUDA only. The
+The command runs the depth stage, then the Pi3X stage, on every clip the
+clip list marks usable, under `--input-dir`, one process per GPU, on CUDA only. The
 depth stage writes its point clouds; the Pi3X stage keeps at most 60,000
 points a cloud (`--max-points`), which leaves its poses alone. Each stage
 skips a clip that holds its record (`depth_info`, `geometry_sources.pi3x`),
@@ -721,21 +733,24 @@ rewrites `catalog.json`, and exits with an error if one failed.
 ## The StereoMIS camera trajectory scores
 
 ```bash
-python -m trajectory_eval.tools.score_stereomis --root /path/to/StereoMIS --depth-root /path/to/StereoMIS_depth \
+python -m trajectory_eval.tools.score_stereomis --root /path/to/StereoMIS --clips stereomis_meta/clips.json \
     --controls --out controls.json
-python -m trajectory_eval.tools.score_stereomis --root /path/to/StereoMIS --depth-root /path/to/StereoMIS_depth \
+python -m trajectory_eval.tools.score_stereomis --root /path/to/StereoMIS --clips stereomis_meta/clips.json \
     --methods da3 pi3x --clip-root /path/to/clips --shuffled --out methods.json
 ```
 
-The command scores the camera trajectory of each usable StereoMIS clip
-against the ground truth, one row per clip and condition. `--controls`
-scores the static floor, the line floor and the stereo ceiling.
-`--methods` scores the poses the depth stages wrote into each clip, and
-`--shuffled` adds each method's poses in a shuffled order. `--suffix
+The command scores the camera trajectory of each clip the clip list marks
+usable against the ground truth, at the rows and times the list gives, one
+row per clip and condition. `--controls` scores the static floor, the line
+floor and the stereo ceiling; the ceiling reads the tissue masks the list
+gives. `--methods` scores the poses the depth stages wrote into each clip,
+and `--shuffled` adds each method's poses in a shuffled order. `--suffix
 _masked` names the conditions of the clips extracted with
 `--mask-instruments`. Every row records `trajectory_code_sha`, the hash of
-the `trajectory_eval` modules that compute it. The command refuses a clip
-without a method's bundle, before anything is scored.
+the `trajectory_eval` modules that compute it and the controls'
+trajectories, and `clip_list_sha`, the hash of the clip list. The command
+refuses a clip list that `surgical_core.stereomis.read_clip_list` refuses,
+and a clip without a method's bundle, before anything is scored.
 
 ```bash
 python -m trajectory_eval.tools.stereomis_table controls.json methods.json [--out summary.json]
@@ -744,4 +759,5 @@ python -m trajectory_eval.tools.stereomis_table controls.json methods.json [--ou
 The table prints each condition's scores, and each condition's paired
 difference from `floor_static` on `ate_rel`, with its interval over
 sequences and its mark. It refuses rows that record two versions of the
-scorer or none, and a condition scored on other clips than the base.
+scorer or none, two clip lists or none, and a condition scored on other
+clips than the base.

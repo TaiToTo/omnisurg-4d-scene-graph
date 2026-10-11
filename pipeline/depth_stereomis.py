@@ -1,6 +1,6 @@
 """Run the DA3 stage, then the Pi3X stage, on every StereoMIS clip, one process per GPU, and check every clip.
 
-The clips are those `surgical_core.stereomis.clips` marks usable, which
+The clips are those the clip list marks usable, which
 `pipeline.extract_stereomis` writes under `--input-dir`. Each stage runs on
 the clips that lack its output, dealt out to the GPUs as
 `pipeline.depth_population` deals them: DA3 with its point clouds, and Pi3X
@@ -11,8 +11,8 @@ every clip must hold the stage's bundle with one frame per image, at the
 driver's setting; the command exits non-zero otherwise, and names the clips.
 
 Usage:
-    python -m pipeline.depth_stereomis --root /path/to/StereoMIS --depth-root /path/to/StereoMIS_depth \\
-        --input-dir /path/to/clips [--gpus 0 1 2 3]
+    python -m pipeline.depth_stereomis --clips stereomis_meta/clips.json --input-dir /path/to/clips \\
+        [--gpus 0 1 2 3]
 """
 
 import argparse
@@ -39,10 +39,9 @@ PI3X_BUNDLE = Path("exports/mini_npz/results__pi3x.npz")
 PI3X_SETTING = {"model": Pi3X.model_id, "pixel_limit": DEFAULT_PIXEL_LIMIT, "conf_thre": 0.0, "vo": False}
 
 
-def usable_clips(stereomis_root: Path, depth_root: Path) -> list[str]:
-    """Return the names of the clips `stereomis.clips` marks usable, sequence by sequence."""
-    return [c["name"] for seq in stereomis.SEQUENCES
-            for c in stereomis.clips(stereomis_root, depth_root, seq) if c["usable"]]
+def usable_clips(clip_list: Path) -> list[str]:
+    """Return the names of the clips the clip list marks usable, in its order."""
+    return [c["name"] for c in stereomis.read_clip_list(clip_list) if c["usable"]]
 
 
 def pi3x_record(manifest: dict) -> dict | None:
@@ -156,8 +155,7 @@ def main() -> None:
     for s in population.STOP_SIGNALS:
         signal.signal(s, population.stop)
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--root", required=True, help="The StereoMIS directory, which holds one directory per sequence.")
-    ap.add_argument("--depth-root", required=True, help="The depth export, which holds <sequence>/stats.npy.")
+    ap.add_argument("--clips", required=True, help="The clip list, stereomis_meta/clips.json.")
     ap.add_argument("--input-dir", required=True, help="The directory that holds the clips.")
     ap.add_argument("--gpus", type=int, nargs="+", default=[0], help="The GPUs to run on, one process each.")
     args = ap.parse_args()
@@ -165,7 +163,7 @@ def main() -> None:
     if not root.is_dir():
         raise SystemExit(f"no such directory: {root}")
     try:
-        run_stereomis(root, usable_clips(Path(args.root), Path(args.depth_root)), args.gpus)
+        run_stereomis(root, usable_clips(Path(args.clips)), args.gpus)
     except (FileNotFoundError, RuntimeError, ValueError) as e:
         raise SystemExit(f"{type(e).__name__}: {e}")
 

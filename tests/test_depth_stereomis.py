@@ -100,13 +100,12 @@ def test_both_stages_run_on_every_clip_without_their_output_and_a_done_clip_is_s
                                                                  "pi3x_gpu0.log", "pi3x_gpu1.log"}
 
 
-def test_the_population_is_the_usable_clips_of_every_sequence(monkeypatch):
-    def clips(root, depth_root, seq):
-        return ({"name": f"{seq}__clip_0000", "usable": seq != "P2_3"}, {"name": f"{seq}__clip_0001", "usable": False})
-
-    monkeypatch.setattr(driver.stereomis, "clips", clips)
-    assert driver.usable_clips(Path("."), Path(".")) == [f"{s}__clip_0000" for s in driver.stereomis.SEQUENCES
-                                                         if s != "P2_3"]
+def test_the_population_is_the_usable_clips_of_the_clip_list_in_its_order(monkeypatch):
+    clip_list = tuple({"name": f"{seq}__clip_{k:04d}", "usable": seq != "P2_3" and k == 0}
+                      for seq in driver.stereomis.SEQUENCES for k in (0, 1))
+    monkeypatch.setattr(driver.stereomis, "read_clip_list", lambda path: clip_list if path == Path("c.json") else ())
+    assert driver.usable_clips(Path("c.json")) == [f"{s}__clip_0000" for s in driver.stereomis.SEQUENCES
+                                                   if s != "P2_3"]
 
 
 def test_a_clip_that_is_not_there_is_refused_before_anything_runs(stand_in):
@@ -197,15 +196,15 @@ def test_a_pi3x_bundle_of_another_version_or_unreadable_is_refused(stand_in):
         driver.check_pi3x(stand_in, ["P1__clip_0000", "P1__clip_0001"])
 
 
-def test_the_command_takes_the_population_from_the_reader_and_exits_non_zero_on_a_refusal(stand_in, monkeypatch):
+def test_the_command_takes_the_population_from_the_clip_list_and_exits_non_zero_on_a_refusal(stand_in, monkeypatch):
     make_clip(stand_in, "P1__clip_0000")
-    monkeypatch.setattr(driver, "usable_clips", lambda stereomis_root, depth_root: ["P1__clip_0000"])
+    monkeypatch.setattr(driver, "usable_clips", lambda clip_list: ["P1__clip_0000"])
     # `main` installs its stop handlers; the test process keeps its own.
     monkeypatch.setattr(driver.signal, "signal", lambda *a: None)
-    argv = ["depth_stereomis", "--root", "x", "--depth-root", "y", "--input-dir", str(stand_in), "--gpus", "3"]
+    argv = ["depth_stereomis", "--clips", "x", "--input-dir", str(stand_in), "--gpus", "3"]
     monkeypatch.setattr(sys, "argv", argv)
     driver.main()
     assert calls(stand_in) == {"da3_gpu3": ["P1__clip_0000"], "pi3x_gpu3": ["P1__clip_0000"]}
-    monkeypatch.setattr(driver, "usable_clips", lambda stereomis_root, depth_root: ["P1__clip_0000", "P1__clip_0009"])
+    monkeypatch.setattr(driver, "usable_clips", lambda clip_list: ["P1__clip_0000", "P1__clip_0009"])
     with pytest.raises(SystemExit, match="FileNotFoundError"):
         driver.main()

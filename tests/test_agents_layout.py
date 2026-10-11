@@ -5,8 +5,8 @@ This test checks the layout against the disk:
 
 - every directory and file it names exists;
 - every file that the root's entry and the `docs/` entry list exists;
-- the packages of `surgical_core/` and the modules of `evalkit/tools/`
-  match their entries both ways;
+- the packages of `surgical_core/` and the modules of `evalkit/tools/` and
+  `trajectory_eval/tools/` match their entries both ways;
 - a name in parentheses waits, and does not exist yet.
 
 The words after the colon in a parenthesis say what the name waits on.
@@ -17,7 +17,8 @@ from pathlib import Path
 import pytest
 
 REPO = Path(__file__).resolve().parent.parent
-TOOLS = REPO / "evalkit" / "tools"
+# The entries that list their directory's modules after a colon.
+TOOLS_ENTRIES = ("evalkit/tools/", "trajectory_eval/tools/")
 HEADING = "## Target layout"
 ENTRY = re.compile(r"^((?:│   |    )*)[├└]── (\S+)\s*(.*)$")
 ROOT = ""
@@ -71,15 +72,15 @@ def entries(text: str) -> dict[str, str]:
     return out
 
 
-def tools_entry(layout: dict[str, str]) -> str:
-    """The part of the `tools/` entry's description that lists the tools, after its colon.
+def tools_entry(layout: dict[str, str], entry: str = "evalkit/tools/") -> str:
+    """The part of a `tools/` entry's description that lists the tools, after its colon.
 
     Raises:
-        ValueError: The layout has no `tools/` entry.
+        ValueError: The layout has no such entry.
     """
-    found = layout.get("evalkit/tools/")
+    found = layout.get(entry)
     if found is None:
-        raise ValueError("the layout has no tools/ entry")
+        raise ValueError(f"the layout has no {entry} entry")
     return found.partition(":")[2]
 
 
@@ -138,11 +139,12 @@ def test_every_directory_and_file_the_layout_names_exists(layout):
     assert not problems, "AGENTS.md's layout disagrees with the repository:\n" + "\n".join(problems)
 
 
-def test_the_layout_names_exactly_the_tools_on_disk(layout):
-    modules = packages(TOOLS)
-    assert modules, f"no module found under {TOOLS}; the scan reads nothing"
-    problems = drift(tools_entry(layout), modules)
-    assert not problems, "AGENTS.md's layout disagrees with evalkit/tools/:\n" + "\n".join(problems)
+@pytest.mark.parametrize("entry", TOOLS_ENTRIES)
+def test_the_layout_names_exactly_the_tools_on_disk(layout, entry):
+    modules = packages(REPO / entry)
+    assert modules, f"no module found under {entry}; the scan reads nothing"
+    problems = drift(tools_entry(layout, entry), modules, entry)
+    assert not problems, f"AGENTS.md's layout disagrees with {entry}:\n" + "\n".join(problems)
 
 
 def test_the_layout_names_exactly_the_packages_of_surgical_core(layout):
@@ -218,5 +220,5 @@ def test_a_tool_the_layout_says_waits_is_reported_once_it_arrives():
 def test_a_page_without_the_layout_is_refused():
     with pytest.raises(ValueError, match="no fenced layout"):
         entries("# AGENTS\n\nno layout\n")
-    with pytest.raises(ValueError, match="no tools/ entry"):
+    with pytest.raises(ValueError, match="no evalkit/tools/ entry"):
         tools_entry(entries(f"{HEADING}\n\n```\n├── evalkit/\n```\n"))

@@ -29,7 +29,7 @@ SIGN = -1
 # The strata a clip is given by its true trajectory's radius, as `surgical_core.stereomis.stratum_of` names them.
 STRATA = ("moving", "slow")
 # The shape of every clip, printed with each table, since a score depends on it.
-CLIP_SHAPE = "112 frames 0.2 s apart, 22.4 s, not overlapping"
+CLIP_SHAPE = "112 frames 12 positions apart, not overlapping"
 
 
 def check_population(rows: list[dict], base: str) -> None:

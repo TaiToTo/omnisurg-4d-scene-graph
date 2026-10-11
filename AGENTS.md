@@ -85,15 +85,17 @@ omnisurg-4d-scene-graph/
 │                      pilot_check kmerge paired_table arms_paired
 │                      leave_one_video_out claims_table print_status_tables
 │                      (track_metrics: waits on its GT track)
-├── trajectory_eval/   the camera trajectory scorer, hashed into trajectory_code_sha
-│   └── tools/         what makes the controls' trajectories, scores StereoMIS or
-│                      reads the scores, never hashed: pose_controls scores
+├── trajectory_eval/   the camera trajectory scorer and the controls' trajectories,
+│                      hashed into trajectory_code_sha
+│   └── tools/         what scores StereoMIS or reads the scores, never hashed:
+│                      scores score_stereomis stereomis_table
 ├── pipeline/          depth → segmentation → tracking → viewer export
 ├── recon3d_wrapper/   3D reconstruction — DA3 and Pi3 behind one interface
 ├── sam3_wrapper/      promptable segmentation and tracking with SAM 3
 ├── atlas120k_meta/    crop rectangles, frame ratios, clip population; no video
 ├── cholecseg8k_meta/  crop rectangles, clip population; no video
 ├── d4d_meta/          census clip list, scored sides; no frame or point cloud
+├── stereomis_meta/    clip list: frames, rows, times, masks, usable or not; no video
 ├── viewer/
 ├── docs/              evaluation.md, pilot_evaluator.md, pipeline.md, porting.md,
 │                      review.md

@@ -30,7 +30,8 @@ def rows_of(conds=tuple(OFFSET)) -> list[dict]:
             for c in conds:
                 rows.append(dict(clip=f"{s}__clip_{k:04d}", seq=s, stratum=stratum, cond=c,
                                  ate_rel=round(base + OFFSET[c](s), 4), rpe_trans_rel=0.5, rpe_rot_deg=1.0,
-                                 scale_ratio=None if c == "floor_static" else 2.0, trajectory_code_sha=SHA))
+                                 scale_ratio=None if c == "floor_static" else 2.0, trajectory_code_sha=SHA,
+                                 clip_list_sha=SHA))
     return rows
 
 
