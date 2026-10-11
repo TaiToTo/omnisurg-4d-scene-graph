@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { esc, hexColor, lighten, nodeKey, parseNodeKey, rgbToHex } from './format.js';
+import { containmentPartners, esc, hexColor, lighten, nodeKey, parseNodeKey, rgbToHex } from './format.js';
 
 describe('esc', () => {
   it('escapes the five characters that end text or an attribute', () => {
@@ -40,5 +40,20 @@ describe('node keys', () => {
 
   it('refuses what is not a track and an id', () => {
     for (const bad of ['zs', ':7', 'zs:', 'zs:x', 'zs:-1', null, 7]) expect(() => parseNodeKey(bad)).toThrow(/not a node key/);
+  });
+});
+
+describe('containmentPartners', () => {
+  const hierarchy = { edges: [
+    { src: 'gt:2', dst: 'auto:4', relation: 'contains' },
+    { src: 'gt:2', dst: 'auto:7', relation: 'contains' },
+    { src: 'gt:3', dst: 'auto:4', relation: 'overlaps' },
+  ] };
+
+  it('lists the keys a contains edge links to a key, either way', () => {
+    expect(containmentPartners('gt:2', hierarchy)).toEqual(['auto:4', 'auto:7']);
+    expect(containmentPartners('auto:4', hierarchy)).toEqual(['gt:2']);
+    expect(containmentPartners('gt:3', hierarchy)).toEqual([]);
+    expect(containmentPartners('gt:2', null)).toEqual([]);
   });
 });

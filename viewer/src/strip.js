@@ -1,10 +1,10 @@
 // Draw the band under the 3D view. In world mode it is the graph through time: one slanted plate per
-// stacked frame with the regions' outlines, a numbered chip per node, and a dotted line joining a node
-// from plate to plate. In per-frame mode it is one row of region masks per track, frame under frame.
+// stacked frame with each shown track's region outlines, a numbered chip per automatic node, and a dotted
+// line joining a node from plate to plate. In per-frame mode it is one row of region masks per track, frame under frame.
 // A click on a plate or a cell asks for that frame; a region carries its node key for focus and hover.
 import { ellipsesOf, outlinesOf } from './regions.js';
 import { regionsToCanvas } from './cloud_paint.js';
-import { esc, hexColor, lighten, nodeKey, rgbToHex } from './format.js';
+import { containmentPartners, esc, hexColor, lighten, nodeKey, rgbToHex } from './format.js';
 
 const DEFAULT_CELL_H = 96;
 // A cell's padding, border and caption round its box: 4 + 4, 1 + 1 and 2 + 14 px.
@@ -41,10 +41,10 @@ function slabImageMatrix(dx) {
 const nameOf = (regions, id) => regions.classById.get(id)?.name ?? `region ${id}`;
 
 /**
- * One plate's SVG at horizontal offset dx. Fills `centroids` (node key to plate point) for the lines
- * between plates.
+ * One plate's SVG at horizontal offset dx, with the tracks' outlines in their order. Fills `centroids`
+ * (node key to plate point) for the lines between plates.
  */
-function slabParts(fr, track, info, opts, dx, isStage, caption, centroids) {
+function slabParts(fr, tracks, opts, dx, isStage, caption, centroids) {
   const { focusKey, partnerKey, imageURL } = opts;
   const parts = [];
   const at = ([x, y]) => `${(x + dx).toFixed(1)},${y.toFixed(1)}`;
@@ -54,12 +54,17 @@ function slabParts(fr, track, info, opts, dx, isStage, caption, centroids) {
     parts.push(`<image class="slab-photo" data-frame="${fr.i}" href="${esc(imageURL(fr.i))}" x="0" y="0" `
       + `width="${SLAB_IMG_BOX}" height="${SLAB_IMG_BOX}" preserveAspectRatio="none" transform="matrix(${slabImageMatrix(dx)})"/>`);
   }
-  const regions = fr.regionsByTrack[track];
-  const outlines = outlinesOf(regions);
-  const ells = ellipsesOf(regions);
   const chips = [];
   const chipAt = new Map();
-  if (outlines) {
+  const paired = new Set(focusKey ? containmentPartners(focusKey, fr.hierarchy) : []);
+  for (const info of tracks) {
+    const track = info.id;
+    const regions = fr.regionsByTrack[track];
+    const outlines = outlinesOf(regions);
+    if (!outlines) continue;
+    const ells = ellipsesOf(regions);
+    // An annotated class under another track is filled faintly, so the regions inside it show.
+    const under = tracks.length > 1 && info.semantic;
     const [w, h] = regions.grid;
     const mapPt = (x, y) => { const [px, py] = slabMap(x / w, y / h); return [px + dx, py]; };
     for (const [id, poly] of outlines) {
@@ -67,12 +72,12 @@ function slabParts(fr, track, info, opts, dx, isStage, caption, centroids) {
       const cls = regions.classById.get(id);
       const stroke = hexColor(rgbToHex(cls?.color));
       const isFocus = key === focusKey, isPartner = key === partnerKey;
-      const lit = !focusKey || isFocus || isPartner;
+      const lit = !focusKey || isFocus || isPartner || paired.has(key);
       // Over the photo a solid fill hides the tissue; the outline and the chip already place the region.
       const fo = imageURL ? (focusKey ? (lit ? 0.5 : 0.06) : 0.2) : (focusKey ? (isFocus ? 0.85 : isPartner ? 0.6 : 0.75) : 0.5);
       const fillCol = isFocus && !imageURL ? stroke : (imageURL || lit ? lighten(cls?.color, 0.62) : QUIET_FILL);
       parts.push(`<polygon points="${poly.map(([x, y]) => mapPt(x, y).map((v) => v.toFixed(1)).join(',')).join(' ')}" `
-        + `fill="${fillCol}" fill-opacity="${isFocus && !imageURL ? 0.55 : fo}" `
+        + `fill="${fillCol}" fill-opacity="${((isFocus && !imageURL ? 0.55 : fo) * (under ? 0.4 : 1)).toFixed(2)}" `
         + `stroke="${imageURL || lit ? stroke : QUIET_STROKE}" stroke-opacity="${imageURL && !lit ? 0.3 : 1}" `
         + `stroke-width="${isFocus ? 2 : isPartner ? 1.4 : 0.9}" stroke-linejoin="round" data-node-key="${esc(key)}">`
         + `<title>${esc(nameOf(regions, id))}, frame ${fr.i}</title></polygon>`);
@@ -102,18 +107,27 @@ function slabParts(fr, track, info, opts, dx, isStage, caption, centroids) {
   return parts;
 }
 
-/** A plate's caption: its frame, its time, and whether the track's regions were made on it. */
-export function slabCaption(i, timeS, isAnchor) {
-  return `f${i}${Number.isFinite(timeS) ? ` · ${timeS.toFixed(1)} s` : ''}${isAnchor ? ' · seed' : ''}`;
+/**
+ * Write a plate's caption: its frame, its time, and a note per track whose regions were made on it:
+ * "annotated" by hand, "seed" for regions a tracker carries, "annotated seed" for a track that is both.
+ */
+export function slabCaption(i, timeS, notes = []) {
+  return [`f${i}`, ...(Number.isFinite(timeS) ? [`${timeS.toFixed(1)} s`] : []), ...notes].join(' · ');
+}
+
+/** List the notes of a plate's caption: one per kind of track whose regions were made on frame `fr`. */
+function anchorNotes(fr, tracks) {
+  const notes = tracks.filter((t) => fr.regionsByTrack[t.id]?.stage === 'anchor')
+    .map((t) => (t.seeded ? (t.semantic ? 'annotated seed' : 'seed') : 'annotated'));
+  return [...new Set(notes)];
 }
 
 /**
- * Draw the graph through time: one plate per stacked frame that has the track's regions.
+ * Draw the graph through time: one plate per stacked frame that has regions of a shown track.
  *
  * @param {HTMLElement} el
  * @param {object} world  the world stack.
- * @param {string} track
- * @param {object} info  the track's record in clip.json.
+ * @param {object[]} tracks  the shown tracks' records in clip.json; the first is drawn under the others.
  * @param {number} stageFrame  the frame on stage.
  * @param {object[]} frames  clip.json's frames.
  * @param {(i:number) => void} onFrame
@@ -123,12 +137,12 @@ export function slabCaption(i, timeS, isAnchor) {
  * @param {number} [opts.cellH]  plate height in pixels.
  * @param {?(i:number) => string} [opts.imageURL]  lay each frame's image on its plate.
  */
-export function renderWorldStrip(el, world, track, info, stageFrame, frames, onFrame, opts = {}) {
+export function renderWorldStrip(el, world, tracks, stageFrame, frames, onFrame, opts = {}) {
   const { focusKey = null, partnerKey = null, cellH = DEFAULT_CELL_H } = opts;
   el.classList.remove('tstrip');
   el.innerHTML = '';
-  const plates = world.frames.filter((fr) => fr.regionsByTrack[track]);
-  if (!plates.length) { el.innerHTML = '<div class="strip-empty">This track has no regions on the stacked frames.</div>'; return; }
+  const plates = world.frames.filter((fr) => tracks.some((t) => fr.regionsByTrack[t.id]));
+  if (!plates.length) { el.innerHTML = '<div class="strip-empty">No shown track has regions on the stacked frames.</div>'; return; }
   const vbW = (plates.length - 1) * SLAB_STEP + SLAB_VB.w;
   const vbH = SLAB_VB.h + SLAB_CAP_H + SLAB_AXIS_H;
   const pxH = Math.round(cellH * vbH / SLAB_VB.h);
@@ -137,8 +151,8 @@ export function renderWorldStrip(el, world, track, info, stageFrame, frames, onF
   const perSlab = [];
   plates.forEach((fr, k) => {
     const centroids = new Map();
-    const cap = slabCaption(fr.i, frames[fr.i]?.time_s, fr.regionsByTrack[track]?.stage === 'anchor');
-    parts.push(...slabParts(fr, track, info, { ...opts, focusKey, partnerKey }, k * SLAB_STEP, fr.i === stageFrame, cap, centroids));
+    const cap = slabCaption(fr.i, frames[fr.i]?.time_s, anchorNotes(fr, tracks));
+    parts.push(...slabParts(fr, tracks, { ...opts, focusKey, partnerKey }, k * SLAB_STEP, fr.i === stageFrame, cap, centroids));
     perSlab.push(centroids);
   });
   // The same node on consecutive plates, joined by a dotted line; with a node followed, only its line
