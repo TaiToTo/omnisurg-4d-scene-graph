@@ -134,8 +134,9 @@ The stage refuses:
 - a video, or a CholecSeg8k directory, that is missing;
 - a video that cannot be opened or reports no frame count;
 - a mask without the image it was drawn on;
-- an annotated image that is not the video's size, that matches no frame
-  of its search window, or that matches a frame on the window's edge;
+- an annotated image whose search window starts past the video's last
+  frame, that is not the video's size, that matches no frame of its search
+  window, or that matches a frame on the window's edge;
 - a video frame that cannot be decoded;
 - a clip with fewer than two annotated frames, or whose annotated frames
   run at a rate CholecSeg8k numbers no video at;

@@ -242,6 +242,13 @@ def test_a_match_on_the_lower_edge_of_the_window_is_refused(tmp_path):
         extract_clip(**roots, clip="VID02_s6_190", count=2)
 
 
+def test_a_number_whose_window_starts_past_the_video_end_is_refused(tmp_path):
+    # The search for number 500 starts at frame 250, past frame 199, the video's last.
+    roots = _grey_source(tmp_path, {500: 10, 506: 15})
+    with pytest.raises(ValueError, match=r"empty search window \[250, 199\]"):
+        extract_clip(**roots, clip="VID02_s6_500", count=2)
+
+
 def test_a_frame_that_cannot_be_decoded_inside_the_window_is_refused(source, faulty_capture):
     # The search for number 60 reads frames 0 to 120. Were frame 100 skipped, the search would go on and the
     # image of number 102 would still match frame 102.
