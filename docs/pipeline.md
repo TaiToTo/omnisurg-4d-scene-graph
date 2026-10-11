@@ -731,8 +731,18 @@ The command scores the camera trajectory of each usable StereoMIS clip
 against the ground truth, one row per clip and condition. `--controls`
 scores the static floor, the line floor and the stereo ceiling.
 `--methods` scores the poses the depth stages wrote into each clip, and
-`--shuffled` adds each method's poses in a shuffled order. `--suffix
-_masked` names the conditions of the clips extracted with
+`--shuffled` adds each method's poses in a shuffled order. `--masked`
+names the conditions `<method>_masked`, for the clips extracted with
 `--mask-instruments`. Every row records `trajectory_code_sha`, the hash of
-the `trajectory_eval` modules that compute it. The command refuses a clip
-without a method's bundle, before anything is scored.
+the `trajectory_eval` modules that compute it.
+
+The command refuses, before anything is scored:
+
+- a sequence or a method named twice;
+- a clip without a method's bundle, or without its `frame_manifest.json`;
+- a clip whose manifest lists other frames than the ground truth is read at;
+- `--masked` when no clip has a painted image;
+- a painted image without `--masked`.
+
+With `--controls`, the command also refuses a usable clip the ceiling
+returns no trajectory for, and then writes nothing.
