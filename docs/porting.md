@@ -81,12 +81,12 @@ Where they and this document differ, this document holds.
     `user.email` to the GitHub no-reply address before the first commit. The
     global config on a development machine holds a personal one.
 11. **Pilot mode is removed before the freeze.** Pilot mode stays in the
-    evaluator until the check against the pilot evaluator has passed, so
-    that the check runs through the entry point that produces the paper's
-    numbers. Pilot mode is `python -m evalkit.evaluate --pilot`, which
-    scores each clip through `evalkit/pilot_clip.py`; it is not a script of
-    its own. Once the check has passed, everything in the hashed files that
-    only pilot mode uses is removed:
+    evaluator until just before the freeze, so that the check runs through
+    the entry point that produces the paper's numbers. Pilot mode is
+    `python -m evalkit.evaluate --pilot`, which scores each clip through
+    `evalkit/pilot_clip.py`; it is not a script of its own. Just before the
+    freeze, everything in the hashed files that only pilot mode uses is
+    removed:
     - `evalkit/pilot.py` and `evalkit/pilot_clip.py`, and their entries in
       `evalkit/code_sha.py`;
     - the entry point's `--pilot`, and the `pilot` argument of
@@ -656,6 +656,13 @@ while the evaluator is built and reviewed is worked out in `docs/workstreams.md`
      from those that hold neither propagation rule.
    Record its sha with every score; do not freeze it (decision 2). Pilot
    mode stays in it until just before the freeze (decision 11).
+   The check against the pilot evaluator passed on 2026-10-11, for
+   `eval_code_sha` `a5d7ea46…`. It compared the 23 conditions that hold a
+   propagation rule, 315 clips each: per clip 18 values and 17 numbers of
+   frames (the pilot evaluator writes none for `time_IoU`), 253,575 in
+   all, every one equal. It left out `op_edge`, `op_normal`, the seven
+   `t12_*` and the six `t5_*`. The check runs again after any change to a
+   hashed file.
 3. **Re-score.** CPU only. Score every condition's existing predictions with
    the evaluator. `condition_inventory` must report no mixed ruler and no
    missing condition.
@@ -954,9 +961,9 @@ Every command takes those paths as arguments.
     masks. Which of the 38 conditions were seeded from GT instead, and
     whether such a condition is scored on its seed frame or enters a table
     at all, is settled before step 3, on the machine that holds the
-    predictions. The check against the pilot evaluator in step 2 needs the
-    list sooner: it leaves out by name every condition that holds neither
-    propagation rule (`pilot_check --leave-out`). The `seed_source` that each
+    predictions. The check against the pilot evaluator in step 2 left out
+    by name every condition that holds neither propagation rule
+    (`pilot_check --leave-out`). The `seed_source` that each
     condition's `seed_info.json` records says where its seed came from;
     where it does not tell, the command that made the condition does.
 
