@@ -32,7 +32,8 @@ not compared:
 ## Not ported yet
 
 - **`track_metrics`**, the measures of identity over time. It waits on "The
-  GT track of `track_metrics`".
+  GT track of `track_metrics`". It is ported without its minimum area,
+  `MIN_AREA`, since the evaluator has no minimum object size.
 - **The export stage**: the regions, scene graphs, hierarchies and graphs
   through time that `pipeline.viewer_bundle` reads, with the `surgical_core`
   modules they need. Its byte check needs a clip whose tracking labels the
@@ -57,184 +58,59 @@ not compared:
   `tests/test_module_headers_are_short.py`. The hashed ones go before the
   freeze.
 
-## Decisions that change the original plan
+## Decisions still to carry out
 
-1. **The paper is measured here.** Every IPCAI number comes from the evaluator
-   specified in `docs/evaluation.md`, run from this repository. The original
-   fallback to the workbench's numbers, and the date it was tied to, are
-   withdrawn. The workbench's schedule does not bind this plan.
-2. **Nothing is frozen during the port.** The evaluator is built, checked and
-   used without a freeze. Every score still carries `eval_code_sha`, and
-   `compare_eval` still refuses to mix shas, so a change to the evaluator
-   is visible in every number it touches; it is not forbidden. The freeze
-   in `AGENTS.md` comes once, later, before the numbers the paper reports
-   are measured.
-3. **The pilot evaluator is not copied here.** It stays frozen in the
-   workbench, `eval_code_sha = 1f8a813a…`. The check against it runs there,
-   taking paths as arguments. `docs/evaluation.md` describes the check, under
-   "Checked against the pilot evaluator".
-   - So the constraints the frozen files imposed no longer bind. Those were: the
-     import paths `surgical_core.cholec` and `surgical_core.atlas`, `evalkit/`
-     as a script directory at the repository root, `sam3_wrapper/` on
-     `PYTHONPATH` by name, and a copy of the older `eval_track.py` as a test
-     fixture.
-4. **`evalkit/` is a package.** Tools import the evaluator as
-   `evalkit.<module>` and each other as `evalkit.tools.<module>`, with no
-   `sys.path` edits. `check_env97` existed because frozen scripts could not
-   check their own import path; a package does not need it. `pyproject.toml`
-   includes `evalkit*` next to `surgical_core*`.
-5. **No minimum object size, anywhere.** The evaluator has none
-   (`docs/evaluation.md`, "Thresholds"). `track_metrics.MIN_AREA` (400 px)
-   is removed with it, and nothing filters GT objects or predicted regions by
-   pixel count. The one place a cut survives is pilot mode, which needs the
-   pilot evaluator's 300 px cut to reproduce its numbers, and nothing else
-   reads it.
-6. **AE-CAI stays in the workbench.** Its numbers are reproduced by the tag
-   `paper/aecai2026-endolina-final` and the code at that tag. Nothing here
-   reproduces them, and no tag of that name is created here.
-7. **No version labels.** The earlier evaluator is *the pilot evaluator*, and
-   the new one is *the evaluator*.
-8. **Names.** The project is `omnisurg-4d-scene-graph`, and the ATLAS-120k
-   module is `atlas120k`.
-9. **English only.** Workbench code comes with Japanese comments. Each file is
-   rewritten in English when it is ported, not afterwards. This holds for the
-   reviewed branches too: their `surgical_core` modules were translated in
-   part, the tools not at all.
-10. **No personal email address.** `tests/test_no_personal_email.py` checks the
-    history and the files. In every new clone, set the repository-local
-    `user.email` to the GitHub no-reply address before the first commit. The
-    global config on a development machine holds a personal one.
-11. **Pilot mode is removed before the freeze.** Pilot mode stays in the
-    evaluator until just before the freeze, so that the check runs through
-    the entry point that produces the paper's numbers. Pilot mode is
-    `python -m evalkit.evaluate --pilot`, which scores each clip through
-    `evalkit/pilot_clip.py`; it is not a script of its own. Just before the
-    freeze, everything in the hashed files that only pilot mode uses is
-    removed:
-    - `evalkit/pilot.py` and `evalkit/pilot_clip.py`, and their entries in
-      `evalkit/code_sha.py`;
-    - the entry point's `--pilot`, and the `pilot` argument of
-      `score_condition` with the imports it needs;
-    - the `pilot` arguments of `evalkit/scored.py` and `evalkit/inst_bf.py`;
-    - every sentence of a hashed module that says what pilot mode does.
+1. **Pilot mode is removed before the freeze.** Pilot mode stays in the
+   evaluator until just before the freeze, so that the check runs through
+   the entry point that produces the paper's numbers. Pilot mode is
+   `python -m evalkit.evaluate --pilot`, which scores each clip through
+   `evalkit/pilot_clip.py`; it is not a script of its own. Just before the
+   freeze, everything in the hashed files that only pilot mode uses is
+   removed:
+   - `evalkit/pilot.py` and `evalkit/pilot_clip.py`, and their entries in
+     `evalkit/code_sha.py`;
+   - the entry point's `--pilot`, and the `pilot` argument of
+     `score_condition` with the imports it needs;
+   - the `pilot` arguments of `evalkit/scored.py` and `evalkit/inst_bf.py`;
+   - every sentence of a hashed module that says what pilot mode does.
 
-    The normal-mode tests must still pass, and then the evaluator is frozen.
-    Moving pilot mode out of `evalkit/` was the alternative. It could then be
-    deleted at any time, but the check would reach a driver of its own and
-    never the entry point.
-12. **Two propagation rules, and no seed chosen from GT.** Every tracked
-    condition the paper reports is measured under the two propagation rules
-    `docs/evaluation.md` defines: `forward_from_first`, the causal setting,
-    and `both_ways_from_centre`, the offline setting every pilot condition
-    used. The ported tracking stage carries no choice of seed frame from GT.
-    So `op_normal` and `op_edge` on ATLAS-120k and `ch_normal` on
-    CholecSeg8k, the three scored conditions the workbench's audit found
-    seeding by `--seed_auto` at its default, which reads the GT masks, are
-    dropped: their centred versions exist. The workbench's ATLAS-120k
-    pipeline script runs that default too, and its port does not. The
-    tracking stage records its rule with its output, the evaluator writes it
-    into every score, and the tools refuse a comparison or a table that
-    mixes two rules, as they refuse two shas. A condition with no tracker
-    has no rule and may sit beside either, since propagation against
-    per-frame segmentation is itself a comparison the paper makes.
-13. **The camera trajectory measures are hashed on their own.** `ate_rel`
-    decides the StereoMIS result, so the code that computes it is under the
-    freeze rule like the evaluator, and `eval_code_sha` does not cover it:
-    the two results are measured and frozen at their own times, and a
-    change to one must not make the other's scores incomparable. When the
-    StereoMIS scorer is ported, `pose_metrics` moves out of `tools/` into a
-    package of its own, hashed as `code_sha` hashes the evaluator (each
-    file's path and content, each preceded by its length), and every
-    StereoMIS score records that hash and is compared only with scores
-    whose hash matches. Until then `pose_metrics` is a module under
-    `tools/`, tested, and nothing scores with it.
-14. **No measure over time carries a star.** `time_IoU` stays a reference
-    value, and the evaluator computes no measure of identity from the
-    workbench's `track_metrics` (hold, IDF1, ID switches, fragmentation,
-    re-entry). `track_metrics` is ported as a tool under `evalkit/tools/`,
-    outside `eval_code_sha`, and what it reports is a reference value: it
-    is measured and reported in a table that carries no star. So
-    `docs/evaluation.md` defines no GT track. The tool defines its own when
-    it is ported, without `MIN_AREA` ("No minimum object size, anywhere");
-    that track is an open question ("The GT track of `track_metrics`"). The
-    workbench pre-registered two definitions under the name `hold_mean`: one
-    per condition, in `track_metrics`, and one over the GT tracks that every
-    compared condition picked a region for on the seed frame, in
-    `summarize_track16`. The tool carries at most one of them under that
-    name, and the other under a name of its own, because a different
-    denominator is a different metric: in the workbench, moving the
-    denominator once flipped a result's sign. Which one keeps the name is
-    settled with the tool's GT track.
-15. **`kmerge` is a tool.** `kmerge` is ported under `evalkit/tools/`,
-    outside `eval_code_sha`. It changes predictions, not metrics: it merges
-    a condition's regions down to K and writes them as a condition of their
-    own, which the evaluator scores and `compare_eval` compares. So it
-    computes no metric, and a comparison of a merged condition can carry a
-    star like any other. The paper's granularity result merges to a fixed K
-    of 10. The `matched` setting, which took K from the pilot's GT
-    components of at least 300 px, is not carried for now, nor are the
-    `kgt` seeds, which took the clip's median of that count. Under the
-    evaluator a GT object is a whole class, and that K would need a
-    definition of its own.
-16. **CholecSeg8k clips are cropped as AE-CAI's were.** Every CholecSeg8k
-    clip is cropped to its rectangle in `cholecseg8k_meta/crop_rects.json`.
-    The table holds the rectangles of the workbench's clips, which the pilot
-    scored and AE-CAI reports. The original plan took the rectangle of the
-    circle fitted to the cholec80 video instead. `run_all17_pipeline.sh`
-    ran `crop_cholec_frames.py --method circle` on the GPU machine's host
-    without `--source-root`. The script found no video there, and took each
-    rectangle from the clip's own frames, as `paper_clean_rerun_spec.md`
-    asks of every clip. The circle's rectangles differ from these on all 27
-    clips, by up to 59 px. On VID26 and VID43 they hold black corners of 2
-    to 3.6 % of the crop. Run on the workbench's 27 clips with the table,
-    the crop stage writes the workbench's images, masks and
-    `crop_info.json` byte for byte, and every manifest key the stage writes
-    holds the workbench's value. On the clips the extraction stage writes,
-    the crops of 13 clips equal the workbench's byte for byte. The crops of
-    the other 14 differ in the gap frames alone, which the extraction stage
-    converts ("CholecSeg8k clips whose frames run out of order"). A rerun
-    of the tag `paper/aecai2026-endolina-final` reproduces these crops only
-    where the script finds no video. Where
-    `/work/SourceDatasets/cholec80/cholec80/videos` holds the videos, the
-    script fits the circle instead. AE-CAI keeps its clips. They stay in
-    the workbench's `outputs/cholec_gt`, which nothing here writes to. Each
-    of them holds depth, so the crop stage refuses to replace one even with
-    `--overwrite`.
-17. **What the paper measures.** Decided on 2026-10-10:
-    - **The `forward_from_first` conditions.** The paper reports them. They
-      are measured on the GPU machine before submission.
-    - **The conditions seeded from GT masks.** They are measured again with
-      this repository's code. Open: whether the paper reports them.
-    - **`track_metrics`.** It is run on the paper's conditions. Open: how
-      the paper reports its measures.
-18. **The public viewer reads a bundle.** The workbench's viewer read the
-    export stage's files from its development server, which listed the
-    clips through `/api/clips`, and drew a 10 MB colour raster per frame and
-    track. A page on the public internet has no such server. The stage
-    `pipeline.viewer_bundle` writes what the viewer reads instead: a catalog
-    of the clips, and per clip the frames, the clouds of one geometry
-    source, and per track the labels of the cloud's points, run-length
-    coded, with the scene graphs. A clip's overlays go from about 600 MB to
-    under 1 MB. The workbench's viewer resampled the overlays onto the Pi3X
-    cloud and placed the nodes on it in the browser, on every frame load;
-    the stage does both once, so the labels the viewer reads always index
-    the cloud it draws. Track names and instrument classes come from the
-    bundle; the instrument classes are the class tables' `tool` type. The
-    viewer names no track and no dataset.
+   The normal-mode tests must still pass, and then the evaluator is frozen.
+   Moving pilot mode out of `evalkit/` was the alternative. It could then be
+   deleted at any time, but the check would reach a driver of its own and
+   never the entry point.
+2. **The camera trajectory measures are hashed on their own.** `ate_rel`
+   decides the StereoMIS result, so the code that computes it is under the
+   freeze rule like the evaluator, and `eval_code_sha` does not cover it:
+   the two results are measured and frozen at their own times, and a
+   change to one must not make the other's scores incomparable. When the
+   StereoMIS scorer is ported, `pose_metrics` moves out of `tools/` into a
+   package of its own, hashed as `code_sha` hashes the evaluator (each
+   file's path and content, each preceded by its length), and every
+   StereoMIS score records that hash and is compared only with scores
+   whose hash matches. Until then `pose_metrics` is a module under
+   `tools/`, tested, and nothing scores with it.
+3. **What the paper measures.** Decided on 2026-10-10:
+   - **The `forward_from_first` conditions.** The paper reports them. They
+     are measured on the GPU machine before submission.
+   - **The conditions seeded from GT masks.** They are measured again with
+     this repository's code. Open: whether the paper reports them.
+   - **`track_metrics`.** It is run on the paper's conditions. Open: how
+     the paper reports its measures.
 
 ## Order, and what must hold before the next step
 
 1. **Decide what the evaluator measures over time.** Decided: no measure
-   over time carries a star, and `track_metrics` and `kmerge` are tools
-   ("No measure over time carries a star", "`kmerge` is a tool").
+   over time carries a star, and `track_metrics` and `kmerge` are tools,
+   outside `eval_code_sha`.
 2. **Build the evaluator.** CPU only, as the `evalkit` package. Class tables,
    then metrics, then the entry point. It is done when:
    - the hand-derived tests pass, in both modes;
    - in pilot mode, the evaluator reproduces every key it shares with the
      pilot evaluator, at zero tolerance, on the 38 scored conditions, apart
      from those that hold neither propagation rule.
-   Record its sha with every score; do not freeze it (decision 2). Pilot
-   mode stays in it until just before the freeze (decision 11).
+   Record its sha with every score; do not freeze it during the port. Pilot
+   mode stays in it until just before the freeze ("Pilot mode is removed
+   before the freeze").
    The check against the pilot evaluator passed on 2026-10-11, for
    `eval_code_sha` `a5d7ea46…`. It compared the 23 conditions that hold a
    propagation rule, 315 clips each: per clip 18 values and 17 numbers of
@@ -289,7 +165,7 @@ not compared:
    Predictions made again from output that is not the workbench's, the
    exceptions above, are scored as in step 3, after the evaluator's check
    against the pilot evaluator. The conditions under `forward_from_first`
-   ("Two propagation rules, and no seed chosen from GT") are new
+   ("Propagation rule" in `docs/evaluation.md`) are new
    measurement, not a port: every condition the paper reports ran through
    `run_track_conditions.py`, whose modes all pass `--bidir`. (The
    workshop's forward runs, `run_w2_main.sh` and `run_multi_tracking.sh`,
@@ -308,7 +184,8 @@ not compared:
 
 1. **The GT track of `track_metrics`.** The tool measures identity against
    GT tracks, and the datasets carry no ids for individual things, so the
-   tool defines the track itself ("No measure over time carries a star").
+   tool defines the track itself (`docs/evaluation.md`, "Consistency over
+   time: reference values only").
    The workbench linked each class's connected components over time: a
    component joins a track of the same class when its IoU with the track's
    last mask is at least 0.3, a track stays a candidate for three missed
@@ -330,7 +207,7 @@ not compared:
      condition segmented frame by frame has no seed frame, and
      `summarize_track16` gave it the seed frame of a tracked condition;
    - which of the two pre-registered `hold_mean` definitions keeps the name
-     ("No measure over time carries a star");
+     (`docs/evaluation.md`, "Consistency over time: reference values only");
    - what hold means under forward propagation (`forward_from_first`),
      where its time offsets from the seed frame run one way only; the
      workbench claimed this changes the measure and did not measure it.
@@ -359,7 +236,8 @@ not compared:
    OpenCV more deeply: `evalkit/pilot.py` numbers a class's components in
    the order `cv2.connectedComponents` labels them, and the pairing's tie
    rule reads those numbers. That never reaches the frozen files, since
-   pilot mode is removed before the freeze (decision 11).
+   pilot mode is removed before the freeze ("Pilot mode is removed before
+   the freeze").
 5. **The benchmark mapping against its source.** The ATLAS-120k mapping to
    the benchmark's 30 classes was typed from the document and checked by
    hand against ATLAS-bench's `datasets/class_mapping.py` at commit
@@ -727,8 +605,8 @@ not compared:
       averages over clips and resamples the cases, 10,000 times. A case
       holds 14 to 55 clips, so the two weigh the cases differently. The
       workbench's reading, fixed before the numbers, gave the merge a star
-      only if it had one at both K = 8 and K = 10. The paper merges to 10
-      ("`kmerge` is a tool").
+      only if it had one at both K = 8 and K = 10. The paper merges to 10,
+      `kmerge`'s default.
 24. **The paired table on the evaluator's scores.** `paired_table` prints
     the pilot's table. It does not yet print one from the evaluator's
     scores:
