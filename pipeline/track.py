@@ -225,7 +225,7 @@ def write_montage(path: Path, labels: dict[int, np.ndarray], frames: list[int], 
     """Draw every frame's labels, one colour per object across the clip, with the frame's number above it.
 
     Raises:
-        RuntimeError: OpenCV fails to write the montage; it reports a failure only by its return value.
+        RuntimeError: OpenCV fails to write the montage. OpenCV reports a failed write only by returning False.
     """
     ids = sorted({int(v) for lab in labels.values() for v in np.unique(lab) if v >= 0})
     rng = np.random.default_rng(2)

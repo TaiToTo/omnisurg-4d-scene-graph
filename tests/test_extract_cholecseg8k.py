@@ -276,6 +276,7 @@ def test_an_image_or_a_mask_opencv_cannot_write_is_refused(source, monkeypatch, 
     monkeypatch.setattr(extract_cholecseg8k.cv2, "imwrite", lambda path, img: fails not in path and imwrite(path, img))
     with pytest.raises(RuntimeError, match=f"cannot write .*{fails}"):
         extract_clip(**roots, clip="VID01_s6_60", count=10)
+    assert list(roots["out"].iterdir()) == []
 
 
 def test_an_earlier_clip_is_refused_unless_replaced(source):

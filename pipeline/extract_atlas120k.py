@@ -160,8 +160,8 @@ def write_frame(dst: Path, jpg: Path, rect: Rect, size: tuple[int, int]) -> None
     """Cut a frame to the rectangle, resize it with area averaging and write it as PNG.
 
     Raises:
-        RuntimeError: OpenCV fails to read the JPEG or to write the PNG; it reports a failure only by its return
-            value.
+        RuntimeError: OpenCV fails to read the JPEG or to write the PNG. OpenCV reports a failed write only by
+            returning False.
     """
     bgr = cv2.imread(str(jpg), cv2.IMREAD_COLOR)
     if bgr is None:

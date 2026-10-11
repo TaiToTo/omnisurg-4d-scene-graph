@@ -79,7 +79,13 @@ def read_image(path: Path) -> np.ndarray:
 
 
 def write_image(path: Path, img: np.ndarray) -> None:
-    """Write an image, refusing one OpenCV fails to write; it reports a failure only by its return value."""
+    """Write an image with OpenCV, and raise when the write fails.
+
+    OpenCV reports a failed write only by returning False.
+
+    Raises:
+        RuntimeError: OpenCV fails to write the image.
+    """
     if not cv2.imwrite(str(path), img):
         raise RuntimeError(f"cannot write {path}")
 
