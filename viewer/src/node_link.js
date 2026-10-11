@@ -3,7 +3,7 @@
 // together with the hierarchy's `contains` edges between them. In world mode every stacked frame's nodes
 // are projected into the camera of the frame on stage, as dots that a line follows through time.
 import { ellipsesOf, hullsOf } from './regions.js';
-import { RELATION_COLORS, esc, hexColor, nodeKey, rgbToHex } from './format.js';
+import { RELATION_COLORS, containmentPartners, esc, hexColor, nodeKey, rgbToHex } from './format.js';
 
 const PAD = 18;
 const GLYPH_SCALE = 0.55;
@@ -76,22 +76,20 @@ function glyphSVG(n, key, [x, y], g, { opacity = 1, hover = false } = {}) {
     + `stroke="${fill(n)}">${title}</ellipse>`;
 }
 
-/** A node's label beside it: to its right, or to its left where it would leave the panel. */
+/** Draw a node's label beside it: to its right, or to its left where the right has no room. */
 export function labelSVG(label, [x, y], rx, width, opacity) {
-  const right = x + rx + 2 + label.length * LABEL_CHAR_W <= width;
-  return `<text class="nl-label" x="${(right ? x + rx + 2 : x - rx - 2).toFixed(1)}" y="${(y + 3).toFixed(1)}"`
+  const w = label.length * LABEL_CHAR_W, rightX = x + rx + 2, leftX = x - rx - 2;
+  const right = rightX + w <= width || (leftX < w && width - rightX >= leftX);
+  // A label with room on neither side is moved inside the panel, over its node if need be.
+  const at = right ? Math.max(0, Math.min(rightX, width - w)) : Math.min(width, Math.max(leftX, w));
+  return `<text class="nl-label" x="${at.toFixed(1)}" y="${(y + 3).toFixed(1)}"`
     + `${right ? '' : ' text-anchor="end"'} opacity="${opacity}">${esc(label)}</text>`;
 }
 
-/** The keys a `contains` edge of the hierarchy joins to `key`. */
-export function containmentPartners(key, hierarchy) {
-  const out = [];
-  for (const e of hierarchy?.edges || []) {
-    if (e.relation !== 'contains') continue;
-    if (e.src === key) out.push(e.dst);
-    else if (e.dst === key) out.push(e.src);
-  }
-  return out;
+/** Draw a `contains` link of the hierarchy, dashed, between two placed nodes. */
+function containsLine([x1, y1], [x2, y2], faded) {
+  return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="#7d8898" `
+    + `stroke-width="1.4" stroke-dasharray="3 2" opacity="${faded ? DIM_OPACITY : 0.6}"/>`;
 }
 
 /**
@@ -159,11 +157,10 @@ export function renderFrameNodeLink(el, { tracks, graphByTrack, regionsByTrack, 
   for (const { a, b, relation } of edges) {
     const pa = proj.positions.get(a), pb = proj.positions.get(b);
     if (!pa || !pb) continue;
-    const faded = dimmed(a) && dimmed(b);
-    const line = `<line x1="${pa[0].toFixed(1)}" y1="${pa[1].toFixed(1)}" x2="${pb[0].toFixed(1)}" y2="${pb[1].toFixed(1)}"`;
-    svg.push(relation === 'contains'
-      ? `${line} stroke="#7d8898" stroke-width="1.4" stroke-dasharray="3 2" opacity="${faded ? DIM_OPACITY : 0.6}"/>`
-      : `${line} stroke="${hexColor(RELATION_COLORS[relation] ?? 0x888888)}" stroke-width="1.4" opacity="${faded ? DIM_OPACITY : 0.7}"/>`);
+    // A relation stays lit while one end is; a containment link only between the followed node and its pair.
+    if (relation === 'contains') { svg.push(containsLine(pa, pb, dimmed(a) || dimmed(b))); continue; }
+    svg.push(`<line x1="${pa[0].toFixed(1)}" y1="${pa[1].toFixed(1)}" x2="${pb[0].toFixed(1)}" y2="${pb[1].toFixed(1)}" `
+      + `stroke="${hexColor(RELATION_COLORS[relation] ?? 0x888888)}" stroke-width="1.4" opacity="${dimmed(a) && dimmed(b) ? DIM_OPACITY : 0.7}"/>`);
   }
 
   // The nodes, track by track, and their labels.
@@ -229,8 +226,11 @@ export function projectToCamera(points, frame, origin) {
  */
 export function renderWorldNodeLink(el, { world, refFrame, tracks, frames, hoverKey = null, focusKey = null, equalize = false }) {
   const W = el.clientWidth || 320, H = el.clientHeight || 260;
-  const dimFor = (key, op) => (focusKey && key !== focusKey ? Math.min(op, 0.15) : op);
   const ref = world.frames.find((f) => f.i === refFrame);
+  // The followed node stays bright, and on each frame the regions that frame's hierarchy pairs it with.
+  const familyOf = (fr) => (focusKey ? new Set([focusKey, ...containmentPartners(focusKey, fr?.hierarchy)]) : null);
+  const families = new Map(world.frames.map((fr) => [fr.i, familyOf(fr)]));
+  const dimFor = (key, op, family = families.get(refFrame)) => (family && !family.has(key) ? Math.min(op, 0.15) : op);
   const shown = tracks.filter((t) => ref?.regionsByTrack[t] && ref?.graphByTrack[t]?.nodes?.length);
   if (!shown.length) { emptyPanel(el, 'No scene graph on the frame on stage.'); return; }
   const [imgW, imgH] = ref.regionsByTrack[shown[0]].grid;
@@ -309,12 +309,20 @@ export function renderWorldNodeLink(el, { world, refFrame, tracks, frames, hover
   for (const p of pts) {
     if (p.isRef) continue;
     const dist = Math.abs((order.get(p.frameId) ?? 0) - refOrder) / span;
-    let op = dimFor(p.key, equalize ? 0.8 : 0.85 - 0.6 * dist);
+    let op = dimFor(p.key, equalize ? 0.8 : 0.85 - 0.6 * dist, families.get(p.frameId));
     if (p.clamped) op *= 0.45;
     svg.push(`<circle class="nl-node${p.key === hoverKey ? ' nl-hover' : ''}" data-node-key="${esc(p.key)}" `
       + `cx="${p.panel[0].toFixed(1)}" cy="${p.panel[1].toFixed(1)}" r="${p.clamped ? 2.4 : 3.2}" fill="${fill(p.n)}" `
       + `opacity="${op.toFixed(2)}"><title>${esc(p.n.label ?? p.key)}, frame ${p.frameId}`
       + `${p.clamped ? ', outside the view and drawn at its edge' : ''}</title></circle>`);
+  }
+  if (shown.length > 1) {
+    const family = families.get(refFrame);
+    for (const e of ref.hierarchy?.edges || []) {
+      const pa = proj.positions.get(e.src), pb = proj.positions.get(e.dst);
+      if (e.relation !== 'contains' || !pa || !pb) continue;
+      svg.push(containsLine(pa, pb, !!family && !(family.has(e.src) && family.has(e.dst))));
+    }
   }
   for (const { n, key } of proj.nodes) {
     const pos = proj.positions.get(key), g = proj.glyphs.get(key);

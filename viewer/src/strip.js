@@ -4,7 +4,7 @@
 // A click on a plate or a cell asks for that frame; a region carries its node key for focus and hover.
 import { ellipsesOf, outlinesOf } from './regions.js';
 import { regionsToCanvas } from './cloud_paint.js';
-import { esc, hexColor, lighten, nodeKey, rgbToHex } from './format.js';
+import { containmentPartners, esc, hexColor, lighten, nodeKey, rgbToHex } from './format.js';
 
 const DEFAULT_CELL_H = 96;
 // A cell's padding, border and caption round its box: 4 + 4, 1 + 1 and 2 + 14 px.
@@ -56,6 +56,7 @@ function slabParts(fr, tracks, opts, dx, isStage, caption, centroids) {
   }
   const chips = [];
   const chipAt = new Map();
+  const paired = new Set(focusKey ? containmentPartners(focusKey, fr.hierarchy) : []);
   for (const info of tracks) {
     const track = info.id;
     const regions = fr.regionsByTrack[track];
@@ -71,7 +72,7 @@ function slabParts(fr, tracks, opts, dx, isStage, caption, centroids) {
       const cls = regions.classById.get(id);
       const stroke = hexColor(rgbToHex(cls?.color));
       const isFocus = key === focusKey, isPartner = key === partnerKey;
-      const lit = !focusKey || isFocus || isPartner;
+      const lit = !focusKey || isFocus || isPartner || paired.has(key);
       // Over the photo a solid fill hides the tissue; the outline and the chip already place the region.
       const fo = imageURL ? (focusKey ? (lit ? 0.5 : 0.06) : 0.2) : (focusKey ? (isFocus ? 0.85 : isPartner ? 0.6 : 0.75) : 0.5);
       const fillCol = isFocus && !imageURL ? stroke : (imageURL || lit ? lighten(cls?.color, 0.62) : QUIET_FILL);

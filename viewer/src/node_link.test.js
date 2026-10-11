@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  containmentPartners, fitLinear, labelSVG, projectNodes, projectToCamera, renderFrameNodeLink, renderWorldNodeLink,
+  fitLinear, labelSVG, projectNodes, projectToCamera, renderFrameNodeLink, renderWorldNodeLink,
 } from './node_link.js';
 
 describe('projectToCamera', () => {
@@ -47,23 +47,20 @@ describe('labelSVG', () => {
     expect(labelSVG('liver', [190, 20], 5, 200, 1)).toContain('x="183.0" y="23.0" text-anchor="end"');
   });
 
+  it('keeps a label with room on neither side inside the panel, on the side with more room', () => {
+    // 22 characters of 6 px are 132 px, wider than either side of a node in the middle of a 200 px panel.
+    for (const [x, side] of [[90, 'right'], [110, 'left']]) {
+      const t = labelSVG('Gastrointestinal Tract', [x, 20], 40, 200, 1);
+      expect(t.includes('text-anchor="end"') ? 'left' : 'right').toBe(side);
+      const at = Number(t.match(/x="([0-9.-]+)"/)[1]);
+      const [start, end] = t.includes('text-anchor="end"') ? [at - 132, at] : [at, at + 132];
+      expect(start).toBeGreaterThanOrEqual(0);
+      expect(end).toBeLessThanOrEqual(200);
+    }
+  });
+
   it('escapes the label', () => {
     expect(labelSVG('<b>', [0, 0], 1, 100, 1)).toContain('&lt;b&gt;');
-  });
-});
-
-describe('containmentPartners', () => {
-  const hierarchy = { edges: [
-    { src: 'gt:2', dst: 'auto:4', relation: 'contains' },
-    { src: 'gt:2', dst: 'auto:7', relation: 'contains' },
-    { src: 'gt:3', dst: 'auto:4', relation: 'overlaps' },
-  ] };
-
-  it('gives the keys a contains edge joins to a key, either way', () => {
-    expect(containmentPartners('gt:2', hierarchy)).toEqual(['auto:4', 'auto:7']);
-    expect(containmentPartners('auto:4', hierarchy)).toEqual(['gt:2']);
-    expect(containmentPartners('gt:3', hierarchy)).toEqual([]);
-    expect(containmentPartners('gt:2', null)).toEqual([]);
   });
 });
 
@@ -106,6 +103,11 @@ describe('renderFrameNodeLink', () => {
     const svg = draw({ tracks: ['gt', 'auto'], focusKey: 'gt:2' });
     const opacity = (key) => svg.match(new RegExp(`data-node-key="${key}"[^>]* opacity="([0-9.]+)"`))[1];
     expect([opacity('gt:2'), opacity('auto:4'), opacity('auto:7'), opacity('auto:5')]).toEqual(['1', '1', '1', '0.18']);
+  });
+
+  it('lights a contains link only between the followed node and its pair', () => {
+    const svg = draw({ tracks: ['gt', 'auto'], focusKey: 'auto:4' });
+    expect(svg.match(/stroke-dasharray="3 2" opacity="([0-9.]+)"/g).map((l) => l.match(/"([0-9.]+)"$/)[1]).sort()).toEqual(['0.18', '0.6']);
   });
 });
 
@@ -199,5 +201,30 @@ describe('renderWorldNodeLink', () => {
   it('draws a trail only through the frames in view', () => {
     renderWorldNodeLink(el, stack('zs', 'n'));
     expect(attrs('polyline', el.innerHTML).map((p) => p['data-node-key'])).toEqual(['zs:2']);
+  });
+});
+
+describe('renderWorldNodeLink with two tracks', () => {
+  // The stage frame: annotated class 2 contains automatic region 4; region 5 lies outside it.
+  const gt = { grid: [4, 2], labels: Int32Array.from([2, 2, 0, 0, 2, 2, 0, 0]), classes: [] };
+  const auto = { grid: [4, 2], labels: Int32Array.from([4, 4, 5, 5, 4, 4, 5, 5]), classes: [] };
+  const camera = { camera_position: [0, 0, 5], camera_forward: [0, 0, -1], camera_up: [0, 1, 0] };
+  const nodes = (track, ids) => ids.map((id) => ({ id, pos: [id / 10, 0, 0] }));
+  // Each frame has its own pair: region 4 on the stage frame, region 5 on the other.
+  const frame = (i, paired) => ({
+    i, offset: [0, 0, 0], regionsByTrack: { gt, auto },
+    graphByTrack: { gt: { nodes: nodes('gt', [2]) }, auto: { nodes: nodes('auto', [4, 5]) } },
+    hierarchy: { edges: [{ src: 'gt:2', dst: paired, relation: 'contains' }] },
+  });
+  const p = { world: { origin: [0, 0, 0], indices: [0, 1], frames: [frame(0, 'auto:4'), frame(1, 'auto:5')] }, refFrame: 0,
+    tracks: ['gt', 'auto'], frames: [camera, camera] };
+
+  it('draws the stage frame\'s contains links, and keeps the followed node\'s pair on each frame bright', () => {
+    const el = { clientWidth: 320, clientHeight: 260, innerHTML: '' };
+    renderWorldNodeLink(el, { ...p, focusKey: 'gt:2' });
+    expect(el.innerHTML.match(/stroke-dasharray="3 2" opacity="0.6"/g)).toHaveLength(1);
+    const dot = (key) => Number(el.innerHTML.match(new RegExp(`<circle [^>]*data-node-key="${key}"[^>]* opacity="([0-9.]+)"`))[1]);
+    expect(dot('auto:5')).toBeGreaterThan(0.15);
+    expect(dot('auto:4')).toBeLessThanOrEqual(0.15);
   });
 });

@@ -15,7 +15,7 @@ import { renderFrameNodeLink, renderWorldNodeLink, setHoverKey } from './node_li
 import { renderTrackStrip, renderWorldStrip, updateStripStage } from './strip.js';
 import { renderFocusBand, topPartners, updateFocusCursor } from './focus_band.js';
 import { cameraAxes, edgeAxes } from './edge_axes.js';
-import { esc, nodeKey, parseNodeKey } from './format.js';
+import { containmentPartners, esc, nodeKey, parseNodeKey } from './format.js';
 
 const $ = (id) => document.getElementById(id);
 const PLAY_MS = 700;
@@ -102,10 +102,12 @@ function view(context = false) {
   return { show: state.show, instruments: instrumentFilter(), isolate: isolating() && !context ? state.focusKey : null };
 }
 
-/** The two tracks the clip's hierarchy relates, the annotation first, or null when it relates none. */
+/** Return the annotation and the automatic track the clip's hierarchy relates, in that order, or null. */
 function bothPair() {
   const ts = state.clip?.hierarchy?.tracks;
   if (!Array.isArray(ts) || ts.length !== 2 || !ts.every((t) => trackInfo(t))) return null;
+  // The view draws the annotation under the automatic regions; two of a kind have no such order.
+  if (trackInfo(ts[0]).semantic === trackInfo(ts[1]).semantic) return null;
   return [...ts].sort((a, b) => Number(!trackInfo(a).semantic) - Number(!trackInfo(b).semantic));
 }
 
@@ -445,6 +447,19 @@ export function toggleRegions(track) {
   setStatus(state.painted ? `Regions on the cloud: ${name}` : 'Regions off: the cloud as reconstructed');
 }
 
+/**
+ * Take a strip row's track off the cloud when it is painted there, or paint it. Of the two tracks of
+ * `BOTH`, the other one stays painted, alone.
+ */
+function toggleTrackRow(track) {
+  const rest = paintedTracks().filter((t) => t !== track);
+  if (rest.length !== 1 || !state.both) { toggleRegions(track); return; }
+  state.both = false;
+  state.track = rest[0];
+  afterTrackChange();
+  setStatus(`Regions on the cloud: ${trackInfo(rest[0]).name}`);
+}
+
 /** Show another track in the panels, or both tracks with `BOTH`, and on the cloud when regions are painted. */
 export function setTrack(track) {
   const both = track === BOTH;
@@ -710,11 +725,7 @@ function applyFocusHighlight() {
   const targets = state.mode === 'world' && state.world ? state.world.frames : [stageEntry()].filter(Boolean);
   for (const fr of targets) {
     const keys = new Map([[state.focusKey, FOCUS_RGB]]);
-    for (const e of fr.hierarchy?.edges || []) {
-      if (e.relation !== 'contains') continue;
-      if (e.src === state.focusKey) keys.set(e.dst, PARTNER_RGB);
-      else if (e.dst === state.focusKey) keys.set(e.src, PARTNER_RGB);
-    }
+    for (const k of containmentPartners(state.focusKey, fr.hierarchy)) keys.set(k, PARTNER_RGB);
     if (applyRegionHighlight(fr.group, fr.regionsByTrack, keys, view(), { mix: 0.88, dim: 0.12 })) litGroups.push(fr.group);
   }
 }
@@ -884,7 +895,7 @@ function renderTrackStrip_() {
   renderTrackStrip(el, {
     frames: state.trackStrip.frames, tracks: state.clip.tracks, painted: paintedTracks(),
     stageFrame: nearestStacked(state.frame, state.trackStrip.indices), imageURL: (i) => frameImageURL(state.clip, i),
-    onFrame: (i) => seekFrame(i), onPickTrack: toggleRegions, cellH: stripCellH,
+    onFrame: (i) => seekFrame(i), onPickTrack: toggleTrackRow, cellH: stripCellH,
   });
 }
 

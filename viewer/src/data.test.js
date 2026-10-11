@@ -162,6 +162,9 @@ describe('fetching a clip', () => {
     body = { nodes: [] };
     expect((await fetchTemporal(await loadClip('c'), 't')).relations).toEqual([]);
     clearCaches();
+    body = { relations: [] };
+    expect((await fetchTemporal(await loadClip('c'), 't')).nodes).toEqual([]);
+    clearCaches();
     body = { ...sound, relations: [{ src: 1, dst: 2, relation: 'left', frames: ['<img src=x>'] }] };
     await expect(fetchTemporal(await loadClip('c'), 't')).rejects.toThrow(/graph through time of c is malformed/);
     clearCaches();
@@ -184,12 +187,16 @@ describe('temporalProblem', () => {
 
   it('names what is wrong with each part', () => {
     expect(problem(null)).toMatch(/not an object/);
+    expect(problem([])).toMatch(/not an object/);
+    expect(problem(7)).toMatch(/not an object/);
+    expect(problem({ frames: [0, 500] })).toMatch(/its frames are not frames 0 to 1/);
+    expect(problem({ frames: [0, 1] })).toBeNull();
     expect(problem({ relations: {} })).toMatch(/not a list/);
     expect(problem({ nodes: [{ ...node, id: '1' }] })).toMatch(/node "1"/);
     expect(problem({ nodes: [{ ...node, present_frames: [0.5] }] })).toMatch(/node 1/);
     expect(problem({ nodes: [{ ...node, present_frames: [2] }] })).toMatch(/frames 0 to 1/);
     expect(problem({ nodes: [{ ...node, present_frames: [-1] }] })).toMatch(/node 1/);
-    expect(problem({ nodes: [{ ...node, label: 7 }] })).toMatch(/and a label/);
+    expect(problem({ nodes: [{ ...node, label: 7 }] })).toMatch(/a string label/);
     expect(problem({ relations: [{ ...rel, dst: null }] })).toMatch(/relation of 1 and null/);
     expect(problem({ relations: [{ ...rel, src: 1.5 }] })).toMatch(/relation of 1.5/);
     expect(problem({ relations: [{ ...rel, relation: 3 }] })).toMatch(/a word/);

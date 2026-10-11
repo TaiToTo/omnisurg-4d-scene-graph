@@ -49,6 +49,17 @@ export function nodeKey(track, id) {
   return `${track}:${id}`;
 }
 
+/** List the node keys a `contains` edge of the hierarchy links to `key`, in either direction. */
+export function containmentPartners(key, hierarchy) {
+  const out = [];
+  for (const e of hierarchy?.edges || []) {
+    if (e.relation !== 'contains') continue;
+    if (e.src === key) out.push(e.dst);
+    else if (e.dst === key) out.push(e.src);
+  }
+  return out;
+}
+
 /** Split a node key into its track and its numeric id; refuse anything that is not a node key. */
 export function parseNodeKey(key) {
   const s = String(key);

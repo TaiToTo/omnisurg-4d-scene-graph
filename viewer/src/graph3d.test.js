@@ -104,3 +104,25 @@ describe('the graph in the 3D view', () => {
       [RELATION_COLORS.left, RELATION_COLORS.left, RELATION_COLORS.above, RELATION_COLORS.above]);
   });
 });
+
+describe('the graph in the 3D view with two tracks', () => {
+  // Both tracks label the frame alike; the annotation's region 1 contains the automatic region 2.
+  function pair() {
+    const f = frame();
+    const { labels } = f.regionsByTrack.t;
+    return { ...f, regionsByTrack: { gt: { labels }, auto: { labels } }, graphByTrack: { gt: f.graphByTrack.t, auto: f.graphByTrack.t },
+      hierarchy: { edges: [{ src: 'gt:1', dst: 'auto:2', relation: 'contains' }] } };
+  }
+  const opacity = (key) => drawn().find((m) => m.userData.nodeKey === key).material.opacity;
+
+  it('draws the contains links instead of each track\'s relations', () => {
+    buildGraph3D({ on: true, tracks: ['gt', 'auto'], stage: pair() });
+    expect(tubes()).toHaveLength(0);
+    expect(drawn().filter((o) => o.material?.isLineDashedMaterial)).toHaveLength(1);
+  });
+
+  it('keeps the region the followed node contains bright', () => {
+    buildGraph3D({ on: true, tracks: ['gt', 'auto'], stage: pair(), focusKey: 'gt:1' });
+    expect(opacity('auto:2')).toBeGreaterThan(opacity('auto:3'));
+  });
+});

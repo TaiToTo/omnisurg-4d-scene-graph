@@ -183,13 +183,15 @@ export function fetchGraph(clip, track, i) {
  * right and is not.
  */
 export function temporalProblem(tg, n) {
-  if (!tg || typeof tg !== 'object') return 'it is not an object';
+  if (!tg || typeof tg !== 'object' || Array.isArray(tg)) return 'it is not an object';
   const { nodes = [], relations = [] } = tg;
   if (!Array.isArray(nodes) || !Array.isArray(relations)) return 'its nodes or its relations are not a list';
   const frames = (v = []) => Array.isArray(v) && v.every((f) => Number.isInteger(f) && f >= 0 && f < n);
+  // The band reads `frames` as the span a node can enter or leave the view within.
+  if (!frames(tg.frames)) return `its frames are not frames 0 to ${n - 1}`;
   const bad = nodes.find((x) => !Number.isInteger(x?.id) || !frames(x.present_frames)
     || !['string', 'undefined'].includes(typeof x.label));
-  if (bad) return `node ${JSON.stringify(bad?.id)} is not an integer id with frames 0 to ${n - 1} and a label`;
+  if (bad) return `node ${JSON.stringify(bad?.id)} is not an integer id with frames 0 to ${n - 1} and, if any, a string label`;
   const rel = relations.find((r) => !Number.isInteger(r?.src) || !Number.isInteger(r?.dst)
     || typeof r.relation !== 'string' || !frames(r.frames));
   if (rel) return `a relation of ${JSON.stringify(rel?.src)} and ${JSON.stringify(rel?.dst)} is not integer ids with a word and frames 0 to ${n - 1}`;

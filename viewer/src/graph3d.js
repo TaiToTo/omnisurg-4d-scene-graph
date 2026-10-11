@@ -7,8 +7,7 @@ import * as THREE from 'three';
 import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
 import { clearGroup, groups, invalidate, makeLabelSprite, sz } from './stage.js';
 import { fullGeometryOf } from './vertex_filter.js';
-import { FOCUS_COLOR, PARTNER_COLOR, RELATION_COLORS, hexColor, nodeKey } from './format.js';
-import { containmentPartners } from './node_link.js';
+import { FOCUS_COLOR, PARTNER_COLOR, RELATION_COLORS, containmentPartners, hexColor, nodeKey } from './format.js';
 
 const HULL_MIN = 8, HULL_MAX = 3000;
 // Ellipsoid radii in reference units (stage.sz), from the region's share of the image.
@@ -132,7 +131,8 @@ export function buildGraph3D({ on, tracks, stage, world = null, focusKey = null 
         groups.graph3d.add(outline);
       }
     }
-    const edges = graph.edges || [];
+    // With two tracks the containment between them is drawn instead, as in the 2D panel.
+    const edges = tracks.length > 1 ? [] : graph.edges || [];
     if (edges.length <= MAX_EDGES) {
       for (const e of edges) {
         const ka = nodeKey(track, e.src), kb = nodeKey(track, e.dst);

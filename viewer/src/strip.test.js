@@ -38,6 +38,22 @@ describe('renderWorldStrip', () => {
   });
 });
 
+describe('renderWorldStrip with two tracks', () => {
+  it('lights the region the followed node contains, and captions how each track\'s regions were made', () => {
+    const rows = (row) => Array.from({ length: 8 }, (_, k) => (k === 0 || k === 7 ? '0'.repeat(14) : row));
+    const gt = regions(rows('01111111111110'), ['liver'], 'anchor');
+    const auto = regions(rows('01111110222220'), ['a', 'b'], 'anchor');
+    const hierarchy = { edges: [{ src: 'gt:1', dst: 'auto:1', relation: 'contains' }] };
+    const world = { frames: [{ i: 0, regionsByTrack: { gt, auto }, hierarchy }, { i: 1, regionsByTrack: { gt, auto }, hierarchy }] };
+    const el = { innerHTML: '', classList: { remove() {} }, firstElementChild: { addEventListener() {} } };
+    const tracks = [{ id: 'gt', semantic: true, seeded: false }, { id: 'auto', semantic: false, seeded: true }];
+    renderWorldStrip(el, world, tracks, 0, [{ time_s: 1 }, { time_s: 2 }], () => {}, { focusKey: 'gt:1' });
+    const stroke = (key) => el.innerHTML.match(new RegExp(`stroke="(#[0-9a-f]+)"[^>]*data-node-key="${key}"`))[1];
+    expect(stroke('auto:1')).not.toBe(stroke('auto:2'));
+    expect(el.innerHTML).toContain('f0 · 1.0 s · annotated · seed');
+  });
+});
+
 /** An element that keeps what renderTrackStrip sets on it: its class, its markup, its text and its children. */
 function fakeElement() {
   const el = {
