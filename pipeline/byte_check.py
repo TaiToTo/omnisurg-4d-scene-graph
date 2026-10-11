@@ -293,13 +293,14 @@ def collect(work_root: Path) -> dict[str, Path]:
 
 
 def strip_volatile_lines(text: str) -> tuple[str, tuple[str, ...]] | None:
-    """A JSON file's text without its volatile fields, and the fields removed, so that one vanishing still differs.
+    """Remove the volatile fields' lines from a JSON file's text, and name the fields removed.
 
-    Returns None when a volatile field is not alone on its line with a scalar value: such a file is compared as
-    bytes rather than guessed at.
+    Every other character stays, line endings included. The fields removed are returned so that one vanishing
+    still differs. Returns None when a volatile field is not alone on its line with a scalar value: such a file is
+    compared as bytes rather than guessed at.
     """
     kept, removed = [], []
-    for line in text.splitlines():
+    for line in text.splitlines(keepends=True):
         m = VOLATILE_LINE_RE.match(line)
         if m:
             removed.append(m.group(1))
@@ -307,7 +308,7 @@ def strip_volatile_lines(text: str) -> tuple[str, tuple[str, ...]] | None:
         if VOLATILE_KEY_RE.search(line):
             return None
         kept.append(line)
-    return "\n".join(kept), tuple(removed)
+    return "".join(kept), tuple(removed)
 
 
 def numeric_spread(a_path: Path, b_path: Path) -> tuple[float, float] | None:
@@ -356,7 +357,8 @@ def compare(a_files: dict[str, Path], b_files: dict[str, Path]) -> dict:
             same.append(rel)
             continue
         if a.suffix == ".json":
-            sa, sb = strip_volatile_lines(a.read_text()), strip_volatile_lines(b.read_text())
+            # Decoded from bytes, since reading as text would turn CRLF into LF.
+            sa, sb = strip_volatile_lines(a.read_bytes().decode()), strip_volatile_lines(b.read_bytes().decode())
             if sa is not None and sa == sb:
                 volatile_only.append(rel)
                 continue
