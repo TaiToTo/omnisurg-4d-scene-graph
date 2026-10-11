@@ -33,4 +33,27 @@ describe('edge axes', () => {
     expect(r.byFrame.get(0).word).toBe('right');
     expect(r.byFrame.get(0).c[0]).toBeCloseTo(0.3);
   });
+
+  const graph = {
+    nodes: [{ id: 1, pos: [0.3, 0.1, 0] }, { id: 2, pos: [0, 0, 0] }],
+    edges: [
+      { src: 1, dst: 2, relation: 'right', edge_type: 'spatial' },
+      { src: 1, dst: 2, relation: 'grasp', edge_type: 'action' },
+    ],
+  };
+
+  it('checks the spatial edges alone: an action edge is neither checked nor wrong', () => {
+    const r = edgeAxes([{ f: 0, graph, cam }], 1, 2);
+    expect([r.checked, r.wrong, r.byFrame.get(0).word]).toEqual([1, 0, 'right']);
+  });
+
+  it('skips a frame without a camera', () => {
+    const r = edgeAxes([{ f: 0, graph, cam: null }], 1, 2);
+    expect([r.checked, r.wrong, r.byFrame.size]).toEqual([0, 0, 0]);
+  });
+
+  it('gives no axes without a pose', () => {
+    expect(cameraAxes(null, [0, 1, 0])).toBeNull();
+    expect(cameraAxes([0, 0, -1], undefined)).toBeNull();
+  });
 });

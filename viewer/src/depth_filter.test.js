@@ -3,7 +3,7 @@
 // neighbourhood here fails.
 import { describe, it, expect } from 'vitest';
 import { flyingPixelMask, dilateMask, axialDepth, silhouetteHalo, cameraInCloudFrame, grazingMask,
-         MP_REL_THRESH, INSTRUMENT_HALO_PX } from './depth_filter.js';
+         MP_REL_THRESH, MP_GRAZING_DEG, INSTRUMENT_HALO_PX } from './depth_filter.js';
 
 // 9x12: a smooth surface at ~1.0, a step to ~1.3 from column 7, two pixels without depth.
 const W = 12, H = 9;
@@ -50,6 +50,14 @@ describe('flyingPixelMask', () => {
     // so this has to fail closed rather than mask the wrong pixels.
     expect(flyingPixelMask(Float32Array.from(DEPTH), W + 1, H)).toBeNull();
     expect(flyingPixelMask(Float32Array.from(DEPTH), 0, H)).toBeNull();
+    expect(flyingPixelMask(new Float32Array(0), 0, 0)).toBeNull();
+  });
+
+  it('measures a step against the depth of the point it marks', () => {
+    // A step of 0.041 from depth 1 to 1.041 is 4.1 % of the near side's depth and 3.9 % of the far side's,
+    // so only the near side of the step is marked.
+    const depth = Float32Array.from([1, 1, 1.041, 1.041, 1, 1, 1.041, 1.041]);
+    expect([...flyingPixelMask(depth, 4, 2, { dilate: 0 })]).toEqual([0, 1, 0, 0, 0, 1, 0, 0]);
   });
 
   it('keeps everything when the threshold is infinite', () => {
@@ -147,6 +155,10 @@ describe('silhouetteHalo', () => {
     expect(silhouetteHalo(labels, [5], W + 1, H, 2)).toBeNull();
   });
 
+  it('is nothing at a distance of 0', () => {
+    expect(silhouetteHalo(labels, [5], W, H, 0)).toBeNull();
+  });
+
   it('uses the measured width by default', () => {
     expect(INSTRUMENT_HALO_PX).toBe(2);
     expect([...silhouetteHalo(labels, [5], W, H)].filter(Boolean).length).toBe(40);
@@ -179,8 +191,24 @@ describe('grazingMask', () => {
     expect(inner(grazingMask(plane(88), [0, 0, 0], valid, W, H, { dilate: 0 }))).toBe((W - 2) * (H - 2));
   });
 
+  it('drops a surface 82 degrees from the line of sight, past the 78 degree limit', () => {
+    expect(MP_GRAZING_DEG).toBe(78);
+    expect(inner(grazingMask(plane(82), [0, 0, 0], valid, W, H, { dilate: 0 }))).toBe((W - 2) * (H - 2));
+  });
+
+  it('skips a pixel without depth, and the four pixels next to it', () => {
+    // The centre pixel's point lies on the camera's plane: a ray to it grazes the surface, and a normal
+    // through it turns each neighbour edge-on.
+    const pos = plane(0);
+    pos.set([0.01, 0, 0], 3 * (4 * W + 4));
+    const depth = axialDepth(pos, [0, 0, 0], [0, 0, 1]);
+    expect(depth[4 * W + 4]).toBe(0);
+    expect(inner(grazingMask(pos, [0, 0, 0], depth, W, H, { dilate: 0 }))).toBe(0);
+  });
+
   it('refuses a grid that does not describe the points, and skips invalid pixels', () => {
     expect(grazingMask(plane(88), [0, 0, 0], valid, W + 1, H)).toBeNull();
+    expect(grazingMask(plane(88), [0, 0, 0], valid.subarray(1), W, H)).toBeNull();
     expect(inner(grazingMask(plane(88), [0, 0, 0], new Float32Array(W * H), W, H, { dilate: 0 }))).toBe(0);
   });
 });

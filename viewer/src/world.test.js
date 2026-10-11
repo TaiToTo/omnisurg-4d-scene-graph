@@ -1,6 +1,14 @@
 import * as THREE from 'three';
-import { describe, expect, it } from 'vitest';
-import { focusWorldFrame, nearestStacked, worldIndices } from './world.js';
+import { describe, expect, it, vi } from 'vitest';
+import { loadCloud } from './data.js';
+import { enterWorld, exitWorld, focusWorldFrame, nearestStacked, worldIndices } from './world.js';
+
+vi.mock('./data.js', () => ({ fetchGraph: vi.fn(), fetchHierarchy: vi.fn(), fetchRegions: vi.fn(), loadCloud: vi.fn() }));
+// A label draws on a canvas, which the test environment lacks.
+vi.mock('./stage.js', async (importOriginal) => {
+  const THREE = await import('three');
+  return { ...(await importOriginal()), makeLabelSprite: () => new THREE.Object3D() };
+});
 
 describe('the world stack', () => {
   it('samples a dozen frames, the first and the last always among them', () => {
@@ -46,5 +54,20 @@ describe('the frames on view', () => {
       focusWorldFrame(world, 10, view, true);
       expect(visible(world)).toEqual([10]);
     }
+  });
+});
+
+describe('entering the world', () => {
+  it('moves each frame\'s cloud by its centroid\'s offset from the first frame\'s', async () => {
+    loadCloud.mockImplementation(async () => {
+      const scene = new THREE.Group();
+      scene.add(new THREE.Points(new THREE.BufferGeometry(), new THREE.PointsMaterial()));
+      return { scene };
+    });
+    const frame = (centroid) => ({ centroid, camera_position: [0, 0, 1], camera_forward: [0, 0, -1] });
+    const clip = { n_frames: 2, tracks: [], frames: [frame([1, 1, 1]), frame([2, 3, 4])], geometry: { grid: [1, 1] } };
+    const world = await enterWorld(clip, () => {}, () => false);
+    expect(world.frames.map((fr) => fr.group.children[0].position.toArray())).toEqual([[0, 0, 0], [1, 2, 3]]);
+    exitWorld();
   });
 });

@@ -28,6 +28,16 @@ describe('topPartners', () => {
     expect(topPartners(gap, 1)[0][1].changes).toEqual([]);
   });
 
+  it('puts the neighbour whose relation changes most first, then the one that shares most frames', () => {
+    const many = { relations: [
+      { src: 1, dst: 4, relation: 'left', edge_type: 'spatial', frames: [0, 1, 2] },
+      { src: 1, dst: 3, relation: 'above', edge_type: 'spatial', frames: [0, 1, 2, 3, 4, 5] },
+      { src: 1, dst: 2, relation: 'left', edge_type: 'spatial', frames: [0] },
+      { src: 1, dst: 2, relation: 'right', edge_type: 'spatial', frames: [1] },
+    ] };
+    expect(topPartners(many, 1, 3).map(([other]) => other)).toEqual([2, 3, 4]);
+  });
+
   it('leaves out relations that are not spatial', () => {
     const third = topPartners(tg, 1, 2)[1][1];
     expect([...third.relByFrame.values()]).toEqual(['above', 'above']);
@@ -72,6 +82,10 @@ function bandElement(width) {
   };
 }
 
+// Text that opens a tag, or ends an attribute, wherever it is not escaped.
+const HOSTILE = '<img src=x onerror=alert(1)>" onmouseover="x';
+const INJECTED = /<img|\sonmouseover="/;
+
 const attrs = (tag, html) => [...html.matchAll(new RegExp(`<${tag} ([^>]*)>`, 'g'))]
   .map(([, a]) => Object.fromEntries([...a.matchAll(/([\w-]+)="([^"]*)"/g)].map(([, k, v]) => [k, v])));
 
@@ -94,6 +108,19 @@ describe('the band', () => {
       .map((t) => Number(t.x)));
     expect(Math.min(...cols.map((r) => Number(r.x)))).toBeGreaterThan(labelsEnd);
     expect(Math.max(...cols.map((r) => Number(r.x) + Number(r.width)))).toBeLessThanOrEqual(W);
+  });
+
+  it('escapes the node names and the relations', () => {
+    const hostile = { ...band, relations: [
+      { src: 1, dst: 2, relation: HOSTILE, edge_type: 'spatial', frames: frames.slice(0, 7) },
+      { src: 1, dst: 2, relation: 'left', edge_type: 'spatial', frames: frames.slice(7) },
+    ] };
+    const el = bandElement(1576);
+    const events = renderFocusBand(el, { tg: hostile, nodeId: 1, lastFrame: 14, frame: 0, onFrame() {}, labelOf: () => HOSTILE });
+    expect(events).toHaveLength(1);
+    expect(el.innerHTML).toContain('class="nf-seg"');
+    expect(el.innerHTML).toContain('&lt;img');
+    expect(el.innerHTML).not.toMatch(INJECTED);
   });
 
   it('turns an x anywhere on a frame\'s column back into that frame', () => {

@@ -24,6 +24,13 @@ describe('regionEllipses', () => {
     expect(fitEllipse({ n: 3, sx: 3, sy: 3, sxx: 3, syy: 3, sxy: 3 })).toMatchObject({ a: 4, b: 4 });
     expect(fitEllipse({ n: 0 })).toBeNull();
   });
+
+  it('turns the major axis along the region: a band down to the right lies at +45 degrees in image pixels', () => {
+    const band = Array.from({ length: 10 }, (_, y) => Array.from({ length: 10 }, (_, x) => (Math.abs(x - y) <= 1 ? 1 : 0)).join(''));
+    const e = regionEllipses(regions(band)).get(1);
+    expect(e.theta).toBeCloseTo(Math.PI / 4);
+    expect(e.a).toBeGreaterThan(e.b);
+  });
 });
 
 describe('hulls', () => {
@@ -31,6 +38,10 @@ describe('hulls', () => {
     expect(convexHull2D([[0, 0], [1, 1], [2, 0], [2, 2], [0, 2], [1, 0]]).length).toBe(4);
     const hull = regionHulls(square).get(1);
     expect(hull.map(([x]) => x).sort((a, b) => a - b)).toEqual([1, 1, 6, 6]);
+  });
+
+  it('gives no hull to a region too thin for one: a dot or a line', () => {
+    expect([...regionHulls(regions(['1033', '0033', '2220'])).keys()]).toEqual([3]);
   });
 
   it('returns a point set under three points as it is', () => {
@@ -70,5 +81,7 @@ describe('outlines', () => {
 
   it('outlines every listed region and nothing for background', () => {
     expect([...regionOutlines(regions(['1100', '1100', '0022', '0022']), 1, 0.5).keys()].sort()).toEqual([1, 2]);
+    const ring = regions(['0000', '0110', '0110', '0000']);
+    expect([...regionOutlines({ ...ring, classes: [{ id: 0 }, ...ring.classes] }, 1, 0.5).keys()]).toEqual([1]);
   });
 });
