@@ -1245,6 +1245,8 @@ Every command takes those paths as arguments.
     measured:
     - whether the clips are kept as data, as ATLAS-120k's population is;
     - whether the hash covers the tables and the clip rule;
+    - whether the hash covers `evalkit/tools/pose_controls.py`, which makes
+      the floors and the ceiling the result is compared with;
     - whether the export is made again here, or kept as an input named by
       its hashes.
 32. **The claims table on the evaluator's scores.** `claims_table` prints
