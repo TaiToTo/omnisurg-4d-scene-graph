@@ -1,8 +1,9 @@
 """Compare a copy of ATLAS-bench's `datasets/class_mapping.py`, written from the class table, with the class table.
 
 The copy agrees on every id, and each fault is planted in it: an id mapped to another class, an id missing, an id
-too many, and files the tool cannot read the mapping from. The copy raises when run, as the real file would
-without its imports, so a tool that ran it would fail every test.
+too many, a statement that could change the mapping after it is assigned, and files the tool cannot read the
+mapping from. The copy imports a module that does not exist, as the real file cannot run without its imports, so
+a tool that ran it would fail every test.
 """
 
 import sys
@@ -14,13 +15,20 @@ from evalkit.tools.check_benchmark_mapping import disagreements, main, read_upst
 
 OURS = dict(load_table("atlas120k", "benchmark").mask_id_to_class)
 
+# The real file's statements around the dict, and a docstring: an import, another dict, a function and a
+# `__main__` block, whose change of the dict runs only when the file runs as a script.
+HEAD = ('"""Class mappings."""\nfrom no_such_package_for_this_test import Image\n'
+        'mapped_class_names = {0: "Background"}\n')
+TAIL = ('def remap_mask(mask, mapping, default_value=0):\n    """Remap a mask."""\n    return mask\n\n'
+        'if __name__ == "__main__":\n    mapping[32] = 26\n')
 
-def write_upstream(tmp_path, mapping: dict, text: str | None = None):
-    """Write a `class_mapping.py` that assigns `mapping`, or holds `text` in its place."""
+
+def write_upstream(tmp_path, mapping: dict, text: str | None = None, after: str = ""):
+    """Write a `class_mapping.py` that assigns `mapping`, or holds `text` in its place, followed by `after`."""
     entries = "\n".join(f"    {k}: {v}," for k, v in mapping.items())
     body = text if text is not None else f"mapping = {{\n{entries}\n}}\n"
     path = tmp_path / "class_mapping.py"
-    path.write_text(f'raise SystemExit("run, not parsed")\nmapped_class_names = {{0: "Background"}}\n{body}')
+    path.write_text(HEAD + body + after + TAIL)
     return path
 
 
@@ -69,4 +77,28 @@ def test_a_file_the_mapping_cannot_be_read_from_is_refused(tmp_path, monkeypatch
         read_upstream_mapping(path)
     monkeypatch.setattr(sys, "argv", ["check_benchmark_mapping", str(path)])
     with pytest.raises(SystemExit, match=why):
+        main()
+
+
+@pytest.mark.parametrize("after", [
+    "mapping[32] = 26\n",
+    "mapping.update({46: 5})\n",
+    "for k in (5, 6):\n    mapping[k] = 0\n",
+    "mapping |= {47: 3}\n",
+    "if True:\n    mapping[32] = 26\n",
+    'if __name__ != "__main__":\n    mapping[32] = 26\n',
+    "other = mapping.update({46: 5})\n",
+    "from other import mapping\n",
+    "from other import *\n",
+    "from other import table as mapping\n",
+    "class Remap:\n    mapping[32] = 26\n",
+    "@register\ndef remap(mask):\n    return mask\n",
+    "def remap(mask, m=mapping.update({46: 5})):\n    return mask\n",
+])
+def test_a_statement_that_could_change_the_mapping_after_it_is_assigned_is_refused(tmp_path, monkeypatch, after):
+    path = write_upstream(tmp_path, OURS, after=after)
+    with pytest.raises(ValueError, match="could change `mapping` after it is assigned"):
+        read_upstream_mapping(path)
+    monkeypatch.setattr(sys, "argv", ["check_benchmark_mapping", str(path)])
+    with pytest.raises(SystemExit, match="could change `mapping` after it is assigned"):
         main()

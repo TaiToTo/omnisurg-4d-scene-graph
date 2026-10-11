@@ -1,9 +1,10 @@
 """Compare the class table's mapping of ATLAS-120k's ids onto the benchmark's classes with ATLAS-bench's own.
 
 The tool reads `mapping`, the dict from each original id to its benchmark class, out of ATLAS-bench's
-`datasets/class_mapping.py`, without running the file. It compares that dict with the mapping of
-`evalkit/class_tables/atlas120k.json` on every id either side holds, and prints each id that one side maps and
-the other does not, or that the two sides map to different classes. It exits non-zero on any such id.
+`datasets/class_mapping.py`, without running the file. It refuses a file whose top level could change the dict
+after assigning it. It compares that dict with the mapping of `evalkit/class_tables/atlas120k.json` on every id
+either side holds, and prints each id that one side maps and the other does not, or that the two sides map to
+different classes. It exits non-zero on any such id.
 
 Usage:
     python -m evalkit.tools.check_benchmark_mapping /path/to/ATLAS-bench/datasets/class_mapping.py
@@ -22,14 +23,52 @@ from evalkit.classes import load_table
 UPSTREAM_NAME = "mapping"
 
 
+def is_literal(node: ast.expr) -> bool:
+    """Return whether `node` is a Python literal, which evaluates without running any code."""
+    try:
+        ast.literal_eval(node)
+    except (TypeError, ValueError, SyntaxError, MemoryError, RecursionError):
+        return False
+    return True
+
+
+def is_main_block(node: ast.stmt) -> bool:
+    """Return whether `node` is `if __name__ == "__main__":`, whose body runs only when the file runs as a script."""
+    test = node.test if isinstance(node, ast.If) else None
+    return (isinstance(test, ast.Compare) and isinstance(test.left, ast.Name) and test.left.id == "__name__"
+            and len(test.ops) == 1 and isinstance(test.ops[0], ast.Eq) and len(test.comparators) == 1
+            and isinstance(test.comparators[0], ast.Constant) and test.comparators[0].value == "__main__")
+
+
+def could_change_the_mapping(node: ast.stmt) -> bool:
+    """Return whether a top-level statement could change `UPSTREAM_NAME` when the file is imported.
+
+    These statements cannot: an import that binds another name, a function without decorators whose defaults are
+    literals, the `__main__` block, a docstring, and a name assigned a literal.
+    """
+    if isinstance(node, (ast.Import, ast.ImportFrom)):
+        return any(a.name == "*" or (a.asname or a.name.split(".")[0]) == UPSTREAM_NAME for a in node.names)
+    if isinstance(node, ast.FunctionDef):
+        defaults = node.args.defaults + [d for d in node.args.kw_defaults if d is not None]
+        return bool(node.decorator_list) or not all(is_literal(d) for d in defaults)
+    if isinstance(node, ast.If):
+        return not is_main_block(node)
+    if isinstance(node, ast.Expr):
+        return not isinstance(node.value, ast.Constant)
+    if isinstance(node, ast.Assign):
+        return not (all(isinstance(t, ast.Name) for t in node.targets) and is_literal(node.value))
+    return True
+
+
 def read_upstream_mapping(path: str | Path) -> dict[int, int]:
     """Return the dict that `path` assigns to `UPSTREAM_NAME` at its top level, read as a literal.
 
     The file is parsed, never run: it is another repository's code.
 
     Raises:
-        ValueError: the file is not Python, assigns the name other than once, or assigns it something other than
-            a dict literal of integer keys and values.
+        ValueError: the file is not Python, assigns the name other than once, assigns it something other than
+            a dict literal of integer keys and values, or holds a top-level statement that
+            `could_change_the_mapping`.
     """
     try:
         tree = ast.parse(Path(path).read_text(encoding="utf-8"), filename=str(path))
@@ -45,6 +84,11 @@ def read_upstream_mapping(path: str | Path) -> dict[int, int]:
         raise ValueError(f"{path}: `{UPSTREAM_NAME}` is not a literal") from None
     if not isinstance(mapping, dict) or not all(type(k) is int and type(v) is int for k, v in mapping.items()):
         raise ValueError(f"{path}: `{UPSTREAM_NAME}` is not a dict of integer ids to integer classes")
+    # Only the literal is read, so a statement that changed the dict after it would pass unseen.
+    changing = [node.lineno for node in tree.body if could_change_the_mapping(node)]
+    if changing:
+        raise ValueError(f"{path}: the statements on line(s) {changing} could change `{UPSTREAM_NAME}` after it is "
+                         "assigned; only imports, functions, the __main__ block and literals are allowed")
     return mapping
 
 
