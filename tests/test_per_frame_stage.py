@@ -36,7 +36,8 @@ RECORD = dict(clip="VID01_s15_80_crop", tag="t", seed_source="per_frame", track_
 class StandInSegmenter:
     """Cut each image into a left part (region 0), a right part (1) and a 2x2 corner (2).
 
-    The k-th image is cut at column `W // 2 + k`, so a frame written with another frame's labels shows.
+    The k-th image this segmenter is given, counted across clips, is cut at column `W // 2 + k`, so a frame
+    written with another frame's labels shows. An image with `k` of `W // 2` or more has no right part.
     """
 
     device = "cpu"
