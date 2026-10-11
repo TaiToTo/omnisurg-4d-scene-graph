@@ -54,10 +54,11 @@ jobs:
       - run: pytest
 
   # `surgical_core.geometry.render`, the depth colormap and the GLB writer
-  # need the `render` extra and the tools' statistics and chart need the
-  # `tools` extra, so the job above never imports them and their tests skip
-  # there. This job installs both extras and runs the same suite, so those
-  # tests run somewhere.
+  # need the `render` extra, the tools' statistics and chart need the
+  # `tools` extra, and the StereoMIS reader needs the `stereomis` extra, so
+  # the job above never imports them and their tests skip there. This job
+  # installs the three extras and runs the same suite, so those tests run
+  # somewhere.
   render:
     runs-on: ubuntu-24.04
     steps:
@@ -68,6 +69,6 @@ jobs:
         with:
           python-version: "3.12"
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libgl1 libglib2.0-0t64 ffmpeg
-      - run: pip install -e ".[render,tools]" pytest
-      - run: python -c "import surgical_core.geometry.render, scipy.stats, matplotlib, trimesh"
+      - run: pip install -e ".[render,tools,stereomis]" pytest
+      - run: python -c "import surgical_core.geometry.render, surgical_core.stereomis, scipy.stats, matplotlib, trimesh"
       - run: pytest

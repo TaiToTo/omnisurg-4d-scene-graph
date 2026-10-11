@@ -77,14 +77,12 @@ say, in the form a session starting cold needs.
 
 `track_metrics` is a tool outside the evaluator ("No measure over time
 carries a star"). It waits on a decision not yet made, its GT track: ported
-before the decision, it would be ported twice. The stages after tracking
-wait on the tracking stage. The questions are named as `docs/porting.md`
-heads them.
+before the decision, it would be ported twice. The questions are named as
+`docs/porting.md` heads them.
 
 | piece | waits for |
 |---|---|
 | `track_metrics` | "The GT track of `track_metrics`" |
-| the export stages and the viewer | the tracking stage, whose output they read |
 
 The ported tracking stage reads no GT. Its propagation rule places the seed
 on the middle frame or on frame 0, and no seed comes from GT masks. Its check links
@@ -98,6 +96,7 @@ stays open ("The edge ring of the tracker's input").
 |---|---|---|---|
 | `evalkit/metric-guide` | a page that shows each metric on the test scenes | E `archive/metric-guide` | anywhere |
 | `docs/short-headers` | the module headers of `main` brought under the cap of `docs/review.md` | this repository | anywhere |
+| `pipeline/export` | the export stage: the regions, scene graphs, hierarchies and graphs through time the viewer bundle reads | W `scripts/export_viewer_dataset.py`, `build_temporal_graph.py`, `surgical_core/viewer/` | W; its byte check, on a clip whose tracking labels W holds |
 
 The depth stages can start today too. Their port runs anywhere and their
 check needs W and G; they have a section of their own, at the end.

@@ -1,7 +1,7 @@
 """Print the pilot's table of paired comparisons: blocks of rows under headings, a row per pair of conditions.
 
-Each cell holds the mean of `cond − base` for one key, with the mark of
-`paired_stats.verdict`. A line under each row gives the first key's
+Each cell holds the mean of `cond − base` for one key, with the mark that
+`paired_stats.mark_of` gives. A line under each row gives the first key's
 interval and wins. Every two conditions of the table must pass
 `scores.check_comparable`. The table is pasted as printed, never copied by hand.
 
@@ -17,15 +17,15 @@ from collections.abc import Mapping, Sequence
 import numpy as np
 
 from evalkit.tools.compare_eval import DIRECTION
-from evalkit.tools.paired_stats import VERDICT_RULE, boot_ci, sign_of_key, verdict, video_of
+from evalkit.tools.paired_stats import MARK_RULE, boot_ci, mark_of, video_of
 from evalkit.tools.scores import (
-    PILOT_SIGNS,
     check_comparable_table,
     defined_clips,
     is_pilot_json,
     load_scores,
-    metric_keys,
     rows_of,
+    sign_of_key,
+    signs_of,
 )
 
 # The keys the table reports on a pilot JSON, in the workbench's order. F1
@@ -110,14 +110,12 @@ def columns_of(summary: Mapping, keys: Sequence[str] = ()) -> list[tuple[str, in
 
     Raises:
         ValueError: No keys are given for an evaluator JSON, whose table
-            keys are not settled; a key is not one the JSON reports, or on
-            a pilot JSON has no direction in `scores.PILOT_SIGNS`; or a key
-            is a reference value, which no star marks and so goes in a
-            table that carries none.
+            keys are not settled; a key has no direction on the JSON
+            (`scores.sign_of_key`); or a key is a reference value, which no
+            star marks and so goes in a table that carries none.
     """
     pilot = is_pilot_json(summary)
-    known = list(PILOT_SIGNS) if pilot else metric_keys(summary)
-    markable = [k for k in known if sign_of_key(summary, k) != 0]
+    markable = [k for k, sign in signs_of(summary).items() if sign != 0]
     if not keys:
         if not pilot:
             raise ValueError(f"the table's keys on the evaluator's scores are not settled; name them with --keys, "
@@ -125,12 +123,11 @@ def columns_of(summary: Mapping, keys: Sequence[str] = ()) -> list[tuple[str, in
         keys = PILOT_COLUMNS
     out = []
     for key in keys:
-        if key not in known and pilot:
-            raise ValueError(f"{key} has no direction in scores.PILOT_SIGNS, so no mark can be read for it; "
-                             f"the keys the table can mark are {markable}")
-        if key not in known:
-            raise ValueError(f"{key} is not a key this JSON reports; the keys the table can mark are {markable}")
-        sign = sign_of_key(summary, key)
+        # The keys with a direction include the reference values, which the table refuses next.
+        try:
+            sign = sign_of_key(summary, key)
+        except ValueError as e:
+            raise ValueError(f"{e}; the table can mark only {markable}") from e
         if sign == 0:
             raise ValueError(f"{key} is a reference value: no star marks it, so it goes in a table that carries none")
         out.append((key, sign))
@@ -174,7 +171,7 @@ def cell_of(base: Mapping, cond: Mapping, clips: list[str], key: str, sign: int)
 
     `mean`, `ci` and `mark` are None when fewer than `MIN_CLIPS` clips or
     fewer than two videos define the key: one video has no interval, and
-    the point it would give reads as a verdict.
+    the point it would give reads as a mark.
 
     Args:
         base: The base condition's rows, by clip.
@@ -191,7 +188,7 @@ def cell_of(base: Mapping, cond: Mapping, clips: list[str], key: str, sign: int)
     d = (np.array([cond[c][key] for c in ks], dtype=np.float64)
          - np.array([base[c][key] for c in ks], dtype=np.float64))
     ci = boot_ci(d, videos)
-    out.update(mean=float(d.mean()), ci=ci, mark=verdict(ci, sign),
+    out.update(mean=float(d.mean()), ci=ci, mark=mark_of(ci, sign),
                wins=int((d * sign > 0).sum()), losses=int((d * sign < 0).sum()))
     return out
 
@@ -233,7 +230,7 @@ def table_lines(blocks: Sequence, summaries: Mapping[str, Mapping], keys: Sequen
     rule = "" if shared["propagation"] is None else f" / propagation {shared['propagation']}"
     lines = [f"{shared['dataset']}: {len(clips)} clips / {n_videos} videos / "
              f"eval_code_sha {shared['eval_code'][:8]}{rule}",
-             f"★ better, ✗ worse, each in its key's direction: {VERDICT_RULE}",
+             f"★ better, ✗ worse, each in its key's direction: {MARK_RULE}",
              f"{SIGN_NOTE} after a mark: as many clips or more moved against the mark as with it",
              f"{NO_VALUE}: fewer than {MIN_CLIPS} clips or 2 videos define the key",
              "directions: " + ", ".join(f"{k} {DIRECTION[s]}" for k, s in columns)]

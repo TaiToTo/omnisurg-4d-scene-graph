@@ -1,6 +1,6 @@
 """Leave each video out in turn, and name the videos whose removal changes the mark.
 
-For each pair of conditions and each key, `paired_stats.verdict` reads the
+For each pair of conditions and each key, `paired_stats.mark_of` reads the
 video-level bootstrap interval of `cond - base` in the key's direction and
 gives a mark: a star, a cross or none. A video whose removal changes the mark
 is named. The mark then depends on that one video, not on the population.
@@ -24,17 +24,18 @@ from collections.abc import Sequence
 import numpy as np
 
 from evalkit.tools.paired_stats import (
+    MARK_RULE,
     N_BOOT,
     SEED,
     SEED_SCHEME,
-    VERDICT_RULE,
     boot_ci,
-    load_json,
-    sign_of_key,
-    verdict,
+    format_signed,
+    load_pairs,
+    mark_of,
+    round_keeping_sign,
     video_of,
 )
-from evalkit.tools.scores import check_comparable, check_one_rule, defined_clips, rows_of
+from evalkit.tools.scores import check_comparable, check_one_rule, defined_clips, rows_of, sign_of_key
 
 # A video is left out only while this many videos remain, so a key on this many videos or fewer is refused.
 MIN_VIDEOS_AFTER_DROP = 3
@@ -45,38 +46,21 @@ RANGE_VIDEOS = 3
 THIN_VIDEOS = 5
 
 
-def _r(x: float) -> float:
-    """Round to four decimals, keeping a value that would round to zero at two significant digits.
-
-    A mark follows the sign of an interval's end. An end of -2.4e-05
-    written as -0.0 cannot be read back to its mark.
-    """
-    r = round(float(x), 4)
-    return r if r != 0.0 or float(x) == 0.0 else float(f"{float(x):.2g}")
-
-
-def _f(x: float) -> str:
-    """Print a difference with four decimals, or in exponent form where four decimals would show zero."""
-    return f"{x:+.4f}" if abs(x) >= 5e-5 or x == 0 else f"{x:+.2e}"
-
-
 def _ci(ci: Sequence[float]) -> str:
-    return f"[{_f(ci[0])}, {_f(ci[1])}]"
+    return f"[{format_signed(ci[0])}, {format_signed(ci[1])}]"
 
 
 def direction(summary: dict, key: str) -> int:
     """Return which way `key` is better on this JSON, refusing a key that is never marked.
 
     Raises:
-        ValueError: The key has no direction in the table `paired_stats`
-            reads, or its direction is 0. A key of direction 0, such as the
-            reference value `time_IoU` or the count `n_regions_mean`, is
-            never marked, so leaving a video out cannot change its mark.
+        ValueError: The key has no direction on this JSON
+            (`scores.sign_of_key`), or its direction is 0. A key of
+            direction 0, such as the reference value `time_IoU` or the count
+            `n_regions_mean`, is never marked, so leaving a video out cannot
+            change its mark.
     """
-    try:
-        sign = sign_of_key(summary, key)
-    except KeyError:
-        raise ValueError(f"{key}: no direction is known for this key, so no mark can be read on it") from None
+    sign = sign_of_key(summary, key)
     if sign == 0:
         raise ValueError(f"{key} has direction 0 and is never marked, so leaving a video out cannot change its mark")
     return sign
@@ -115,22 +99,24 @@ def leave_each_out(d: np.ndarray, vids: np.ndarray, sign: int) -> dict:
         raise ValueError(f"the clips come from {len(videos)} video(s): leaving one out would leave fewer than "
                          f"{MIN_VIDEOS_AFTER_DROP}, so no video can be left out and none can be named")
     full_ci = list(boot_ci(d, vids))
-    full = verdict(full_ci, sign)
+    full = mark_of(full_ci, sign)
     per = []
     for v in videos:
         m = vids != v
         ci = list(boot_ci(d[m], vids[m]))
+        width_ratio = (ci[1] - ci[0]) / (full_ci[1] - full_ci[0]) if full_ci[1] != full_ci[0] else None
         per.append(dict(
             video=v, n_clips=int((~m).sum()), n_videos_wo=len(videos) - 1,
-            own_delta=_r(d[~m].mean()), delta_wo=_r(d[m].mean()),
-            ci95_wo=[_r(ci[0]), _r(ci[1])],
-            ci_width_ratio=_r((ci[1] - ci[0]) / (full_ci[1] - full_ci[0])) if full_ci[1] != full_ci[0] else None,
-            mark_wo=verdict(ci, sign)))
+            own_delta=round_keeping_sign(d[~m].mean()), delta_wo=round_keeping_sign(d[m].mean()),
+            ci95_wo=[round_keeping_sign(x) for x in ci],
+            ci_width_ratio=None if width_ratio is None else round_keeping_sign(width_ratio),
+            mark_wo=mark_of(ci, sign)))
     flips = [p["video"] for p in per if p["mark_wo"] != full]
     return dict(n_clips=int(len(d)), n_videos=len(videos),
                 # `delta` is `cond - base` and `mark` is read in the key's
                 # direction, so the direction stays with them.
-                sign=int(sign), delta=_r(d.mean()), ci95_video=[_r(full_ci[0]), _r(full_ci[1])],
+                sign=int(sign), delta=round_keeping_sign(d.mean()),
+                ci95_video=[round_keeping_sign(x) for x in full_ci],
                 mark=full, n_flips=len(flips), flips=flips, per_video=per)
 
 
@@ -184,7 +170,7 @@ def _note(n_videos: int) -> str:
 
 def _print_key(k: str, r: dict) -> None:
     lower = " (lower is better)" if r["sign"] < 0 else ""
-    print(f"  {k}{lower}  Δ={_f(r['delta'])} {_ci(r['ci95_video'])} {r['mark'] or 'no mark'}"
+    print(f"  {k}{lower}  Δ={format_signed(r['delta'])} {_ci(r['ci95_video'])} {r['mark'] or 'no mark'}"
           f" ({r['n_clips']} clips / {r['n_videos']} videos){_note(r['n_videos'])}")
     if not r["n_flips"]:
         print("    no single video left out changes the mark")
@@ -196,9 +182,9 @@ def _print_key(k: str, r: dict) -> None:
         # Both the mean and the width move, and neither alone says which of them changed the mark.
         w = p["ci_width_ratio"]
         width = "" if w is None else f", the interval {w:.2f} times as wide"
-        print(f"      without {p['video']} ({p['n_clips']} clips, its own Δ={_f(p['own_delta'])}):"
-              f" Δ={_f(p['delta_wo'])} {_ci(p['ci95_wo'])} {p['mark_wo'] or 'no mark'}"
-              f" ({p['n_videos_wo']} videos, the mean moved {_f(p['delta_wo'] - r['delta'])}{width})"
+        print(f"      without {p['video']} ({p['n_clips']} clips, its own Δ={format_signed(p['own_delta'])}):"
+              f" Δ={format_signed(p['delta_wo'])} {_ci(p['ci95_wo'])} {p['mark_wo'] or 'no mark'}"
+              f" ({p['n_videos_wo']} videos, the mean moved {format_signed(p['delta_wo'] - r['delta'])}{width})"
               f"{_note(p['n_videos_wo'])}")
 
 
@@ -212,18 +198,10 @@ def main() -> None:
     args = ap.parse_args()
 
     # Every pair's two JSONs, read before any is compared.
-    pairs, loaded = [], {}
-    for pair in [p.strip() for p in args.pairs.split(",") if p.strip()]:
-        try:
-            base, sep, cond = pair.partition(":")
-            if not (sep and base and cond) or ":" in cond:
-                raise ValueError("--pairs takes <base>:<cond>")
-            for tag in (base, cond):
-                if tag not in loaded:
-                    loaded[tag] = load_json(tag, args.eval_dir)
-        except (ValueError, OSError) as e:
-            raise SystemExit(f"{pair}: {e}") from e
-        pairs.append((pair, base, cond))
+    try:
+        pairs, loaded = load_pairs(args.pairs, args.eval_dir)
+    except (ValueError, OSError) as e:
+        raise SystemExit(f"--pairs: {e}") from e
 
     # One rule for the whole run, because all its pairs go into one JSON.
     try:
@@ -243,13 +221,14 @@ def main() -> None:
         raise SystemExit(f"--keys: {e}") from e
 
     # The marks of each pair, printed as they come.
-    out = {"mark_rule": VERDICT_RULE, "n_boot": N_BOOT, "seed": SEED, "seed_scheme": SEED_SCHEME,
+    out = {"mark_rule": MARK_RULE, "n_boot": N_BOOT, "seed": SEED, "seed_scheme": SEED_SCHEME,
            "min_videos_after_drop": MIN_VIDEOS_AFTER_DROP}
     # A pilot JSON records no rule, so none is written.
     if rule is not None:
         out["propagation"] = rule
     out["pairs"] = {}
-    for pair, base, cond in pairs:
+    for base, cond in pairs:
+        pair = f"{base}:{cond}"
         try:
             out["pairs"][pair] = leave_each_out_of_pair(loaded[base], loaded[cond], keys)
         except ValueError as e:

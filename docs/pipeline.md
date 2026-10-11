@@ -183,8 +183,10 @@ The stage refuses:
 - a frame or a mask whose size is not `src_w` × `src_h`, the size of the
   frames the rectangle was found on;
 - a cropped clip that already exists, unless `--overwrite` is given;
-- a cropped clip that holds anything a later stage wrote, such as
-  `depth_raw/`, even with `--overwrite`. Such a clip is removed by hand.
+- a cropped clip that holds anything a later stage wrote, even with
+  `--overwrite`: a file such as `depth_raw/`, or a key of the manifest that
+  the stage does not write, such as `depth_info`. Such a clip is removed by
+  hand.
 
 The stage writes the cropped clip as `<clip>_crop.part` and renames it when
 every file is written. Only then does `--overwrite` remove the earlier
@@ -486,6 +488,41 @@ tracking stage does.
 
 `python -m pipeline.per_frame --help` lists the options.
 
+## A condition on every clip of a population
+
+```bash
+python -m pipeline.condition_population track --input-dir /path/to/clips --clips atlas120k_meta/clips.txt \
+    --tracks-root /path/to/tracks --tag <tag> --rule both_ways_from_centre --sam-input normal_edge \
+    --track-base rgb --seed-edge-gain 1.0 --seed-no-smooth --sam-ckpt sam_vit_h_4b8939.pth --gpus 0 1 2 3
+python -m pipeline.condition_population per_frame --input-dir /path/to/clips --clips atlas120k_meta/clips.txt \
+    --tracks-root /path/to/tracks --tag <tag> --sam-input normal_edge --sam-ckpt sam_vit_h_4b8939.pth \
+    [--points-per-side 8] [--depth-source pi3] --gpus 0 1 2 3
+```
+
+The command runs one condition of the tracking stage or of the per-frame
+stage on every clip of a population file. The subcommand names the stage,
+and the stage's options keep their names and defaults.
+
+- Each GPU of `--gpus` runs one clip at a time, on CUDA.
+- A clip that already has its labels is skipped, so a stopped run resumes.
+- Each clip's log is `<tracks-root>/_logs/<labels>/<clip>.log`. `<labels>`
+  is the label directory: `track_<track-base>_<tag>`, or `track_rgb_<tag>`
+  for the per-frame stage.
+- A stopped driver stops its processes. Under `nohup`, a closed terminal
+  does not stop the driver.
+- Labels removed by hand are removed with their montage,
+  `viz/montage_<labels>.png`.
+
+The command refuses:
+
+- before any process starts: an input a process would fail on, labels made
+  with other settings, and a tracker's input that burns edges with a seed
+  whose record holds no edge ring ("The edge ring of the tracker's input"
+  in `docs/porting.md`);
+- after a clip: a record of other settings, which stops the run;
+- after the run: labels that are missing, incomplete or of other settings,
+  and a process that exited non-zero.
+
 ## The granularity conditions
 
 The granularity result tracks seeds merged to K regions. These three commands
@@ -518,3 +555,86 @@ python -m pipeline.track --input-dir /path/to/clips --tracks-root /path/to/track
 - The evaluator refuses a condition tracked with `--seed-labels` ("Propagation
   rule" in `docs/evaluation.md`). It scores the floor and the per-frame
   conditions.
+
+## The viewer bundle stage
+
+```bash
+python -m pipeline.viewer_bundle --input-dir /path/to/clips --out /path/to/site/data \
+    --clips <clip> ... --tracks <track> ... [--geometry da3] [--overwrite] \
+    [--frame-ratios atlas120k_meta/frame_ratio.json]
+```
+
+The stage writes the static files the web viewer (`viewer/`) reads. It
+reads the clouds the depth stages wrote, and the overlays the export stage
+writes into `pc_vis/`:
+
+- per track and frame, the regions, `seg_frame_NNNN__<track>.json`, and the
+  scene graph, `graph_frame_NNNN__<track>.json`;
+- per track, the scene graph through time, `temporal_graph__<track>.json`;
+- per frame, `hierarchy_frame_NNNN.json`, which relates the regions of two
+  tracks.
+
+`--tracks` names the tracks the viewer offers, in its order: `cholecseg8k`,
+`atlas_gt`, `gt_tracked`, `sam3d` or `sam3d_edge`. `--geometry` names the
+reconstruction whose clouds the viewer draws, `da3` or `pi3x`. Under
+`--out` the stage writes:
+
+- `catalog.json`: the clips under `--out`, which the viewer lists.
+- `<clip>/clip.json`: the clip's dataset, procedure and video; the geometry
+  source and its pixel grid; per frame its time, its cloud's centroid and
+  the camera's position and axes; per track its names, the class ids of its
+  instruments, and the frames it has regions and graphs on; and the frames
+  with a hierarchy.
+- `<clip>/frames/NNNN.jpg`: the frames.
+- `<clip>/clouds/NNNN.glb`: the point clouds, copied.
+- `<clip>/regions/<track>/NNNN.json`: the label of each point of the cloud,
+  in the cloud's order, run-length coded as `[label, count, ...]`, with the
+  classes' names and colours and the frame's stage, `anchor` or
+  `propagated`.
+- `<clip>/graphs/<track>/NNNN.json` and `temporal.json`: the scene graphs.
+- `<clip>/hierarchy/NNNN.json`: a hierarchy between two published tracks.
+
+The export stage builds the overlays on DA3's cloud. With `--geometry pi3x`
+the stage resamples each frame's labels onto Pi3X's grid, nearest pixel,
+and moves each node to its region's centroid on the Pi3X cloud, with axes
+from the region's spread. A node whose region kept no point on that grid
+is left out. Each node keeps its DA3 position as `graph_pos`, and each
+frame keeps DA3's camera axes as `graph_camera_forward` and
+`graph_camera_up`. Every other number of a graph is DA3's.
+
+A frame's time is `surgical_core.clip_time.frame_times`' value, which
+applies ATLAS-120k's `frame_ratio`. An ATLAS-120k clip extracted before the
+ratio was recorded in its manifest needs `--frame-ratios`, the measured
+ratios.
+
+The stage refuses:
+
+- a clip whose manifest does not list one frame per image, or does not give
+  DA3's grid, the geometry source's grid, a frame's placement, or DA3's
+  camera axes under `--geometry pi3x`;
+- a clip whose frames' times cannot be made, or whose dataset is neither
+  `atlas120k` nor `cholecseg8k`;
+- a frame without its cloud, a cloud that is not a GLB of one float32 point
+  list, or a cloud without one point per pixel;
+- an unknown track, a track named twice, a track of another dataset's
+  classes, a track without regions, or a scene graph on a frame without
+  regions;
+- regions off DA3's grid, a label that is not an integer or of no listed
+  class, a class without an integer id above 0, a string name and a colour
+  of three numbers, or a stage other than `anchor` or `propagated`;
+- a frame's scene graph with a node that is no region of the frame, has no
+  string label or no position of three numbers, or an edge that does not
+  join two of its nodes with a string relation;
+- a hierarchy that does not relate two of the bundle's tracks, or whose
+  nodes and edges are not string keys, integer ids and string labels and
+  relations;
+- a graph through time whose node ids, relation ends or frames are not
+  integers, frames from 0 to the clip's last, or whose labels and relations
+  are not strings;
+- a clip already under `--out`, unless `--overwrite` is given.
+
+A refused clip leaves what was under `--out` as it was: a clip replaces an
+earlier copy only once every file is written. The stage runs every clip,
+rewrites `catalog.json`, and exits with an error if one failed.
+
+`python -m pipeline.viewer_bundle --help` lists the options.

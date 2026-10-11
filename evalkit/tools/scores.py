@@ -254,6 +254,29 @@ def metric_keys(summary: Mapping) -> list[str]:
     return keys + list(CLIP_METRICS)
 
 
+def signs_of(summary: Mapping) -> dict[str, int]:
+    """Map each key a JSON reports to which way it is better: `PILOT_SIGNS` on a pilot JSON, `sign_of` otherwise.
+
+    Every tool reads a key's direction from here, so that one key is never
+    marked one way by one tool and another way by another.
+    """
+    if is_pilot_json(summary):
+        return dict(PILOT_SIGNS)
+    return {k: sign_of(k) for k in metric_keys(summary)}
+
+
+def sign_of_key(summary: Mapping, key: str) -> int:
+    """Return which way `key` is better on this JSON: +1, -1, or 0 for a key that is never marked.
+
+    Raises:
+        ValueError: `key` is not one of the keys `signs_of` lists for this JSON.
+    """
+    signs = signs_of(summary)
+    if key not in signs:
+        raise ValueError(f"{key} is not a key with a direction on this JSON; the keys with one are {list(signs)}")
+    return signs[key]
+
+
 def defined_clips(a: Mapping[str, Mapping], b: Mapping[str, Mapping], clips: list[str], key: str) -> list[str]:
     """The clips on which `key` is defined in both conditions, in the order of `clips`.
 

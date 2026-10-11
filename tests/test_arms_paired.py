@@ -18,7 +18,7 @@ import numpy as np
 import pytest
 
 from evalkit.tools import arms_paired as AP
-from evalkit.tools.paired_stats import VERDICT_RULE, boot_ci, video_of
+from evalkit.tools.paired_stats import MARK_RULE, boot_ci, video_of
 from evalkit.tools.scores import PILOT_EVAL_CODE_SHA, metric_key
 
 pytest.importorskip("scipy", reason="the Wilcoxon test needs the `tools` extra")
@@ -184,13 +184,13 @@ def test_different_library_versions_are_reported_not_refused(capsys):
 
 
 def test_a_key_the_jsons_do_not_report_is_refused():
-    with pytest.raises(ValueError, match="not a key these JSONs report"):
+    with pytest.raises(ValueError, match="F1_50/nowhere is not a key with a direction on this JSON"):
         AP.compare_pairs({"a": evaluator_scores(seed=1), "b": evaluator_scores(seed=2)}, [("a", "b")], "F1_50/nowhere")
 
 
 def test_a_pilot_key_with_no_direction_is_refused_for_that():
     # The pilot's JSONs hold VI_split, but no direction for it.
-    with pytest.raises(ValueError, match="VI_split has no direction in scores.PILOT_SIGNS"):
+    with pytest.raises(ValueError, match="VI_split is not a key with a direction on this JSON"):
         AP.compare_pairs(table_of_pilot_scores(), PAIRS, "VI_split")
 
 
@@ -235,7 +235,7 @@ def test_the_command_prints_the_workbench_s_rows(tmp_path):
     assert lines[0] == f"atlas: {len(CLIPS)} clips / {len(VIDEOS)} videos, eval_code={PILOT_EVAL_CODE_SHA[:16]}"
     head = next(i for i, line in enumerate(lines) if line.startswith("pair"))
     assert lines[head + 1:head + 1 + len(PAIRS)] == WORKBENCH_ROWS["inst_F1_50"]
-    assert lines[-1] == f"★ / ✗: {VERDICT_RULE}."
+    assert lines[-1] == f"★ / ✗: {MARK_RULE}."
 
 
 def test_the_command_refuses_a_mixed_table_and_names_the_two_conditions(tmp_path):
