@@ -46,6 +46,6 @@ built, `VITE_DATA_URL=https://example.org/bundle/ npm run build`; that host
 must then allow the page's origin to fetch from it (CORS). Every URL the page
 uses is relative, so it works from any directory of a host.
 
-The address keeps what is on screen, `?clip=<id>&frame=<n>&mode=world&focus=<track>:<id>`,
+The address keeps what is on screen, `?clip=<id>&track=<track>&frame=<n>&mode=world&focus=<track>:<id>`,
 so a view can be shared as a link. The page opens only clips the catalog
-lists.
+lists, and says which of a link's settings the clip has no place for.

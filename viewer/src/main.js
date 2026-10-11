@@ -1,6 +1,6 @@
 // Start the page: read the catalog, open the clip the address names or the first one, and connect the
-// controls, the keys and the pointer to the actions of app.js. The address keeps the open clip, frame,
-// mode and followed region, so a view can be shared as a link.
+// controls, the keys and the pointer to the actions of app.js. The address keeps the open clip, track,
+// frame, mode and followed region, so a view can be shared as a link.
 import { loadCatalog } from './data.js';
 import { initStage, invalidate, resetView, startRenderLoop } from './stage.js';
 import {
@@ -84,22 +84,33 @@ function fillPicker(catalog) {
   }
 }
 
-/** Open a clip, then the address's frame, mode, track and followed region, unless another clip is asked for. */
-async function open(id, { frame = 0, mode = 'frame', track = null, focus = null } = {}) {
+/**
+ * Open a clip, then the address's frame, mode, track and followed region, unless another clip is asked for.
+ * A setting the clip has no place for is left out, and the reader is told which.
+ */
+async function open(id, { frame = '0', mode = 'frame', track = null, focus = null } = {}) {
   $('clip-select').value = id;
   if (!await openClip(id)) {
-    // The clip on screen is still the last one; the picker says so again.
-    if (state.clip) $('clip-select').value = state.clip.id;
+    // The clip on screen is still the last one; the picker says so again, unless the reader picked another meanwhile.
+    if (state.clip && $('clip-select').value === id) $('clip-select').value = state.clip.id;
     return;
   }
   const seq = state.clipSeq;
   const current = () => state.clipSeq === seq;
+  const f = Number(frame);
+  const knownFocus = focus && NODE_KEY.test(focus) && state.clip.trackById.has(focus.split(':')[0]);
+  const left = [
+    ...(track && !state.clip.trackById.has(track) ? [`track ${track}`] : []),
+    ...(!(Number.isInteger(f) && f >= 0 && f < state.clip.n_frames) ? [`frame ${frame}`] : []),
+    ...(focus && !knownFocus ? [`region ${focus}`] : []),
+  ];
+  if (left.length) showError(`This clip has no ${left.join(', ')}; the link opens without it.`);
   if (track && state.clip.trackById.has(track)) setTrack(track);
-  if (frame > 0 && frame < state.clip.n_frames) await seekFrame(frame);
+  if (f > 0 && f < state.clip.n_frames) await seekFrame(f);
   if (!current()) return;
   if (mode === 'world') await switchMode('world');
   if (!current()) return;
-  if (focus && NODE_KEY.test(focus) && state.clip.trackById.has(focus.split(':')[0])) await setFocusNode(focus);
+  if (knownFocus) await setFocusNode(focus);
 }
 
 function wire() {
@@ -258,7 +269,10 @@ function initResizers() {
 
 async function boot() {
   onError(showError);
-  onChange(writeAddress);
+  // A browser limits how often a page changes its address, and Safari throws past the limit; a drag across
+  // the frames in world mode changes the frame once per frame passed, so the address follows once it settles.
+  let addressTimer = null;
+  onChange(() => { clearTimeout(addressTimer); addressTimer = setTimeout(writeAddress, 250); });
   fillDialogs();
   if (!initStage($('gl'), $('viewport'))) {
     $('viewport').innerHTML = '<div class="no-webgl">This browser cannot draw WebGL, which the 3D view needs.</div>';
@@ -282,7 +296,7 @@ async function boot() {
   const known = catalog.clips.some((c) => c.id === wanted);
   if (wanted && !known) showError(`No clip ${wanted} in this catalog; the first clip is open instead.`);
   await open(known ? wanted : catalog.clips[0].id, {
-    frame: Number.parseInt(q.get('frame') ?? '0', 10) || 0,
+    frame: q.get('frame') ?? '0',
     mode: q.get('mode') === 'world' ? 'world' : 'frame',
     track: q.get('track'),
     focus: q.get('focus'),
