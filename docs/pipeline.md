@@ -270,8 +270,9 @@ The stage writes the clips the camera trajectory result is measured on.
 `--root` holds one directory per sequence, as StereoMIS ships it.
 `--depth-root` holds the depth export's `<sequence>/stats.npy`. The stage
 reads it to leave out the clips with no surface in view. The clips are
-those `surgical_core.stereomis.clips` marks usable: 112 frames 0.2 s apart,
-cut from each sequence without overlap. Into each clip the stage writes:
+those `surgical_core.stereomis.clips` marks usable: 112 frames, 12
+positions apart (0.2 s at the frame rate the video declares), cut from each
+sequence without overlap. Into each clip the stage writes:
 
 - `input_images/`: the left view of each frame, rectified and at half
   resolution, 640x512, numbered from 0.
@@ -291,6 +292,7 @@ a clip as `<clip>.partial` and renames it when its manifest is written. A
 clip is not replaced, because the depth stages write into it. The stage
 refuses:
 
+- a sequence that `--sequences` names twice;
 - a clip whose directory, or `<clip>.partial`, exists already, for every
   sequence named, before anything is decoded;
 - two clips, or two places of one clip, that hold the same frame;

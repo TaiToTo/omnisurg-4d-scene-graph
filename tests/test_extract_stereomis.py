@@ -32,6 +32,7 @@ CLIPS = {
     "P1": (make_clip("P1", 0, [4, 16]), make_clip("P1", 1, [1348, 1360], usable=False),
            make_clip("P1", 2, [2692, 2704, 2716])),
     "P2_0": (make_clip("P2_0", 0, [4, 16]),),
+    "P2_3": (make_clip("P2_3", 0, [4, 16], usable=False),),
 }
 
 
@@ -155,6 +156,17 @@ def test_the_command_refuses_a_clip_of_any_sequence_before_decoding_the_first(de
     with pytest.raises(FileExistsError, match="P2_0__clip_0000"):
         E.main()
     assert calls == []
+
+
+def test_the_command_refuses_a_sequence_named_twice_before_decoding_the_first(decoded, tmp_path, monkeypatch):
+    root, calls = decoded
+    out = tmp_path / "clips"
+    argv = ["extract_stereomis", "--root", str(root), "--depth-root", str(tmp_path / "depth"), "--out", str(out),
+            "--sequences", "P1", "P1", "P2_0"]
+    monkeypatch.setattr(sys, "argv", argv)
+    with pytest.raises(ValueError, match="names P1 twice"):
+        E.main()
+    assert calls == [] and not out.exists()
 
 
 def test_the_command_extracts_the_sequences_named(decoded, tmp_path, monkeypatch, capsys):

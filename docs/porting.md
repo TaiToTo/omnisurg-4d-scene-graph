@@ -421,9 +421,8 @@ below.
     given to `paired_stats`, on the evaluator's scores. They wait on "How
     LapEx is scored".
   - The camera trajectory on StereoMIS, from `ipcai2027_experiment/scripts/`:
-    `run_20.sh` and `pose_controls.py`. The clip writer of `stereomis_io.py`
-    is `pipeline/extract_stereomis.py`. `run_20.sh` runs the DA3 stage and, through
-    `pi3_wrapper/scripts/queue_pi3_clips.sh`, the Pi3X stage with
+    `run_20.sh` and `pose_controls.py`. `run_20.sh` runs the DA3 stage and,
+    through `pi3_wrapper/scripts/queue_pi3_clips.sh`, the Pi3X stage with
     `--max-points 60000`. That flag thins the point cloud written to the
     GLB, and with it `glb_centroid`, `n_vertices` and `median_vertices`; the
     depth and the poses in the npz do not change.

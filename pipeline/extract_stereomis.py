@@ -125,6 +125,10 @@ def main() -> None:
     ap.add_argument("--mask-instruments", action="store_true",
                     help="Paint each image black outside the tissue mask nearest its frame.")
     args = ap.parse_args()
+    # A sequence named twice would be extracted once, then refused for the clips its first extraction wrote.
+    for seq in args.sequences:
+        if args.sequences.count(seq) > 1:
+            raise ValueError(f"--sequences names {seq} twice")
 
     root, depth_root, out = Path(args.root), Path(args.depth_root), Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
