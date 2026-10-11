@@ -554,16 +554,26 @@ and not before.
   - propagation over the pasted floor, in the abstract;
   - the loss of a geometry rendering under GT seeds.
 
-  They are measured again with this repository's code ("What the paper
-  measures"). Two questions stay open:
+  The draft's table of identity over time comes from
+  `ipcai2027_experiment/scripts/summarize_track12.py`, which measures the
+  conditions with `track_metrics`. Both results are measured again with
+  this repository's code ("What the paper measures"). Two questions stay
+  open:
   - whether the paper reports them;
   - how a GT seed is placed and scored ("Conditions seeded from GT").
 - **Two comparisons of the granularity result.** The manuscript's draft
   reports both, and `claims_table` leaves both out:
   - the geometry inputs against `rgb` at a matched number of regions.
-    `settle_inputs.py`, listed under "Not yet extracted anywhere",
-    interpolates `rgb`'s value on its curve over K, clip by clip, at the
-    geometry input's number of regions;
+    The draft's table of this comparison comes from
+    `ipcai2027_experiment/task15_granularity/scripts/fair_merge_recheck.py --mode input_track`.
+    The script scores the tracked labels of ATLAS-120k's 315 clips itself,
+    with the pilot evaluator's functions. Its table also compares the
+    inputs at the same K. `settle_inputs.py`, listed under "Not yet
+    extracted anywhere", makes the same comparison with its own F1, at both
+    stages, on the 13-video ATLAS-120k set and CholecSeg8k. The workbench's
+    claims table read its rows. Both scripts interpolate `rgb`'s value on
+    its curve over K, clip by clip, at the geometry input's number of
+    regions;
   - merges that never join two regions across a boundary of a depth,
     normal or depth-edge map, made by `kgeo_sequence` in
     `ipcai2027_experiment/scripts/kmerge.py`. The draft reports their gain
@@ -609,6 +619,19 @@ The second list holds what the paper's numbers do not use.
   `depth_sam_tracking_experiment/track_sam3_consensus.py` and
   `track_sam3_3d.py`. `consensus` is a mode of `run_track_conditions.py`,
   and the manuscript reports no consensus condition.
+- **The control without SAM**, `ipcai2027_experiment/atlas97/scripts/classic_seg.py`:
+  a marker-controlled watershed cuts the normal image and the RGB image from
+  the same markers. It tells whether the normal image lacks the boundaries
+  or SAM fails to read a normal image. The manuscript's draft reports no
+  number from it.
+- **The paired comparisons of `kmerge.py --pairs`**, in
+  `ipcai2027_experiment/scripts/`: the per-frame stage's F1 for two
+  conditions, both merged to one K or to the frame's count of the pilot's
+  GT objects, with the video-level interval of the difference. The run the
+  workbench reports compares `rgb_edge` merged with `rgb` merged, and the
+  draft reports no number from it. Ported, a comparison at one K is a run
+  of `kmerge` on each condition and a pair given to `paired_stats`, on the
+  evaluator's scores.
 - **Graphs built again**: `scripts/export_graph_cleanup_compare.py`, which
   builds each graph twice for a comparison page, and
   `scripts/backfill_depth_rel.py`, which adds `depth_rel` to graphs written
