@@ -218,15 +218,14 @@ def boot_ci(d: np.ndarray, groups: np.ndarray | None = None, rng=None,
 # borrows `mark_of` rather than deciding one.
 #
 # The decision is the video-level bootstrap 95 % interval not straddling
-# zero, read in the metric's direction, and nothing else. The clip-level
-# interval and the p-values are printed beside it as reference and never
-# decide.
+# zero, read in the metric's direction, on at least `MIN_VIDEOS_FOR_MARK`
+# videos, and nothing else. The clip-level interval and the p-values are
+# printed beside it as reference and never decide.
 #
 # Why p is not part of it: the unit. ATLAS-120k's clips come from a few
 # videos, and one video can supply a third of them, so a Wilcoxon over clip
 # pairs inflates the evidence. The video-level p is conservative but
-# undefined below six videos, which some populations have; the interval is
-# defined on any population of two videos or more. The claim about 3D
+# undefined below six videos, which some populations have. The claim about 3D
 # predicates was decided by the interval alone already, so one rule covers
 # every claim.
 #
@@ -235,10 +234,18 @@ def boot_ci(d: np.ndarray, groups: np.ndarray | None = None, rng=None,
 # one from no mark to a star or a cross. When the rule changes, run every
 # script that prints a mark and compare before and after; scanning saved
 # analyses misses the tools that compute an interval on the spot.
-MARK_RULE = "the video-level bootstrap 95 % CI does not straddle zero (p is reported, never decisive)"
+#
+# An interval on fewer than `MIN_VIDEOS_FOR_MARK` videos gives no mark and
+# is read for its sign only. On two or three videos the 95 % interval is
+# the range of the video means, so two videos that agree in sign would give
+# a mark. The floors of `paired_table` and `leave_one_video_out` are this
+# number too.
+MIN_VIDEOS_FOR_MARK = 6
+MARK_RULE = (f"the video-level bootstrap 95 % CI, on {MIN_VIDEOS_FOR_MARK} videos or more, does not straddle zero "
+             "(p is reported, never decisive)")
 
 
-def mark_of(ci95_video: tuple[float, float] | list[float] | None, sign: int = +1) -> str:
+def mark_of(ci95_video: tuple[float, float] | list[float] | None, sign: int = +1, *, n_videos: int) -> str:
     """Return the mark of the video-level interval: a star (better), a cross (worse) or nothing.
 
     Args:
@@ -246,17 +253,24 @@ def mark_of(ci95_video: tuple[float, float] | list[float] | None, sign: int = +1
             None when there is none.
         sign: Which way the metric is better, as `scores.SIGNS` spells it:
             +1 larger, -1 smaller, 0 a reference value that is never marked.
+        n_videos: The videos the interval resampled. Below
+            `MIN_VIDEOS_FOR_MARK` the interval gives no mark.
 
     Returns:
         `"★"`, `"✗"` or `""`.
 
     Raises:
-        ValueError: `sign` is not the int +1, -1 or 0.
+        ValueError: `sign` is not the int +1, -1 or 0, or `n_videos` is not
+            an int of zero or more.
     """
     # `True` and `1.0` equal 1, so the type is checked too.
     if type(sign) is not int or sign not in (1, -1, 0):
         raise ValueError(f"sign is +1, -1 or 0, not {sign!r}")
-    if sign == 0 or ci95_video is None or ci95_video[0] is None or ci95_video[1] is None:
+    if type(n_videos) is not int or n_videos < 0:
+        raise ValueError(f"n_videos is an int of zero or more, not {n_videos!r}")
+    if sign == 0 or n_videos < MIN_VIDEOS_FOR_MARK:
+        return ""
+    if ci95_video is None or ci95_video[0] is None or ci95_video[1] is None:
         return ""
     lo, hi = float(ci95_video[0]), float(ci95_video[1])
     if sign < 0:
@@ -268,9 +282,16 @@ def mark_of(ci95_video: tuple[float, float] | list[float] | None, sign: int = +1
     return ""
 
 
-def is_star(ci95_video, sign: int = +1) -> bool:
+def sign_only_note(n_videos: int) -> str:
+    """Return what a tool prints beside an interval on `n_videos` videos: "" when the interval can be marked."""
+    if n_videos < MIN_VIDEOS_FOR_MARK:
+        return f"read for its sign only: a mark needs {MIN_VIDEOS_FOR_MARK} videos"
+    return ""
+
+
+def is_star(ci95_video, sign: int = +1, *, n_videos: int) -> bool:
     """Whether `mark_of` gives a star, for a caller that wants the truth value alone."""
-    return mark_of(ci95_video, sign) == "★"
+    return mark_of(ci95_video, sign, n_videos=n_videos) == "★"
 
 
 def round_keeping_sign(x: float) -> float:
@@ -340,8 +361,8 @@ def compare_pair(ja: dict, jb: dict, drop: Sequence[str] = (), allow_legacy_code
         ja: The base condition's JSON.
         jb: The compared condition's JSON.
         drop: Videos whose clips are left out, to measure again without
-            them. A subset has fewer videos, so its interval is read for
-            its sign only.
+            them. A subset on fewer than `MIN_VIDEOS_FOR_MARK` videos is
+            read for its sign only.
         allow_legacy_code: Let through JSONs that record no `eval_code_sha`.
         keys: The keys to compute; `keys_of(ja)` when None. A pilot key
             outside `PILOT_KEYS`, such as `inst_F1_50_labeled`, is
@@ -424,8 +445,10 @@ def _print_pair(base: str, cond: str, pair: dict, keys: Sequence[str]) -> None:
         moved = f"ties {r['ties']}" if r["wins"] is None else f"wins-losses-ties {r['wins']}-{r['losses']}-{r['ties']}"
         print(f"    paired difference: mean {r['delta_mean']:+.4f} / median {r['delta_median']:+.4f}"
               f" / SD {_num(r['delta_sd'], '.4f')} / {moved}")
-        print(f"    95% CI  clips resampled {_interval(r['ci95_clip'])}"
-              f"   videos resampled {_interval(r['ci95_video'])}"
+        video_ci = _interval(r["ci95_video"])
+        if r["ci95_video"] is not None and sign_only_note(r["n_videos"]):
+            video_ci += f" ({sign_only_note(r['n_videos'])})"
+        print(f"    95% CI  clips resampled {_interval(r['ci95_clip'])}   videos resampled {video_ci}"
               f"   Wilcoxon p={r['wilcoxon_p']} (per video p={r['wilcoxon_p_video']})")
 
 
@@ -435,7 +458,7 @@ def main() -> None:
     ap.add_argument("--pairs", required=True, help="<base>:<cond>, comma-separated.")
     ap.add_argument("--drop-video", default="",
                     help="Leave these videos' clips out and measure again (comma-separated). "
-                         "A subset has fewer videos, so read its interval for its sign only.")
+                         f"Read a subset on fewer than {MIN_VIDEOS_FOR_MARK} videos for its sign only.")
     ap.add_argument("--allow-legacy-code", action="store_true",
                     help="Let through JSONs that record no eval_code_sha (refused by default).")
     ap.add_argument("--out", default="", help="Write the statistics of every pair to this JSON.")

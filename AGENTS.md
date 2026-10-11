@@ -52,7 +52,8 @@ paths of the pilot evaluator and its scores as arguments.
 
 The mark rule is already settled and is held to the same standard: **a
 claim gets a star only when the video-level bootstrap 95 % CI does not straddle
-zero.** p-values are reported alongside, never decisive. One definition, in
+zero, on at least six videos.** An interval on fewer videos is read for its
+sign only. p-values are reported alongside, never decisive. One definition, in
 `paired_stats`; scripts borrow it rather than reimplementing a star.
 
 ---

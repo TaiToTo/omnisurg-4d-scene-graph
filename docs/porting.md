@@ -245,14 +245,6 @@ Each question says what it blocks and where its answer is written.
   has no GT; which `hold_mean` definition keeps the name; and what hold
   means under `forward_from_first`. Blocks: porting `track_metrics`.
   Answer in: `docs/evaluation.md`.
-- **The fewest videos for an interval.** `paired_stats.boot_ci` refuses a
-  population of one video. On two or three videos the 95 % interval is the
-  range of the video means, so two videos that agree in sign give a mark.
-  Open: whether the interval needs more videos, and how many.
-  The floors of `paired_table` (five clips per cell) and of
-  `leave_one_video_out` are decided with it. Until then, a subset's
-  interval is read for its sign only. Answer in: `paired_stats`, beside
-  `MARK_RULE`.
 - **The paired table on the evaluator's scores.** `paired_table` prints the
   pilot's table only. The six `t5_*` rows wait on "Seeds made outside the
   tracking stage". A table holds one propagation rule, so it is printed

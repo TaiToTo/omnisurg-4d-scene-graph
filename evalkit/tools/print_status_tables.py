@@ -17,7 +17,7 @@ import argparse
 import json
 from collections.abc import Sequence
 
-from evalkit.tools.paired_stats import MARK_RULE, mark_of
+from evalkit.tools.paired_stats import MARK_RULE, mark_of, sign_only_note
 from evalkit.tools.scores import PILOT_SIGNS
 
 SEPARATOR = "=" * 100
@@ -62,14 +62,15 @@ def interval(ci: Sequence[float] | None, where: str) -> list[float]:
     return list(ci)
 
 
-def mark_text(ci: Sequence[float], key: str) -> str:
+def mark_text(ci: Sequence[float], key: str, n_videos: int) -> str:
     """Return the mark `paired_stats.mark_of` gives on a stored interval in `key`'s direction, or a space for none.
 
     Args:
         ci: The stored video-level 95 % interval of the difference.
         key: The analysis's name for the key, a key of `PILOT_KEY_OF`.
+        n_videos: The videos the interval resampled.
     """
-    return mark_of(ci, PILOT_SIGNS[PILOT_KEY_OF[key]]) or " "
+    return mark_of(ci, PILOT_SIGNS[PILOT_KEY_OF[key]], n_videos=n_videos) or " "
 
 
 def input_track_lines(d: dict) -> list[str]:
@@ -94,8 +95,11 @@ def input_track_lines(d: dict) -> list[str]:
     lines = [f"Inputs merged to one K, fair_merge_recheck --mode input_track / dataset {d['dataset']} / "
              f"stride {d['stride']} / {d['n_clips']} clips / {d['n_videos']} videos / {d['n_frames']} frames / "
              f"eval_code_sha {d['eval_code_sha'][:8]} / base {base}",
-             f"Δ = arm − {base}, both merged to the same K. Mark: {MARK_RULE}", "",
-             f"{'arm':18s}{'regions':>8s} " + " ".join(f"{h:>27s}" for _, h in INPUT_TRACK_KEYS)]
+             f"Δ = arm − {base}, both merged to the same K. Mark: {MARK_RULE}"]
+    # Every interval resamples the analysis's videos, so one line says when all of them give no mark.
+    if sign_only_note(d["n_videos"]):
+        lines.append(f"every interval is on {d['n_videos']} videos, {sign_only_note(d['n_videos'])}")
+    lines += ["", f"{'arm':18s}{'regions':>8s} " + " ".join(f"{h:>27s}" for _, h in INPUT_TRACK_KEYS)]
 
     # One row per input and K: the regions of the two arms, then each key's difference, mark and interval.
     arms = d["arms"]
@@ -106,7 +110,7 @@ def input_track_lines(d: dict) -> list[str]:
             for key, _ in INPUT_TRACK_KEYS:
                 v = d["pairs"][name][key]
                 ci = interval(v["ci95_video"], f"{name} {key}")
-                row += f" {v['delta']:+.4f} {mark_text(ci, key)} [{ci[0]:+.4f},{ci[1]:+.4f}]"
+                row += f" {v['delta']:+.4f} {mark_text(ci, key, d['n_videos'])} [{ci[0]:+.4f},{ci[1]:+.4f}]"
             lines.append(row)
         lines.append("")
     lines += ["k0 is compared with rgb pps24 unmerged, so the region counts differ. "
@@ -118,7 +122,8 @@ def input_track_lines(d: dict) -> list[str]:
         m = d["matched"][name]
         row = f"{name:14s} reached {m['n_reached']:.2f} / clamped {m['n_clamped']:3d} clips |"
         for key, _ in INPUT_TRACK_KEYS:
-            row += f" {m[key]['delta']:+.4f} {mark_text(interval(m[key]['ci95_video'], f'{name} {key}'), key)}"
+            ci = interval(m[key]["ci95_video"], f"{name} {key}")
+            row += f" {m[key]['delta']:+.4f} {mark_text(ci, key, d['n_videos'])}"
         bp = m["by_procedure"]
         pos_f1 = sum(1 for p in bp.values() if p["delta"]["full"] > 0)
         pos_bf = sum(1 for p in bp.values() if p["delta"]["boundary_F"] > 0)

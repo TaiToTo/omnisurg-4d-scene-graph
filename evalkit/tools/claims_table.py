@@ -24,7 +24,7 @@ import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
-from evalkit.tools.paired_stats import MARK_RULE, compare_pair, format_signed, is_star, mark_of
+from evalkit.tools.paired_stats import MARK_RULE, compare_pair, format_signed, is_star, mark_of, sign_only_note
 from evalkit.tools.scores import (
     PER_FRAME,
     check_comparable_table,
@@ -239,11 +239,14 @@ def build(dirs: Mapping[str, str], key: str) -> tuple[list[tuple[Claim, list[dic
 def star_in(pair: dict | Unmeasured, key: str) -> bool:
     """Return whether a cell is marked ★; a cell not measured, or whose key is defined on no clip, is not."""
     r = None if isinstance(pair, Unmeasured) else pair["metrics"].get(key)
-    return r is not None and is_star(r["ci95_video"], r["sign"])
+    return r is not None and is_star(r["ci95_video"], r["sign"], n_videos=r["n_videos"])
 
 
 def format_cell(pair: dict | Unmeasured, key: str) -> str:
-    """Write one cell: the difference, the video interval, the clip-level p, ★ or ✗, and the population."""
+    """Write one cell: the difference, the video interval, the clip-level p, ★ or ✗, and the population.
+
+    An interval on too few videos for a mark says that it is read for its sign only.
+    """
     if isinstance(pair, Unmeasured):
         return "not measured: no " + ", ".join(f"{t}.json" for t in pair.missing)
     r = pair["metrics"].get(key)
@@ -257,7 +260,10 @@ def format_cell(pair: dict | Unmeasured, key: str) -> str:
     # A population the key shrank is shown against the pair's, never silently.
     if (r["n_clips"], r["n_videos"]) != (pair["n_clips"], pair["n_videos"]):
         size = f"{r['n_clips']}/{pair['n_clips']} clips, {r['n_videos']}/{pair['n_videos']} videos"
-    return f"{format_signed(r['delta_mean'])} {interval} p={p}{mark_of(ci, r['sign'])} ({size})"
+    if ci is not None and sign_only_note(r["n_videos"]):
+        size += f"; {sign_only_note(r['n_videos'])}"
+    mark = mark_of(ci, r["sign"], n_videos=r["n_videos"])
+    return f"{format_signed(r['delta_mean'])} {interval} p={p}{mark} ({size})"
 
 
 def unmeasured(rows: list[tuple[Claim, list[dict | Unmeasured]]]) -> list[str]:

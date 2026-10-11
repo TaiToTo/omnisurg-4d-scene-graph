@@ -13,6 +13,7 @@ from pathlib import Path
 import pytest
 
 from evalkit.tools import paired_table as PT
+from evalkit.tools.paired_stats import sign_only_note
 from evalkit.tools.scores import CLIP_METRICS, FRAME_METRICS, PILOT_EVAL_CODE_SHA, metric_key
 
 REPO = Path(__file__).resolve().parent.parent
@@ -125,7 +126,7 @@ def test_one_video_gives_no_value_where_the_workbench_marked_a_point():
     assert lines[0].startswith("atlas: 6 clips / 1 videos")
 
 
-def test_fewer_than_five_clips_give_no_value_and_a_shrunken_population_is_said():
+def test_a_cell_on_too_few_videos_is_read_for_its_sign_only_and_a_shrunken_population_is_said():
     pair = workbench_pair()
     for r in pair["cond"]["per_clip"][4:]:
         r["SQ"] = None
@@ -133,8 +134,21 @@ def test_fewer_than_five_clips_give_no_value_and_a_shrunken_population_is_said()
         r["inst_F1_50"] = None
     lines = PT.table_lines(one_row(), pair, keys=["inst_F1_50", "SQ"])
     row, ci, *notes = row_lines(lines)
-    assert row.split()[3] == PT.NO_VALUE and "CI [" in ci
-    assert [n.strip() for n in notes] == ["[inst_F1_50: 19/21 clips, 7/7 videos]", "[SQ: 4/21 clips, 2/7 videos]"]
+    # `SQ` on two videos has a mean and no mark; `inst_F1_50` on seven keeps its star.
+    _, _, f1_mark, sq, _ = row.split()
+    assert f1_mark == "★" and sq not in (PT.NO_VALUE, "★", "✗") and "CI [" in ci
+    assert [n.strip() for n in notes] == ["[inst_F1_50: 19/21 clips, 7/7 videos]",
+                                          f"[SQ: 4/21 clips, 2/7 videos; {sign_only_note(2)}]"]
+
+
+@pytest.mark.parametrize("n_videos, marks", [(5, []), (6, ["★", "✗"])])
+def test_a_table_on_five_videos_marks_nothing_and_on_six_it_marks(n_videos, marks):
+    pair = {"base": pilot_scores("base", videos=VIDEOS[:n_videos]),
+            "cond": pilot_scores("cond", SHIFT, seed=2, n_regions=6.5, videos=VIDEOS[:n_videos])}
+    lines = PT.table_lines(one_row(), pair)
+    row, ci, *notes = row_lines(lines)
+    assert [t for t in row.split() if t in ("★", "✗")] == marks
+    assert notes == ([] if marks else [f"{'':30s}[{k}: {sign_only_note(5)}]" for k in PT.PILOT_COLUMNS])
 
 
 @pytest.mark.parametrize("shift, mark", [(-0.05, "★"), (+0.05, "✗")])

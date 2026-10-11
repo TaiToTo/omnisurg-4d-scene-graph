@@ -20,7 +20,7 @@ from collections.abc import Mapping, Sequence
 import numpy as np
 
 from evalkit.tools.compare_eval import DIRECTION
-from evalkit.tools.paired_stats import MARK_RULE, boot_ci, load_json, mark_of, video_of
+from evalkit.tools.paired_stats import MARK_RULE, boot_ci, load_json, mark_of, sign_only_note, video_of
 from evalkit.tools.scores import check_comparable_table, defined_clips, rows_of, sign_of_key
 
 # The width of the column that names a pair, as the workbench printed it; a longer name widens it.
@@ -88,7 +88,7 @@ def pair_row(base: Mapping, cond: Mapping, clips: Sequence[str], key: str, sign:
         n_clips=len(kept), n_videos=n_videos, delta=float(d.mean()), ci95_video=ci,
         up=int((d > 0).sum()), same=int((d == 0).sum()), down=int((d < 0).sum()),
         p_clip=float(stats.wilcoxon(d, zero_method="wilcox").pvalue) if np.any(d != 0) else None,
-        mark=mark_of(ci, sign),
+        mark=mark_of(ci, sign, n_videos=n_videos),
     )
 
 
@@ -131,7 +131,8 @@ def format_row(base: str, cond: str, row: Mapping, n_clips: int, n_videos: int, 
     """Write one line: the pair, the mean difference, the interval, the moves, p and the mark.
 
     The columns are the workbench's, so that a line can be compared with
-    its line byte for byte. A row on fewer clips than the table says so.
+    its line byte for byte. A row on fewer clips than the table says so, and
+    so does an interval read for its sign only.
     """
     ci = row["ci95_video"]
     interval = "none" if ci is None else f"[{ci[0]:+.4f},{ci[1]:+.4f}]"
@@ -142,6 +143,8 @@ def format_row(base: str, cond: str, row: Mapping, n_clips: int, n_videos: int, 
         line += f" {row['mark']}"
     if (row["n_clips"], row["n_videos"]) != (n_clips, n_videos):
         line += f"   [{row['n_clips']}/{n_clips} clips, {row['n_videos']}/{n_videos} videos]"
+    if ci is not None and sign_only_note(row["n_videos"]):
+        line += f"   [{sign_only_note(row['n_videos'])}]"
     return line
 
 
