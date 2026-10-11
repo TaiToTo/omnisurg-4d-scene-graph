@@ -387,15 +387,54 @@ def test_the_command_writes_no_rule_on_pilot_jsons(tmp_path):
     assert list(j) == ["n_boot", "seed", "seed_scheme", "pairs"] and "propagation" not in j["pairs"]["base:cond"]
 
 
+def test_pairs_are_read_in_the_order_given():
+    assert PS.parse_pairs(" b:a, c:d ,") == [("b", "a"), ("c", "d")]
+
+
+@pytest.mark.parametrize("text", ["rgb", "rgb:", ":rgb", "a:b:c", "rgb:rgb", "", " , "])
+def test_a_malformed_pair_is_refused(text):
+    with pytest.raises(ValueError):
+        PS.parse_pairs(text)
+
+
+def test_shared_conditions_are_read_once(tmp_path, monkeypatch):
+    summaries = {tag: {"tag": tag} for tag in ("base", "cond", "other")}
+    for tag, summary in summaries.items():
+        (tmp_path / f"{tag}.json").write_text(json.dumps(summary))
+    reads = []
+    real = PS.load_json
+
+    def read_once(tag, eval_dir):
+        assert tag not in reads, f"{tag} was read twice"
+        reads.append(tag)
+        return real(tag, eval_dir)
+
+    monkeypatch.setattr(PS, "load_json", read_once)
+    pairs, loaded = PS.load_pairs("base:cond,base:other,cond:other", str(tmp_path))
+    assert pairs == [("base", "cond"), ("base", "other"), ("cond", "other")]
+    assert loaded == summaries
+    assert reads == list(summaries)
+
+
+def test_a_later_bad_pair_is_refused_before_any_file_is_read(tmp_path):
+    # No files exist, so reading the first pair before parsing the rest would raise OSError.
+    with pytest.raises(ValueError, match="not one with itself"):
+        PS.load_pairs("base:cond,other:other", str(tmp_path))
+
+
 @pytest.mark.parametrize("pairs, said", [
-    ("base", "--pairs takes <base>:<cond>"),
-    ("base:cond:other", "--pairs takes <base>:<cond>"),
+    ("base", "a pair is <base>:<cond>"),
+    ("base:cond:other", "a pair is <base>:<cond>"),
+    ("base:base", "not one with itself"),
+    (" , ", "no pair is given"),
     ("base:nothere", "nothere.json"),
 ])
 def test_the_command_refuses_a_bad_pair_with_a_message_not_a_traceback(tmp_path, pairs, said):
     (tmp_path / "base.json").write_text(json.dumps(pilot_scores("base", 0.0, 5)))
-    run = _run(tmp_path, "--pairs", pairs)
+    out = tmp_path / "paired.json"
+    run = _run(tmp_path, "--pairs", pairs, "--out", str(out))
     assert run.returncode != 0 and said in run.stderr and "Traceback" not in run.stderr
+    assert not out.exists() and not run.stdout
 
 
 # ---------------------------------------------------------------- the rule, over the repository
