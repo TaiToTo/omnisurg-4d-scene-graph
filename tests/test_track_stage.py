@@ -397,6 +397,24 @@ def test_main_runs_every_clip_with_depth(tmp_path, monkeypatch):
     assert sorted(p.name for p in (tmp_path / "tracks").iterdir()) == ["VID01_s15_80_crop", "VID02_s15_80_crop"]
 
 
+def test_state_on_cpu_reaches_the_tracker_and_leaves_the_record_as_it_was(tmp_path, monkeypatch):
+    asked = []
+
+    class RecordingSession(_StandInSession):
+        def __init__(self, *a, **kw):
+            super().__init__()
+            asked.append(kw["state_on_cpu"])
+
+    _clip(tmp_path)
+    records = []
+    for extra in ([], ["--state-on-cpu"]):
+        _main(monkeypatch, *_argv(tmp_path, "--sam-ckpt", "sam.pth", "--overwrite", *extra), session=RecordingSession,
+              segmenter=_StandInSeedSegmenter)
+        records.append((tmp_path / "tracks" / "VID01_s15_80_crop" / "track_rgb_t" / "seed_info.json").read_text())
+    assert asked == [False, True]
+    assert records[0] == records[1]
+
+
 def test_main_refuses_a_missing_input_dir_before_the_models_load(tmp_path, monkeypatch):
     with pytest.raises(SystemExit, match="no such directory"):
         _main(monkeypatch, *_argv(tmp_path, "--sam-ckpt", "sam.pth"))

@@ -77,7 +77,7 @@ class Tracker:
             yield FrameResult(f, list(self.ids), np.stack(self.masks), np.ones(len(self.ids)))
 
 
-track.Sam3VideoInstanceSession = lambda model_id, device, gpu: Tracker()
+track.Sam3VideoInstanceSession = lambda model_id, device, gpu, state_on_cpu: Tracker()
 track.SeedSegmenter = per_frame.SeedSegmenter = lambda checkpoint, device: Segmenter()
 sys.argv = [stage, *args]
 (track if stage == "track" else per_frame).main()

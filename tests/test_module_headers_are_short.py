@@ -116,7 +116,7 @@ def test_a_listed_module_is_tracked_and_still_long():
 
 
 def test_the_measure_counts_to_the_usage_line_and_a_planted_long_header_is_over():
-    """The check earns its place by failing: a header of thirteen lines is over, one of twelve plus Usage is not."""
+    """The check fails when it should: a header of thirteen lines is over, one of twelve plus Usage is not."""
     thirteen = '"""' + "\n".join(f"line {i}" for i in range(13)) + '\n"""\nx = 1\n'
     assert header_length(thirteen) == 13 > HEADER_LINES
     twelve_and_usage = '"""' + "\n".join(f"line {i}" for i in range(12)) + '\n\nUsage:\n    run it\n    twice\n"""\n'

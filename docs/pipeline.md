@@ -467,7 +467,7 @@ so the command does not check them. The command refuses what
 ```bash
 python -m pipeline.track --input-dir /path/to/clips --tracks-root /path/to/tracks --tag <tag> \
     --rule both_ways_from_centre --sam-input normal_edge --track-base rgb --sam-ckpt sam_vit_h_4b8939.pth \
-    [--clips <clip> ...] [--seed-labels DIR] [--depth-source pi3] [--keep-edge-ring] [--overwrite]
+    [--clips <clip> ...] [--seed-labels DIR] [--depth-source pi3] [--keep-edge-ring] [--state-on-cpu] [--overwrite]
 ```
 
 The stage cuts one frame of each clip into regions and carries them through
@@ -504,6 +504,12 @@ The stage refuses:
 A clip that fails keeps the labels an earlier run left: the stage replaces
 them only once it has written every file. The stage runs every clip and
 exits with an error if one failed.
+
+`--state-on-cpu` keeps the tracker's frames and the masks it stores for each
+frame in host memory. On the GPU they grow with the clip's length and its
+number of objects. The tracker's memory bank stays on the GPU.
+The copies are exact, so the labels do not change. `seed_info.json`
+therefore does not record the option.
 
 The stage needs the `track` extra: `pip install -e ".[track]"`. The SAM
 ViT-H weights, `sam_vit_h_4b8939.pth`, are downloaded by hand; SAM 3's
