@@ -78,6 +78,12 @@ def read_image(path: Path) -> np.ndarray:
     return img
 
 
+def write_image(path: Path, img: np.ndarray) -> None:
+    """Write an image, refusing one OpenCV fails to write; it reports a failure only by its return value."""
+    if not cv2.imwrite(str(path), img):
+        raise RuntimeError(f"cannot write {path}")
+
+
 def match_native(cap: cv2.VideoCapture, image: np.ndarray, number: int, n_frames: int) -> int:
     """Return the video frame that `image`, CholecSeg8k number `number`, is.
 
@@ -161,7 +167,7 @@ def extract_clip(seg8k_root: Path, videos_root: Path, out: Path, clip: str, coun
             edge of its search window, the clip has fewer than two annotated frames, the rate is neither of
             `RATES`, or the native frames do not rise.
         RuntimeError: the video cannot be opened or has no frame count, or an image or a video frame cannot be
-            read.
+            read or written.
     """
     # Find the video and its annotation, and refuse a clip an earlier run left.
     num, stride, start = parse_clip(clip)
@@ -207,7 +213,7 @@ def extract_clip(seg8k_root: Path, videos_root: Path, out: Path, clip: str, coun
             if pairs[s]:
                 endo, mask = pairs[s]
                 image = read_image(endo)
-                cv2.imwrite(str(partial / "seg_masks" / f"{i:06d}_color_mask.png"), read_image(mask))
+                write_image(partial / "seg_masks" / f"{i:06d}_color_mask.png", read_image(mask))
                 source = f"CholecSeg8k ({endo.parent.name})"
             else:
                 cap.set(cv2.CAP_PROP_POS_FRAMES, natives[s])
@@ -215,7 +221,7 @@ def extract_clip(seg8k_root: Path, videos_root: Path, out: Path, clip: str, coun
                 if not ok:
                     raise RuntimeError(f"cannot read frame {natives[s]} of {mp4}")
                 source = "Cholec80 video"
-            cv2.imwrite(str(partial / "input_images" / f"{i:06d}.png"), image)
+            write_image(partial / "input_images" / f"{i:06d}.png", image)
             frames.append({"seq_idx": i, "native_frame": natives[s], "seg_frame": s if pairs[s] else None,
                            "timestamp_sec": round(natives[s] / fps, 2), "source": source,
                            "has_seg_mask": bool(pairs[s]), "is_anchor": bool(pairs[s]), "triplets": []})

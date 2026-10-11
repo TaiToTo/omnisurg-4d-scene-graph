@@ -360,6 +360,12 @@ def test_a_run_that_fails_while_writing_leaves_no_partial_labels(tmp_path, monke
     assert [p.name for p in (tmp_path / "tracks" / clip.name).iterdir() if "partial" in p.name] == []
 
 
+def test_a_montage_opencv_cannot_write_is_refused(tmp_path, monkeypatch):
+    monkeypatch.setattr(track.cv2, "imwrite", lambda path, img: False)
+    with pytest.raises(RuntimeError, match="cannot write .*montage_track_rgb_t"):
+        _run(tmp_path, _clip(tmp_path))
+
+
 class _StandInSession(StandInTracker):
     device = "cpu"
 
