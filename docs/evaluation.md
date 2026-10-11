@@ -58,9 +58,8 @@ its inputs, and two scores are compared only when these match.
   A JSON this evaluator writes in pilot mode is not a pilot JSON.
 - A *ruler* is what a score was measured with, as `scores.Ruler` holds it:
   `eval_code_sha`, dataset, mode, class set, views, and for a pilot JSON its
-  domain. Two scores are *comparable* when they share a ruler, cover the
-  same clips, read the same GT masks and depth maps, and share a
-  propagation rule unless one of them is `per_frame`.
+  domain. Two scores are *comparable* when the conditions under "Recorded
+  with every score" hold.
 - A *tag* is a condition's name on disk: the directory under each clip that
   holds its labels, and separately the name of its score JSON; the score
   names the label directory it read in `track_dir_name`.
@@ -426,8 +425,8 @@ this scene.
 Every metric but `time_IoU` is computed per frame and averaged over a clip's
 GT frames; `time_IoU` is pooled over the clip as described above. The clip
 values are what `paired_stats` resamples, by video, to decide whether a claim
-gets a star: the rule in `AGENTS.md`, a video-level bootstrap 95 % CI that
-does not straddle zero. The JSON keeps the per-frame values.
+gets a star, by `paired_stats.MARK_RULE`. The JSON keeps the per-frame
+values.
 
 A metric is not defined on some frames: `F1_50` on a frame with no GT object,
 `SQ` and `inst_BF` on a frame with no hit, `mIoU` on a frame with no class,
