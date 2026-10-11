@@ -1,63 +1,84 @@
 # Evaluation — specification
 
-**Status: agreed, not yet implemented.** Nothing here is frozen yet.
+**Status: implemented in `evalkit/`, not frozen yet.**
 
 ## Summary
 
-This document specifies how the paper's segmentation results are scored. The
-pipeline splits every video frame into regions and tracks them over time,
-without naming what they are. The evaluator compares those regions with the
-ground-truth (GT) masks of two datasets: ATLAS-120k (laparoscopic and
-robot-assisted videos of 14 procedures, 42 classes) and CholecSeg8k
-(laparoscopic cholecystectomy, 13 classes). Each count is its paper's: the
-42 leave out ATLAS-120k's background, and the 13 include CholecSeg8k's.
+The pipeline splits each frame into regions and gives them no class. The
+evaluator compares these regions with the ground-truth (GT) masks of
+ATLAS-120k and CholecSeg8k. A GT object is all pixels of one class in one
+frame, and a predicted object is one region. Every metric but `time_IoU` is
+computed in three views: `all` (every class), `tissue` (without tools) and
+`geometric` (only the tissue that depth and shape can separate). The paper
+asks three questions of the regions and judges two of them each on a
+primary metric of its own. The question about following a region over time,
+like every measure over time, gets reference values only, which decide no
+claim. Every score records `eval_code_sha` and the hashes of its inputs, and
+two scores are compared only when they are comparable ("Terms").
 
-- **One object per class in the GT, one per region in the prediction.** The
-  datasets label classes, not individual things, so all pixels of one class in
-  one frame form one GT object. Each predicted region is one predicted object.
-  A GT object and a predicted object are paired when they overlap enough
-  (IoU ≥ 0.5).
-- **Every class has a type**: a tool; tissue that depth and shape can
-  separate; or tissue they cannot, or that is nearly background, such as blood
-  or the abdominal wall. Every metric is computed over three sets of classes,
-  called *views*: all classes; tissue only, without tools; and *geometric*,
-  only the tissue that depth and shape can separate.
-- **Claims are judged on each dataset's own labels**, the classes its masks
-  hold, each with a type of its own. For ATLAS-120k these are 47 ids, of
-  which the paper's 42 classes and background occur. ATLAS-120k's benchmark
-  merges them into 30 classes; those are scored too, for comparison with the
-  benchmark, as reference values only.
-- **Ten metrics, three questions.** The paper asks three questions of the
-  regions. Two are judged on a *primary* metric of their own: what input
-  puts the regions' boundaries where the GT's class boundaries are, judged
-  on `boundary_R_raw` in each view; and how much of the labelled structure
-  the regions hold, judged on `F1_50` (objects found, with every extra region
-  counted against it) and `SQ` (how well the found ones fit), in the
-  geometric view. The third, how far a region picked out in one frame can be
-  followed, is answered with reference values only ("Consistency over time:
-  reference values only", below).
-- **Regions are named from the GT.** Each region takes the class most of its
-  pixels have in the GT, so the class-map metric `mIoU` is an oracle value,
-  kinder than any real classifier would get.
-- **Nothing is dropped silently.** A colour or class id the tables do not know
-  stops the run, and every skipped frame or pixel is counted. There is no
-  minimum object size.
-- **Scores say how they were made.** Each carries `eval_code_sha`, a hash of the
-  evaluator's code and class tables, with its settings and hashes of its
-  inputs. Two scores are compared only when these match.
-- **Checked against the earlier evaluator.** The pilot measurements were scored
-  by an earlier evaluator, the *pilot evaluator* (`eval_code_sha = 1f8a813a…`),
-  which stays frozen in the private research workbench. Run with its rules
-  (*pilot mode*), this evaluator must reproduce its scores exactly.
-- **Consistency over time: reference values only.** The pilot evaluator's
-  `time_IoU` is kept, as a reference value only: coarse regions score well
-  on it. Measures of whether a tracked thing keeps its identity — hold, IDF1,
-  ID switches, fragmentation, re-entry — are computed by a tool outside the
-  evaluator and reported as reference values too. No measure over time
-  carries a star.
+| question | primary metric | view |
+|---|---|---|
+| Given one frame as an example, how far can the regions be followed? | none: reference values only ("Consistency over time: reference values only") | — |
+| Given no example, what input puts the regions' boundaries where the GT's class boundaries are? | `boundary_R_raw` | each of the three |
+| Given no GT, how much of the labelled structure is already in the regions? | `F1_50` and `SQ` | geometric |
 
-The rest of the document gives the rules in full, then why the pilot evaluator
-was replaced, then the class tables.
+## Contents
+
+- [Terms](#terms): the words this document and the tools use.
+- [The evaluator at a glance](#the-evaluator-at-a-glance): the six steps of
+  scoring, in two figures.
+- [How a frame is scored](#how-a-frame-is-scored): the inputs, which frames
+  count, objects, the class map, class types and views.
+- [Metrics](#metrics): each key, how frames become a clip's value, the
+  primary metrics, and the measures over time.
+- [Thresholds, refusals and provenance](#thresholds-refusals-and-provenance):
+  the thresholds, what is refused, what every score records, and the check
+  against the pilot evaluator.
+- [Class tables](#class-tables): every class's type, per dataset.
+
+## Terms
+
+- The *pilot evaluator* scored the pilot measurements (`eval_code_sha =
+  1f8a813a…`), and stays frozen in the private research workbench.
+  `docs/pilot_evaluator.md` says why this evaluator replaced it. *Pilot
+  mode* runs this evaluator with the pilot evaluator's rules, to check that
+  it writes the same numbers ("Checked against the pilot evaluator"). Every
+  other run is in *normal mode*.
+- A *condition* is one configuration of the pipeline that the paper
+  compares. It gives one prediction per clip.
+- A *video* is one recording in a dataset. A *clip* is a stretch of one
+  video that the pipeline processes as a unit; a video can supply several.
+- A *class set* is the list of classes a score reads the GT in. `original`
+  is the dataset's own labels, and claims are judged on it. ATLAS-120k has
+  a second class set, `benchmark`: its benchmark's 30 classes, scored as
+  reference values only ("ATLAS-120k: the benchmark's 30 classes").
+- A *score JSON* is one condition's scores: a summary and one *row* per
+  clip, under `per_clip`. A *key* is one column of the rows: the evaluator
+  writes `metric/view` (`F1_50/geometric`) and `time_IoU` once per clip; a
+  *pilot JSON*, one the pilot evaluator wrote, is told apart by holding none
+  of the class set, views, mode, input hashes, versions and propagation rule
+  (`scores.EVALUATOR_FIELDS`) and keeps the pilot evaluator's spellings
+  (`inst_F1_50`, `inst_F1_50_tissue`, with the domain after an underscore).
+  A JSON this evaluator writes in pilot mode is not a pilot JSON.
+- A *view* is the set of classes a key is computed over: `all`, `tissue` or
+  `geometric` ("Views").
+- A *ruler* is what a score was measured with, as `scores.Ruler` holds it:
+  `eval_code_sha`, dataset, mode, class set, views, and for a pilot JSON its
+  domain. Two scores are *comparable* when every requirement listed under
+  "Recorded with every score" holds.
+- A *tag* is a condition's name on disk: the directory under each clip that
+  holds its labels, and separately the name of its score JSON; the score
+  names the label directory it read in `track_dir_name`.
+- In a comparison, *base* is the condition compared against and *cond* the
+  one compared; a difference is `cond − base`. A key's *direction* is the
+  way it is better: higher, lower, or neither for a reference value, as the
+  `better` column of the metrics table gives it. The
+  *population* is the clips the two are compared on, `identical` when both
+  hold the same clips and `intersection` when compared on the common ones;
+  per key it shrinks to the clips on which both define it. The *wins* on a
+  key are the clips on which it moved the better way, among those.
+- A *claim* says that one condition is better or worse than another on a
+  key. "From frames to clips" says how the clip values decide it.
 
 ## The evaluator at a glance
 
@@ -84,8 +105,7 @@ found in the code. A module's docstring says what it returns.
   colours.
 - **Prediction.** One region id per pixel, from tracking, with no class; −1
   means no region. The evaluator never reads a class from the pipeline. Each
-  configuration of the pipeline that the paper compares — a *condition* —
-  gives one prediction per clip.
+  condition gives one prediction per clip.
 - **Depth.** The Depth Anything 3 (DA3) depth map the pilot evaluator reads
   for the clip, the same for every condition scored on that clip. It sets
   the pixel grid the GT is resized to, and nothing else: this is an
@@ -111,11 +131,9 @@ found in the code. A module's docstring says what it returns.
   dataset that gives no timestamps, ATLAS-120k, is ordered by frame number.
   A clip in which two frames share a time, or only some frames have one, is
   refused, since the order of its frames is unknown.
-- **Clips and videos.** A *video* is one recording in the dataset. A *clip* is
-  a stretch of one video that the pipeline processes as a unit, and a video
-  can supply several clips. Which clips enter a measurement is data, kept in
+- **Clips and videos.** Which clips enter a measurement is data, kept in
   the population files, never a count in a name. Scores are made per clip;
-  the bootstrap that decides a star resamples videos, so the clips of one
+  the bootstrap that decides a claim resamples videos, so the clips of one
   video are never treated as independent.
 - **Frame manifest.** The pipeline writes `frame_manifest.json` into each
   clip. It lists the clip's frames with their times and GT flags, and holds
@@ -240,7 +258,8 @@ masks: many classes were neither shape nor colour, but one of these two.
 
 ### Views
 
-Every metric is computed over each of three views, the same way:
+Every metric but `time_IoU` is computed over each of three views, the same
+way:
 
 - `all`: every class that is not `ignored`, `background` or `excluded`
 - `tissue`: the same, without `tool`
@@ -401,7 +420,7 @@ of their pixels lying on background among their pixels on scored or
 background pixels: the spill the other keys cannot see. A region on
 background alone is not among them, as it is no object, and pixels the view
 removed for another reason are in neither count. It reads no GT class, only
-where the GT is unlabelled, and gets no star. It is reported beside a
+where the GT is unlabelled, and decides no claim. It is reported beside a
 comparison whose two conditions differ in it by much, as the pilot
 measurements did for the share of pixels left without a region.
 
@@ -413,10 +432,19 @@ this scene.
 ### From frames to clips
 
 Every metric but `time_IoU` is computed per frame and averaged over a clip's
-GT frames; `time_IoU` is pooled over the clip as described above. The clip
-values are what `paired_stats` resamples, by video, to decide whether a claim
-gets a star: the rule in `AGENTS.md`, a video-level bootstrap 95 % CI that
-does not straddle zero. The JSON keeps the per-frame values.
+GT frames; `time_IoU` is pooled over the clip as described above. The JSON
+keeps the per-frame values.
+
+The clip values decide a claim. `paired_stats` takes the 95 % confidence
+interval of the difference with a bootstrap that resamples whole videos. A
+table then prints:
+
+- ★ when the interval lies wholly on the key's better side of zero;
+- ✗ when it lies wholly on the worse side;
+- neither when it contains zero, or when the key is a reference value.
+
+The p-value is reported too, and never decides. `paired_stats.mark_of` is
+the one code that applies this rule.
 
 A metric is not defined on some frames: `F1_50` on a frame with no GT object,
 `SQ` and `inst_BF` on a frame with no hit, `mIoU` on a frame with no class,
@@ -436,38 +464,33 @@ the per-frame values, with one rule that the product alone would miss: a frame
 that has GT objects but no hit has PQ = 0, although its `SQ` is not defined.
 Leaving such frames out would lift PQ above its usual definition, which the
 pilot evaluator follows. Counts (frames, objects, regions) are kept as
-diagnostics and never get a star.
+diagnostics and decide no claim.
 
 ### Primary metrics
 
 The paper asks three questions, each as a comparison between two
 conditions, and judges two of them on a key of their own, on each dataset's
-own labels (the `original` class set):
-
-| question | primary metric | view |
-|---|---|---|
-| Given one frame as an example, how far can the regions be followed? | none: reference values only (below) | — |
-| Given no example, what input puts the regions' boundaries where the GT's class boundaries are? | `boundary_R_raw` | each of the three |
-| Given no GT, how much of the labelled structure is already in the regions? | `F1_50` and `SQ` | geometric |
+own labels (the `original` class set). The table in the summary lists the
+questions and their primary metrics.
 
 ![The three questions on a drawn scene. Q1: a region picked out in one frame follows the gallbladder for two frames, then leaves it. Q2: the regions' boundaries against the GT's class boundaries, giving boundary_R_raw. Q3: regions matched to the GT's objects, giving F1_50 and SQ.](figures/three_questions.png)
 
-The second question is answered within each view, between conditions that
-differ in what the pipeline is given: the image, the depth, or both. The
-views sort the classes by what should separate them, so the answer can
-differ from one view to the next.
+The question about boundaries is answered within each view, between
+conditions that differ in what the pipeline is given: the image, the depth,
+or both. The views sort the classes by what should separate them, so the
+answer can differ from one view to the next.
 
 These were chosen before any score of this evaluator was looked at. The
 pilot evaluator's scores of the same quantities have been seen, which is why
 the choice is fixed before this evaluator scores anything.
 
 The set is kept as small as the claims allow. The evaluator computes every
-metric in the table; which of them the paper reports is settled before any
-score of this evaluator is seen.
+metric in the metrics table; which of them the paper reports is settled
+before any score of this evaluator is seen.
 
 ### Consistency over time: reference values only
 
-`time_IoU` is kept only as a reference value and never gets a star. It uses no
+`time_IoU` is kept only as a reference value and decides no claim. It uses no
 GT, and the workbench measured three faults in it:
 
 - it rises as regions get coarser, and one region covering the whole frame
@@ -502,14 +525,15 @@ four of them, and the fifth depends on how the GT track is linked:
 - fragmentation changes with how the GT track is linked, so its value is a
   property of the track definition as much as of the condition.
 
-So a tool outside the evaluator, `evalkit/tools/track_metrics`, computes the
-measures of identity, and they are reported as reference values: in a table
-that carries no star. The tool's GT track is an open question
+So a tool outside the evaluator, `evalkit/tools/track_metrics`, is to compute
+the measures of identity, and they are reported as reference values, in a
+table without ★ or ✗. The tool is not ported yet (`docs/porting.md`,
+"Not ported yet"). The tool's GT track is an open question
 (`docs/porting.md`, "The GT track of `track_metrics`"). A measure that is to
-carry a star would have to be computed by the evaluator before the
+decide a claim would have to be computed by the evaluator before the
 evaluator is frozen, and none is.
 
-## Rules that keep the numbers honest
+## Thresholds, refusals and provenance
 
 ### Thresholds
 
@@ -543,7 +567,8 @@ uses it.
   masks, whose codes are not the table's ids. An RGBA mask is read only when
   every pixel is opaque; four CholecSeg8k colour masks are RGBA, alpha 255.
 - The CholecSeg8k table maps (0, 50, 128) to Hepatic Vein. The dataset's
-  watershed codes settle it (see the measurements below).
+  watershed codes settle it (`docs/pilot_evaluator.md`, "What the pilot
+  evaluator's handling changes, measured on the GT").
 - (255, 255, 255), the line CholecSeg8k draws between regions, and
   CholecSeg8k's Black Background are `ignored`.
 - `Excluded frames` is checked on ATLAS-120k's original ids, before they are
@@ -567,7 +592,7 @@ uses it.
 - `eval_code_sha`, which covers the class tables as well as the code, so a
   changed type is a new evaluator
 - the dataset, the class set (`original`, or for ATLAS-120k also
-  `benchmark`), the view, and whether the score was made in pilot mode
+  `benchmark`), the views, and whether the score was made in pilot mode
 - a sha256 hash of every input read, per clip, as `input_shas`: the GT
   masks, the depth maps (as `atlas120k_meta/depth_manifest.json`
   fingerprints them), the crop rectangle, the frames in time order, and the
@@ -590,12 +615,17 @@ the frames each key's mean covers, by key; the scored and excluded frames;
 predicted objects, hits and hits that entered `inst_BF`, per view. Its
 `frames` keeps every GT frame's values, by frame number, in time order.
 
-Two scores are comparable only when all of these hold:
+Two scores are comparable only when all of these requirements hold:
 
-- their `eval_code_sha`, dataset, class set, view and mode match;
-- they cover the same clips;
-- they read the same GT masks and depth maps;
+- they share a ruler (Terms);
+- they cover the same clips; `compare_eval --allow-subset` compares the
+  common clips instead, and records the population as `intersection`;
+- they read the same GT masks, depth maps, crop rectangle and frame order:
+  every hash in `input_shas` but the predictions' is equal;
 - they share a propagation rule, or one of them is `per_frame`.
+
+Pilot JSONs record no input hashes and no propagation rule, so between two
+of them only the ruler and the clips are compared.
 
 The same `eval_code_sha` is not enough on its own. Pilot mode and the
 normal mode share it, and so do the views.
@@ -618,36 +648,9 @@ The tools enforce this:
 - All five report a difference in library versions but do not refuse it.
 
 The check against the pilot evaluator, below, is not bound by these
-conditions: the two `eval_code_sha` differ by construction. Its own script,
+requirements: the two `eval_code_sha` differ by construction. Its own script,
 outside `compare_eval`, verifies that this evaluator in pilot mode writes the
 pilot evaluator's numbers.
-
-### Terms the tools read a score with
-
-- A *score JSON* is one condition's scores: a summary and one *row* per
-  clip, under `per_clip`. A *key* is one column of the rows: the evaluator
-  writes `metric/view` (`F1_50/geometric`) and `time_IoU` once per clip; a
-  *pilot JSON*, one the pilot evaluator wrote, is told apart by holding none
-  of the class set, views, mode, input hashes, versions and propagation rule
-  (`scores.EVALUATOR_FIELDS`) and keeps the pilot evaluator's spellings
-  (`inst_F1_50`, `inst_F1_50_tissue`, with the domain after an underscore).
-  A JSON this evaluator writes in pilot mode is not a pilot JSON.
-- A *ruler* is what a score was measured with, as `scores.Ruler` holds it:
-  `eval_code_sha`, dataset, mode, class set, views, and for a pilot JSON its
-  domain. Two scores are *comparable* when they share a ruler, cover the
-  same clips, read the same GT masks and depth maps, and share a
-  propagation rule unless one of them is `per_frame`.
-- A *tag* is a condition's name on disk: the directory under each clip that
-  holds its labels, and separately the name of its score JSON; the score
-  names the label directory it read in `track_dir_name`.
-- In a comparison, *base* is the condition compared against and *cond* the
-  one compared; a difference is `cond − base`. A key's *direction* is the
-  way it is better: higher, lower, or neither for a reference value, as the
-  `better` column of the metrics table gives it. The
-  *population* is the clips the two are compared on, `identical` when both
-  hold the same clips and `intersection` when compared on the common ones;
-  per key it shrinks to the clips on which both define it. The *wins* on a
-  key are the clips on which it moved the better way, among those.
 
 ### Checked against the pilot evaluator
 
@@ -693,6 +696,10 @@ pilot evaluator's numbers.
   must the number of frames behind each. Ties are broken as the pilot
   evaluator breaks them. The check runs where the pilot evaluator and its
   scores are, and takes their paths as arguments.
+- The check passed on 2026-10-11, for `eval_code_sha` `a5d7ea46…`. On the
+  23 ATLAS-120k conditions that hold a propagation rule, 315 clips each,
+  every shared value was equal, and so was every number of frames the
+  pilot evaluator wrote.
 - Every difference in the normal mode then comes from a rule this document
   changes, and is listed.
 - A score made in pilot mode is marked as such and never enters a comparison
@@ -704,147 +711,6 @@ pilot evaluator's numbers.
 - Pilot mode exists for this check alone. It is removed from the evaluator
   once the check has passed and before the evaluator is frozen, so the
   frozen evaluator has one mode.
-
-## Why the pilot evaluator was replaced
-
-The pilot evaluator cannot be corrected in place: any changed byte moves its
-`eval_code_sha`. Three kinds of problem make correcting it worth a new
-evaluator.
-
-### 1. The metrics overlap
-
-The pilot evaluator writes about 85 summary keys per clip, counting each
-metric once per domain and per tolerance, and they carry about nine
-independent quantities. Four relations hold exactly, frame by frame; each was
-confirmed by running the pilot evaluator's own functions on 366 synthetic
-frames:
-
-| relation | why |
-|---|---|
-| PQ = SQ × F1@0.5 | F1@0.5 is PQ's recognition quality, RQ |
-| 2·PQ − F1@0.5 ≤ F1_avg ≤ 2·PQ − 0.9·F1@0.5 | every F1@t has the same denominator, \|GT\| + \|pred\|, so averaging over t sums the matched IoUs in steps |
-| Dice = 2·IoU / (1 + IoU), per class | both come from the same intersection and union |
-| boundary_F = harmonic mean of boundary_P and boundary_R | its definition |
-
-The others overlap in meaning rather than by formula. `overseg_mean` and
-`VI_split` both measure splitting, and `underseg_error` and `VI_merge` both
-measure merging. The boundary tolerances 1, 2, 3 and 5 are points on one
-monotone curve. Each instance metric is also repeated over four domains.
-
-Many overlapping keys count one improvement several times. They also make it
-likely that some key reaches a star by chance.
-
-### 2. Class handling is ad hoc
-
-- **Classes that cover several things.** The pilot evaluator's GT objects are
-  per-class connected components, and that breaks on classes that lump
-  distinct things together:
-  - ATLAS-120k has one class, `Tools/camera`, for every instrument, so
-    touching instruments are one GT object.
-  - CholecSeg8k's authors describe *Gastrointestinal Tract* (stomach, small
-    intestine, nearby tissue) and *Liver Ligament* (several ligaments and the
-    lesser omentum) as broad classes.
-- **No class types.** Which classes are tools lives in the pilot evaluator's
-  `eval_track.py` (`INSTRUMENT_CLASSES`), and reaches only the instance metrics
-  of its `tissue` domains. Classes that geometry cannot recover — blood, for one
-  — can be dropped only through `--extra_ignore`. That reaches only the instance
-  and VI metrics, and even there it removes the GT objects but not the
-  predicted pixels on them. `eval_gt_clips.py` never passes it, so no score it
-  wrote used it. ATLAS-120k classes have no type at all beyond tool.
-- **The datasets' own protocols are not offered.** ATLAS-120k's benchmark code,
-  ATLAS-bench, maps every mask to 30 classes before scoring. The dataset's label
-  table carries the same mapping as its `train_id` column. It merges similar
-  classes (Omentum and Mesenterium into Fat, Aorta into Artery, Vena cava,
-  Hepatic vein and V azygos into Vein), and the label table says the classes
-  mapped to 0 "are either excluded from evaluation or merged into the
-  background"; the benchmark merges them into background. The pilot evaluator
-  scores only the 47 original ids, so none of its numbers can be set beside
-  the benchmark's classes. Only id 0 counts as background there, so `Excluded
-  frames` (42), a marker rather than anatomy, would be scored as foreground.
-- **A CholecSeg8k class is never read.** The pilot evaluator's colour table
-  gives Hepatic Vein as (0, 255, 0), a colour no mask in the dataset contains.
-  Its pixels are (0, 50, 128), which the pilot evaluator reads as background.
-
-### 3. Silent drops
-
-- CholecSeg8k colours missing from the colour table become background without
-  a word, and background is excluded from nearly every metric.
-- Connected components and predicted regions under 300 px are dropped from the
-  instance metrics: neither missed nor false, and not counted. The count is
-  taken at the evaluation resolution, so what 300 px means depends on it.
-- A comment in the pilot evaluator says a fragment counts towards `overseg` if
-  it covers "5 % or 200 px" of a class; the code requires both.
-- A frame is a GT frame when a mask file exists for it, so the viewer's SAM 3
-  masks would be scored as GT without a word.
-
-### What the pilot evaluator's handling changes, measured on the GT
-
-The masks were resized with nearest neighbour to the depth maps' shape, as the
-pilot evaluator does. Most frames are 504 px wide and 252 to 504 px high; four
-portrait ATLAS-120k clips (73 GT frames) are 476 px wide and 504 px high.
-
-**ATLAS-120k: 315 clips, 7,698 GT frames**
-
-| | |
-|---|---|
-| `Excluded frames` (42) | in no frame |
-| classes the 30-class protocol drops (Kidney, Ureter, Mesocolon, Adrenal gland, Pancreas, Duodenum) | in 835 frames (10.8 %), 2.25 % of pixels; the pilot evaluator scores them as foreground |
-| ids outside the 47-class table | none |
-| the 30 classes instead of the 47 original ids | changes the GT object count of 910 frames (11.8 %); objects −2.3 %, foreground pixels −2.9 % |
-| `Tools/camera` connected components ≥ 300 px, per frame with tools | 1 in 2,256 frames, 2 in 3,869, 3 or more in 1,395, none in 15. How many are touching instruments merged into one cannot be told from the GT. |
-| 300 px cut | drops 14.2 % of GT components, 0.05 % of foreground pixels. A class vanishes from a frame's instance evaluation in 1.2 % of (frame, class) pairs; the worst is Catheter, 19 of 64. |
-
-**CholecSeg8k: 9 clips, 167 GT frames**
-
-These are the nine clips on the machine the measurements were made on, a part
-of the CholecSeg8k population the paper scores. The viewer's SAM 3 masks on
-103 more frames are not GT and are left out (see "Which frames"). The rows
-show the kind and rough size of each effect, not the population's numbers.
-
-| | |
-|---|---|
-| Hepatic Vein | in 20 frames (12.0 %) of 3 clips, all read as background: 11 GT objects of 300 px or more never scored. |
-| colours outside the table | 0.088 % of pixels, all silently background: (0, 50, 128), which is Hepatic Vein, on 28,054 px, and (255, 255, 255) on 3,978 px |
-| 300 px cut | drops 17.9 % of GT components, but 180 of the 416 dropped are under 10 px (slivers from resizing and annotation), so only 0.07 % of foreground pixels. A class vanishes from a frame in 1.1 % of (frame, class) pairs; the worst is Gastrointestinal Tract, 4 of 98. |
-| Black Background | the pipeline crops each clip to the rectangle around the endoscope's circle, which keeps its corners: 0.1 % of pixels, 0.2 % in one clip. They have valid depth, so the pilot evaluator scores them as background. |
-
-**Which colour is which CholecSeg8k class.** All 8,080 frames of the original
-dataset were checked against the dataset's watershed masks, which carry a class
-code per pixel:
-
-- Each of the 12 classes other than Hepatic Vein has one colour and one code.
-- The one remaining code, 33, belongs only to (0, 50, 128), on 314,317 px in
-  317 frames.
-- (0, 255, 0) occurs in no frame.
-- (255, 255, 255) carries code 255: it is the line drawn between regions, not a
-  class.
-- Every pixel of the 8,080 colour masks is one of these 14 colours.
-
-**How CholecSeg8k's labels were made.** The annotators drew strokes of each
-class, and the watershed masks fill the rest of the frame from them. Over the
-8,080 frames, 24.3 % of the pixels were drawn; the rest took the class of the
-stroke the fill reached. So a region's boundary is the watershed's, not the
-annotator's, and a stroke placed in the wrong region labels that whole region:
-in video12 frame 20024, a Gallbladder stroke labels a region the class review
-read as abdominal wall.
-
-What this says:
-
-- The 300 px cut removes slivers from connected components. Under this
-  evaluator's objects a sliver joins its class's region, so the cut is not
-  needed.
-- `Excluded frames` does not occur, but this evaluator handles it explicitly
-  anyway.
-- Hepatic Vein is a plain error in the pilot evaluator's ground truth. It is
-  small in the pixels it touches, but no CholecSeg8k pilot score includes the
-  class.
-- The 47 original ids against the 30 classes is a choice, not an error, and it
-  moves ATLAS-120k's ground truth by 2–3 %.
-- CholecSeg8k's black corners are outside the view, not background.
-- CholecSeg8k's boundaries are the watershed's, which is worth knowing when its
-  boundary metrics are read.
-- The other substantive issues are the class types and the classes that cover
-  several things.
 
 ## Class tables
 
@@ -982,7 +848,7 @@ background, and similar classes merge. The table below lists the original ids
 each class takes. The class set is then the benchmark's: Background and 29
 classes. It is scored as a second class set, `benchmark`, for comparison with
 the benchmark: written to a separate block of the JSON, as reference values
-only, and never given a star. Resolution, crop and metrics are this
+only, which decide no claim. Resolution, crop and metrics are this
 evaluator's own, so the numbers are not the benchmark's.
 
 The paper gives the reason for the 30: categories not represented in all

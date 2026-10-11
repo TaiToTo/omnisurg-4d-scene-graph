@@ -1,7 +1,7 @@
 """Score the camera trajectories of the StereoMIS clips: the controls', or the depth stages'.
 
 `--controls` scores the static floor, the line floor and the stereo ceiling
-of `evalkit.tools.pose_controls` on every usable clip. `--methods` scores the
+of `pose_controls` on every usable clip. `--methods` scores the
 trajectories the depth stages wrote into each clip under `--clip-root`;
 `--shuffled` also scores each method's poses in a shuffled order, which keeps
 the trajectory's shape and loses its order. Every row is made by
@@ -21,11 +21,15 @@ from pathlib import Path
 
 import numpy as np
 
-import evalkit.tools.pose_controls as pose_controls
+import pipeline.depth
+import pipeline.pi3x
 import surgical_core.stereomis as stereomis
+import trajectory_eval.tools.pose_controls as pose_controls
 from trajectory_eval.pose_metrics import centers_from_cam_to_world
-from trajectory_eval.score import METHOD_BUNDLES, method_trajectory, score
+from trajectory_eval.score import method_trajectory, score
 
+# The bundle each depth stage writes into a clip, as the stage names it.
+METHOD_BUNDLES = {"da3": pipeline.depth.BUNDLE, "pi3x": pipeline.pi3x.BUNDLE}
 # The conditions `--controls` scores, in the order each clip's rows are written.
 CONTROLS = ("floor_static", "floor_line", "ceil_stereo")
 # The seed of the shuffled order. One generator is made for each clip and method, so every clip of one length
@@ -80,14 +84,14 @@ def score_methods(root: Path, depth_root: Path, sequences: list[str], clip_root:
     """
     clips = [c for seq in sequences for c in usable_clips(root, depth_root, seq)]
     lacking = [f"{c['name']}:{m}" for c in clips for m in methods
-               if not (clip_root / c["name"] / "exports" / "mini_npz" / METHOD_BUNDLES[m]).is_file()]
+               if not (clip_root / c["name"] / METHOD_BUNDLES[m]).is_file()]
     if lacking:
         raise FileNotFoundError(f"{len(lacking)} bundle(s) missing under {clip_root}: {lacking}")
     rows = []
     for c in clips:
         gt_T = stereomis.gt_pose(root, c["seq"], c["frames"])
         for m in methods:
-            est_c, est_R = method_trajectory(clip_root / c["name"], m, len(c["frames"]))
+            est_c, est_R = method_trajectory(clip_root / c["name"] / METHOD_BUNDLES[m], len(c["frames"]))
             rows.append(score(c, f"{m}{suffix}", gt_T, est_c, est_R))
             if shuffled:
                 order = np.random.default_rng(SHUFFLE_SEED).permutation(len(est_c))

@@ -1,21 +1,22 @@
 """Run two commands on fresh copies of one clip and compare every file they write, byte for byte.
 
-A ported pipeline stage is done when its output equals the workbench's, and
-this is the check. Each run gets a working copy of the clip, its inputs
-copied in and its manifest stripped of what the stages write; whatever it
-writes there is compared with the other run's. A JSON file that differs only
-in `runtime_sec` is counted apart. Given one command, it runs it twice and
-measures determinism. It refuses a pair it cannot vouch for: a watched
-package from a file its run's repository's commit does not track, a module
-from a file the other run's repository tracks, uncommitted changes, a run
-with no record of its imports, two runs whose Python, BLAS or distributions
-differ, and a changed input. Runs that differ exit 1; a refusal exits 2.
+A ported pipeline stage is done when its output equals the workbench's, and this
+is the check. Each run gets a working copy of the clip, its inputs copied in and
+its manifest stripped of what the stages write; whatever it writes there is
+compared with the other run's. A JSON file that differs only in `runtime_sec` is
+counted apart. Given one command, it runs it twice and measures determinism. It
+refuses a pair it cannot vouch for: a watched package from a file its run's
+repository's commit does not track, a module from a file the other run's
+repository tracks, uncommitted changes, a run with no record of its imports, two
+runs whose Python, BLAS or distributions differ, bar those named as one run's
+alone, and a changed input. Runs that differ exit 1; a refusal exits 2.
 
 Usage:
     python -m pipeline.byte_check --root /path/to/clips --clip <clip> \\
         --a-repo /path/to/the/workbench --a-cmd '<its stage> --input-dir {root} --clips {clip}' \\
         --b-repo . --b-cmd 'python -m pipeline.<stage> --input-dir {root} --clips {clip}' \\
-        [--frames 4] [--needs exports/mini_npz/results.npz] [--weights ~/.cache/huggingface] [--json-out r.json]
+        [--frames 4] [--needs exports/mini_npz/results.npz] [--weights ~/.cache/huggingface] [--json-out r.json] \\
+        [--a-alone trimesh networkx]
 """
 from __future__ import annotations
 
@@ -139,16 +140,19 @@ atexit.register(_record)
 @dataclass(frozen=True)
 class Side:
     """One of the two runs: the repository its command belongs to and runs in, the command, its added
-    environment, and the packages it must import from its own repository.
+    environment, the packages it must import from its own repository, and the top-level modules it alone imports.
 
     The watch is per side. The workbench imports its wrapper packages and the port never does, so one shared
-    list would refuse whichever side does not import it.
+    list would refuse whichever side does not import it. `alone` names what this side's own code imports and the
+    other side's never does, such as `trimesh`, which the workbench's `surgical_core` imports and no stage
+    calls. Their distributions are recorded and left out of the comparison of the two environments.
     """
 
     repo: Path
     cmd: str
     env: dict = field(default_factory=dict)
     watch: tuple[str, ...] = ("surgical_core",)
+    alone: tuple[str, ...] = ()
 
 
 def sha256_of(path: Path) -> str:
@@ -427,21 +431,37 @@ def environment(records: list[dict]) -> dict:
     return {"python": pythons[0], "blas": blas[0] if blas else None, "distributions": distributions}
 
 
-def check_same_environment(env_a: dict, env_b: dict, own: frozenset[str] = frozenset()) -> None:
+def check_same_environment(env_a: dict, env_b: dict, own: frozenset[str] = frozenset(),
+                           alone_a: tuple[str, ...] = (), alone_b: tuple[str, ...] = ()) -> None:
     """Refuse two runs whose Python, BLAS or distributions differ: their bytes would not be the code's alone.
 
     `own` names the top-level modules that came from the runs' own repositories. The two sides' own code
     differs by design, and its difference is the byte comparison's to judge, so it is no ground for refusal.
+    `alone_a` and `alone_b` name the top-level modules one run alone imports (`Side.alone`). A name must hold:
+    the run imported it and the other run did not. Otherwise the list would excuse a difference it does not name.
 
     Raises:
-        ValueError: naming each difference.
+        ValueError: naming each difference, or each name in `alone_a` or `alone_b` that does not hold.
     """
+    a, b = env_a["distributions"], env_b["distributions"]
+    # The names of what one run alone imports, each checked against both runs' records.
+    wrong = []
+    for name, alone, mine, other in (("a", alone_a, a, b), ("b", alone_b, b, a)):
+        for k in alone:
+            if k not in mine:
+                wrong.append(f"{k}, named as run {name}'s alone, came from no distribution that run imported")
+            if k in other:
+                wrong.append(f"{k}, named as run {name}'s alone, was imported by the other run too")
+    if wrong:
+        raise ValueError("the runs' records do not bear out what they are said to import alone:\n  "
+                         + "\n  ".join(wrong))
+    # The environments, bar the runs' own code and what one run alone imports.
     diffs = [f"python: {env_a['python']} against {env_b['python']}"] if env_a["python"] != env_b["python"] else []
     if env_a["blas"] != env_b["blas"]:
         diffs.append(f"numpy BLAS: {env_a['blas']} against {env_b['blas']}")
-    a, b = env_a["distributions"], env_b["distributions"]
+    skip = own | set(alone_a) | set(alone_b)
     diffs += [f"{k}: {a.get(k)} against {b.get(k)}" for k in sorted(set(a) | set(b))
-              if k not in own and a.get(k) != b.get(k)]
+              if k not in skip and a.get(k) != b.get(k)]
     if diffs:
         raise ValueError("the two runs ran in different environments:\n  " + "\n  ".join(diffs))
 
@@ -476,9 +496,12 @@ def check(root: Path, clip: str, a: Side, b: Side | None, work: Path, needs: tup
         The report: the repositories' commits, the machine, the runs' environments, and the comparison.
 
     Raises:
-        ValueError: a pair the check cannot vouch for, as the module docstring lists.
+        ValueError: a pair the check cannot vouch for, as the module docstring lists, or `a` alone with what it
+            imports alone named: one command run twice imports the same modules both times.
         RuntimeError: a command failed, or wrote nothing.
     """
+    if b is None and a.alone:
+        raise ValueError(f"one command runs twice, so neither run imports {list(a.alone)} alone")
     b = b or a
     # The repositories, each at a commit with nothing uncommitted.
     repos = {}
@@ -516,11 +539,11 @@ def check(root: Path, clip: str, a: Side, b: Side | None, work: Path, needs: tup
         envs[name] = environment(records)
         own[name] = check_imports(records, side.repo, other.repo, side.watch)
     # The two runs' environments, then their files.
-    check_same_environment(envs["a"], envs["b"], own["a"] | own["b"])
+    check_same_environment(envs["a"], envs["b"], own["a"] | own["b"], a.alone, b.alone)
     result = compare(files["a"], files["b"])
     result["identical"] = not (result["n_differ"] or result["only_a"] or result["only_b"])
     return {"clip": clip, "root": str(root), "frames": frames, "commands": {"a": a.cmd, "b": b.cmd}, "repos": repos,
-            "seconds": seconds, "environment": envs, "gpus": gpus(),
+            "seconds": seconds, "environment": envs, "alone": {"a": list(a.alone), "b": list(b.alone)}, "gpus": gpus(),
             "weights": {str(p): fingerprint(p) for p in weights}, "result": result}
 
 
@@ -549,6 +572,10 @@ def main() -> None:
     ap.add_argument("--a-watch", nargs="*", default=["surgical_core"],
                     help="Packages the first command must import from its own repository.")
     ap.add_argument("--b-watch", nargs="*", default=["surgical_core"], help="As --a-watch, for the second command.")
+    ap.add_argument("--a-alone", nargs="*", default=[],
+                    help="Top-level modules the first command imports and the second never does; their distributions "
+                         "are recorded, not compared. Each must be imported by the first run and not the second.")
+    ap.add_argument("--b-alone", nargs="*", default=[], help="As --a-alone, for the second command.")
     ap.add_argument("--weights", nargs="*", default=[], help="Weights files or directories, recorded with the result.")
     ap.add_argument("--work", help="Where to make the scratch directory; by default the system's temporary directory.")
     ap.add_argument("--keep", action="store_true", help="Keep the working copies and the logs.")
@@ -556,8 +583,9 @@ def main() -> None:
     args = ap.parse_args()
     if bool(args.b_cmd) != bool(args.b_repo):
         ap.error("--b-cmd and --b-repo go together")
-    a = Side(Path(args.a_repo).resolve(), args.a_cmd, _env(args.a_env), tuple(args.a_watch))
-    b = Side(Path(args.b_repo).resolve(), args.b_cmd, _env(args.b_env), tuple(args.b_watch)) if args.b_cmd else None
+    a = Side(Path(args.a_repo).resolve(), args.a_cmd, _env(args.a_env), tuple(args.a_watch), tuple(args.a_alone))
+    b = (Side(Path(args.b_repo).resolve(), args.b_cmd, _env(args.b_env), tuple(args.b_watch), tuple(args.b_alone))
+         if args.b_cmd else None)
     # A scratch directory this run made, since it is deleted at the end: --work says where, never what to delete.
     work = Path(tempfile.mkdtemp(prefix="byte_check_", dir=args.work))
     try:

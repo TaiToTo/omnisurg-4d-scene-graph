@@ -336,9 +336,12 @@ def test_the_command_refuses_keys_that_name_no_key(tmp_path):
 
 
 @pytest.mark.parametrize("pairs, said", [("base", "<base>:<cond>"), ("base:cond:x", "<base>:<cond>"),
+                                         ("base:base", "not one with itself"), (" , ", "no pair is given"),
                                          ("base:nowhere", "nowhere.json")])
 def test_the_command_refuses_a_bad_pair_with_a_message_not_a_traceback(tmp_path, pairs, said):
     base, cond = pilot_pair()
     _write(tmp_path, base=base, cond=cond)
-    run = _run(tmp_path, "--pairs", pairs, "--keys", "inst_F1_50")
+    out = tmp_path / "left_out.json"
+    run = _run(tmp_path, "--pairs", pairs, "--keys", "inst_F1_50", "--out", str(out))
     assert run.returncode != 0 and said in run.stderr and "Traceback" not in run.stderr
+    assert not out.exists() and not run.stdout

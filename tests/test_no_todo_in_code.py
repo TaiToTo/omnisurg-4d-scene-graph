@@ -26,7 +26,6 @@ MARKER = re.compile(r"\b(TODO|FIXME|XXX|HACK)\b")
 # this file defines the pattern.
 ALLOWED = frozenset({
     "docs/porting.md",
-    "docs/workstreams.md",
     "docs/review.md",
     "AGENTS.md",
     "CLAUDE.md",
@@ -78,7 +77,7 @@ def test_no_marker_in_tracked_files():
 
 
 def test_the_scanner_sees_a_planted_marker(tmp_path):
-    """The check earns its place by failing: a planted marker is reported, with its line."""
+    """The check fails when it should: a planted marker is reported, with its line."""
     p = tmp_path / "x.py"
     p.write_text("a = 1\n# TODO: decide later\nb = 2  # FIXME\n", encoding="utf-8")
     assert markers_in(p) == [(2, "# TODO: decide later"), (3, "b = 2  # FIXME")]
