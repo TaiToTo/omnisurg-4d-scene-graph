@@ -22,9 +22,9 @@ REPO = Path(__file__).resolve().parent.parent
 # The most lines a header may have before its Usage.
 HEADER_LINES = 12
 
-# The modules longer than the cap when the rule was made, shortened by the
-# workstream `docs/short-headers`. A module is removed here when it is
-# shortened; a module that is short and still listed fails the ratchet.
+# The modules longer than the cap when the rule was made. A module is removed
+# here when it is shortened; a module that is short and still listed fails the
+# ratchet.
 STILL_LONG = frozenset({
     "evalkit/code_sha.py",
     "evalkit/pilot.py",

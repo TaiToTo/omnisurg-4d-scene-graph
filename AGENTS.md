@@ -95,9 +95,9 @@ and clips enter a measurement is data, kept in the population file under
 
 ## The port
 
-The port follows `docs/porting.md`: what moves, which version of it was
-already reviewed and where, the order of the steps, and what must hold before
-the next one. Read it before porting anything. The order is load-bearing: the
+The port follows `docs/porting.md`: what is ported and checked, what is not
+ported yet, the order of the steps, and what must hold before the next one.
+Read it before porting anything. The order is load-bearing: the
 evaluator is checked against the pilot scores before anything is re-scored. A
 pipeline stage is done only when its output equals the workbench's, byte for
 byte, apart from the exceptions `docs/porting.md` names. Nothing is frozen
