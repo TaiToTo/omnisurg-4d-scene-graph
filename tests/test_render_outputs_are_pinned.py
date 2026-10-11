@@ -1,11 +1,11 @@
 """Check that every segmenter input renders the same bytes as when the hashes were recorded.
 
 A change that moves one pixel of one input mode changes a measured
-condition, and nothing else would notice. The hashes in
-`render_outputs.sha256.json` were recorded from the code on `main` before
-the unused modes were removed. Each mode runs at both edge gains the
-conditions used, with and without smoothing, on one synthetic frame. A
-failure also follows a change in numpy, OpenCV or matplotlib, whose
+condition, and nothing else would notice. Each mode runs at both edge
+gains the conditions used, with and without smoothing, with the ring of
+the edges masked and kept, on one synthetic frame. Each hash in
+`render_outputs.sha256.json` equals the one the workbench's renderer gives.
+A failure also follows a change in numpy, OpenCV or matplotlib, whose
 versions the file records under `recorded_with`.
 
 Usage:
@@ -54,9 +54,11 @@ def inputs(h=48, w=64):
 
 
 def cases():
-    """Return every mode at each edge gain, with and without smoothing, as (key, keyword arguments)."""
-    return [(f"{mode} edge_gain={gain} smooth={smooth}", {"mode": mode, "edge_gain": gain, "smooth": smooth})
-            for mode in render.SAM_INPUT_MODES for gain in (0.85, 1.0) for smooth in (True, False)]
+    """Return every mode at each edge gain, with and without smoothing and the ring, as (key, keyword arguments)."""
+    return [(f"{mode} edge_gain={gain} smooth={smooth} mask_ring={ring}",
+             {"mode": mode, "edge_gain": gain, "smooth": smooth, "mask_ring": ring})
+            for mode in render.SAM_INPUT_MODES for gain in (0.85, 1.0) for smooth in (True, False)
+            for ring in (True, False)]
 
 
 def sha(img):
@@ -67,7 +69,7 @@ def sha(img):
 def render_case(kwargs):
     depth, K, gray01, rgb = inputs()
     return render.sam_input_image(kwargs["mode"], depth, K, gray01, rgb, edge_gain=kwargs["edge_gain"],
-                                  smooth=kwargs["smooth"], mask_ring=True)
+                                  smooth=kwargs["smooth"], mask_ring=kwargs["mask_ring"])
 
 
 def test_every_case_is_pinned_and_nothing_else():
