@@ -1,9 +1,47 @@
 # omnisurg-4d-scene-graph
 
-Open, training-free **4D** (3D + time) scene graphs for minimally invasive
-surgery — built by composing foundation models, with no task-specific training.
+Training-free **4D** (3D + time) scene graphs for minimally invasive
+surgery, built by composing foundation models. The pipeline takes a clip of
+surgical video, estimates depth and camera poses for every frame, cuts each
+frame into regions and tracks them through time, with no task-specific
+training. The evaluator scores those regions against the hand-labelled masks
+of ATLAS-120k and CholecSeg8k. Every score records a hash of the
+evaluator's code, and two scores are compared only when the hashes match.
+A web page shows a clip's point clouds, regions and scene graphs.
 
-**Status: private / under construction.** Nothing here is released yet.
+## Status
+
+The code is being moved here from the research workbench where the
+measurements were made. "Checked" means the port gave the workbench's
+numbers or files on the same input.
+
+| part | state |
+|---|---|
+| evaluator, `evalkit/` | implemented and checked; not frozen yet |
+| score tools, `evalkit/tools/` | implemented, apart from `track_metrics`, which is not ported yet |
+| extraction of ATLAS-120k, CholecSeg8k, LapEx, StereoMIS and the D4D population | implemented |
+| depth: Depth Anything 3, Pi3X, point clouds | implemented |
+| segmentation and tracking with SAM 3 | implemented and checked on three clips |
+| seeds made outside the tracking stage (`--seed-labels`) | the tracking stage takes them; the evaluator refuses them until their scoring is decided |
+| the export stage, which builds the scene graphs | not ported yet |
+| viewer bundle and web page | implemented |
+
+`docs/porting.md` says in detail what is ported, what it was checked
+against, and what is left.
+
+## What is where
+
+| path | what it holds | read next |
+|---|---|---|
+| `pipeline/` | the stages, each run as `python -m pipeline.<stage>` | `docs/pipeline.md` |
+| `evalkit/` | the evaluator, hashed into `eval_code_sha` | `evalkit/README.md`, then `docs/evaluation.md` |
+| `evalkit/tools/` | what reads scores: comparisons, tables, statistics | each module's docstring |
+| `surgical_core/` | what the pipeline and the evaluator share: dataset readers, geometry, the viewer's helpers | each module's docstring |
+| `recon3d_wrapper/` | Depth Anything 3 and Pi3X behind one interface | `docs/pipeline.md` |
+| `sam3_wrapper/` | tracking with SAM 3 from mask prompts on one frame | `docs/pipeline.md` |
+| `atlas120k_meta/`, `cholecseg8k_meta/`, `d4d_meta/` | which clips are measured, and how each is cropped or which sides are scored; no video | the README in each |
+| `viewer/` | the web page | `viewer/README.md` |
+| `docs/` | the specifications, and how a change is reviewed | `docs/review.md` |
 
 ## Install
 
@@ -44,13 +82,6 @@ green.
 pip install -e ".[render,tools,stereomis]" pytest
 pytest
 ```
-
-## Viewer
-
-`viewer/` is a web page that shows a clip's 4D scene graph: its point
-clouds, its regions and the graph of their relations through time.
-`viewer/README.md` says how to run it and how to publish it, with the files
-`python -m pipeline.viewer_bundle` writes for it.
 
 ## License
 
