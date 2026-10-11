@@ -358,16 +358,22 @@ def test_a_run_that_fails_while_writing_leaves_no_partial_labels(tmp_path, monke
     assert sorted(p.name for p in lab_dir.iterdir()) == before
     assert [p.name for p in (tmp_path / "tracks" / clip.name).iterdir() if "partial" in p.name] == []
 
+
 class _StandInSession(StandInTracker):
     device = "cpu"
 
-    def __init__(self, *a, **kw):
-        super().__init__()
 
+def _main(monkeypatch, *argv, models=False):
+    """Run `main` with stand-ins in place of SAM 3 and SAM, or with models that must not load."""
+    def load(stand_in):
+        def build(*a, **kw):
+            if not models:
+                raise AssertionError("a model loaded")
+            return stand_in()
+        return build
 
-def _main(monkeypatch, *argv):
-    monkeypatch.setattr(track, "Sam3VideoInstanceSession", _StandInSession)
-    monkeypatch.setattr(track, "SeedSegmenter", lambda ckpt, device: StandInSegmenter())
+    monkeypatch.setattr(track, "Sam3VideoInstanceSession", load(_StandInSession))
+    monkeypatch.setattr(track, "SeedSegmenter", load(StandInSegmenter))
     monkeypatch.setattr(sys, "argv", ["track", *argv])
     track.main()
 
@@ -381,7 +387,7 @@ def _argv(tmp_path, *extra):
 def test_main_runs_every_clip_with_depth(tmp_path, monkeypatch):
     _clip(tmp_path)
     _clip(tmp_path, name="VID02_s15_80_crop")
-    _main(monkeypatch, *_argv(tmp_path, "--sam-ckpt", "sam.pth"))
+    _main(monkeypatch, *_argv(tmp_path, "--sam-ckpt", "sam.pth"), models=True)
     assert sorted(p.name for p in (tmp_path / "tracks").iterdir()) == ["VID01_s15_80_crop", "VID02_s15_80_crop"]
 
 
@@ -391,7 +397,7 @@ def test_main_refuses_a_mistyped_clip_before_the_models_load(tmp_path, monkeypat
         _main(monkeypatch, *_argv(tmp_path, "--sam-ckpt", "sam.pth", "--clips", "VID99"))
 
 
-def test_main_refuses_to_cut_seeds_without_the_sam_weights(tmp_path, monkeypatch):
+def test_main_refuses_to_cut_seeds_without_the_sam_weights_before_the_models_load(tmp_path, monkeypatch):
     _clip(tmp_path)
     with pytest.raises(SystemExit, match="--sam-ckpt is needed"):
         _main(monkeypatch, *_argv(tmp_path))
@@ -402,5 +408,5 @@ def test_main_exits_with_an_error_when_a_clip_fails(tmp_path, monkeypatch):
     bad = _clip(tmp_path, name="VID02_s15_80_crop")
     (bad / "input_images" / "000003.png").unlink()
     with pytest.raises(SystemExit, match="1 of 2 clip.* failed: VID02_s15_80_crop"):
-        _main(monkeypatch, *_argv(tmp_path, "--sam-ckpt", "sam.pth"))
+        _main(monkeypatch, *_argv(tmp_path, "--sam-ckpt", "sam.pth"), models=True)
     assert (tmp_path / "tracks" / "VID01_s15_80_crop" / "track_rgb_t").is_dir()

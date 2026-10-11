@@ -223,6 +223,7 @@ def test_earlier_output_is_refused_unless_replaced(release):
     stale.write_bytes(b"left by a longer run")
     with pytest.raises(ValueError, match="pass --overwrite"):
         extract_video(**release)
+    assert stale.exists()
     extract_video(**dict(release, overwrite=True))
     assert not stale.exists()
 
