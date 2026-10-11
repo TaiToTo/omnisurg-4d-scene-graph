@@ -365,8 +365,8 @@ class _StandInSession(StandInTracker):
         super().__init__()
 
 
-def _main(monkeypatch, *argv):
-    monkeypatch.setattr(track, "Sam3VideoInstanceSession", _StandInSession)
+def _main(monkeypatch, *argv, session=_StandInSession):
+    monkeypatch.setattr(track, "Sam3VideoInstanceSession", session)
     monkeypatch.setattr(track, "SeedSegmenter", lambda ckpt, device: StandInSegmenter())
     monkeypatch.setattr(sys, "argv", ["track", *argv])
     track.main()
@@ -383,6 +383,23 @@ def test_main_runs_every_clip_with_depth(tmp_path, monkeypatch):
     _clip(tmp_path, name="VID02_s15_80_crop")
     _main(monkeypatch, *_argv(tmp_path, "--sam-ckpt", "sam.pth"))
     assert sorted(p.name for p in (tmp_path / "tracks").iterdir()) == ["VID01_s15_80_crop", "VID02_s15_80_crop"]
+
+
+def test_state_on_cpu_reaches_the_tracker_and_leaves_the_record_as_it_was(tmp_path, monkeypatch):
+    asked = []
+
+    class RecordingSession(_StandInSession):
+        def __init__(self, *a, **kw):
+            super().__init__()
+            asked.append(kw["state_on_cpu"])
+
+    _clip(tmp_path)
+    records = []
+    for extra in ([], ["--state-on-cpu"]):
+        _main(monkeypatch, *_argv(tmp_path, "--sam-ckpt", "sam.pth", "--overwrite", *extra), session=RecordingSession)
+        records.append((tmp_path / "tracks" / "VID01_s15_80_crop" / "track_rgb_t" / "seed_info.json").read_text())
+    assert asked == [False, True]
+    assert records[0] == records[1]
 
 
 def test_main_refuses_a_mistyped_clip_before_the_models_load(tmp_path, monkeypatch):
