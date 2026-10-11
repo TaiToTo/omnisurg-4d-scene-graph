@@ -123,13 +123,15 @@ def rule_of_seed_info(info: dict) -> str:
     """Return the propagation rule a clip's `seed_info.json` records.
 
     The per-frame stage records `seed_source` `per_frame`. The tracker records `seed_source` `sam`, `bidir`,
-    the seed frame and the frames it labelled: a seed on the centre of those frames, in time order, carried
-    both ways is `both_ways_from_centre`, and a seed on frame 0 carried forward is `forward_from_first`.
+    the seed frame and the frames it labelled. A seed carried both ways must sit on the centre of the labelled
+    frames, taken in time order; its rule is `both_ways_from_centre`. A seed carried forward must sit on frame
+    0; its rule is `forward_from_first`.
 
     Raises:
         ValueError: The record names no `seed_source`; the seed came from elsewhere, the GT for one; the
-            tracker's record is incomplete, or its `bidir` is not true or false; or the seed sits on neither
-            the centre nor the first frame.
+            tracker's record is incomplete; its `bidir` is not true or false; its seed frame or a labelled frame
+            is not a whole number; a labelled frame repeats; or the seed sits on neither the centre nor the
+            first frame.
     """
     source = info.get("seed_source")
     if source is None:
@@ -145,6 +147,12 @@ def rule_of_seed_info(info: dict) -> str:
     # A string such as "no" is truthy, so only a bool says which way the seed was carried.
     if not isinstance(bidir, bool):
         raise ValueError(f"bidir is {bidir!r}, not true or false")
+    # A bool is an int in Python, so a seed frame of true would read as frame 1.
+    if any(isinstance(f, bool) or not isinstance(f, int) for f in (seed, *frames)):
+        raise ValueError(f"the seed frame {seed!r} and the labelled frames {frames!r} are not all whole numbers")
+    # A frame listed twice moves the centre of the sorted list.
+    if len(set(frames)) != len(frames):
+        raise ValueError(f"the labelled frames repeat a frame: {frames}")
     frames = sorted(frames)
     if bidir:
         centre = frames[len(frames) // 2]

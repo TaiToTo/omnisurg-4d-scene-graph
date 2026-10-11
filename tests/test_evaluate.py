@@ -162,6 +162,11 @@ def test_the_json_records_the_rule_each_clip_s_seed_info_gives(tmp_path, info, r
     ({"seed_source": "sam", "seed_frame": 0, "bidir": True, "frames": [2, 0, 1]}, "the centre of the labelled frames is 1"),
     ({"seed_source": "sam", "seed_frame": 0, "bidir": "no", "frames": [0, 1, 2]}, "bidir is 'no', not true or false"),
     ({"seed_source": "sam", "seed_frame": 1, "bidir": 1, "frames": [0, 1, 2]}, "bidir is 1, not true or false"),
+    ({"seed_source": "sam", "seed_frame": 1, "bidir": True, "frames": [0, 0, 1, 2, 3]}, "repeat a frame"),
+    ({"seed_source": "sam", "seed_frame": True, "bidir": True, "frames": [0, 1, 2]}, "not all whole numbers"),
+    ({"seed_source": "sam", "seed_frame": 1.0, "bidir": True, "frames": [0, 1, 2]}, "not all whole numbers"),
+    ({"seed_source": "sam", "seed_frame": 0, "bidir": False, "frames": [0, 1.5, 2]}, "not all whole numbers"),
+    ({"seed_source": "sam", "seed_frame": 0, "bidir": False, "frames": [0, "1", 2]}, "not all whole numbers"),
 ])
 @pytest.mark.parametrize("pilot", [False, True])
 def test_a_seed_that_holds_no_rule_is_refused(tmp_path, info, why, pilot):
