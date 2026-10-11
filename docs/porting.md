@@ -523,9 +523,9 @@ public viewer reads a bundle"), from `viewer/demo.html` and
   colour raster against the class colours; two classes of one colour are no
   longer one region.
 - It shows one track, or the two tracks a clip's hierarchy relates, drawn
-  together and joined where an annotated region contains an automatic one.
-  The regions menu chooses. The demo's pair of tracks side by side was
-  reachable only by address.
+  together and linked where one track's region contains the other's. The
+  regions menu chooses between them. The demo's pair of tracks side by side
+  was reachable only by address.
 - It shows the side panel in per-frame mode too, where the demo hid it.
 - The focus band reads spatial relations only; the demo mixed in the action
   relations of CholecT50, where a clip has them.

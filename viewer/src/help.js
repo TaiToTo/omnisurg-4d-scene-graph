@@ -6,7 +6,7 @@ export const KEYS = [
   { keys: 'drag', what: 'Turn the 3D view' },
   { keys: 'right-drag', what: 'Pan' },
   { keys: 'wheel', what: 'Zoom' },
-  { keys: 'click', what: 'Follow a region, from the cloud, the scene graph or the strip' },
+  { keys: 'click', what: 'Follow a region, from the cloud, the scene graph or the strip; on the cloud, the automatic one first' },
   { group: 'Frames' },
   { keys: '← →', what: 'Previous or next frame' },
   { keys: 'Space', what: 'Play or pause' },

@@ -131,7 +131,7 @@ function emptyPanel(el, msg) {
  * @param {string[]} p.tracks  the tracks shown; the first is drawn first, under the others.
  * @param {object} p.graphByTrack  the frame's scene graph per track.
  * @param {object} p.regionsByTrack  the frame's regions per track.
- * @param {?object} p.hierarchy  the frame's hierarchy, read when two tracks are shown.
+ * @param {?object} p.hierarchy  the frame's hierarchy: its contains links, and the regions paired with `focusKey`.
  * @param {?string} p.hoverKey  the node key to glow.
  * @param {?string} p.focusKey  the followed node: the others dim, but for the regions it is paired with.
  */

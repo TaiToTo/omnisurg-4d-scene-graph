@@ -169,7 +169,7 @@ export function fetchRegions(clip, track, i) {
   }, regionCache);
 }
 
-/** One track's scene graph on frame `i`, or null on a frame it has none. */
+/** Read one track's scene graph on frame `i`, or return null on a frame it has none. */
 export function fetchGraph(clip, track, i) {
   const t = clip.trackById.get(track);
   if (!t?.graph_frames.includes(i)) return Promise.resolve(null);
@@ -177,10 +177,9 @@ export function fetchGraph(clip, track, i) {
 }
 
 /**
- * What makes a graph through time unreadable, or null: the rule `pipeline.viewer_bundle` publishes by.
- * Node ids and a relation's ends are integers, frames are integers from 0 to n - 1, a relation is a word
- * and a label a string. The band draws these values, and one of another type draws a band that looks
- * right and is not.
+ * Say what makes a graph through time unreadable by the bundle stage's rule, or return null. Node ids and
+ * a relation's ends are integers, frames are integers from 0 to n - 1, a relation is a word and a label a
+ * string. The band draws these values, and one of another type draws a band that looks right and is not.
  */
 export function temporalProblem(tg, n) {
   if (!tg || typeof tg !== 'object' || Array.isArray(tg)) return 'it is not an object';
@@ -199,8 +198,8 @@ export function temporalProblem(tg, n) {
 }
 
 /**
- * One track's scene graph through time, with its lists of nodes and relations, or null when the bundle has
- * none. One that `temporalProblem` finds fault with is refused.
+ * Read one track's scene graph through time, with its lists of nodes and relations, or return null when
+ * the bundle has none. One that `temporalProblem` finds fault with is refused.
  */
 export function fetchTemporal(clip, track) {
   if (!clip.trackById.get(track)?.temporal) return Promise.resolve(null);

@@ -63,7 +63,7 @@ function slabParts(fr, tracks, opts, dx, isStage, caption, centroids) {
     const outlines = outlinesOf(regions);
     if (!outlines) continue;
     const ells = ellipsesOf(regions);
-    // Under another track's outlines an annotated class is mostly outline, so the regions it contains show.
+    // An annotated class under another track is filled faintly, so the regions inside it show.
     const under = tracks.length > 1 && info.semantic;
     const [w, h] = regions.grid;
     const mapPt = (x, y) => { const [px, py] = slabMap(x / w, y / h); return [px + dx, py]; };
@@ -108,14 +108,14 @@ function slabParts(fr, tracks, opts, dx, isStage, caption, centroids) {
 }
 
 /**
- * A plate's caption: its frame, its time, and a note per track whose regions were made on it: "annotated"
- * by hand, "seed" for automatic regions the tracker carries from it, "annotated seed" for both.
+ * Write a plate's caption: its frame, its time, and a note per track whose regions were made on it:
+ * "annotated" by hand, "seed" for regions a tracker carries, "annotated seed" for a track that is both.
  */
 export function slabCaption(i, timeS, notes = []) {
   return [`f${i}`, ...(Number.isFinite(timeS) ? [`${timeS.toFixed(1)} s`] : []), ...notes].join(' · ');
 }
 
-/** The notes of a plate's caption: one per kind of track whose regions were made on frame `fr`. */
+/** List the notes of a plate's caption: one per kind of track whose regions were made on frame `fr`. */
 function anchorNotes(fr, tracks) {
   const notes = tracks.filter((t) => fr.regionsByTrack[t.id]?.stage === 'anchor')
     .map((t) => (t.seeded ? (t.semantic ? 'annotated seed' : 'seed') : 'annotated'));

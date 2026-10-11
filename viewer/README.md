@@ -11,9 +11,9 @@ What a reader can do on it:
 - step through a clip's frames, or play them;
 - paint a track's regions on the cloud, and draw the scene graph on it;
 - see the frame's scene graph from its camera;
-- show the manual annotation and the automatic regions together, joined
-  where an annotated region contains an automatic one, on a clip whose
-  bundle holds the hierarchy between them;
+- show the manual annotation and the automatic regions together, linked
+  where one track's region contains the other's, on a clip whose bundle
+  holds the hierarchy between them;
 - stack the clip's frames in one space (world mode), with the camera's path,
   and see every stacked frame's scene graph in one camera;
 - follow a region in three steps: where it is, how it moves through the

@@ -111,7 +111,7 @@ function bothPair() {
   return [...ts].sort((a, b) => Number(!trackInfo(a).semantic) - Number(!trackInfo(b).semantic));
 }
 
-/** The tracks the panels show: both tracks of the hierarchy, or the shown track alone. */
+/** List the tracks the panels show: both tracks of the hierarchy, or the shown track alone. */
 const shownTracks = () => (state.both && bothPair()) || (state.track ? [state.track] : []);
 const paintedTracks = () => (state.painted ? shownTracks() : []);
 
@@ -137,7 +137,7 @@ function labelOf(key) {
   return container && container !== name ? `${name} (in ${container})` : name;
 }
 
-/** The name of the annotated region that contains region `key`, from the stage frame's hierarchy. */
+/** Return the name of the region of another track that contains region `key`, by the stage frame's hierarchy. */
 function containerOf(key) {
   const st = stageEntry();
   for (const e of st?.hierarchy?.edges || []) {
@@ -940,8 +940,8 @@ raycaster.params.Points.threshold = PICK_RADIUS;
 onSceneScale((s) => { raycaster.params.Points.threshold = PICK_RADIUS * s; });
 
 /**
- * The node under the pointer: a drawn node, or the region of the point under it. With both tracks shown,
- * the automatic region is picked before the annotated region that contains it.
+ * Return the node under the pointer: a drawn node, or the region of the point under it. With both tracks
+ * shown, the automatic region is picked before the annotated one.
  */
 export function pickNode(canvas, ev) {
   const st = stageEntry();
@@ -1001,7 +1001,7 @@ export function syncControls() {
   const items = (clip?.tracks ?? []).map((t) => ({ id: t.id, short: t.short, name: t.name, shown: !state.both && state.track === t.id }));
   if (pair) {
     items.push({ id: BOTH, short: 'Both', shown: state.both,
-      name: `${pair.map((t) => trackInfo(t).short).join(' and ')}, with the annotated region that contains each automatic one` });
+      name: `${pair.map((t) => trackInfo(t).short).join(' and ')}, linked where one contains the other` });
   }
   for (const it of items) {
     const b = document.createElement('button');
