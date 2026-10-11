@@ -13,6 +13,7 @@ from evalkit.tools import scores
 from evalkit.tools.scores import (
     PILOT_DOMAINS,
     PILOT_EVAL_CODE_SHA,
+    REQUIRED_INPUTS,
     check_comparable,
     clips_of,
     defined_clips,
@@ -45,7 +46,7 @@ def evaluator_json(sha=SHA, clips=CLIPS, dataset="cholecseg8k", pilot=False, cla
     return dict(
         eval_code_sha=sha, dataset=dataset, pilot=pilot, class_set=class_set, views=list(views),
         clips=list(clips), propagation=propagation,
-        input_shas={c: {"gt_masks": "g" * 64, "depth": "d" * 64, "predictions": f"p{c}"} for c in clips},
+        input_shas={c: {"gt_masks": "g" * 64, "depth": "d" * 64, "crop": "c" * 64, "frames": "f" * 64, "predictions": f"p{c}"} for c in clips},
         versions={"python": "3.12.0", "numpy": "2.0.0"},
         per_clip=[dict(clip=c, **{metric_key("F1_50", v): 0.5 for v in views}) for c in clips],
     )
@@ -317,28 +318,26 @@ def test_a_clip_without_input_shas_is_refused():
         check_comparable(evaluator_json(), b)
 
 
+@pytest.mark.parametrize("missing", REQUIRED_INPUTS)
+def test_input_shas_that_both_leave_out_an_input_are_refused(missing):
+    # Both sides agreeing on the other inputs says nothing about the one neither recorded.
+    a, b = evaluator_json(), evaluator_json()
+    for j in (a, b):
+        del j["input_shas"][CLIPS[0]][missing]
+    with pytest.raises(ValueError, match=f"VID01_s15_80_crop: a score records no {missing} hash"):
+        check_comparable(a, b)
+
+
 def test_input_shas_that_name_no_input_beyond_the_predictions_are_refused():
-    # `{}` on both sides slips past a name-by-name comparison: there is no
-    # name to compare, and nothing says the two read the same GT.
+    # `{}` on both sides has no name to compare, and nothing says the two read the same GT.
     a, b = evaluator_json(), evaluator_json()
     a["input_shas"][CLIPS[0]], b["input_shas"][CLIPS[0]] = {}, {}
-    with pytest.raises(ValueError, match="no input beyond the predictions"):
+    with pytest.raises(ValueError, match="a score records no gt_masks hash"):
         check_comparable(a, b)
     a["input_shas"][CLIPS[0]] = {"predictions": "p"}
     b["input_shas"][CLIPS[0]] = {"predictions": "q"}
-    with pytest.raises(ValueError, match="no input beyond the predictions"):
+    with pytest.raises(ValueError, match="a score records no gt_masks hash"):
         check_comparable(a, b)
-
-
-def test_input_shas_without_the_gt_or_the_depth_are_refused():
-    # Both sides agreeing on the crop says nothing about the GT and the depth they read.
-    for missing in ("gt_masks", "depth"):
-        a, b = evaluator_json(), evaluator_json()
-        for j in (a, b):
-            j["input_shas"][CLIPS[0]] = {"crop": "c" * 64, "predictions": "p", "gt_masks": "g" * 64, "depth": "d" * 64}
-            del j["input_shas"][CLIPS[0]][missing]
-        with pytest.raises(ValueError, match=f"VID01_s15_80_crop: a score records no {missing} hash"):
-            check_comparable(a, b)
 
 
 def test_inputs_are_checked_on_the_compared_clips_only():

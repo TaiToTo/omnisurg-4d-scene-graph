@@ -59,8 +59,9 @@ PILOT_SIGNS: Mapping[str, int] = MappingProxyType({
 # The entry of `input_shas` that is the condition's own. Every other entry
 # names an input two comparable scores must have read alike.
 PREDICTION_INPUT = "predictions"
-# The inputs two scores of one clip must both record, and have read alike.
-REQUIRED_INPUTS = ("gt_masks", "depth")
+# The inputs two scores of one clip must both record, and have read alike:
+# every input the evaluator hashes but the predictions.
+REQUIRED_INPUTS = ("gt_masks", "depth", "crop", "frames")
 
 
 def sign_of(key: str) -> int:
@@ -308,16 +309,12 @@ def _check_inputs(a: Mapping, b: Mapping, clips: list[str]) -> None:
         ia, ib = sa.get(clip), sb.get(clip)
         if ia is None or ib is None:
             raise ValueError(f"{clip}: a score records no input shas for it, so what it read cannot be checked")
-        names = (set(ia) | set(ib)) - {PREDICTION_INPUT}
-        if not names:
-            raise ValueError(
-                f"{clip}: the scores name no input beyond the predictions, so whether they "
-                "read one GT and one depth map cannot be checked"
-            )
+        # A name both sides leave out would pass a name-by-name comparison unread.
         for name in REQUIRED_INPUTS:
             if name not in ia or name not in ib:
-                raise ValueError(f"{clip}: a score records no {name} hash, so whether both read one "
+                raise ValueError(f"{clip}: a score records no {name} hash, so whether both read the same "
                                  f"{name} cannot be checked")
+        names = (set(ia) | set(ib)) - {PREDICTION_INPUT}
         for name in sorted(names):
             if ia.get(name) != ib.get(name):
                 raise ValueError(

@@ -55,7 +55,7 @@ def evaluator_json(column: str, tag: str, vals: dict[str, float], rule: str) -> 
     rows = [{"clip": c, KEY: v, metric_key("VI_split", "all"): v} for c, v in vals.items()]
     return dict(tag=tag, eval_code_sha="a" * 64, dataset=column, pilot=False, class_set="original",
                 views=["all"], clips=list(vals),
-                input_shas={c: {"gt_masks": "g" * 64, "depth": "d" * 64, "predictions": f"p{tag}{c}"} for c in vals},
+                input_shas={c: {"gt_masks": "g" * 64, "depth": "d" * 64, "crop": "c" * 64, "frames": "f" * 64, "predictions": f"p{tag}{c}"} for c in vals},
                 versions={"python": "3.12.0"}, propagation=rule, per_clip=rows)
 
 
