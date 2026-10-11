@@ -754,5 +754,13 @@ python -m trajectory_eval.tools.stereomis_table controls.json methods.json [--ou
 
 The table prints each condition's scores, and each condition's paired
 difference from `floor_static` on `ate_rel`, with its interval over
-sequences and its mark. It refuses rows that record two versions of the
-scorer or none, and a condition scored on other clips than the base.
+sequences and its mark. The JSON of `--out` records `trajectory_code_sha`.
+
+The table refuses:
+
+- rows that record two versions of the scorer, or none;
+- a clip scored twice under one condition;
+- a base with no row;
+- a condition scored on other clips than the base;
+- a clip whose sequence, stratum or `span_mm` differs between conditions;
+- a pair whose clips come from fewer than two sequences.

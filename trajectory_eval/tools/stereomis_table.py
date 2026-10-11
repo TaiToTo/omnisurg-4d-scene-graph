@@ -1,13 +1,14 @@
 """Print the StereoMIS table: each condition's camera trajectory scores, and each condition against a base.
 
-The rows are read through `scores.read_rows`, so they come from one version
-of the scorer. Each condition must hold the base's clips. A pair is the
-paired difference `cond - base` on `ate_rel`, where less is better; its
-interval is the bootstrap that `paired_stats.boot_ci` draws over sequences,
-the unit a clip is not independent of, and `paired_stats.mark_of` gives its
-mark. The clip-level Wilcoxon p is printed beside it. The table and the
-pairs are printed for every clip, then for each stratum; a last table gives
-each sequence's mean difference from the base.
+The rows come through `scores.read_rows`, so from one version of the
+scorer. Each condition must hold the base's clips, with the same sequence,
+stratum and `span_mm` for each clip. A pair is the paired difference
+`cond - base` on `ate_rel`, where less is better. Its interval is the
+bootstrap of `paired_stats.boot_ci` over sequences, since the clips of one
+sequence are not independent. `paired_stats.mark_of` gives its mark, and the
+clip-level Wilcoxon p is printed beside it. The tables and the pairs are
+printed over all clips, then within each stratum. A last table gives each
+sequence's mean difference from the base.
 
 Usage:
     python -m trajectory_eval.tools.stereomis_table controls.json methods.json [methods_masked.json] \\
@@ -20,34 +21,41 @@ from pathlib import Path
 
 import numpy as np
 
-from evalkit.tools.paired_stats import N_BOOT, SEED, SEED_SCHEME, boot_ci, mark_of, round_keeping_sign
-from trajectory_eval.tools.scores import read_rows
+from evalkit.tools.paired_stats import N_BOOT, SEED, SEED_SCHEME, boot_ci, format_signed, mark_of, round_keeping_sign
+from trajectory_eval.tools.scores import HASH_KEY, read_rows
 
 # The key that decides the result. Less is better.
 KEY = "ate_rel"
 SIGN = -1
-# The strata a clip is given by its true trajectory's radius, as `surgical_core.stereomis.stratum_of` names them.
-STRATA = ("moving", "slow")
 # The shape of every clip, printed with each table, since a score depends on it.
 CLIP_SHAPE = "112 frames 0.2 s apart, 22.4 s, not overlapping"
 
 
 def check_population(rows: list[dict], base: str) -> None:
-    """Refuse a condition scored on other clips than the base, so every mean and every pair has one population.
+    """Refuse rows whose conditions were scored on other clips, so every mean and every pair has one population.
 
     Raises:
-        ValueError: the base has no row, or a condition's clips differ from the base's. The message names each
-            such condition with the counts.
+        ValueError: the base has no row, a condition's clips differ from the base's, or a clip's sequence,
+            stratum or `span_mm` differs between conditions. The message names each such condition or clip.
     """
+    # Refuse a condition that lacks one of the base's clips or adds one.
     clips = {}
     for r in rows:
         clips.setdefault(r["cond"], set()).add(r["clip"])
     if base not in clips:
         raise ValueError(f"no row of the base {base!r}; the conditions are {sorted(clips)}")
-    other = [f"{c} ({len(v - clips[base])} clips the base lacks, {len(clips[base] - v)} it lacks)"
+    other = [f"{c} (lacks {len(clips[base] - v)} of the base's clips, adds {len(v - clips[base])})"
              for c, v in sorted(clips.items()) if v != clips[base]]
     if other:
         raise ValueError(f"conditions scored on other clips than the base {base!r}: {other}")
+
+    # Refuse a clip cut in two ways. `trajectory_code_sha` does not cover how StereoMIS is cut into clips.
+    cuts = {}
+    for r in rows:
+        cuts.setdefault(r["clip"], set()).add((r["seq"], r["stratum"], r["span_mm"]))
+    twice = sorted(c for c, v in cuts.items() if len(v) > 1)
+    if twice:
+        raise ValueError(f"clips whose sequence, stratum or span_mm differs between conditions: {twice}")
 
 
 def table(rows: list[dict], stratum: str = "") -> None:
@@ -71,7 +79,8 @@ def compare(rows: list[dict], base: str, cond: str, stratum: str = "") -> dict:
     """Return and print the paired difference `cond - base` over the clips of `stratum`, or of every stratum.
 
     Raises:
-        ValueError: `boot_ci` refuses the pair: its clips come from fewer than two sequences.
+        ValueError: `boot_ci` refuses the pair: its clips come from fewer than two sequences. The message names
+            the pair.
     """
     from scipy import stats
 
@@ -81,17 +90,22 @@ def compare(rows: list[dict], base: str, cond: str, stratum: str = "") -> dict:
     clips = sorted(a)
     d = np.array([b[c][KEY] - a[c][KEY] for c in clips])
     seqs = np.array([a[c]["seq"] for c in clips])
-    lo, hi = boot_ci(d, seqs)
+    try:
+        lo, hi = boot_ci(d, seqs)
+    except ValueError as e:
+        raise ValueError(f"{cond} - {base}{f' within {stratum}' if stratum else ''}: {e}") from e
     w = stats.wilcoxon(d) if np.any(d != 0) else None
+    # The mark is read from the interval as written, so an end near zero keeps its sign.
     ci = [round_keeping_sign(lo), round_keeping_sign(hi)]
     mark = mark_of(ci, SIGN)
     p = None if w is None else round(float(w.pvalue), 5)
+    better, worse = int((d * SIGN > 0).sum()), int((d * SIGN < 0).sum())
     print(f"  {mark or ' '} {cond} - {base}: delta {d.mean():+.4f}  median {np.median(d):+.4f}  "
-          f"95%CI(seq) [{lo:+.4f}, {hi:+.4f}]  better-worse {(d < 0).sum()}-{(d > 0).sum()}  "
+          f"95%CI(seq) [{format_signed(ci[0])}, {format_signed(ci[1])}]  better-worse {better}-{worse}  "
           f"n={len(clips)} / {len(set(seqs))} seqs  p={'-' if p is None else p}")
-    return dict(base=base, cond=cond, key=KEY, stratum=stratum, n=len(clips), n_seq=int(len(set(seqs))),
+    return dict(base=base, cond=cond, key=KEY, stratum=stratum, n=len(clips), n_seq=len(set(seqs)),
                 delta=round(float(d.mean()), 4), median=round(float(np.median(d)), 4), ci95_seq=ci,
-                better=int((d < 0).sum()), worse=int((d > 0).sum()), wilcoxon_p=p, mark=mark)
+                better=better, worse=worse, wilcoxon_p=p, mark=mark)
 
 
 def per_seq(rows: list[dict], base: str) -> None:
@@ -109,22 +123,26 @@ def per_seq(rows: list[dict], base: str) -> None:
 
 
 def summarize(rows: list[dict], base: str) -> dict:
-    """Print the tables and the pairs, and return the pairs with the bootstrap's settings.
+    """Print the tables and the pairs, and return the pairs with the scorer's hash and the bootstrap's settings.
+
+    Args:
+        rows: the rows `read_rows` returns, which record one `trajectory_code_sha`.
+        base: the condition every other one is compared with.
 
     Raises:
         ValueError: `check_population` refuses the rows, or `compare` a pair.
     """
     check_population(rows, base)
-    out = {"clip_shape": CLIP_SHAPE, "n_boot": N_BOOT, "seed": SEED, "seed_scheme": SEED_SCHEME, "pairs": []}
+    out = {HASH_KEY: rows[0][HASH_KEY], "clip_shape": CLIP_SHAPE, "n_boot": N_BOOT, "seed": SEED,
+           "seed_scheme": SEED_SCHEME, "pairs": []}
     others = sorted({r["cond"] for r in rows} - {base})
     table(rows)
     print(f"\n===== pairs with {base} (negative is better; ★ better, ✗ worse: the 95% CI does not straddle 0) =====")
     out["pairs"] += [compare(rows, base, c) for c in others]
-    for st in STRATA:
-        if any(r["stratum"] == st for r in rows):
-            table(rows, stratum=st)
-            print(f"  -- pairs within {st} --")
-            out["pairs"] += [compare(rows, base, c, stratum=st) for c in others]
+    for st in sorted({r["stratum"] for r in rows}):
+        table(rows, stratum=st)
+        print(f"  -- pairs within {st} --")
+        out["pairs"] += [compare(rows, base, c, stratum=st) for c in others]
     per_seq(rows, base)
     return out
 
