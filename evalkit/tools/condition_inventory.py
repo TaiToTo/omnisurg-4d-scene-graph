@@ -36,11 +36,22 @@ PROV_NAME = "seed_info.json"
 # whether the tracker ran both ways. A tag tracked both ways on some clips
 # and forward on others mixes two propagation rules. `seed_labels` names
 # seeds made outside the tracking stage, which is all that tells two merges
-# of one condition to different K apart.
+# of one condition to different K apart. `condition_key` also holds the
+# edge ring, as `edge_ring_of` reads it.
 PROV_KEYS = ("sam_input", "depth_source", "seed_source", "track_base",
              "seed_min_area", "seed_topk", "point_grids", "bidir", "seed_labels")
 SEED_KEYS = ("points_per_side", "seed_edge_gain", "seed_smooth",
-             "edge_ring_masked", "seed_sam_kwargs", "produced_by")
+             "seed_sam_kwargs", "produced_by")
+
+# The inputs that burn geometric edges in, and those that burn none, as
+# `surgical_core.geometry.render.uses_geom_edge` sorts them; `none` is the
+# tracker input of the workbench's GT controls, which ran no tracker.
+# `tests/test_condition_inventory.py` fails if the lists and the function differ.
+EDGE_INPUTS = ("normal_edge", "rgb_edge")
+EDGELESS_INPUTS = ("rgb", "normal", "depth", "none")
+# The seed sources whose seed the segmenter cut from the `sam_input` image, in the run that wrote the record;
+# under the others `sam_input` is recorded only.
+CUT_FROM_SAM_INPUT = ("sam", "per_frame")
 
 # A label directory that holds pictures, never labels of a condition.
 VIZ_DIR = "viz"
@@ -96,11 +107,70 @@ def frames_kind(v) -> str:
     return str(v)
 
 
+def burns_edges(record: Mapping, key: str) -> bool:
+    """Return whether the input mode a record holds under `key` burns geometric edges in.
+
+    Raises:
+        ValueError: the mode is in neither `EDGE_INPUTS` nor `EDGELESS_INPUTS`, or the key is missing.
+    """
+    mode = record.get(key)
+    if mode in EDGE_INPUTS:
+        return True
+    if mode in EDGELESS_INPUTS:
+        return False
+    raise ValueError(f"{key} {mode!r} is no input this tool knows, so whether it burns edges cannot be told")
+
+
+def edge_ring_of(record: Mapping) -> bool | None:
+    """Return whether a condition masked the ring of its burnt-in edges, or None when no input of it burns edges.
+
+    The inputs are the seed's, when the run cut the seed itself, and the tracker's. The tracking stage records the
+    setting of both as `edge_ring_masked`. A record without that key, as the per-frame stage and the workbench write,
+    holds the setting of the seed's input alone, `seed_input.edge_ring_masked`. One run builds both inputs with one
+    setting, so the seed's setting stands for the tracker's input too.
+
+    Raises:
+        ValueError: the record cannot tell the setting: an input whose mode `burns_edges` does not know, or an input
+            that burns edges without a setting recorded for it. Also a setting other than true, false or null, a
+            setting for an input the run did not build with edges, and a setting that contradicts
+            `seed_input.edge_ring_masked`.
+    """
+    si = record.get("seed_input") or {}
+    seed_ring = si.get("edge_ring_masked")
+    # Find the inputs of the run that burn edges.
+    burning = ["track_base"] if burns_edges(record, "track_base") else []
+    if record.get("seed_source") in CUT_FROM_SAM_INPUT and burns_edges(record, "sam_input"):
+        burning.insert(0, "sam_input")
+    # Read the setting: the tracking stage's own key, or else the seed's, which covers the run when the seed burns.
+    if "edge_ring_masked" in record:
+        ring = record["edge_ring_masked"]
+    else:
+        ring = seed_ring if "sam_input" in burning else None
+    for name, value in (("seed_input.edge_ring_masked", seed_ring), ("edge_ring_masked", ring)):
+        if not (value is None or isinstance(value, bool)):
+            raise ValueError(f"{name} is {value!r}, not true, false or null")
+    if burning and ring is None:
+        inputs = " and ".join(f"{k} {record[k]}" for k in burning)
+        raise ValueError(f"{inputs} {'burns' if len(burning) == 1 else 'burn'} edges, and the record holds no "
+                         "edge ring")
+    if seed_ring is not None and "sam_input" not in burning:
+        raise ValueError(f"seed_input.edge_ring_masked is {seed_ring}, but the run cut no seed from an input that "
+                         f"burns edges: seed_source {record.get('seed_source')!r}, sam_input "
+                         f"{record.get('sam_input')!r}")
+    if ring is not None and not burning:
+        raise ValueError(f"edge_ring_masked is {ring}, but no input of the run burns edges")
+    if seed_ring is not None and seed_ring != ring:
+        raise ValueError(f"edge_ring_masked is {ring}, but seed_input.edge_ring_masked is {seed_ring}")
+    return ring
+
+
 def condition_key(record) -> str:
     """Return what tells a clip's condition from another's: the fields of `PROV_KEYS` and `SEED_KEYS`, as JSON.
 
+    The key also holds `frames_kind` of the frames, and `edge_ring_of` of the record as `edge_ring_masked`.
+
     Raises:
-        ValueError: `record`, or its `seed_input`, is not a JSON object.
+        ValueError: `record`, or its `seed_input`, is not a JSON object, or `edge_ring_of` refuses the record.
     """
     if not isinstance(record, Mapping):
         raise ValueError(f"a JSON {type(record).__name__}, not an object")
@@ -108,7 +178,7 @@ def condition_key(record) -> str:
     if not isinstance(si, Mapping):
         raise ValueError(f"seed_input is a JSON {type(si).__name__}, not an object")
     key = {**{k: record.get(k) for k in PROV_KEYS}, **{k: si.get(k) for k in SEED_KEYS},
-           "frames": frames_kind(record.get("frames"))}
+           "frames": frames_kind(record.get("frames")), "edge_ring_masked": edge_ring_of(record)}
     # The tracker writes "" when it read no seed labels, and its versions before `seed_labels` wrote no key.
     # Neither names seeds, so the two are one condition.
     key["seed_labels"] = key["seed_labels"] or None

@@ -86,9 +86,11 @@ def expected_record(stage: str, s: argparse.Namespace) -> dict:
         seed_input = dict(produced_by="external", cache_path=s.seed_labels, points_per_side=None,
                           seed_sam_kwargs=None, seed_edge_gain=None, seed_smooth=None, edge_ring_masked=None)
     _, _, both_ways = window(s.rule, 1)
+    burns_edges = (s.seed_labels is None and uses_geom_edge(s.sam_input)) or uses_geom_edge(s.track_base)
     return dict(seed_source="sam" if s.seed_labels is None else "external", seed_labels=s.seed_labels or "",
                 sam_input=s.sam_input, depth_source=s.depth_source, track_base=s.track_base, bidir=both_ways,
-                stride=1, seed_min_area=s.seed_min_area, seed_input=seed_input, instrument_seed="off")
+                stride=1, seed_min_area=s.seed_min_area, seed_input=seed_input, instrument_seed="off",
+                edge_ring_masked=(not s.keep_edge_ring) if burns_edges else None)
 
 
 def read_record(lab_dir: Path, clip: str) -> dict:
@@ -150,20 +152,12 @@ def check_inputs(stage: str, s: argparse.Namespace, root: Path, clips: list[str]
     """Refuse, before anything runs, what would make every process fail or run another condition.
 
     Raises:
-        ValueError: a GPU is listed twice; the tracker's input burns edges while the seed's record cannot say
-            whether their ring was kept; the SAM weights are missing or not given where the stage needs them;
+        ValueError: a GPU is listed twice; the SAM weights are missing or not given where the stage needs them;
             a clip is not under `root` with the depth the stage reads; or a clip's seed labels are missing.
             The message counts such clips and names the first five.
     """
     if len(set(gpus)) != len(gpus):
         raise ValueError(f"a GPU is listed twice in {gpus}")
-    # The stage records the ring of the seed's input only, so the ring of the tracker's would go unrecorded and a
-    # continued run could mix the two settings, until "The edge ring of the tracker's input" is decided.
-    if stage == "track" and uses_geom_edge(s.track_base) and (s.seed_labels is not None
-                                                               or not uses_geom_edge(s.sam_input)):
-        seed = "--seed-labels" if s.seed_labels is not None else f"--sam-input {s.sam_input}"
-        raise ValueError(f"--track-base {s.track_base} burns edges and {seed} records no edge ring, so whether the "
-                         "tracker's input kept its ring would be recorded nowhere")
     if s.sam_ckpt is None and not (stage == "track" and s.seed_labels is not None):
         raise ValueError("--sam-ckpt is needed to cut the frames, unless --seed-labels gives the seed regions")
     if s.sam_ckpt is not None and not Path(s.sam_ckpt).is_file():

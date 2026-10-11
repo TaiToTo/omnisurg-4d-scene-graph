@@ -266,7 +266,8 @@ def run_track(clip_dir: Path, tracks_root: Path, tag: str, rule: str, segmenter,
         seed_min_area: the fewest pixels a seed region keeps.
         seed_edge_gain, seed_smooth: the seed input's edge darkness and normal smoothing. The tracker's are
             `TRACK_EDGE_GAIN` and `TRACK_SMOOTH`.
-        mask_ring: zero the ring of the burnt-in edges, for the seed and the tracker alike.
+        mask_ring: zero the ring of the burnt-in edges, for the seed and the tracker alike. `seed_info.json`
+            records it as `edge_ring_masked`, null when neither input this run builds burns edges.
         seed_labels: a directory of seed regions made outside the stage (`read_seed_labels`), in place of the
             segmenter's. `sam_input` is then recorded but not used.
         overwrite: replace the condition's labels and montage when the clip already has them. They are
@@ -319,6 +320,9 @@ def run_track(clip_dir: Path, tracks_root: Path, tag: str, rule: str, segmenter,
     if not masks:
         raise ValueError(f"{clip_dir.name}: no seed region of {seed_min_area} pixels or more")
     print(f"  seed: {len(masks)} regions")
+    # The ring setting of every input this run builds with burnt-in edges; None when no such input is built.
+    burns_edges = (seed_labels is None and uses_geom_edge(sam_input)) or uses_geom_edge(track_base)
+    edge_ring_masked = mask_ring if burns_edges else None
 
     # Carry the regions through the tracker's frames, forwards, and backwards too under both_ways.
     tracker.init_video(np.stack([
@@ -342,14 +346,15 @@ def run_track(clip_dir: Path, tracks_root: Path, tag: str, rule: str, segmenter,
         for k, lab in sorted(labels.items()):
             np.save(partial / f"label_{frames[k]:04d}.npy", lab)
         # The keys and their order are the workbench's, so that a record compares with one written there;
-        # `instrument_seed` names an option the workbench had and this stage leaves out.
+        # `instrument_seed` names an option the workbench had and this stage leaves out. The last key,
+        # `edge_ring_masked`, is this stage's own: the workbench recorded the ring of the seed's input only.
         with open(partial / "seed_info.json", "w", encoding="utf-8") as f:
             json.dump(dict(clip=clip_dir.name, seed_frame=int(seed_frame),
                            seed_source="sam" if seed_labels is None else "external",
                            seed_labels=seed_labels or "", sam_input=sam_input, depth_source=depth_source,
                            track_base=track_base, bidir=both_ways, stride=1, seed_min_area=seed_min_area,
                            seed_input=seed_input, n_seed_regions=len(masks), instrument_seed="off",
-                           frames=[int(frames[k]) for k in sorted(labels)]),
+                           frames=[int(frames[k]) for k in sorted(labels)], edge_ring_masked=edge_ring_masked),
                       f, indent=1, ensure_ascii=False)
         write_montage(partial / montage.name, labels, frames, (h, w))
     except BaseException:

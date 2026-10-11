@@ -487,7 +487,10 @@ The stage reads the depth stage's bundle, and Pi3X's with
 - `seed_info.json` beside the labels: the seed frame, whether the stage
   carried both ways (`bidir`), the frames labelled and the settings the
   seed was made with. Its `seed_source` is `sam`, or `external` when the
-  seed was read with `--seed-labels`.
+  seed was read with `--seed-labels`. Its `edge_ring_masked` says whether
+  the edges' ring was masked in every input the stage built with burnt-in
+  edges, the seed's and the tracker's; it is null when the stage built
+  no such input.
 - `<tracks-root>/<clip>/viz/montage_track_<track-base>_<tag>.png`: every
   frame's labels, one colour per object.
 
@@ -594,10 +597,9 @@ and the stage's options keep their names and defaults.
 
 The command refuses:
 
-- before any process starts: an input a process would fail on, labels made
-  with other settings, and a tracker's input that burns edges with a seed
-  whose record holds no edge ring ("The edge ring of the tracker's input"
-  in `docs/porting.md`);
+- before any process starts: an input a process would fail on, and labels
+  made with other settings, tracked labels whose record lacks
+  `edge_ring_masked` among them;
 - after a clip: a record of other settings, which stops the run;
 - after the run: labels that are missing, incomplete or of other settings,
   and a process that exited non-zero.

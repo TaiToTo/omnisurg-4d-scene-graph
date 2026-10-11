@@ -138,6 +138,8 @@ A ported stage's output may differ from the workbench's in these places
 only:
 
 - **Pi3X's `runtime_sec`.**
+- **The tracking stage's `edge_ring_masked`.** The workbench's
+  `seed_info.json` has no such key.
 - **CholecSeg8k clips whose frames run out of order.** In videos that
   CholecSeg8k numbers at about 30 fps, the workbench's extractor placed the
   frames between annotations 1 to 3 s late, and one image could appear
@@ -207,15 +209,6 @@ Each question says what it blocks and where its answer is written.
   the propagation rule; where the one table that maps workbench names to
   names here lives; and whether the tools read their tags and their pairs
   from it. Blocks: naming new conditions. Answer in: that table.
-- **The edge ring of the tracker's input.** The tracking stage builds the
-  seed's input and the tracker's input with one ring setting.
-  `seed_info.json` records the setting once, as
-  `seed_input.edge_ring_masked`, for the seed's input only. When the seed
-  came from GT or from outside the stage, or the seed's input burns no
-  edges, the record holds no setting, even when the tracker's input burns
-  edges. So `check_provenance` and `condition_inventory` cannot compare it.
-  Open: where the record holds the tracker's setting. Answer in:
-  `docs/pipeline.md`, the tracking stage.
 - **Depth made by two versions of the depth stage.** On the development
   machine, 7 of the 9 CholecSeg8k clips carry depth from a branch of the
   workbench's depth stage that never reached its `main`: their bundle holds

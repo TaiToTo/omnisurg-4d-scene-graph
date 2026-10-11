@@ -319,12 +319,6 @@ def test_a_clip_that_fails_is_reported_with_its_log_and_the_others_run(run):
     ("per_frame", PER_FRAME + ["--depth-source", "pi3", "--sam-ckpt", "{ckpt}"], [0],
      r"2 clip\(s\) of the population lack the depth under .*: \['clip0 \(exports/mini_npz/results__pi3x.npz\)', "
      r"'clip1 \(exports/mini_npz/results__pi3x.npz\)'\]"),
-    # The stage records the seed input's ring only, so a tracker's input that burns edges would keep no record of it.
-    ("track", ["--rule", "both_ways_from_centre", "--sam-input", "rgb", "--track-base", "rgb_edge", "--sam-ckpt",
-               "{ckpt}"], [0], r"--track-base rgb_edge burns edges and --sam-input rgb records no edge ring"),
-    # The seed's input would burn edges, so the seed labels alone leave the ring unrecorded.
-    ("track", ["--rule", "both_ways_from_centre", "--sam-input", "normal_edge", "--track-base", "normal_edge",
-               "--seed-labels", "nowhere"], [0], r"--track-base normal_edge burns edges and --seed-labels records no"),
 ])
 def test_a_run_that_cannot_make_the_condition_is_refused_before_anything_runs(run, stage, options, gpus, match):
     root, tracks, ckpt = run
@@ -336,13 +330,24 @@ def test_a_run_that_cannot_make_the_condition_is_refused_before_anything_runs(ru
     assert not (tracks / "_calls").exists()
 
 
-def test_a_tracker_input_that_burns_edges_runs_when_the_seed_s_input_records_the_ring(run):
+@pytest.mark.parametrize("seed, ring", [
+    (["--sam-input", "rgb"], True),
+    (["--sam-input", "rgb", "--keep-edge-ring"], False),
+    (["--sam-input", "normal_edge", "--seed-labels", "{seeds}"], True),
+])
+def test_a_tracker_input_that_burns_edges_records_its_ring_whatever_made_the_seed(run, seed, ring):
+    # The seed's own record holds no ring for these seeds, so only the record's `edge_ring_masked` holds the tracker's.
     root, tracks, ckpt = run
     make_clip(root, "clip0")
-    s = settings("track", "--rule", "both_ways_from_centre", "--sam-input", "normal_edge", "--track-base", "rgb_edge",
-                 "--seed-min-area", "1", sam_ckpt=ckpt)
+    seeds = root.parent / "seeds"
+    (seeds / "clip0").mkdir(parents=True)
+    np.save(seeds / "clip0" / f"label_{N // 2:04d}.npy", np.zeros((H, W), int))
+    external = "--seed-labels" in seed
+    s = settings("track", "--rule", "both_ways_from_centre", "--track-base", "rgb_edge", "--seed-min-area", "1",
+                 *[o.replace("{seeds}", str(seeds)) for o in seed], sam_ckpt=None if external else ckpt)
     run_population("track", s, root, tracks, ["clip0"], [0])
-    assert (tracks / "clip0" / "track_rgb_edge_t" / "seed_info.json").is_file()
+    info = json.loads((tracks / "clip0" / "track_rgb_edge_t" / "seed_info.json").read_text())
+    assert (info["seed_input"]["edge_ring_masked"], info["edge_ring_masked"]) == (None, ring)
 
 
 def test_a_montage_left_without_its_labels_is_refused_before_anything_runs(run):
