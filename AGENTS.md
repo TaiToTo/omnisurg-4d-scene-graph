@@ -17,8 +17,11 @@ ships the evaluation toolkit those graphs are measured with, the pipeline that
 produces them, and a viewer.
 
 **Status: under construction.** The code is being extracted, file by file, from
-a private research workbench where the measurements were made. Until the
-extraction lands, most of the layout below does not exist yet.
+a private research workbench where the measurements were made. Every
+directory, file and module the layout below names exists, except a name in
+parentheses. A name in parentheses waits, and the words after its colon say
+what it waits on. `tests/test_agents_layout.py` checks the layout against
+the disk.
 
 ---
 
@@ -66,7 +69,7 @@ shape of another repo.
 
 ```
 omnisurg-4d-scene-graph/
-├── LICENSE  README.md  pyproject.toml  (CITATION.cff: at the release)
+├── LICENSE  README.md  pyproject.toml  (CITATION.cff: waits on the release)
 ├── surgical_core/     atlas120k clip_time geometry stereomis viewer
 │                      (cholec pointcloud: wait on the export stage)
 ├── evalkit/           the evaluator, hashed into eval_code_sha with its class tables
@@ -74,13 +77,13 @@ omnisurg-4d-scene-graph/
 │                      paired_stats compare_eval condition_inventory check_provenance
 │                      pilot_check kmerge pose_metrics pose_controls paired_table
 │                      arms_paired leave_one_video_out claims_table print_status_tables
-│                      (track_metrics: not yet ported)
+│                      (track_metrics: waits on its GT track)
 ├── pipeline/          depth → segmentation → tracking → viewer export
 ├── recon3d_wrapper/   3D reconstruction — DA3 and Pi3 behind one interface
-├── sam3_wrapper/      promptable segmentation and tracking (SAM 3)
-├── atlas120k_meta/    crop rectangles, frame ratios, clip population (no video)
-├── cholecseg8k_meta/  crop rectangles, clip population (no video)
-├── d4d_meta/          census clip list, scored sides (no frame or point cloud)
+├── sam3_wrapper/      promptable segmentation and tracking with SAM 3
+├── atlas120k_meta/    crop rectangles, frame ratios, clip population; no video
+├── cholecseg8k_meta/  crop rectangles, clip population; no video
+├── d4d_meta/          census clip list, scored sides; no frame or point cloud
 ├── viewer/
 ├── docs/              evaluation.md, pilot_evaluator.md, pipeline.md, porting.md,
 │                      review.md
