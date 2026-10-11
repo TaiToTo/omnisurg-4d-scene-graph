@@ -72,7 +72,8 @@ omnisurg-4d-scene-graph/
 │   └── tools/         what reads scores or predictions, never hashed: scores
 │                      paired_stats compare_eval condition_inventory check_provenance
 │                      pilot_check kmerge pose_controls paired_table arms_paired
-│                      leave_one_video_out claims_table (track_metrics: not yet ported)
+│                      leave_one_video_out claims_table print_status_tables
+│                      (track_metrics: not yet ported)
 ├── trajectory_eval/   the camera trajectory scorer, hashed into trajectory_code_sha;
 │                      its tools score StereoMIS and read the scores, never hashed
 ├── pipeline/          depth → segmentation → tracking → viewer export

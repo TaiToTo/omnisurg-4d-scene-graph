@@ -232,6 +232,7 @@ copy to read the RGB clips, and the ported copies read `evalkit.classes`.
 |---|---|---|---|
 | `paired_stats.py` | `ipcai2027_experiment/scripts/paired_stats.py` | `extract/03-metrics` (#3) | The rule does not change; `VERDICT_RULE` and `verdict` are named `MARK_RULE` and `mark_of`. The comparability check is `scores.check_comparable`, which applies the rule of `docs/evaluation.md`, in place of the pilot's, and the statistics are taken on the clips it compared. `video_of` is defined here rather than delegated. Each row records the metric's `sign` and `mark_of` reads the interval in it, so a metric where smaller is better, or a reference value that is never marked, is not oriented by the caller. An end of `ci95_video` that would round to zero at four places is written at two significant digits (`round_keeping_sign`), so a table gives the same ★ or ✗ from the written interval; the workbench wrote 0.0, which gives neither. `compare_pair` takes `keys`, and refuses one the evaluator does not write in the JSON's views. A bootstrap over fewer than two units refuses rather than return a point. |
 | `lovo_verdict.py` | `ipcai2027_experiment/scripts/lovo_verdict.py` | — | Ported as `evalkit/tools/leave_one_video_out.py`. It leaves each video out in turn and names the videos whose removal changes the mark that `paired_stats.mark_of` gives. It departs from the workbench in four places: the direction of each key comes from the table `paired_stats` reads, so the `_labeled` and `_tissue` keys are taken; `--keys` has no default; a key on three videos or fewer is refused, where the workbench printed that no video changed the mark; and a row prints how far the mean moved beside the ratio of widths, and names no cause. On the pilot's scores its rows equal the workbench's, with `verdict` named `mark`. Not carried: `--fairness-json`, `--doms` and `--keys all`. |
+| `print_status_tables.py` | `ipcai2027_experiment/atlas97/scripts/print_status_tables.py` | — | Ported as `evalkit/tools/print_status_tables.py`. It prints two of the workbench's four tables from the analysis JSONs, and computes nothing new: each geometry input against rgb merged to one K, and identity over time. It departs from the workbench in five places: each JSON's path is an argument; the identity table carries no mark ("No measure over time carries a star"); the identity table counts wins and losses in the key's direction, as `paired_table.py` does, where the workbench counted positive and negative differences; it prints `paired_stats.MARK_RULE` where the workbench printed the rule stored in the JSON; and it refuses a JSON of another mode of the analysis, a table's rows missing or extra, a matched row missing or extra, an interval that is `null`, and conditions measured against different GT tracks. It leaves out the other two tables, the paired comparisons of `kmerge.py --pairs` and the control without SAM, whose numbers the draft does not report. On the stored JSONs, every row holds the workbench's numbers, marks and names, the identity table's marks and the order of its wins and losses aside. Both tables read the JSONs of scripts not carried for now ("Conditions seeded from GT masks", "Two comparisons of the granularity result"). |
 | `compare_eval.py` | `depth_sam_tracking_experiment/compare_eval.py` | `extract/03-metrics` (#3) | It refuses to mix shas through `scores.check_comparable`, which also compares dataset, class set, view and mode. The table prints each metric's direction and no mark: the workbench's circle and cross followed the sign of the mean difference, a second rule for a mark besides `paired_stats.mark_of`. The per-clip list, the chart and `wins` follow the question's primary metric, named with `--key`; the directions of the pilot keys come from `scores.PILOT_SIGNS`, the one table `paired_stats` reads too. |
 | `paired_table.py` | `ipcai2027_experiment/atlas97/scripts/summary97.py` | — | Ported as `evalkit/tools/paired_table.py`. It prints the rows of `summary97.py`: each key's mean difference, with the mark that `paired_stats.mark_of` gives. It departs from the workbench in three places: it refuses a table whose conditions are not all comparable, leaves a cell on one video without a value, and refuses a reference value as a key. It leaves out the four `t12_*` rows ("Conditions seeded from GT masks") and the `t5_kgt` row ("`kmerge` is a tool"). On the pilot's 38 score JSONs, every number and mark equals the workbench's. Its rows on the evaluator's scores are open ("The paired table on the evaluator's scores"). |
 | `arms_paired.py` | `ipcai2027_experiment/scripts/arms_paired.py` | — | Ported as `evalkit/tools/arms_paired.py`. It prints one key's paired difference for several pairs of conditions, one line per pair. It departs from the workbench in five places: it reads one score JSON per condition, where the workbench read the per-clip F1 that `pps_f1.py` writes and no score JSON holds; a pair is `base:cond` and its line is `cond − base`, the reverse of the workbench's `a:b`; a condition with no score JSON is refused, where the workbench skipped the pair; it refuses a table whose conditions are not all comparable, with the check `paired_table` uses; and it marks a line in its key's direction, and never marks a key of direction 0. On the same per-clip values, every line equals the workbench's from the column after the pair's name on. It carries none of the workbench's 21 default pairs ("The pairs `arms_paired` reports"). |
@@ -240,7 +241,7 @@ copy to read the RGB clips, and the ported copies read `evalkit.classes`.
 | `surgical_core/viewer/labels.py`, `palette.py` | `surgical_core/viewer/` | `extract/03-metrics` (#3) | English only. `label_table_of` and `cholec_gt_table` move to a new `gt_tables.py`, the one viewer module that imports `evalkit`; `labels.py` builds its table from plain data, so a video with no class table gets one too. The rest of `surgical_core/viewer` is below, under "Not yet extracted anywhere". |
 | `kmerge.py` | `ipcai2027_experiment/scripts/kmerge.py` | `extract/04-kmerge` (#5) | Ported as `evalkit/tools/kmerge.py`, outside `eval_code_sha` ("`kmerge` is a tool"). It merges a condition's predictions down to K and writes them as a condition of their own, which the evaluator scores and `compare_eval` compares, so it computes no metric; `kmerge.json` records the source and the sha256 of its predictions, so a source re-tracked after the merge is told apart. Its merge equals the workbench's `kmerge_sequence` on 590 maps. It differs from the workbench in what it reads: it merges every frame that has a prediction, where the workbench merged every fifth; and it refuses a frame with a pixel without valid depth, or with a region id below -1, as the evaluator does, where the workbench dropped the labels of such pixels and merged on. Not carried for now: its scoring with the pilot's instance metrics, the curve over K, the `matched` K, `--pairs`, and the merges by threshold and by geometry (`tmerge_sequence`, `kgeo_sequence`). |
 | `claims_table.py` | `ipcai2027_experiment/task15_granularity/scripts/claims_table.py` | — | Ported as `evalkit/tools/claims_table.py`. It prints each claim of the granularity result: a pair of conditions in each dataset, with the pair's difference on one key, its interval, and ★ or ✗ from `paired_stats.mark_of`. A row is marked ★★ when both datasets are marked ★. It departs from the workbench in four places: it reads score JSONs through `paired_stats.compare_pair`, where the workbench read the analysis JSONs of `metric_fairness.py`, `fair_merge_recheck.py` and `settle_inputs.py`, which scored predictions themselves; it checks each claim's stage against the propagation rules the JSONs record; it refuses a column whose JSONs record another dataset or are not all comparable; and a cell with no score JSON is printed as not measured, and the command then exits non-zero. The first claim's base is `rgb_center18` (`ch_rgb_center`), where the workbench read `t5_floor`, which scored the same on every key. Checked with `t5_floor` on the pilot's score JSONs of the 13-video set and of CholecSeg8k, every cell's difference equals the workbench's analysis read at a stride of one frame, and every ★ and ✗ equals the workbench's table's. Its rows on the evaluator's scores are open ("The claims table on the evaluator's scores"). Not carried: the claims at K = 8, the comparisons at a matched number of regions and the merges stopped at a geometric boundary ("Not carried for now"), the per-frame stage's ceiling, the column of frame strides, and the note printed when the clip-level sign test disagrees with a ★. |
-| `surgical_core/geometry/` | `depth_sam_tracking_experiment/geometry.py` | `extract/04-kmerge` (#5) | English only. Shared by the pipeline and the viewer; the toolkit imports none of it. The workbench read the ring setting from the module flag `EDGE_MASK_RING`. Here it is `mask_ring`, an argument of `sam_input_image` and of the edge functions under it, with no default. A stage passes it at every call and records the value it passed under `edge_ring_masked`, or `None` for an input that burns no edges (`uses_geom_edge`). |
+| `surgical_core/geometry/` | `depth_sam_tracking_experiment/geometry.py` | `extract/04-kmerge` (#5) | English only. Shared by the pipeline and the viewer; the toolkit imports none of it. The workbench read the ring setting from the module flag `EDGE_MASK_RING`. Here it is `mask_ring`, an argument of `sam_input_image` and of the edge functions under it, with no default. A stage passes it at every call and records the value it passed under `edge_ring_masked`, or `None` for an input that burns no edges (`uses_geom_edge`). The 40 segmenter inputs that `tests/test_render_outputs_are_pinned.py` pins equal the workbench's, rendered with `EDGE_MASK_RING` set to each case's ring setting. |
 | `pose_metrics.py` | `ipcai2027_experiment/scripts/pose_metrics.py` | — | Ported as `trajectory_eval/pose_metrics.py`, hashed on its own ("The camera trajectory measures are hashed on their own"). It measures an estimated camera trajectory against StereoMIS's: `ate` after one similarity fit, `rpe` and `scale_consistency`; `ate_rel` decides the result. Its values equal the workbench's on 1200 random, planar and static trajectories. It refuses what the workbench let through: trajectories of unequal length, times out of order and values that are not finite. The reader of `stereomis_io.py` (calibration, rectified frames, the measured offsets between video, ground truth and depth, and the clips) is `surgical_core/stereomis.py`, and its clip writer is `pipeline/extract_stereomis.py`. The rest of the StereoMIS result is listed under "Not yet extracted anywhere": the command of `pose_controls.py`, and `summarize_20.py`, the table. `d4d_pose.py`, the D4D check of the same result, is listed there with D4D. |
 | `pose_controls.py` | `ipcai2027_experiment/scripts/pose_controls.py` | — | The floors and the ceiling (a static camera, constant motion and stereo visual odometry, which the result is compared with) are `evalkit/tools/pose_controls.py`. Scored by the workbench's `score`, they equal its `controls.json` on all 129 rows of the 43 clips, and the ceiling's trajectories equal the workbench's on P2_1's four clips. `score` and `method_traj` are `trajectory_eval/score.py`, hashed with `pose_metrics`; `method_traj` is `method_trajectory`, which refuses a clip without the bundle, where the workbench returned None. Every row records `trajectory_code_sha`, and `trajectory_eval/tools/scores.py` reads rows of one hash only. |
 | `condition_inventory.py` | `ipcai2027_experiment/scripts/condition_inventory.py` | `extract/05-inventory` (#4) | It reads `eval_code_sha`, `eval_code_tag` and `eval_version` from score JSONs. "One ruler" is now what `docs/evaluation.md` calls comparable: `eval_code_sha`, dataset, class set, view and mode all equal, and one propagation rule. The provenance fields now include `bidir`, whether the tracker ran both ways, and `seed_labels`, which alone tells two merges of one condition to different K apart. `condition_key` builds the key that tells two conditions apart; `check_provenance` reads it too. |
@@ -417,10 +418,8 @@ below.
     `depth_sam_tracking_experiment/run_all17_pipeline.sh` runs before the
     crop and the depth stage. `extract_cholec_frames.py`, which the take
     list named, ran in no condition.
-  - The paper's tables: `ipcai2027_experiment/atlas97/scripts/print_status_tables.py`,
-    which the manuscript names with `summary97.py` as the source of every
-    table; from `ipcai2027_experiment/scripts/`, `claims_grid.py` and
-    `summarize_20.py`, the StereoMIS table; and
+  - The paper's tables: from `ipcai2027_experiment/scripts/`,
+    `claims_grid.py` and `summarize_20.py`, the StereoMIS table; and
     `ipcai2027_experiment/task15_granularity/scripts/settle_inputs.py`.
     `claims_grid.py` reads `outputs/atlas`, the 13-video set, and
     `outputs/cholec_gt`.
@@ -513,13 +512,20 @@ public viewer reads a bundle"), from `viewer/demo.html` and
 - It reads each region's shape from the labels, where the demo matched the
   colour raster against the class colours; two classes of one colour are no
   longer one region.
-- It shows one track at a time, chosen in the regions menu or the strip; the
-  demo's pair of tracks side by side was reachable only by address.
+- It shows one track, or the two tracks a clip's hierarchy relates, drawn
+  together and linked where one track's region contains the other's. The
+  regions menu chooses between them. The demo's pair of tracks side by side
+  was reachable only by address.
 - It shows the side panel in per-frame mode too, where the demo hid it.
 - The focus band reads spatial relations only; the demo mixed in the action
   relations of CholecT50, where a clip has them.
+- The focus band takes a frame's relation from the edge stored from the
+  followed region, where the demo took whichever edge the file listed last.
+  The stored word is the one the edge's axes are checked against.
 - A file the clip's record lists that does not load stops the frame with an
   error, where the demo drew the frame without it.
+- A graph through time that `pipeline.viewer_bundle` would refuse is
+  refused with an error, and no band is drawn from it.
 
 The workbench's `depthcmp` and `workbench` pages, which compare depth models
 and browse every clip for research, are not carried ("Not carried for now").
@@ -552,16 +558,26 @@ and not before.
   - propagation over the pasted floor, in the abstract;
   - the loss of a geometry rendering under GT seeds.
 
-  They are measured again with this repository's code ("What the paper
-  measures"). Two questions stay open:
+  The draft's table of identity over time comes from
+  `ipcai2027_experiment/scripts/summarize_track12.py`, which measures the
+  conditions with `track_metrics`. Both results are measured again with
+  this repository's code ("What the paper measures"). Two questions stay
+  open:
   - whether the paper reports them;
   - how a GT seed is placed and scored ("Conditions seeded from GT").
 - **Two comparisons of the granularity result.** The manuscript's draft
   reports both, and `claims_table` leaves both out:
   - the geometry inputs against `rgb` at a matched number of regions.
-    `settle_inputs.py`, listed under "Not yet extracted anywhere",
-    interpolates `rgb`'s value on its curve over K, clip by clip, at the
-    geometry input's number of regions;
+    The draft's table of this comparison comes from
+    `ipcai2027_experiment/task15_granularity/scripts/fair_merge_recheck.py --mode input_track`.
+    The script scores the tracked labels of ATLAS-120k's 315 clips itself,
+    with the pilot evaluator's functions. Its table also compares the
+    inputs at the same K. `settle_inputs.py`, listed under "Not yet
+    extracted anywhere", makes the same comparison with its own F1, at both
+    stages, on the 13-video ATLAS-120k set and CholecSeg8k. The workbench's
+    claims table read its rows. Both scripts interpolate `rgb`'s value on
+    its curve over K, clip by clip, at the geometry input's number of
+    regions;
   - merges that never join two regions across a boundary of a depth,
     normal or depth-edge map, made by `kgeo_sequence` in
     `ipcai2027_experiment/scripts/kmerge.py`. The draft reports their gain
@@ -607,6 +623,19 @@ The second list holds what the paper's numbers do not use.
   `depth_sam_tracking_experiment/track_sam3_consensus.py` and
   `track_sam3_3d.py`. `consensus` is a mode of `run_track_conditions.py`,
   and the manuscript reports no consensus condition.
+- **The control without SAM**, `ipcai2027_experiment/atlas97/scripts/classic_seg.py`:
+  a marker-controlled watershed cuts the normal image and the RGB image from
+  the same markers. It tells whether the normal image lacks the boundaries
+  or SAM fails to read a normal image. The manuscript's draft reports no
+  number from it.
+- **The paired comparisons of `kmerge.py --pairs`**, in
+  `ipcai2027_experiment/scripts/`: the per-frame stage's F1 for two
+  conditions, both merged to one K or to the frame's count of the pilot's
+  GT objects, with the video-level interval of the difference. The run the
+  workbench reports compares `rgb_edge` merged with `rgb` merged, and the
+  draft reports no number from it. Ported, a comparison at one K is a run
+  of `kmerge` on each condition and a pair given to `paired_stats`, on the
+  evaluator's scores.
 - **Graphs built again**: `scripts/export_graph_cleanup_compare.py`, which
   builds each graph twice for a comparison page, and
   `scripts/backfill_depth_rel.py`, which adds `depth_rel` to graphs written

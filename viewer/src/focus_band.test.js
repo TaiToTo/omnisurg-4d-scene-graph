@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { axisX, frameAtX, nodeEvents, renderFocusBand, runsOf, topPartners } from './focus_band.js';
 
 const tg = {
+  frames: [0, 1, 2, 3, 4],
   nodes: [{ id: 1, present_frames: [0, 1, 2, 3, 4] }, { id: 2, present_frames: [0, 1, 2, 3, 4] }, { id: 3, present_frames: [0, 1] }],
   relations: [
     { src: 1, dst: 2, relation: 'left', edge_type: 'spatial', frames: [0, 1, 2] },
@@ -26,6 +27,26 @@ describe('topPartners', () => {
       { src: 1, dst: 2, relation: 'right', edge_type: 'spatial', frames: [3, 4] },
     ] };
     expect(topPartners(gap, 1)[0][1].changes).toEqual([]);
+  });
+
+  it('takes the word of the edge from the followed node, whatever order the file lists the edges in', () => {
+    const both = [
+      { src: 2, dst: 1, relation: 'above', edge_type: 'spatial', frames: [0, 1] },
+      { src: 1, dst: 2, relation: 'left', edge_type: 'spatial', frames: [1, 2] },
+      { src: 1, dst: 2, relation: 'right', edge_type: 'spatial', frames: [2] },
+    ];
+    for (const relations of [both, [...both].reverse()]) {
+      const [[, e]] = topPartners({ relations }, 1);
+      expect(e.relByFrame.get(0)).toBe('below');
+      expect(e.relByFrame.get(1)).toBe('left');
+      expect(e.frames).toBe(3);
+    }
+    expect(topPartners({ relations: both }, 1)[0][1].relByFrame.get(2)).toBe('left');
+    const mirrored = [
+      { src: 2, dst: 1, relation: 'above', edge_type: 'spatial', frames: [0] },
+      { src: 2, dst: 1, relation: 'left', edge_type: 'spatial', frames: [0] },
+    ];
+    expect(topPartners({ relations: mirrored }, 1)[0][1].relByFrame.get(0)).toBe('below');
   });
 
   it('puts the neighbour that changes most first, then the one sharing most frames', () => {
@@ -58,17 +79,30 @@ describe('events', () => {
   });
 
   it('lists entries, exits and relation changes in time order', () => {
-    const ev = nodeEvents(tg.nodes[2], [], [0, 4], String);
+    const ev = nodeEvents(tg.nodes[2], [], tg.frames, String);
     expect(ev).toEqual([{ f: 2, kind: 'exit', label: 'leaves the view' }]);
-    const ev1 = nodeEvents(tg.nodes[0], topPartners(tg, 1), [0, 4], (id) => `obj ${id}`);
+    const ev1 = nodeEvents(tg.nodes[0], topPartners(tg, 1), tg.frames, (id) => `obj ${id}`);
     expect(ev1).toEqual([{ f: 3, kind: 'rel', partner: 2, label: 'to obj 2: left → right' }]);
   });
 
   it('lets a node enter or leave only within the frames the graph covers', () => {
     // A track whose regions run from frame 2 to frame 6 of a longer clip.
     const node = { present_frames: [2, 3, 4, 5, 6] };
-    expect(nodeEvents(node, [], [2, 6], String)).toEqual([]);
-    expect(nodeEvents(node, [], [0, 9], String).map((e) => [e.kind, e.f])).toEqual([['enter', 2], ['exit', 7]]);
+    expect(nodeEvents(node, [], [2, 3, 4, 5, 6], String)).toEqual([]);
+    expect(nodeEvents(node, [], [...Array(10).keys()], String).map((e) => [e.kind, e.f])).toEqual([['enter', 2], ['exit', 7]]);
+  });
+
+  it('counts no entry or exit across a frame the graph does not cover', () => {
+    const frames = [0, 1, 2, 5, 6];
+    expect(nodeEvents({ present_frames: frames }, [], frames, String)).toEqual([]);
+    expect(nodeEvents({ present_frames: [0, 1, 6] }, [], frames, String).map((e) => [e.kind, e.f])).toEqual([['exit', 2], ['enter', 6]]);
+  });
+
+  it('draws no event for a node on every frame the graph covers', () => {
+    const frames = [0, 1, 2, 5, 6];
+    const el = bandElement(900);
+    const sparse = { frames, nodes: [{ id: 1, present_frames: frames }], relations: [] };
+    expect(renderFocusBand(el, { tg: sparse, nodeId: 1, lastFrame: 9, frame: 0, onFrame() {}, labelOf: String })).toEqual([]);
   });
 });
 

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   checkClipId, checkCloud, checkFormat, clearCaches, decodeRuns, fetchGraph, fetchHierarchy, fetchRegions, fetchTemporal,
-  FORMAT, frameName, loadCatalog, loadClip, loadCloud,
+  FORMAT, frameName, loadCatalog, loadClip, loadCloud, temporalProblem,
 } from './data.js';
 
 const gltfLoad = vi.hoisted(() => ({ fn: null }));
@@ -150,6 +150,73 @@ describe('fetching a clip', () => {
     await expect(loadClip('c')).rejects.toThrow(/HTTP 404/);
     fail = false;
     await expect(loadClip('c')).rejects.toThrow(/describes d/);
+  });
+
+  it('refuses a malformed graph through time, and reads a sound one', async () => {
+    // The track has a scene graph on frame 1 only, of the clip's two frames.
+    const withTemporal = { ...clipJSON, tracks: [{ ...clipJSON.tracks[0], graph_frames: [1], temporal: true }] };
+    const sound = { frames: [1], nodes: [{ id: 1, label: 'obj 1', present_frames: [1] }], relations: [{ src: 1, dst: 2, relation: 'left', frames: [1] }] };
+    let body = sound;
+    vi.stubGlobal('fetch', vi.fn((url) => respond(url.endsWith('clip.json') ? withTemporal : body)));
+    expect(await fetchTemporal(await loadClip('c'), 't')).toEqual(sound);
+    for (const [bad, msg] of [
+      [{ ...sound, relations: [{ src: 1, dst: 2, relation: 'left', frames: ['<img src=x>'] }] }, /graph through time of c is malformed/],
+      [{ nodes: [], relations: [] }, /are not lists/],
+      [{ ...sound, frames: [0, 1] }, /not the 1 frames the track has scene graphs on/],
+    ]) {
+      clearCaches();
+      body = bad;
+      await expect(fetchTemporal(await loadClip('c'), 't')).rejects.toThrow(msg);
+    }
+  });
+});
+
+describe('temporalProblem', () => {
+  const node = { id: 1, label: 'obj 1', present_frames: [0] };
+  const rel = { src: 1, dst: 2, relation: 'left', frames: [0] };
+  const sound = { frames: [0, 1], nodes: [node], relations: [rel] };
+  const problem = (tg) => temporalProblem(tg, [0, 1]);
+  const withNode = (x) => problem({ ...sound, nodes: [{ ...node, ...x }] });
+  const withRelation = (x) => problem({ ...sound, relations: [{ ...rel, ...x }] });
+
+  it('passes a sound graph, a node without label or frames included', () => {
+    expect(problem(sound)).toBeNull();
+    expect(problem({ frames: [0, 1], nodes: [{ id: 1 }], relations: [{ src: 1, dst: 2, relation: 'left' }] })).toBeNull();
+    expect(temporalProblem({ frames: [3, 5], nodes: [{ id: 1, present_frames: [5] }], relations: [] }, [3, 5])).toBeNull();
+  });
+
+  it('names what is wrong with each part', () => {
+    expect(problem(null)).toMatch(/not an object/);
+    expect(problem([])).toMatch(/not an object/);
+    expect(problem(7)).toMatch(/not an object/);
+    for (const k of ['frames', 'nodes', 'relations']) {
+      expect(problem({ ...sound, [k]: undefined })).toMatch(/are not lists/);
+      expect(problem({ ...sound, [k]: {} })).toMatch(/are not lists/);
+    }
+    for (const frames of [[0], [1, 0], [0, 1, 1], [0, 500], [0, true]]) {
+      expect(problem({ ...sound, frames })).toMatch(/its frames are not the 2 frames the track has scene graphs on/);
+    }
+    expect(withNode({ id: '1' })).toMatch(/node "1"/);
+    expect(withNode({ present_frames: [0.5] })).toMatch(/node 1/);
+    expect(withNode({ present_frames: [2] })).toMatch(/node 1 .* frames the graph lists/);
+    expect(withNode({ present_frames: [-1] })).toMatch(/node 1/);
+    expect(withNode({ present_frames: [0, 0] })).toMatch(/node 1 .* rising frames/);
+    expect(withNode({ present_frames: [1, 0] })).toMatch(/node 1 .* rising frames/);
+    expect(withNode({ id: true })).toMatch(/node true/);
+    expect(withNode({ label: 7 })).toMatch(/a string label/);
+    expect(problem({ ...sound, nodes: [7] })).toMatch(/node undefined/);
+    expect(withRelation({ dst: null })).toMatch(/relation of 1 and null/);
+    expect(withRelation({ src: 1.5 })).toMatch(/relation of 1.5/);
+    expect(withRelation({ relation: 3 })).toMatch(/a word/);
+    expect(withRelation({ frames: null })).toMatch(/frames the graph lists/);
+    expect(withRelation({ frames: [2] })).toMatch(/frames the graph lists/);
+    expect(withRelation({ frames: [1, 1] })).toMatch(/rising frames/);
+    expect(withRelation({ frames: [1, 0] })).toMatch(/rising frames/);
+    expect(problem({ ...sound, relations: ['left'] })).toMatch(/relation of undefined/);
+  });
+
+  it('refuses a frame of the clip the graph does not list', () => {
+    expect(temporalProblem({ frames: [3, 5], nodes: [{ id: 1, present_frames: [4] }], relations: [] }, [3, 5])).toMatch(/node 1/);
   });
 });
 

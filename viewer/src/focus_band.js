@@ -24,22 +24,33 @@ export function frameAtX(px, W, n) {
 /**
  * The neighbours of `nodeId` in a graph through time, the one whose relation to it changes most first,
  * ties by how many frames they share. A relation is read from `nodeId`'s side: "nodeId is <relation> of".
+ * On a frame with an edge each way, the edge from `nodeId` gives the word, since it is the word the
+ * graph stored; of two edges the same way, the first in the file does.
  *
  * @returns {Array<[number, {relByFrame:Map<number,string>, changes:Array<{f,from,to}>, frames:number}]>}
  */
 export function topPartners(tg, nodeId, k = 1) {
   const byPartner = new Map();
+  const fromNode = new Map();
   for (const r of tg?.relations || []) {
     if (r.edge_type && r.edge_type !== 'spatial') continue;
     if (r.src !== nodeId && r.dst !== nodeId) continue;
-    const other = r.src === nodeId ? r.dst : r.src;
-    if (!byPartner.has(other)) byPartner.set(other, { relByFrame: new Map(), changes: [], frames: 0 });
-    const e = byPartner.get(other);
-    e.frames += (r.frames || []).length;
-    const rel = r.src === nodeId ? r.relation : (MIRROR_REL[r.relation] ?? r.relation);
-    for (const f of r.frames || []) if (Number.isInteger(f)) e.relByFrame.set(f, rel);
+    const direct = r.src === nodeId;
+    const other = direct ? r.dst : r.src;
+    if (!byPartner.has(other)) {
+      byPartner.set(other, { relByFrame: new Map(), changes: [], frames: 0 });
+      fromNode.set(other, new Map());
+    }
+    const e = byPartner.get(other), from = fromNode.get(other);
+    const rel = direct ? r.relation : (MIRROR_REL[r.relation] ?? r.relation);
+    for (const f of r.frames || []) {
+      if (!Number.isInteger(f) || (from.has(f) && (from.get(f) || !direct))) continue;
+      e.relByFrame.set(f, rel);
+      from.set(f, direct);
+    }
   }
   for (const e of byPartner.values()) {
+    e.frames = e.relByFrame.size;
     const fr = [...e.relByFrame.keys()].sort((a, b) => a - b);
     for (let j = 1; j < fr.length; j++) {
       if (fr[j] === fr[j - 1] + 1 && e.relByFrame.get(fr[j]) !== e.relByFrame.get(fr[j - 1])) {
@@ -65,15 +76,19 @@ export function runsOf(frames) {
 
 /**
  * List the events of a node, in time order: where it enters and leaves the view, and where its relation to
- * each given neighbour changes. A node enters or leaves only within `[first, last]`, the frames the graph covers.
+ * each given neighbour changes. `frames` are the frames the graph covers, in order. A node enters on a frame
+ * of these it is on after one it is not on, and leaves on a frame it is not on after one it is on, so a
+ * frame the graph does not cover is no event.
  *
  * @returns {Array<{f:number, kind:'enter'|'exit'|'rel', partner?:number, label:string}>}
  */
-export function nodeEvents(node, partners, [first, last], labelOf) {
+export function nodeEvents(node, partners, frames, labelOf) {
   const events = [];
-  for (const [a, b] of runsOf(node.present_frames || [])) {
-    if (a > first) events.push({ f: a, kind: 'enter', label: 'enters the view' });
-    if (b < last) events.push({ f: b + 1, kind: 'exit', label: 'leaves the view' });
+  const present = new Set(node.present_frames || []);
+  for (let k = 1; k < frames.length; k++) {
+    const was = present.has(frames[k - 1]), is = present.has(frames[k]);
+    if (is && !was) events.push({ f: frames[k], kind: 'enter', label: 'enters the view' });
+    if (was && !is) events.push({ f: frames[k], kind: 'exit', label: 'leaves the view' });
   }
   for (const [other, e] of partners) {
     for (const c of e.changes) events.push({ f: c.f, kind: 'rel', partner: other, label: `to ${labelOf(other)}: ${c.from} → ${c.to}` });
@@ -100,9 +115,7 @@ export function renderFocusBand(el, { tg, nodeId, lastFrame, frame, onFrame, onE
   const W = Math.max(300, Math.floor(el.getBoundingClientRect().width || 0) - 2 || 800);
   const x = (f) => axisX(f, W, n);
   const partners = topPartners(tg, nodeId);
-  const covered = (Array.isArray(tg.frames) ? tg.frames : []).filter(Number.isInteger);
-  const span = covered.length ? [Math.min(...covered), Math.max(...covered)] : [0, lastFrame];
-  const events = nodeEvents(node, partners, span, labelOf);
+  const events = nodeEvents(node, partners, tg.frames, labelOf);
   const byAxis = partners.length && axes?.byFrame?.size ? axes.byFrame : null;
   const edgeH = !partners.length ? 0 : byAxis ? 3 * (AXIS_H + AXIS_GAP) : EDGE_H;
   const H = TOP + edgeH + ROW_H + 14;
