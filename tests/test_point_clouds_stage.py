@@ -139,6 +139,14 @@ def with_a_wrong_n_frames(clip):
     p.write_text(p.read_text().replace('"n_frames": 3', '"n_frames": 4'))
 
 
+def with_no_usable_depth_in_any_frame(clip):
+    p = clip / "exports" / "mini_npz" / "results.npz"
+    z = dict(np.load(p))
+    depth = np.zeros_like(z["depth"])
+    depth[0, 0, 0], depth[1, 0, 0] = np.nan, np.inf
+    np.savez(p, **{**z, "depth": depth})
+
+
 REFUSALS = [
     (without_bundle, FileNotFoundError, "run the depth stage first"),
     (with_fewer_extrinsics, ValueError, "2 extrinsics"),
@@ -150,6 +158,7 @@ REFUSALS = [
     (with_an_extra_frame, ValueError, "4 seq_idx values are not 0 to 2"),
     (with_a_frame_short, ValueError, "2 seq_idx values are not 0 to 2"),
     (with_a_wrong_n_frames, ValueError, "n_frames is 4, but the manifest holds 3"),
+    (with_no_usable_depth_in_any_frame, ValueError, "clip: no frame of the 3 has usable depth"),
 ]
 
 

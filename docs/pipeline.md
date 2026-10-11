@@ -396,6 +396,28 @@ command refuses:
   resolution;
 - a process that exited non-zero; the message names its log.
 
+## The point-cloud stage
+
+```bash
+python -m pipeline.point_clouds --input-dir /path/to/clips [--clips <clip> ...]
+```
+
+The stage writes each frame's point cloud from DA3's bundle, coloured by
+the frame's image, as `pc_vis/frame_NNNN.glb`. It records each cloud's
+centroid and the camera's position and axes on the frame's manifest
+entry, where the viewer bundle stage reads them. A frame with no usable
+depth gets no cloud. The stage refuses:
+
+- a clip without a bundle, a manifest, or an image for a frame of the
+  bundle;
+- a bundle without one depth map, intrinsics and extrinsics per frame, or
+  a manifest whose frames are not the bundle's;
+- a clip with no usable depth in any frame, which would get no cloud at
+  all.
+
+A refused clip is left as it was. The stage runs every clip and exits with
+an error if one failed. It needs the `render` extra.
+
 ## The Pi3X stage
 
 ```bash

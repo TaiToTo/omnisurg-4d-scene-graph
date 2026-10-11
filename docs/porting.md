@@ -277,11 +277,6 @@ Each question says what it blocks and where its answer is written.
   as having none. Open: whether such a mask moves out of `seg_masks/` or
   takes a name of its own. Blocks: porting the step that writes them.
   Answer in: `docs/pipeline.md`.
-- **A clip with no usable depth in any frame.** The point-cloud stage skips
-  a frame with no usable depth, as the workbench does. A clip with no
-  usable depth in any frame gets no cloud and a count of 0, and the run
-  exits 0. No real clip has done this. Open: whether the stage refuses
-  such a clip. Answer in: `docs/pipeline.md`, the point-cloud stage.
 
 ### StereoMIS
 
