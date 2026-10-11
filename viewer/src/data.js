@@ -178,27 +178,27 @@ export function fetchGraph(clip, track, i) {
 
 /**
  * Say what makes a graph through time unreadable by the bundle stage's rule, or return null. `graphFrames`
- * are the frames the track has a scene graph on. The graph's `frames` are those frames, and every frame a
- * node or a relation lists is one of them. Node ids and a relation's ends are integers, and a relation's
- * word and a label are strings. The band draws these values, and one of another type draws a band that
- * looks right and is not.
+ * are the frames the track has a scene graph on. The graph's `frames` are those frames, and the frames a
+ * node or a relation lists are some of them, in rising order. Node ids and a relation's ends are integers,
+ * and a relation's word and a label are strings. The band draws these values, and one of another type draws
+ * a band that looks right and is not.
  */
 export function temporalProblem(tg, graphFrames) {
   if (!tg || typeof tg !== 'object' || Array.isArray(tg)) return 'it is not an object';
   const { frames, nodes, relations } = tg;
   if (![frames, nodes, relations].every(Array.isArray)) return 'its frames, nodes or relations are not lists';
   const covered = new Set(graphFrames);
-  const listed = (v = []) => Array.isArray(v) && v.every((f) => Number.isInteger(f) && covered.has(f));
-  // The band draws a node's entries and exits only between the first and the last of these frames.
+  // A frame listed twice or out of order would draw an entry or an exit that never happened.
+  const listed = (v = []) => Array.isArray(v) && v.every((f, k) => Number.isInteger(f) && covered.has(f) && (k === 0 || v[k - 1] < f));
   if (frames.length !== graphFrames.length || frames.some((f, k) => f !== graphFrames[k])) {
     return `its frames are not the ${graphFrames.length} frames the track has scene graphs on`;
   }
   const bad = nodes.find((x) => !Number.isInteger(x?.id) || !listed(x.present_frames)
     || !['string', 'undefined'].includes(typeof x.label));
-  if (bad) return `node ${JSON.stringify(bad?.id)} does not have an integer id, frames the graph lists and, if any, a string label`;
+  if (bad) return `node ${JSON.stringify(bad?.id)} does not have an integer id, rising frames the graph lists and, if any, a string label`;
   const rel = relations.find((r) => !Number.isInteger(r?.src) || !Number.isInteger(r?.dst)
     || typeof r.relation !== 'string' || !listed(r.frames));
-  if (rel) return `the relation of ${JSON.stringify(rel?.src)} and ${JSON.stringify(rel?.dst)} does not have integer ends, a word and frames the graph lists`;
+  if (rel) return `the relation of ${JSON.stringify(rel?.src)} and ${JSON.stringify(rel?.dst)} does not have integer ends, a word and rising frames the graph lists`;
   return null;
 }
 

@@ -377,10 +377,21 @@ def test_a_frame_graph_of_another_shape_or_off_the_frames_regions_is_refused(tmp
     (lambda tg: tg["nodes"][0].update(present_frames=[0.5]), "node 1"),
     (lambda tg: tg["nodes"][0].update(present_frames=[-1]), "node 1"),
     (lambda tg: tg["nodes"][0].update(present_frames=[True]), "node 1"),
+    (lambda tg: tg["nodes"][0].update(present_frames=[0, 0, 1]), "node 1"),
+    (lambda tg: tg["nodes"][0].update(present_frames=[1, 0]), "node 1"),
+    (lambda tg: tg["nodes"][0].update(present_frames={}), "node 1"),
+    (lambda tg: tg["nodes"][0].update(present_frames=None), "node 1"),
+    (lambda tg: tg["nodes"][0].update(id=True), "node True"),
+    (lambda tg: tg["relations"][0].update(frames=[1, 1]), "relation of 1 and 2"),
+    (lambda tg: tg["relations"][0].update(frames=[1, 0]), "relation of 1 and 2"),
+    (lambda tg: tg["relations"][0].update(frames={}), "relation of 1 and 2"),
+    (lambda tg: tg["relations"][0].update(frames=None), "relation of 1 and 2"),
     (lambda tg: tg["nodes"][0].update(label=["x"]), "node 1"),
     (lambda tg: tg["nodes"].append(1), "node None"),
     (lambda tg: tg.update(frames=[0, 3]), "frames are not the 3 frames"),
     (lambda tg: tg.update(frames=[0, 1]), "frames are not the 3 frames"),
+    (lambda tg: tg.update(frames=[0, 2]), "frames are not the 3 frames"),
+    (lambda tg: tg.update(frames=[0, 1, 1, 2]), "frames are not the 3 frames"),
     (lambda tg: tg.update(frames=[2, 1, 0]), "frames are not the 3 frames"),
     (lambda tg: tg.update(frames=[0.0, 1.0, 2.0]), "frames are not the 3 frames"),
     (lambda tg: tg.update(frames=[0, True, 2]), "frames are not the 3 frames"),
@@ -399,6 +410,17 @@ def test_a_graph_through_time_of_another_shape_is_refused(tmp_path, fault, match
     fault(tg)
     path.write_text(json.dumps(tg))
     _fails(tmp_path, match)
+
+
+def test_a_graph_through_time_may_leave_out_a_label_and_the_frames_of_a_node_or_a_relation(tmp_path):
+    # The page allows the same, so the two checks must not drift apart.
+    clip = make_clip(tmp_path / "in")
+    (tmp_path / "out").mkdir()
+    path = clip / "pc_vis" / "temporal_graph__sam3d.json"
+    tg = {"frames": [0, 1, 2], "nodes": [{"id": 1}], "relations": [{"src": 1, "dst": 2, "relation": "left"}]}
+    path.write_text(json.dumps(tg))
+    vb.bundle_clip(clip, tmp_path / "out", ["sam3d"])
+    assert read(tmp_path / "out" / CLIP / "graphs" / "sam3d" / "temporal.json") == tg
 
 
 def test_a_graph_through_time_that_is_not_an_object_is_refused(tmp_path):

@@ -200,6 +200,9 @@ describe('temporalProblem', () => {
     expect(withNode({ present_frames: [0.5] })).toMatch(/node 1/);
     expect(withNode({ present_frames: [2] })).toMatch(/node 1 .* frames the graph lists/);
     expect(withNode({ present_frames: [-1] })).toMatch(/node 1/);
+    expect(withNode({ present_frames: [0, 0] })).toMatch(/node 1 .* rising frames/);
+    expect(withNode({ present_frames: [1, 0] })).toMatch(/node 1 .* rising frames/);
+    expect(withNode({ id: true })).toMatch(/node true/);
     expect(withNode({ label: 7 })).toMatch(/a string label/);
     expect(problem({ ...sound, nodes: [7] })).toMatch(/node undefined/);
     expect(withRelation({ dst: null })).toMatch(/relation of 1 and null/);
@@ -207,6 +210,8 @@ describe('temporalProblem', () => {
     expect(withRelation({ relation: 3 })).toMatch(/a word/);
     expect(withRelation({ frames: null })).toMatch(/frames the graph lists/);
     expect(withRelation({ frames: [2] })).toMatch(/frames the graph lists/);
+    expect(withRelation({ frames: [1, 1] })).toMatch(/rising frames/);
+    expect(withRelation({ frames: [1, 0] })).toMatch(/rising frames/);
     expect(problem({ ...sound, relations: ['left'] })).toMatch(/relation of undefined/);
   });
 

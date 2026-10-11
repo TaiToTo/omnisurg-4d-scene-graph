@@ -700,9 +700,10 @@ The stage refuses:
   `nodes` and `relations`, or that has one of these:
   - `frames` other than the frames the track has scene graphs on;
   - an entry of `nodes` without an integer id, with a frame outside
-    `frames`, or with a label that is not a string;
-  - an entry of `relations` without integer ends or a string relation, or
-    with a frame outside `frames`;
+    `frames`, with frames that do not rise, or with a label that is not a
+    string;
+  - an entry of `relations` without integer ends or a string relation, with
+    a frame outside `frames`, or with frames that do not rise;
 - a clip already under `--out`, unless `--overwrite` is given.
 
 A refused clip leaves what was under `--out` as it was: a clip replaces an

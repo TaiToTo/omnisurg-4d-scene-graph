@@ -379,15 +379,16 @@ def check_temporal(tg: dict, graph_frames: list[int], where: str) -> None:
     """Check that a graph through time lists the frames its track has scene graphs on, with integer ids.
 
     `graph_frames` are the frames the track has a scene graph on, in order. The graph's `frames` must equal
-    them, and every frame a node or a relation lists must be one of them. The viewer draws the ids, the labels
-    and the words into the page, so a value of another kind is refused here.
+    them, and the frames a node or a relation lists must be some of them, in rising order. The viewer draws
+    the ids, the labels and the words into the page, so a value of another kind is refused here.
 
     Raises:
         ValueError: one of these:
             - the graph is not an object whose `frames`, `nodes` and `relations` are lists
             - its `frames` are not `graph_frames`
-            - a node is not an object with an integer id, frames the graph lists and, if any, a string label
-            - a relation is not an object with integer ends, a string word and frames the graph lists
+            - a node is not an object with an integer id, rising frames the graph lists and, if any, a
+              string label
+            - a relation is not an object with integer ends, a string word and rising frames the graph lists
     """
     if not isinstance(tg, dict):
         raise ValueError(f"{where}: it is not an object")
@@ -396,22 +397,23 @@ def check_temporal(tg: dict, graph_frames: list[int], where: str) -> None:
     covered = set(graph_frames)
 
     def frames_ok(fs):
-        return isinstance(fs, list) and all(type(f) is int and f in covered for f in fs)
-    # The viewer draws a node's entries and exits only between the first and the last of these frames.
+        # A frame listed twice or out of order would draw an entry or an exit that never happened.
+        return (isinstance(fs, list) and all(type(f) is int and f in covered for f in fs)
+                and all(a < b for a, b in zip(fs, fs[1:])))
     if not (frames_ok(tg["frames"]) and tg["frames"] == graph_frames):
         raise ValueError(f"{where}: its frames are not the {len(graph_frames)} frames the track has scene graphs on")
     for node in tg["nodes"]:
         x = node if isinstance(node, dict) else {}
         if (type(x.get("id")) is not int or not frames_ok(x.get("present_frames", []))
                 or not isinstance(x.get("label", ""), str)):
-            raise ValueError(f"{where}: node {x.get('id')!r} does not have an integer id, frames the graph "
-                             "lists and, if any, a string label")
+            raise ValueError(f"{where}: node {x.get('id')!r} does not have an integer id, rising frames the "
+                             "graph lists and, if any, a string label")
     for r in tg["relations"]:
         x = r if isinstance(r, dict) else {}
         if (type(x.get("src")) is not int or type(x.get("dst")) is not int or not isinstance(x.get("relation"), str)
                 or not frames_ok(x.get("frames", []))):
             raise ValueError(f"{where}: the relation of {x.get('src')!r} and {x.get('dst')!r} does not have integer "
-                             "ends, a word and frames the graph lists")
+                             "ends, a word and rising frames the graph lists")
 
 
 def track_record(clip_dir: Path, track: str, n: int, dataset: str) -> dict:
