@@ -153,55 +153,65 @@ describe('fetching a clip', () => {
   });
 
   it('refuses a malformed graph through time, and reads a sound one', async () => {
-    const withTemporal = { ...clipJSON, tracks: [{ ...clipJSON.tracks[0], temporal: true }] };
-    const sound = { nodes: [{ id: 1, label: 'obj 1', present_frames: [0, 1] }], relations: [{ src: 1, dst: 2, relation: 'left', frames: [0] }] };
+    // The track has a scene graph on frame 1 only, of the clip's two frames.
+    const withTemporal = { ...clipJSON, tracks: [{ ...clipJSON.tracks[0], graph_frames: [1], temporal: true }] };
+    const sound = { frames: [1], nodes: [{ id: 1, label: 'obj 1', present_frames: [1] }], relations: [{ src: 1, dst: 2, relation: 'left', frames: [1] }] };
     let body = sound;
     vi.stubGlobal('fetch', vi.fn((url) => respond(url.endsWith('clip.json') ? withTemporal : body)));
     expect(await fetchTemporal(await loadClip('c'), 't')).toEqual(sound);
-    clearCaches();
-    body = { nodes: [] };
-    expect((await fetchTemporal(await loadClip('c'), 't')).relations).toEqual([]);
-    clearCaches();
-    body = { relations: [] };
-    expect((await fetchTemporal(await loadClip('c'), 't')).nodes).toEqual([]);
-    clearCaches();
-    body = { ...sound, relations: [{ src: 1, dst: 2, relation: 'left', frames: ['<img src=x>'] }] };
-    await expect(fetchTemporal(await loadClip('c'), 't')).rejects.toThrow(/graph through time of c is malformed/);
-    clearCaches();
-    // The clip has two frames, so frame 2 is past its end.
-    body = { ...sound, relations: [{ src: 1, dst: 2, relation: 'left', frames: [2] }] };
-    await expect(fetchTemporal(await loadClip('c'), 't')).rejects.toThrow(/frames 0 to 1/);
+    for (const [bad, msg] of [
+      [{ ...sound, relations: [{ src: 1, dst: 2, relation: 'left', frames: ['<img src=x>'] }] }, /graph through time of c is malformed/],
+      [{ nodes: [], relations: [] }, /are not lists/],
+      [{ ...sound, frames: [0, 1] }, /not the 1 frames the track has scene graphs on/],
+    ]) {
+      clearCaches();
+      body = bad;
+      await expect(fetchTemporal(await loadClip('c'), 't')).rejects.toThrow(msg);
+    }
   });
 });
 
 describe('temporalProblem', () => {
   const node = { id: 1, label: 'obj 1', present_frames: [0] };
   const rel = { src: 1, dst: 2, relation: 'left', frames: [0] };
-  const problem = (tg) => temporalProblem(tg, 2);
+  const sound = { frames: [0, 1], nodes: [node], relations: [rel] };
+  const problem = (tg) => temporalProblem(tg, [0, 1]);
+  const withNode = (x) => problem({ ...sound, nodes: [{ ...node, ...x }] });
+  const withRelation = (x) => problem({ ...sound, relations: [{ ...rel, ...x }] });
 
-  it('passes what the bundle stage publishes, lists left out included', () => {
-    expect(problem({ nodes: [node], relations: [rel] })).toBeNull();
-    expect(problem({ nodes: [{ id: 1 }], relations: [{ src: 1, dst: 2, relation: 'left' }] })).toBeNull();
-    expect(problem({})).toBeNull();
+  it('passes a sound graph, a node without label or frames included', () => {
+    expect(problem(sound)).toBeNull();
+    expect(problem({ frames: [0, 1], nodes: [{ id: 1 }], relations: [{ src: 1, dst: 2, relation: 'left' }] })).toBeNull();
+    expect(temporalProblem({ frames: [3, 5], nodes: [{ id: 1, present_frames: [5] }], relations: [] }, [3, 5])).toBeNull();
   });
 
   it('names what is wrong with each part', () => {
     expect(problem(null)).toMatch(/not an object/);
     expect(problem([])).toMatch(/not an object/);
     expect(problem(7)).toMatch(/not an object/);
-    expect(problem({ frames: [0, 500] })).toMatch(/its frames are not frames 0 to 1/);
-    expect(problem({ frames: [0, 1] })).toBeNull();
-    expect(problem({ relations: {} })).toMatch(/not a list/);
-    expect(problem({ nodes: [{ ...node, id: '1' }] })).toMatch(/node "1"/);
-    expect(problem({ nodes: [{ ...node, present_frames: [0.5] }] })).toMatch(/node 1/);
-    expect(problem({ nodes: [{ ...node, present_frames: [2] }] })).toMatch(/frames 0 to 1/);
-    expect(problem({ nodes: [{ ...node, present_frames: [-1] }] })).toMatch(/node 1/);
-    expect(problem({ nodes: [{ ...node, label: 7 }] })).toMatch(/a string label/);
-    expect(problem({ relations: [{ ...rel, dst: null }] })).toMatch(/relation of 1 and null/);
-    expect(problem({ relations: [{ ...rel, src: 1.5 }] })).toMatch(/relation of 1.5/);
-    expect(problem({ relations: [{ ...rel, relation: 3 }] })).toMatch(/a word/);
-    expect(problem({ relations: [{ ...rel, frames: null }] })).toMatch(/frames 0 to 1/);
-    expect(problem({ relations: [{ ...rel, frames: [2] }] })).toMatch(/frames 0 to 1/);
+    for (const k of ['frames', 'nodes', 'relations']) {
+      expect(problem({ ...sound, [k]: undefined })).toMatch(/are not lists/);
+      expect(problem({ ...sound, [k]: {} })).toMatch(/are not lists/);
+    }
+    for (const frames of [[0], [1, 0], [0, 1, 1], [0, 500], [0, true]]) {
+      expect(problem({ ...sound, frames })).toMatch(/its frames are not the 2 frames the track has scene graphs on/);
+    }
+    expect(withNode({ id: '1' })).toMatch(/node "1"/);
+    expect(withNode({ present_frames: [0.5] })).toMatch(/node 1/);
+    expect(withNode({ present_frames: [2] })).toMatch(/node 1 .* frames the graph lists/);
+    expect(withNode({ present_frames: [-1] })).toMatch(/node 1/);
+    expect(withNode({ label: 7 })).toMatch(/a string label/);
+    expect(problem({ ...sound, nodes: [7] })).toMatch(/node undefined/);
+    expect(withRelation({ dst: null })).toMatch(/relation of 1 and null/);
+    expect(withRelation({ src: 1.5 })).toMatch(/relation of 1.5/);
+    expect(withRelation({ relation: 3 })).toMatch(/a word/);
+    expect(withRelation({ frames: null })).toMatch(/frames the graph lists/);
+    expect(withRelation({ frames: [2] })).toMatch(/frames the graph lists/);
+    expect(problem({ ...sound, relations: ['left'] })).toMatch(/relation of undefined/);
+  });
+
+  it('refuses a frame of the clip the graph does not list', () => {
+    expect(temporalProblem({ frames: [3, 5], nodes: [{ id: 1, present_frames: [4] }], relations: [] }, [3, 5])).toMatch(/node 1/);
   });
 });
 

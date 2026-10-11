@@ -375,31 +375,43 @@ def check_hierarchy(h: dict, tracks: list[str], where: str) -> None:
                              "of the hierarchy with a string relation")
 
 
-def check_temporal(tg: dict, n: int, where: str) -> None:
-    """Check that a graph through time names its nodes and frames by integers, frames from 0 to n - 1.
+def check_temporal(tg: dict, graph_frames: list[int], where: str) -> None:
+    """Check that a graph through time lists the frames its track has scene graphs on, with integer ids.
 
-    The viewer draws these numbers into the page, so a value of another kind is refused here.
+    `graph_frames` are the frames the track has a scene graph on, in order. The graph's `frames` must equal
+    them, and every frame a node or a relation lists must be one of them. The viewer draws the ids, the labels
+    and the words into the page, so a value of another kind is refused here.
 
     Raises:
-        ValueError: the graph is not lists of nodes and relations, or a node id, a relation's ends or a frame,
-            the graph's own `frames` included, is not such an integer, or a label not a string.
+        ValueError: one of these:
+            - the graph is not an object whose `frames`, `nodes` and `relations` are lists
+            - its `frames` are not `graph_frames`
+            - a node is not an object with an integer id, frames the graph lists and, if any, a string label
+            - a relation is not an object with integer ends, a string word and frames the graph lists
     """
+    if not isinstance(tg, dict):
+        raise ValueError(f"{where}: it is not an object")
+    if not all(isinstance(tg.get(k), list) for k in ("frames", "nodes", "relations")):
+        raise ValueError(f"{where}: its frames, nodes or relations are not lists")
+    covered = set(graph_frames)
+
     def frames_ok(fs):
-        return isinstance(fs, list) and all(type(f) is int and 0 <= f < n for f in fs)
-    if not (isinstance(tg, dict) and all(isinstance(tg.get(k, []), list) for k in ("nodes", "relations"))):
-        raise ValueError(f"{where}: not lists of nodes and relations")
-    # The viewer bounds where a node enters and leaves the view by these frames.
-    if not frames_ok(tg.get("frames", [])):
-        raise ValueError(f"{where}: its frames are not frames 0 to {n - 1}")
-    for node in tg.get("nodes", []):
-        if (type(node.get("id")) is not int or not frames_ok(node.get("present_frames", []))
-                or not isinstance(node.get("label", ""), str)):
-            raise ValueError(f"{where}: node {node.get('id')!r} is not an integer id with frames 0 to {n - 1}")
-    for r in tg.get("relations", []):
-        if (type(r.get("src")) is not int or type(r.get("dst")) is not int or not isinstance(r.get("relation"), str)
-                or not frames_ok(r.get("frames", []))):
-            raise ValueError(f"{where}: a relation of {r.get('src')!r} and {r.get('dst')!r} is not integer ids "
-                             f"with frames 0 to {n - 1}")
+        return isinstance(fs, list) and all(type(f) is int and f in covered for f in fs)
+    # The viewer draws a node's entries and exits only between the first and the last of these frames.
+    if not (frames_ok(tg["frames"]) and tg["frames"] == graph_frames):
+        raise ValueError(f"{where}: its frames are not the {len(graph_frames)} frames the track has scene graphs on")
+    for node in tg["nodes"]:
+        x = node if isinstance(node, dict) else {}
+        if (type(x.get("id")) is not int or not frames_ok(x.get("present_frames", []))
+                or not isinstance(x.get("label", ""), str)):
+            raise ValueError(f"{where}: node {x.get('id')!r} does not have an integer id, frames the graph "
+                             "lists and, if any, a string label")
+    for r in tg["relations"]:
+        x = r if isinstance(r, dict) else {}
+        if (type(x.get("src")) is not int or type(x.get("dst")) is not int or not isinstance(x.get("relation"), str)
+                or not frames_ok(x.get("frames", []))):
+            raise ValueError(f"{where}: the relation of {x.get('src')!r} and {x.get('dst')!r} does not have integer "
+                             "ends, a word and frames the graph lists")
 
 
 def track_record(clip_dir: Path, track: str, n: int, dataset: str) -> dict:
@@ -463,6 +475,12 @@ def bundle_clip(clip_dir: Path, out: Path, tracks: list[str], geometry: str = "d
             continue
         check_hierarchy(h, tracks, f"{clip_dir.name} frame {i} hierarchy")
         hierarchy[i] = h["tracks"]
+    temporal = {}
+    for rec in records:
+        if rec["temporal"]:
+            tg = _read_json(clip_dir / "pc_vis" / f"temporal_graph__{rec['id']}.json")
+            check_temporal(tg, rec["graph_frames"], f"{clip_dir.name} {rec['id']} temporal graph")
+            temporal[rec["id"]] = tg
 
     # Write every frame's files into a hidden directory.
     partial = out / f".{clip_dir.name}.partial"
@@ -481,11 +499,8 @@ def bundle_clip(clip_dir: Path, out: Path, tracks: list[str], geometry: str = "d
             shutil.copyfile(cloud, _mkdir(partial / "clouds") / f"{i:04d}.glb")
             for rec in records:
                 _write_track_frame(clip_dir, partial, rec, i, clip, remap, points, geometry)
-        for rec in records:
-            if rec["temporal"]:
-                tg = _read_json(clip_dir / "pc_vis" / f"temporal_graph__{rec['id']}.json")
-                check_temporal(tg, n, f"{clip_dir.name} {rec['id']} temporal graph")
-                _write_json(partial / "graphs" / rec["id"] / "temporal.json", tg)
+        for track, tg in temporal.items():
+            _write_json(partial / "graphs" / track / "temporal.json", tg)
         for i in hierarchy:
             shutil.copyfile(_overlay(clip_dir, "hierarchy_frame", i), _mkdir(partial / "hierarchy") / f"{i:04d}.json")
 

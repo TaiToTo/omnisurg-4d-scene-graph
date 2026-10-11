@@ -369,25 +369,57 @@ def test_a_frame_graph_of_another_shape_or_off_the_frames_regions_is_refused(tmp
 
 @pytest.mark.parametrize("fault,match", [
     (lambda tg: tg["relations"][0].update(frames=["<img src=x onerror=alert(1)>"]), "relation of 1 and 2"),
-    (lambda tg: tg["relations"][0].update(frames=[3]), "frames 0 to 2"),
+    (lambda tg: tg["relations"][0].update(frames=[3]), "relation of 1 and 2"),
     (lambda tg: tg["relations"][0].update(src="1"), "relation of"),
+    (lambda tg: tg["relations"][0].update(dst=2.5), "relation of 1 and 2.5"),
     (lambda tg: tg["relations"][0].update(relation=["left"]), "relation of 1 and 2"),
+    (lambda tg: tg["relations"].append("left"), "relation of None"),
     (lambda tg: tg["nodes"][0].update(present_frames=[0.5]), "node 1"),
+    (lambda tg: tg["nodes"][0].update(present_frames=[-1]), "node 1"),
+    (lambda tg: tg["nodes"][0].update(present_frames=[True]), "node 1"),
     (lambda tg: tg["nodes"][0].update(label=["x"]), "node 1"),
-    (lambda tg: tg.update(frames=[0, 3]), "its frames are not frames 0 to 2"),
-    (lambda tg: tg.update(frames="0-2"), "its frames are not"),
-    (lambda tg: tg.update(nodes={"1": {}}), "not lists of nodes and relations"),
-    (lambda tg: [tg], "not lists of nodes and relations"),
+    (lambda tg: tg["nodes"].append(1), "node None"),
+    (lambda tg: tg.update(frames=[0, 3]), "frames are not the 3 frames"),
+    (lambda tg: tg.update(frames=[0, 1]), "frames are not the 3 frames"),
+    (lambda tg: tg.update(frames=[2, 1, 0]), "frames are not the 3 frames"),
+    (lambda tg: tg.update(frames=[0.0, 1.0, 2.0]), "frames are not the 3 frames"),
+    (lambda tg: tg.update(frames=[0, True, 2]), "frames are not the 3 frames"),
+    (lambda tg: tg.update(frames="0-2"), "not lists"),
+    (lambda tg: tg.pop("frames"), "not lists"),
+    (lambda tg: tg.pop("nodes"), "not lists"),
+    (lambda tg: tg.pop("relations"), "not lists"),
+    (lambda tg: tg.update(nodes={"1": {}}), "not lists"),
+    (lambda tg: tg.update(relations={}), "not lists"),
 ])
 def test_a_graph_through_time_of_another_shape_is_refused(tmp_path, fault, match):
     clip = make_clip(tmp_path / "in")
     (tmp_path / "out").mkdir()
     path = clip / "pc_vis" / "temporal_graph__sam3d.json"
     tg = read(path)
-    # A fault edits the graph in place, or returns what replaces it.
-    out = fault(tg)
-    path.write_text(json.dumps(tg if out is None else out))
+    fault(tg)
+    path.write_text(json.dumps(tg))
     _fails(tmp_path, match)
+
+
+def test_a_graph_through_time_that_is_not_an_object_is_refused(tmp_path):
+    clip = make_clip(tmp_path / "in")
+    (tmp_path / "out").mkdir()
+    path = clip / "pc_vis" / "temporal_graph__sam3d.json"
+    path.write_text(json.dumps([read(path)]))
+    _fails(tmp_path, "it is not an object")
+
+
+def test_a_graph_through_time_lists_the_frames_its_track_has_graphs_on(tmp_path):
+    clip = make_clip(tmp_path / "in")
+    (tmp_path / "out").mkdir()
+    (clip / "pc_vis" / "graph_frame_0002__sam3d.json").unlink()
+    _fails(tmp_path, "its frames are not the 2 frames")
+    path = clip / "pc_vis" / "temporal_graph__sam3d.json"
+    tg = read(path)
+    tg["frames"] = tg["nodes"][0]["present_frames"] = [0, 1]
+    path.write_text(json.dumps(tg))
+    vb.bundle_clip(clip, tmp_path / "out", ["sam3d"])
+    assert read(tmp_path / "out" / CLIP / "graphs" / "sam3d" / "temporal.json") == tg
 
 
 HIERARCHY = {"tracks": ["cholecseg8k", "sam3d"],
