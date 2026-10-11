@@ -261,11 +261,6 @@ Each question says what it blocks and where its answer is written.
   carries no list, because the tags wait on "Condition names". Open: which
   pairs the paper reports with the tool. Answer in: `arms_paired`'s
   docstring.
-- **The benchmark mapping against its source.** The ATLAS-120k mapping to
-  the benchmark's 30 classes was checked by hand against ATLAS-bench's
-  `datasets/class_mapping.py` at commit e286a584, and all 47 ids agree.
-  Open: whether a script that takes that file's path repeats the check.
-  Answer in: `docs/evaluation.md`, the benchmark's 30 classes.
 
 ### Pipeline
 
