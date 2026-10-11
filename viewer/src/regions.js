@@ -114,19 +114,22 @@ export function traceOutline(labels, w, h, id, step = 2) {
   // Neighbours clockwise from the west.
   const DIRS = [[-1, 0], [-1, -1], [0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1]];
   const out = [];
-  let cx = sx, cy = sy, back = 0;
+  let cx = sx, cy = sy, back = 0, first = -1;
   for (let n = 0; n < 4 * gw * gh; n++) {
-    out.push([Math.min(cx * step, w - 1), Math.min(cy * step, h - 1)]);
     let found = -1;
     for (let k = 1; k <= 8; k++) {
       const d = (back + k) % 8;
       if (at(cx + DIRS[d][0], cy + DIRS[d][1])) { found = d; break; }
     }
+    // The boundary is closed when the start would be left by its first step again. Stopping at the first
+    // return instead cuts the outline to a thin arm that joins the region at the start.
+    if (n > 0 && cx === sx && cy === sy && found === first) break;
+    out.push([Math.min(cx * step, w - 1), Math.min(cy * step, h - 1)]);
     if (found < 0) break;
+    if (n === 0) first = found;
     cx += DIRS[found][0];
     cy += DIRS[found][1];
     back = (found + 5) % 8;
-    if (cx === sx && cy === sy) break;
   }
   return out.length >= 3 ? out : [];
 }

@@ -239,19 +239,24 @@ function robustSpan(outCentre, axes) {
 
 /** A text label that always faces the camera, `height` scene units tall. */
 export function makeLabelSprite(text, color, height = 0.05) {
+  const font = '700 38px system-ui, Arial, sans-serif';
   const cv = document.createElement('canvas');
-  cv.width = 320; cv.height = 64;
   const ctx = cv.getContext('2d');
-  ctx.font = '700 38px system-ui, Arial, sans-serif';
+  ctx.font = font;
+  // The canvas is as wide as the text, so a long name is drawn whole; the sprite keeps the canvas's aspect.
+  cv.width = Math.max(64, Math.ceil(ctx.measureText(text).width) + 24);
+  cv.height = 64;
+  // Resizing a canvas resets its context.
+  ctx.font = font;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.lineWidth = 7;
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.92)';
-  ctx.strokeText(text, 160, 34);
+  ctx.strokeText(text, cv.width / 2, 34);
   ctx.fillStyle = color;
-  ctx.fillText(text, 160, 34);
+  ctx.fillText(text, cv.width / 2, 34);
   const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), transparent: true, depthTest: false }));
-  spr.scale.set(height * 5, height, 1);
+  spr.scale.set(height * cv.width / cv.height, height, 1);
   spr.renderOrder = 101;
   return spr;
 }

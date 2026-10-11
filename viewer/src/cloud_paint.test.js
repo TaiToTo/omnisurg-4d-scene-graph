@@ -26,6 +26,7 @@ describe('cloudDropMask', () => {
     const mask = cloudDropMask({ zs: regionsByTrack.zs }, 6, { show: 'tools', instruments, isolate: null }, { stats: st });
     expect([...mask]).toEqual([1, 1, 1, 1, 1, 1]);
     expect(st.unlabeled).toBe(1);
+    expect([...cloudDropMask(regionsByTrack, 6, { show: 'tools', instruments: null, isolate: null })]).toEqual([1, 1, 1, 1, 1, 1]);
   });
 
   it('keeps only the isolated region, except on the frame on stage', () => {

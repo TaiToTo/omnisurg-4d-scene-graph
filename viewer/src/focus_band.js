@@ -6,9 +6,19 @@ import { RELATION_COLORS, MIRROR_REL, esc, hexColor } from './format.js';
 
 const ROW_H = 16, TOP = 6, EDGE_H = 22, AXIS_H = 30, AXIS_GAP = 4;
 const AXIS_L = 118, AXIS_R = 30;
+// A frame's column, as a share of the step between frames.
+const COL = 0.72;
 
-function axisX(f, W, n) {
-  return AXIS_L + (f / Math.max(1, n - 1)) * (W - AXIS_L - AXIS_R);
+/** The x of frame `f` of `n`; the axis keeps half a column clear at each end, so every column fits on it. */
+export function axisX(f, W, n) {
+  const step = (W - AXIS_L - AXIS_R) / Math.max(1, n - 1 + COL);
+  return AXIS_L + step * (COL / 2 + f);
+}
+
+/** The frame nearest x, the inverse of `axisX`, within 0 to n - 1. */
+export function frameAtX(px, W, n) {
+  const step = (W - AXIS_L - AXIS_R) / Math.max(1, n - 1 + COL);
+  return Math.min(n - 1, Math.max(0, Math.round((px - AXIS_L) / step - COL / 2)));
 }
 
 /**
@@ -55,15 +65,16 @@ export function runsOf(frames) {
 
 /**
  * The events of a node, in time order: where it enters and leaves the view, and where its relation to
- * each given neighbour changes.
+ * each given neighbour changes. A node can only enter or leave within the frames the graph through time
+ * covers, `[first, last]`: a track's regions may end before the clip does.
  *
  * @returns {Array<{f:number, kind:'enter'|'exit'|'rel', partner?:number, label:string}>}
  */
-export function nodeEvents(node, partners, lastFrame, labelOf) {
+export function nodeEvents(node, partners, [first, last], labelOf) {
   const events = [];
   for (const [a, b] of runsOf(node.present_frames || [])) {
-    if (a > 0) events.push({ f: a, kind: 'enter', label: 'enters the view' });
-    if (b < lastFrame) events.push({ f: b + 1, kind: 'exit', label: 'leaves the view' });
+    if (a > first) events.push({ f: a, kind: 'enter', label: 'enters the view' });
+    if (b < last) events.push({ f: b + 1, kind: 'exit', label: 'leaves the view' });
   }
   for (const [other, e] of partners) {
     for (const c of e.changes) events.push({ f: c.f, kind: 'rel', partner: other, label: `to ${labelOf(other)}: ${c.from} → ${c.to}` });
@@ -90,7 +101,9 @@ export function renderFocusBand(el, { tg, nodeId, lastFrame, frame, onFrame, onE
   const W = Math.max(300, Math.floor(el.getBoundingClientRect().width || 0) - 2 || 800);
   const x = (f) => axisX(f, W, n);
   const partners = topPartners(tg, nodeId);
-  const events = nodeEvents(node, partners, lastFrame, labelOf);
+  const covered = (Array.isArray(tg.frames) ? tg.frames : []).filter(Number.isInteger);
+  const span = covered.length ? [Math.min(...covered), Math.max(...covered)] : [0, lastFrame];
+  const events = nodeEvents(node, partners, span, labelOf);
   const byAxis = partners.length && axes?.byFrame?.size ? axes.byFrame : null;
   const edgeH = !partners.length ? 0 : byAxis ? 3 * (AXIS_H + AXIS_GAP) : EDGE_H;
   const H = TOP + edgeH + ROW_H + 14;
@@ -104,7 +117,7 @@ export function renderFocusBand(el, { tg, nodeId, lastFrame, frame, onFrame, onE
     const mags = [...byAxis.values()].flatMap((v) => v.c.map(Math.abs)).sort((a, b) => a - b);
     const vmax = Math.max(1e-9, mags[Math.floor(0.9 * (mags.length - 1))]);
     const step = x(1) - x(0);
-    const colW = Math.max(2, step * 0.72);
+    const colW = Math.max(2, step * COL);
     // Each frame's column is centred on the frame, where the cursor and the events are.
     const colX = (f) => x(f) - colW / 2;
     const half = AXIS_H / 2 - 1;
@@ -176,8 +189,7 @@ export function renderFocusBand(el, { tg, nodeId, lastFrame, frame, onFrame, onE
   const svg = el.firstElementChild;
   const seek = (ev) => {
     const r = svg.getBoundingClientRect();
-    const px = (ev.clientX - r.left) / r.width * W;
-    onFrame(Math.min(lastFrame, Math.max(0, Math.round(((px - AXIS_L) / (W - AXIS_L - AXIS_R)) * (n - 1)))));
+    onFrame(frameAtX((ev.clientX - r.left) / r.width * W, W, n));
   };
   svg.addEventListener('pointerdown', (ev) => {
     if (ev.target.closest?.('.nf-event')) return;

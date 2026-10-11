@@ -75,9 +75,9 @@ export function cloudDropMask(regionsByTrack, count, view, { geom = null, cam = 
   const filter = show === 'all' ? null : instruments;
   const vs = filter ? labelsFor(regionsByTrack, filter.track, count) : null;
   const inst = vs ? new Set(filter.ids) : null;
-  // Instrument classes this frame has no labels for: 'tools' then shows nothing rather than every point
-  // under a button that promises the instruments alone, and the status line says why.
-  const unlabeled = !!filter && !vs;
+  // Instrument classes this frame has no labels for, or none at all: 'tools' then shows nothing rather than
+  // every point under a button that promises the instruments alone, and the status line says why.
+  const unlabeled = (show === 'tools' || !!filter) && !vs;
   if (unlabeled && stats) stats.unlabeled = (stats.unlabeled ?? 0) + 1;
 
   if (show === 'tissue' && vs) for (let i = 0; i < count; i++) if (inst.has(vs[i])) drop(i, 'instruments');

@@ -54,6 +54,15 @@ describe('outlines', () => {
     expect(poly.some(([x, y]) => x === 3 && y === 1)).toBe(true);
   });
 
+  it('goes on round the region when a thin arm joins it at the start', () => {
+    // The longest row starts at (2, 2), where the arm from the corner meets the region.
+    const armed = regions(['10000000', '01000000', '00111110', '00111100', '00011000', '00000000']);
+    const poly = traceOutline(armed.labels, 8, 6, 1, 1);
+    expect(Math.max(...poly.map((p) => p[0]))).toBe(6);
+    expect(Math.max(...poly.map((p) => p[1]))).toBe(4);
+    expect(poly.some(([x, y]) => x === 0 && y === 0)).toBe(true);
+  });
+
   it('simplifies a straight run of points to its ends', () => {
     const line = [[0, 0], [1, 0], [2, 0], [3, 0], [4, 0], [4, 4]];
     expect(simplifyRDP(line, 0.5)).toEqual([[0, 0], [4, 0], [4, 4]]);

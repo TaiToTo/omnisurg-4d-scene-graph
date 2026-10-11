@@ -180,7 +180,7 @@ body.mode-world .in-frame, body:not(.mode-world) .in-world { display: none; }
 .cell-box { position: relative; overflow: hidden; border-radius: 5px; background: #e8ecf1; }
 .cell-box img, .cell-box canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .strip-gap .cell-box { display: grid; place-items: center; color: var(--text-dim); font-size: 10px; background: repeating-linear-gradient(135deg, #eef1f5 0 6px, #e4e8ee 6px 12px); }
-.cell-label { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+.cell-label { font-size: 10px; line-height: 14px; color: var(--text-dim); margin-top: 2px; }
 .cell-badge { position: absolute; top: 4px; left: 4px; font-size: 8px; font-weight: 700; letter-spacing: 0.4px; padding: 1px 5px; border-radius: 99px; pointer-events: none; z-index: 1; }
 .badge-gt { background: var(--gt); color: #fff; }
 .badge-sam { background: var(--sam); color: #fff; }
