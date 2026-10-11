@@ -330,6 +330,17 @@ def test_input_shas_that_name_no_input_beyond_the_predictions_are_refused():
         check_comparable(a, b)
 
 
+def test_input_shas_without_the_gt_or_the_depth_are_refused():
+    # Both sides agreeing on the crop says nothing about the GT and the depth they read.
+    for missing in ("gt_masks", "depth"):
+        a, b = evaluator_json(), evaluator_json()
+        for j in (a, b):
+            j["input_shas"][CLIPS[0]] = {"crop": "c" * 64, "predictions": "p", "gt_masks": "g" * 64, "depth": "d" * 64}
+            del j["input_shas"][CLIPS[0]][missing]
+        with pytest.raises(ValueError, match=f"VID01_s15_80_crop: a score records no {missing} hash"):
+            check_comparable(a, b)
+
+
 def test_inputs_are_checked_on_the_compared_clips_only():
     # The clip that is not compared may differ in anything.
     a, b = evaluator_json(), evaluator_json(clips=CLIPS[:1])

@@ -59,6 +59,8 @@ PILOT_SIGNS: Mapping[str, int] = MappingProxyType({
 # The entry of `input_shas` that is the condition's own. Every other entry
 # names an input two comparable scores must have read alike.
 PREDICTION_INPUT = "predictions"
+# The inputs two scores of one clip must both record, and have read alike.
+REQUIRED_INPUTS = ("gt_masks", "depth")
 
 
 def sign_of(key: str) -> int:
@@ -312,6 +314,10 @@ def _check_inputs(a: Mapping, b: Mapping, clips: list[str]) -> None:
                 f"{clip}: the scores name no input beyond the predictions, so whether they "
                 "read one GT and one depth map cannot be checked"
             )
+        for name in REQUIRED_INPUTS:
+            if name not in ia or name not in ib:
+                raise ValueError(f"{clip}: a score records no {name} hash, so whether both read one "
+                                 f"{name} cannot be checked")
         for name in sorted(names):
             if ia.get(name) != ib.get(name):
                 raise ValueError(
