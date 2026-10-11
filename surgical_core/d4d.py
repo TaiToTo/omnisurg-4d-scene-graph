@@ -1,7 +1,7 @@
 """Read D4D through its upstream loader: clips, times, instrument masks and scans.
 
-`clips` imports `d4d.loader` from a clone of its repository at `LOADER_COMMIT`, which the README puts on
-`PYTHONPATH`. It refuses a missing `d4d`, and one whose files differ from that commit's. A clip's frames,
+`clips` imports `d4d.loader` from a clone of its repository at `LOADER_COMMIT`, which the README says to
+put on `PYTHONPATH`. It refuses a missing `d4d`, and one whose files differ from that commit's. A clip's frames,
 stereo depth maps and instrument masks are files named by their time, `<sec>_<nsec>`, and so is a scan.
 `frame_files` returns a clip's files of one kind and refuses them unless their names are the frames' names.
 `instrument_mask` resizes a mask stored at another size with the nearest neighbour, then dilates it.
@@ -52,7 +52,7 @@ def check_loader(package: Path) -> None:
 def loader():
     """Return the loader's `D4D` class, once its files are checked against `LOADER_COMMIT`.
 
-    The package's files are checked before it is imported, so no other code of it runs.
+    The package's files are checked before it is imported, so none of its code runs before the check.
 
     Raises:
         ImportError: no `d4d` package is on the path.

@@ -41,8 +41,9 @@ census, which is not kept here.
 The census reads `active` at the clip's end nearest the scan, because the
 motion cannot be measured at the scan itself:
 
-- D4D scans with the endoscope's light off. The frame nearest each of the
-  540 scans is dark, and a dark frame lies between each scan and its clip.
+- D4D scans with the endoscope's light off. On each of the 540 sides with
+  a scan, the frame nearest the scan is dark, and a dark frame lies
+  between the scan and the clip.
 - A `start` scan comes 4.4 s before its clip, and the frames are lit for
   the last 2.7 s before the clip. An `end` scan comes 4.3 s after its
   clip, and the frames stay lit for 0.5 s after the clip. All four times

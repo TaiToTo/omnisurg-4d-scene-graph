@@ -65,7 +65,10 @@ def active_at(record: dict, t: float) -> bool:
 
 
 def measure_side(clip, side: str, times: np.ndarray, masks: list[Path]) -> dict:
-    """Return the census's fields of one side but `active`; a side without a scan, pose or calibration is not present."""
+    """Return the census's fields of one side, all but `active`.
+
+    A side without a scan, a pose or the endoscope's calibration is not present.
+    """
     scan, pose, params = clip.pointclouds.get(side), clip.poses.get(side), clip.endoscope_params
     if not scan or pose is None or params is None:
         return {"present": False}

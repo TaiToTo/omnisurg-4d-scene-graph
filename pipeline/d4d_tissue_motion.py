@@ -5,7 +5,8 @@ out the pixels near an instrument in either frame. The 90th percentile of the ch
 tissue's motion at `t`, in seconds after the clip's first frame. A clip's quiet level is its 10th percentile
 of `p90_mm`. One threshold serves every clip: `THRESHOLD_FACTOR` times the median quiet level of the clips
 whose camera stays still. A clip's `intervals` are the stretches where `p90_mm` exceeds the threshold. The
-step refuses a clip whose depth maps or masks are not named by its frames' times, and a clip it cannot measure.
+step refuses a clip whose depth maps or masks are not named by its frames' times, a clip without per-frame
+poses, and a clip with too few samples to measure.
 
 Usage:
     python -m pipeline.d4d_tissue_motion --root /path/to/D4D/extracted --out /path/to/tissue_motion.json \\
@@ -57,8 +58,8 @@ def series(depth: list[Path], masks: list[Path]) -> tuple[list[float], list[floa
     """Return the times `t` and the motion `p90_mm` of one clip, from its depth maps and instrument masks.
 
     Raises:
-        ValueError: the depth maps are not evenly timed forward, or fewer than `MIN_SAMPLES` samples have
-            `MIN_PIXELS` pixels to compare.
+        ValueError: the clip has no positive frame interval, as a clip of one frame has, or fewer than
+            `MIN_SAMPLES` samples have `MIN_PIXELS` pixels to compare.
     """
     # Turn the lag and the sampling interval into frames.
     times = np.asarray([d4d.name_time(p) for p in depth])
@@ -127,6 +128,7 @@ def measure(task: tuple[str, bool, list[Path], list[Path]]) -> dict:
 
 def add_intervals(records: list[dict]) -> float:
     """Compute the threshold from every clip's quiet level, add it and each clip's intervals, and return it."""
+    # One threshold serves every clip, since a clip manipulated throughout has no quiet stretch of its own.
     still = [r["quiet_level_mm"] for r in records if not r["camera_moves"]]
     threshold = max(THRESHOLD_FACTOR * float(np.median(still or [r["quiet_level_mm"] for r in records])),
                     MIN_THRESHOLD_MM)
