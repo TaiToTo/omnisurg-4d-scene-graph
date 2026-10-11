@@ -1,9 +1,11 @@
-"""The `tools/` entry of the layout in `AGENTS.md` names exactly the modules under `evalkit/tools/`.
+"""The layout in `AGENTS.md` names what is on disk, entry by entry.
 
 A layout written in a document goes out of date unless something reads it.
-This test reads the `tools/` entry and compares it with the modules on disk,
-both ways: a module the entry leaves out, a name it keeps for a module that
-is gone, and a module it still lists in parentheses as waiting.
+Every directory and file the layout names must exist. Three entries list
+names: the root's files, the packages of `surgical_core/` and the modules of
+`evalkit/tools/`, which must match the disk both ways, and `docs/`, whose
+documents must exist. A name in parentheses waits, and must not exist yet;
+the words after the colon in a parenthesis say what it waits on.
 """
 import re
 from pathlib import Path
@@ -13,66 +15,148 @@ import pytest
 REPO = Path(__file__).resolve().parent.parent
 TOOLS = REPO / "evalkit" / "tools"
 HEADING = "## Target layout"
+ENTRY = re.compile(r"^((?:│   |    )*)[├└]── (\S+)\s*(.*)$")
+ROOT = ""
 
 
-def tools_entry(text: str) -> str:
-    """The names the `tools/` entry of the layout under `HEADING` lists, as one string.
+def entries(text: str) -> dict[str, str]:
+    """Each entry of the layout under `HEADING`: its repository-relative path, and its description.
 
-    The entry is its first line after the colon, which ends the description,
-    and the lines that continue it, up to the next entry.
+    An entry runs from its line to the next entry, through the lines that
+    continue it. The root's files are one entry, under the path "".
 
     Raises:
-        ValueError: No heading, no fenced block under it, or no `tools/` entry in the block.
+        ValueError: No heading, or no fenced block under it.
     """
     _, sep, rest = text.partition(HEADING)
     block = re.search(r"^```\n(.*?)^```$", rest, re.S | re.M) if sep else None
     if block is None:
         raise ValueError(f"no fenced layout under {HEADING!r}")
-    lines = block.group(1).split("\n")
-    start = next((i for i, line in enumerate(lines) if "tools/" in line), None)
-    if start is None:
+    out: dict[str, str] = {}
+    parents: list[str] = []
+    path = None
+    for line in block.group(1).split("\n"):
+        m = ENTRY.match(line)
+        if m:
+            depth, name = len(m.group(1)) // 4, m.group(2)
+            parents = parents[:depth]
+            if name.endswith("/"):
+                path = "".join(parents) + name
+                parents.append(name)
+                out[path] = m.group(3)
+            elif "/" in name:
+                path = name
+                out[path] = m.group(3)
+            else:
+                path = ROOT
+                out[path] = f"{name} {m.group(3)}"
+        elif path is not None and line.strip("│ "):
+            out[path] += " " + line.strip("│ ")
+    return out
+
+
+def tools_entry(text: str) -> str:
+    """The description of the `tools/` entry, which lists the tools.
+
+    Raises:
+        ValueError: The layout has no `tools/` entry.
+    """
+    found = entries(text).get("evalkit/tools/")
+    if found is None:
         raise ValueError("the layout has no tools/ entry")
-    entry = [lines[start].partition(":")[2]]
-    for line in lines[start + 1:]:
-        if "──" in line:
-            break
-        entry.append(line)
-    return " ".join(entry)
+    return found.partition(":")[2]
 
 
-def tools_named(entry: str) -> tuple[set[str], set[str]]:
-    """The modules `entry` names as ported, and those it names in parentheses as waiting.
+def names_in(description: str) -> tuple[set[str], set[str]]:
+    """The names `description` lists as present, and those it lists in parentheses as waiting.
 
     A parenthesis lists names and then, after a colon, what they wait on;
     the words after that colon are not names.
     """
     waiting = set()
-    for inside in re.findall(r"\(([^)]*)\)", entry):
-        waiting |= set(re.findall(r"\w+", inside.partition(":")[0]))
-    ported = set(re.findall(r"\w+", re.sub(r"\([^)]*\)", " ", entry)))
-    return ported, waiting
+    for inside in re.findall(r"\(([^)]*)\)", description):
+        waiting |= set(re.findall(r"[\w.-]+", inside.partition(":")[0]))
+    present = set(re.findall(r"[\w.-]+", re.sub(r"\([^)]*\)", " ", description)))
+    return present, waiting
 
 
-def drift(entry: str, modules: set[str]) -> list[str]:
-    """Every way `entry` disagrees with `modules`, the tools on disk, one line each."""
-    ported, waiting = tools_named(entry)
-    return ([f"{m}: under evalkit/tools/, not named in the layout" for m in sorted(modules - ported - waiting)]
-            + [f"{m}: named in the layout, not under evalkit/tools/" for m in sorted(ported - modules)]
-            + [f"{m}: under evalkit/tools/, but the layout says it waits" for m in sorted(modules & waiting)])
+def drift(description: str, on_disk: set[str], where: str = "evalkit/tools/") -> list[str]:
+    """Every way the names `description` lists disagree with `on_disk`, the names under `where`."""
+    present, waiting = names_in(description)
+    return ([f"{m}: under {where}, not named in the layout" for m in sorted(on_disk - present - waiting)]
+            + [f"{m}: named in the layout, not under {where}" for m in sorted(present - on_disk)]
+            + [f"{m}: under {where}, but the layout says it waits" for m in sorted(on_disk & waiting)])
 
 
-def test_the_layout_names_exactly_the_tools_on_disk():
+def missing_paths(layout: dict[str, str], repo: Path) -> list[str]:
+    """The directories and files the layout names that `repo` does not hold, the root's files included."""
+    present, waiting = names_in(layout.get(ROOT, ""))
+    return ([f"{p}: named in the layout, not in the repository" for p in sorted(layout) if p and not (repo / p).exists()]
+            + [f"{n}: named in the layout, not in the repository" for n in sorted(present) if not (repo / n).exists()]
+            + [f"{n}: in the repository, but the layout says it waits" for n in sorted(waiting) if (repo / n).exists()])
+
+
+def packages(directory: Path) -> set[str]:
+    """The modules and packages directly under `directory`, by name."""
+    return ({p.stem for p in directory.glob("*.py") if p.stem != "__init__"}
+            | {p.name for p in directory.iterdir() if (p / "__init__.py").is_file()})
+
+
+@pytest.fixture(scope="module")
+def layout() -> dict[str, str]:
+    return entries((REPO / "AGENTS.md").read_text(encoding="utf-8"))
+
+
+def test_every_directory_and_file_the_layout_names_exists(layout):
+    assert {ROOT, "surgical_core/", "evalkit/tools/", "docs/"} <= set(layout), "the parser lost an entry"
+    problems = missing_paths(layout, REPO)
+    assert not problems, "AGENTS.md's layout disagrees with the repository:\n" + "\n".join(problems)
+
+
+def test_the_layout_names_exactly_the_tools_on_disk(layout):
     modules = {p.stem for p in TOOLS.glob("*.py") if p.stem != "__init__"}
     assert modules, f"no module found under {TOOLS}; the scan reads nothing"
-    problems = drift(tools_entry((REPO / "AGENTS.md").read_text(encoding="utf-8")), modules)
+    problems = drift(layout["evalkit/tools/"].partition(":")[2], modules)
     assert not problems, "AGENTS.md's layout disagrees with evalkit/tools/:\n" + "\n".join(problems)
 
 
-PAGE = (f"{HEADING}\n\n```\n├── evalkit/\n"
+def test_the_layout_names_exactly_the_packages_of_surgical_core(layout):
+    on_disk = packages(REPO / "surgical_core")
+    assert on_disk, "no module found under surgical_core/; the scan reads nothing"
+    problems = drift(layout["surgical_core/"], on_disk, "surgical_core/")
+    assert not problems, "AGENTS.md's layout disagrees with surgical_core/:\n" + "\n".join(problems)
+
+
+def test_every_document_the_layout_names_exists(layout):
+    present, _ = names_in(layout["docs/"])
+    assert present, "the docs/ entry names no document"
+    gone = sorted(n for n in present if not (REPO / "docs" / n).is_file())
+    assert not gone, f"named in the layout's docs/ entry, not under docs/: {gone}"
+
+
+PAGE = (f"{HEADING}\n\n```\nrepo/\n├── LICENSE  README.md  (CITATION.cff: at the release)\n├── evalkit/\n"
         "│   └── tools/   what only reads scores: paired_stats\n"
         "│                compare_eval\n"
         "│                (kmerge: which side waits on docs/porting.md)\n"
-        "├── pipeline/   pilot_check\n```\n")
+        "├── pipeline/   pilot_check\n└── .github/workflows/ci.yml\n```\n")
+
+
+def test_the_parser_reads_each_entry_with_its_path():
+    assert set(entries(PAGE)) == {ROOT, "evalkit/", "evalkit/tools/", "pipeline/", ".github/workflows/ci.yml"}
+    assert names_in(entries(PAGE)[ROOT]) == ({"LICENSE", "README.md"}, {"CITATION.cff"})
+
+
+def test_a_missing_directory_a_missing_root_file_and_an_arrived_waiting_file_are_reported(tmp_path):
+    (tmp_path / "evalkit" / "tools").mkdir(parents=True)
+    (tmp_path / "LICENSE").write_text("")
+    (tmp_path / "CITATION.cff").write_text("")
+    (tmp_path / ".github" / "workflows").mkdir(parents=True)
+    (tmp_path / ".github" / "workflows" / "ci.yml").write_text("")
+    assert missing_paths(entries(PAGE), tmp_path) == [
+        "pipeline/: named in the layout, not in the repository",
+        "README.md: named in the layout, not in the repository",
+        "CITATION.cff: in the repository, but the layout says it waits",
+    ]
 
 
 def test_a_tool_left_out_is_reported_and_the_description_does_not_count():
