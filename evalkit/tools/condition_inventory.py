@@ -46,6 +46,8 @@ SEED_KEYS = ("points_per_side", "seed_edge_gain", "seed_smooth",
 # The inputs that burn geometric edges in, and those that burn none, as
 # `surgical_core.geometry.render.uses_geom_edge` sorts them; `none` is the
 # tracker input of the workbench's GT controls, which ran no tracker.
+# The lists are copied, not imported: `render` imports matplotlib, and the
+# evaluation toolkit installs without it.
 # `tests/test_condition_inventory.py` fails if the lists and the function differ.
 EDGE_INPUTS = ("normal_edge", "rgb_edge")
 EDGELESS_INPUTS = ("rgb", "normal", "depth", "none")

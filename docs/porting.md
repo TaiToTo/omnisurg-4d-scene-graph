@@ -137,7 +137,9 @@ only:
 
 - **Pi3X's `runtime_sec`.**
 - **The tracking stage's `edge_ring_masked`.** The workbench's
-  `seed_info.json` has no such key.
+  `seed_info.json` has no such key. `pipeline.byte_check` therefore
+  reports the file as different, so the check compares the two records
+  with this key removed.
 - **CholecSeg8k clips whose frames run out of order.** In videos that
   CholecSeg8k numbers at about 30 fps, the workbench's extractor placed the
   frames between annotations 1 to 3 s late, and one image could appear

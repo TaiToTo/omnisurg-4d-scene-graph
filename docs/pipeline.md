@@ -511,9 +511,11 @@ The stage reads the depth stage's bundle, and Pi3X's with
   carried both ways (`bidir`), the frames labelled and the settings the
   seed was made with. Its `seed_source` is `sam`, or `external` when the
   seed was read with `--seed-labels`. Its `edge_ring_masked` says whether
-  the edges' ring was masked in every input the stage built with burnt-in
-  edges, the seed's and the tracker's; it is null when the stage built
-  no such input.
+  the stage masked the edges' ring in each input it built with burnt-in
+  edges: the seed's, when the stage cut the seed, and the tracker's. The
+  ring is the edges along the image border and around invalid depth,
+  which `--keep-edge-ring` keeps. The key is null when the stage built no
+  input with burnt-in edges.
 - `<tracks-root>/<clip>/viz/montage_track_<track-base>_<tag>.png`: every
   frame's labels, one colour per object.
 
@@ -620,9 +622,11 @@ and the stage's options keep their names and defaults.
 
 The command refuses:
 
-- before any process starts: an input a process would fail on, and labels
-  made with other settings, tracked labels whose record lacks
-  `edge_ring_masked` among them;
+- before any process starts:
+  - an input a process would fail on;
+  - labels made with other settings. Tracked labels whose record lacks
+    `edge_ring_masked` count as such labels. Remove them with their
+    montage to make them again;
 - after a clip: a record of other settings, which stops the run;
 - after the run: labels that are missing, incomplete or of other settings,
   and a process that exited non-zero.
