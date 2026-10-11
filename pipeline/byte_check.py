@@ -44,10 +44,12 @@ MANIFEST_FRAME_KEYS = ("glb_centroid", "camera_pos_glb", "camera_forward_glb", "
 # JSON fields that record how long a run took, not what it produced.
 VOLATILE_KEYS = ("runtime_sec",)
 
-# A volatile field alone on its line with a scalar value, as `json.dumps(..., indent=2)` writes it. Matching the text
+# A volatile field alone on its line with a number or null, as `json.dumps(..., indent=2)` writes it. The groups are
+# what comes before the value, the key, the value, and what follows it to the end of the line. Matching the text
 # rather than the parsed tree keeps the rest of the comparison about bytes: key order, `14` against `14.0`, indentation.
 _KEYS = "|".join(VOLATILE_KEYS)
-VOLATILE_LINE_RE = re.compile(r'^\s*"(' + _KEYS + r')"\s*:\s*[^{\[]+?,?\s*$')
+_NUMBER_OR_NULL = r'-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|null'
+VOLATILE_LINE_RE = re.compile(r'^(\s*"(' + _KEYS + r')"\s*:\s*)(' + _NUMBER_OR_NULL + r')(,?\s*)\Z')
 VOLATILE_KEY_RE = re.compile(r'"(' + _KEYS + r')"\s*:')
 
 RECORD_DIR_ENV = "BYTE_CHECK_RECORD_DIR"
@@ -292,23 +294,23 @@ def collect(work_root: Path) -> dict[str, Path]:
     return found
 
 
-def strip_volatile_lines(text: str) -> tuple[str, tuple[str, ...]] | None:
-    """Remove the volatile fields' lines from a JSON file's text, and name the fields removed.
+def replace_volatile_values(text: str) -> str | None:
+    """Replace the value of each volatile field in a JSON file's text with `<volatile>`.
 
-    Every other character stays, line endings included. The fields removed are returned so that one vanishing
-    still differs. Returns None when a volatile field is not alone on its line with a scalar value: such a file is
-    compared as bytes rather than guessed at.
+    Every other character stays: the field's key, indentation, comma and line ending included, so a field that
+    vanishes or moves still differs. Returns None when a volatile field is not alone on its line with a number or
+    null: such a file is compared as bytes rather than guessed at.
     """
-    kept, removed = [], []
+    kept = []
     for line in text.splitlines(keepends=True):
         m = VOLATILE_LINE_RE.match(line)
         if m:
-            removed.append(m.group(1))
+            kept.append(m.group(1) + "<volatile>" + m.group(4))
             continue
         if VOLATILE_KEY_RE.search(line):
             return None
         kept.append(line)
-    return "".join(kept), tuple(removed)
+    return "".join(kept)
 
 
 def numeric_spread(a_path: Path, b_path: Path) -> tuple[float, float] | None:
@@ -358,7 +360,7 @@ def compare(a_files: dict[str, Path], b_files: dict[str, Path]) -> dict:
             continue
         if a.suffix == ".json":
             # Decoded from bytes, since reading as text would turn CRLF into LF.
-            sa, sb = strip_volatile_lines(a.read_bytes().decode()), strip_volatile_lines(b.read_bytes().decode())
+            sa, sb = replace_volatile_values(a.read_bytes().decode()), replace_volatile_values(b.read_bytes().decode())
             if sa is not None and sa == sb:
                 volatile_only.append(rel)
                 continue
