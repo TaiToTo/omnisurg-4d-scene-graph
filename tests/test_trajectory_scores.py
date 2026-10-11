@@ -10,10 +10,7 @@ SHA_A, SHA_B = "a" * 64, "b" * 64
 
 
 def row(clip: str, cond: str, sha: str | None = SHA_A) -> dict:
-    r = dict(clip=clip, seq=clip.split("__")[0], cond=cond, ate_rel=0.5)
-    if sha is not None:
-        r[HASH_KEY] = sha
-    return r
+    return {"clip": clip, "seq": clip.split("__")[0], "cond": cond, "ate_rel": 0.5, HASH_KEY: sha}
 
 
 def write(path, rows) -> str:
@@ -37,9 +34,27 @@ def test_rows_of_two_versions_of_the_scorer_are_refused(tmp_path):
 
 def test_a_row_without_the_hash_is_refused(tmp_path):
     # The workbench's rows record no hash.
-    a = write(tmp_path / "methods.json", [row("P1__clip_0001", "da3"), row("P1__clip_0001", "pi3x", None)])
+    bad = row("P1__clip_0001", "pi3x")
+    del bad[HASH_KEY]
+    a = write(tmp_path / "methods.json", [row("P1__clip_0001", "da3"), bad])
     with pytest.raises(ValueError, match=r"methods.json: row 1 records no trajectory_code_sha"):
         read_rows([a])
+
+
+@pytest.mark.parametrize("sha", [None, "", "a" * 12, "A" * 64, 7])
+def test_a_hash_that_is_not_a_sha256_hex_digest_is_refused(tmp_path, sha):
+    # Rows that all record one such value would otherwise pass as one version of the scorer.
+    a = write(tmp_path / "methods.json", [row("P1__clip_0001", "da3", sha), row("P1__clip_0002", "da3", sha)])
+    with pytest.raises(ValueError, match=r"methods.json: row 0 records no trajectory_code_sha"):
+        read_rows([a])
+
+
+@pytest.mark.parametrize("key", ["clip", "cond"])
+def test_a_row_without_its_clip_or_condition_is_refused(tmp_path, key):
+    bad = row("P1__clip_0001", "da3")
+    del bad[key]
+    with pytest.raises(ValueError, match=r"methods.json: row 0 names no clip or no condition"):
+        read_rows([write(tmp_path / "methods.json", [bad])])
 
 
 def test_a_clip_scored_twice_under_one_condition_is_refused(tmp_path):
