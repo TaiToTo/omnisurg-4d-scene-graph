@@ -718,3 +718,32 @@ earlier copy only once every file is written. The stage runs every clip,
 rewrites `catalog.json`, and exits with an error if one failed.
 
 `python -m pipeline.viewer_bundle --help` lists the options.
+
+## The StereoMIS camera trajectory scores
+
+```bash
+python -m trajectory_eval.tools.score_stereomis --root /path/to/StereoMIS --depth-root /path/to/StereoMIS_depth \
+    --controls --out controls.json
+python -m trajectory_eval.tools.score_stereomis --root /path/to/StereoMIS --depth-root /path/to/StereoMIS_depth \
+    --methods da3 pi3x --clip-root /path/to/clips --shuffled --out methods.json
+```
+
+The command scores the camera trajectory of each usable StereoMIS clip
+against the ground truth, one row per clip and condition. `--controls`
+scores the static floor, the line floor and the stereo ceiling.
+`--methods` scores the poses the depth stages wrote into each clip, and
+`--shuffled` adds each method's poses in a shuffled order. `--masked`
+names the conditions `<method>_masked`, for the clips extracted with
+`--mask-instruments`. Every row records `trajectory_code_sha`, the hash of
+the `trajectory_eval` modules that compute it.
+
+The command refuses, before anything is scored:
+
+- a sequence or a method named twice;
+- a clip without a method's bundle, or without its `frame_manifest.json`;
+- a clip whose manifest lists other frames than the ground truth is read at;
+- `--masked` when no clip has a painted image;
+- a painted image without `--masked`.
+
+With `--controls`, the command also refuses a usable clip the ceiling
+returns no trajectory for, and then writes nothing.
