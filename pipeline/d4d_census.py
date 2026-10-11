@@ -81,7 +81,8 @@ def measure_clip(task: tuple) -> dict:
     times = d4d.frame_times(clip)
     masks = d4d.frame_files(clip, "left_images_rect_masks", ".png")
     rec = {"key": d4d.clip_key(clip), "moved_camera": moved}
-    # The motion record covers the clip only, so a side takes the tissue's motion at the clip's nearest end.
+    # A side takes the tissue's motion at the clip's end nearest its scan, since no frame shows the tissue at the
+    # scan; `d4d_meta/README.md`, "The tissue's motion at a scan", says why.
     for side, t in zip(d4d.SIDES, (0.0, float(times[-1] - times[0]))):
         rec[side] = measure_side(clip, side, times, masks) | {"active": active_at(motion, t)}
     return rec

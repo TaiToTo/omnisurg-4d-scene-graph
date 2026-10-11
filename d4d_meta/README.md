@@ -29,11 +29,33 @@ The census measures each side's inputs. The rule reads these of its fields:
   time of the scan, in seconds;
 - `active`: whether the tissue moves at the clip's first moment, for
   `start`, or at its last, for `end`, by the record that
-  `pipeline.d4d_tissue_motion` makes from the clip's stereo depth.
+  `pipeline.d4d_tissue_motion` makes from the clip's stereo depth. It
+  stands in for the tissue's motion at the scan.
 
 `present`, `active` and `moved_camera` are true or false. `gt_blk_frac` and
 `frame_minus_gt_s` are finite numbers. `pipeline.d4d_census` makes the
 census, which is not kept here.
+
+### The tissue's motion at a scan
+
+The census reads `active` at the clip's end nearest the scan, because the
+motion cannot be measured at the scan itself:
+
+- D4D scans with the endoscope's light off. The frame nearest each of the
+  540 scans is dark, and a dark frame lies between each scan and its clip.
+- A `start` scan comes 4.4 s before its clip, and the frames are lit for
+  the last 2.7 s before the clip. An `end` scan comes 4.3 s after its
+  clip, and the frames stay lit for 0.5 s after the clip. All four times
+  are medians.
+- D4D made the clips' stereo depth with IGEV++ (arXiv:2603.02985), without
+  giving the weights or the image size. Its instrument masks named by a
+  frame's time cover the clips' frames only. The lit frames outside a clip
+  can therefore get neither the same depth nor masks.
+
+Each sample of the motion record compares a frame with the frame half a
+second later, so the record ends half a second before the clip's last
+frame. No `end` side is therefore `active`, and an `end` side is left out
+only for another reason.
 
 ## The population
 

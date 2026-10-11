@@ -331,16 +331,6 @@ Each question says what it blocks and where its answer is written.
   condition is measured with the port as it is, and whether it is reported;
   and whether `P1__clip_0001`'s Pi3X output is made again. Blocks: the StereoMIS result.
 
-### D4D
-
-- **The tissue's motion when a side was scanned.** The motion record
-  covers the clip only, so `active` is taken at the clip's first moment for
-  `start` and its last for `end`. The scans lie outside the clip, at the
-  median 4.4 s before and 4.3 s after it. The record also stops before a
-  clip's last frame, so no `end` side is `active`. Open: keep this
-  stand-in, written down, or measure the motion up to each scan. Blocks:
-  reporting the D4D numbers. Answer in: `d4d_meta/README.md`.
-
 ### LapEx
 
 - **How LapEx is scored.** The evaluator holds no LapEx class table, so
