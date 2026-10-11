@@ -213,6 +213,20 @@ WORKBENCH = {
 }
 
 
+def test_wins_and_losses_are_counted_in_the_key_s_direction():
+    """A key where smaller is better wins where it falls; a reference value counts no wins or losses."""
+    base, cond = evaluator_scores("base", 0.0, 1), evaluator_scores("cond", 0.0, 1)
+    vi = metric_key("VI_split", "all")
+    for row in cond["per_clip"]:
+        row[vi] = round(row[vi] - 0.1, 4)
+        row["time_IoU"] = round(row["time_IoU"] + 0.1, 4)
+    res = PS.compare_pair(base, cond, keys=[vi, "time_IoU"])
+    got = res["metrics"][vi]
+    assert (got["sign"], got["wins"], got["losses"], got["ties"]) == (-1, 6, 0, 0)
+    got = res["metrics"]["time_IoU"]
+    assert (got["sign"], got["wins"], got["losses"], got["ties"]) == (0, None, None, 0)
+
+
 def test_the_pair_statistics_are_the_workbench_s():
     res = PS.compare_pair(pilot_scores("base", 0.0, 5), pilot_scores("cond", 0.03, 6))
     assert (res["n_clips"], res["n_videos"], res["population"]) == (14, 7, "identical")
