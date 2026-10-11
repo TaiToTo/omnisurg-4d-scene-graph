@@ -48,7 +48,7 @@ def evaluator_scores(tag: str, shift: float = 0.0, seed: int = 1, propagation: s
     keys = [metric_key(m, v) for v in views for m in FRAME_METRICS] + list(CLIP_METRICS)
     rows = [{"clip": c, **{k: round(rnd.gauss(0.5 + shift, 0.05), 4) for k in keys}} for c in clips]
     return dict(tag=tag, eval_code_sha=sha, dataset="atlas120k", pilot=False, class_set=class_set, views=list(views),
-                clips=clips, input_shas={c: {"gt_masks": "g", "depth": "d", "predictions": f"p{tag}{c}"} for c in clips},
+                clips=clips, input_shas={c: {"gt_masks": "g", "depth": "d", "crop": "c", "frames": "f", "predictions": f"p{tag}{c}"} for c in clips},
                 versions={"numpy": "2.0.0"}, propagation=propagation, per_clip=rows)
 
 

@@ -185,7 +185,7 @@ def evaluator_scores(tag: str, shift: float, seed: int, views=("all",)) -> dict:
     rows = [{"clip": c, **{k: round(rnd.gauss(0.5 + shift, 0.15), 4) for k in keys}} for c in clips]
     return dict(tag=tag, eval_code_sha="a" * 64, dataset="atlas", pilot=False, class_set="original",
                 views=list(views), clips=clips,
-                input_shas={c: {"gt_masks": "g" * 64, "depth": "d" * 64, "predictions": f"p{c}"} for c in clips},
+                input_shas={c: {"gt_masks": "g" * 64, "depth": "d" * 64, "crop": "c" * 64, "frames": "f" * 64, "predictions": f"p{c}"} for c in clips},
                 versions={"python": "3.12.0", "numpy": "2.0.0"}, propagation="both_ways_from_centre", per_clip=rows)
 
 

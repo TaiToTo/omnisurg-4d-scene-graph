@@ -56,7 +56,7 @@ def evaluator_scores(tag: str, shift: float, seed: int, rule: str = "both_ways_f
     rows = [{"clip": c, **{k: round(rnd.gauss(0.5 + shift, 0.05), 4) for k in keys}} for c in clips]
     return dict(tag=tag, eval_code_sha="a" * 64, dataset="atlas", pilot=False, class_set="original",
                 views=["all"], clips=clips,
-                input_shas={c: {"gt_masks": "g" * 64, "depth": "d" * 64, "predictions": f"p{c}"} for c in clips},
+                input_shas={c: {"gt_masks": "g" * 64, "depth": "d" * 64, "crop": "c" * 64, "frames": "f" * 64, "predictions": f"p{c}"} for c in clips},
                 versions={"python": "3.12.0"}, propagation=rule, per_clip=rows)
 
 
