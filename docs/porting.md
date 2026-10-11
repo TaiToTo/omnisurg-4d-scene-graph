@@ -12,7 +12,7 @@ no check is recorded.
 | area | ported | checked |
 |---|---|---|
 | evaluator, `evalkit/` | class tables, metrics, entry point, pilot mode | in pilot mode, every key shared with the pilot evaluator equal on 23 conditions × 315 clips, at `eval_code_sha` `a5d7ea46…` |
-| score tools, `evalkit/tools/` | every tool in the layout of `AGENTS.md` but `track_metrics` | `paired_table`, `arms_paired`, `claims_table`, `leave_one_video_out`, `print_status_tables`, `kmerge`: the workbench's values on the same inputs |
+| score tools, `evalkit/tools/` | every tool in the layout of `AGENTS.md` | `paired_table`, `arms_paired`, `claims_table`, `leave_one_video_out`, `print_status_tables`, `kmerge`: the workbench's values on the same inputs. `track_metrics`: none, since its GT track is new |
 | camera trajectory scorer, `trajectory_eval/` | `pose_metrics`, the scoring of a clip, `pose_controls`, `scores` | `pose_metrics`: the workbench's values on 1200 random, planar and static trajectories. The scoring of a clip and `pose_controls`: the workbench's 387 StereoMIS rows, every value, scored again from its stored outputs |
 | extraction and crop | ATLAS-120k, CholecSeg8k, LapEx, StereoMIS, the D4D population | the CholecSeg8k crop, 13 of the 27 CholecSeg8k clips and the D4D population: the workbench's bytes |
 | depth | DA3, Pi3X, point clouds, the population drivers | DA3, point clouds and Pi3X: the workbench's bytes on the GPU machine, on three clips |
@@ -42,9 +42,6 @@ not compared:
 
 ## Not ported yet
 
-- **`track_metrics`**, the measures of identity over time. It waits on "The
-  GT track of `track_metrics`". It is ported without its minimum area,
-  `MIN_AREA`, since the evaluator has no minimum object size.
 - **The export stage**: the regions, scene graphs, hierarchies and graphs
   through time that `pipeline.viewer_bundle` reads, with the `surgical_core`
   modules they need. Its byte check needs a clip whose tracking labels the
@@ -181,8 +178,9 @@ Each question says what it blocks and where its answer is written.
 - **Conditions seeded from GT.** The workbench seeded `t12_gtseed` and
   `t12_paste` from GT masks. On the 151 ATLAS-120k clips with an even
   number of frames, the seed sits one frame before the centre:
-  `track_metrics.pick_seed_frame` breaks a tie toward the earlier frame,
-  while the tracking stage and `rule_of_seed_info` take `frames[n // 2]`.
+  the workbench's `track_metrics.pick_seed_frame` breaks a tie toward the
+  earlier frame, while the tracking stage and `rule_of_seed_info` take
+  `frames[n // 2]`.
   So on those clips the conditions hold neither propagation rule. Open:
   which frame a GT seed is placed on under each rule and when the centre
   frame has no GT, which code places it, and how the evaluator scores it.
@@ -235,16 +233,6 @@ Each question says what it blocks and where its answer is written.
 
 ### Tools and tables
 
-- **The GT track of `track_metrics`.** The datasets carry no ids for
-  individual things, so the tool defines its own GT track. The workbench
-  linked each class's connected components over time, greedily, at an IoU
-  of 0.3 or more, keeping a track through three missed observations. Open:
-  whether a track is a whole class followed over time or linked
-  components, and then the linking rule; whether a gap counts in
-  observations or seconds; which frame hold starts from when the seed frame
-  has no GT; which `hold_mean` definition keeps the name; and what hold
-  means under `forward_from_first`. Blocks: porting `track_metrics`.
-  Answer in: `docs/evaluation.md`.
 - **The fewest videos for an interval.** `paired_stats.boot_ci` refuses a
   population of one video. On two or three videos the 95 % interval is the
   range of the video means, so two videos that agree in sign give a mark.
