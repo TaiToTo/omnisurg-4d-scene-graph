@@ -1,6 +1,6 @@
 // Draw the scene graph in the 3D view: each node as the convex hull of its region's points, or as an
 // ellipsoid of its axes when the region is too small or flat for a hull; the edges as arcs coloured by
-// relation; in world mode, a dot per stacked frame joined by a line per node. Also the followed region's
+// relation; in world mode, a dot per stacked frame joined by a line per node. Draw also the followed region's
 // path, the connector of a selected event, and the outline of a hovered node.
 import * as THREE from 'three';
 import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';

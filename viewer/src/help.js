@@ -1,4 +1,4 @@
-// The words of the page's two dialogs: the keys and the pointer, and the work the page is built on.
+// Hold the words of the page's two dialogs: the keys and the pointer, and the work the page is built on.
 
 /** The keys main.js acts on, and what the pointer does; the keys dialog lists them in this order. */
 export const KEYS = [

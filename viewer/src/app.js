@@ -6,7 +6,7 @@ import {
   clearCaches, fetchGraph, fetchHierarchy, fetchRegions, fetchTemporal, frameImageURL, loadClip, loadCloud, prefetchCloud,
 } from './data.js';
 import { camera, clearGroup, groups, invalidate, measureSceneScale, onSceneScale, resetView } from './stage.js';
-import { applyCloudFilter, applyRegionHighlight, applySegBlend, regionsToCanvas } from './cloud_paint.js';
+import { applyRegionHighlight, applySegBlend, regionsToCanvas } from './cloud_paint.js';
 import { cameraInCloudFrame, INSTRUMENT_HALO_PX, MP_GRAZING_DEG, MP_REL_THRESH } from './depth_filter.js';
 import { srcVertexIndex } from './vertex_filter.js';
 import { enterWorld, exitWorld, focusWorldFrame, nearestStacked, worldIndices } from './world.js';
@@ -425,7 +425,7 @@ export function toggleRegions(track) {
   setStatus(state.painted ? `Regions on the cloud: ${trackInfo(track).name}` : 'Regions off: the cloud as reconstructed');
 }
 
-/** Show another track in the panels without painting it. */
+/** Show another track in the panels, and on the cloud when its regions are painted there. */
 export function setTrack(track) {
   if (!trackInfo(track) || track === state.track) return;
   state.track = track;

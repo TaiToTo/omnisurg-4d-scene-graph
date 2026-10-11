@@ -52,7 +52,7 @@ export function topPartners(tg, nodeId, k = 1) {
     .slice(0, k);
 }
 
-/** Runs of consecutive frames, as [first, last] pairs. */
+/** Group frames into runs of consecutive frames, as [first, last] pairs. */
 export function runsOf(frames) {
   const runs = [];
   for (const f of frames.filter(Number.isInteger).sort((a, b) => a - b)) {
@@ -64,7 +64,7 @@ export function runsOf(frames) {
 }
 
 /**
- * The events of a node, in time order: where it enters and leaves the view, and where its relation to
+ * List the events of a node, in time order: where it enters and leaves the view, and where its relation to
  * each given neighbour changes. A node can only enter or leave within the frames the graph through time
  * covers, `[first, last]`: a track's regions may end before the clip does.
  *

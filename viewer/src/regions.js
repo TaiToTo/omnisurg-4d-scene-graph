@@ -1,5 +1,5 @@
-// Each region's shape in the image, from one frame's labels: an ellipse of equal area, the convex hull,
-// and the traced outline. The 2D graph places its nodes by them and the strip draws them. Results are
+// Compute each region's shape in the image from one frame's labels: an ellipse of equal area, the convex
+// hull, and the traced outline. The 2D graph places its nodes by them and the strip draws them. Results are
 // cached per regions object, which the data cache returns unchanged while a frame stays loaded.
 
 /**

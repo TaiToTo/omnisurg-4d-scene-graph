@@ -1,5 +1,5 @@
 /**
- * An edge of the scene graph as the three numbers its relation was chosen from.
+ * Recover an edge of the scene graph as the three numbers its relation was chosen from.
  *
  * A spatial edge stores one word (right, left, above, below, front, behind): the largest of the six signed
  * components of the 3D offset between the two nodes, in the frame's camera, +X right, +Y up and +Z toward

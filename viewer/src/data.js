@@ -15,14 +15,14 @@ const JSON_ENTRIES = 256;
 const REGION_ENTRIES = 96;
 const CLOUD_ENTRIES = 24;
 
-/** The bundle's base URL: VITE_DATA_URL when the page was built with one, else ./data/ beside the page. */
+/** Return the bundle's base URL: VITE_DATA_URL when the page was built with one, else ./data/ beside the page. */
 export function dataBase() {
   const base = import.meta.env?.VITE_DATA_URL || 'data/';
   const page = globalThis.document?.baseURI ?? 'http://localhost/';
   return new URL(base.endsWith('/') ? base : `${base}/`, page);
 }
 
-/** Frame index as the bundle's four-digit file name. */
+/** Write a frame index as the bundle's four-digit file name. */
 export function frameName(i) {
   return String(i).padStart(4, '0');
 }
@@ -121,7 +121,7 @@ function cachedJSON(path, parse = (x) => x, cache = jsonCache) {
   return p;
 }
 
-/** The catalog: every clip of the bundle, as `{id, dataset_name, procedure, video, n_frames, ...}`. */
+/** Read the catalog: every clip of the bundle, as `{id, dataset_name, procedure, video, n_frames, ...}`. */
 export async function loadCatalog() {
   const cat = checkFormat(await cachedJSON('catalog.json'), 'catalog.json');
   if (!Array.isArray(cat.clips)) throw new Error('catalog.json lists no clips');
@@ -129,7 +129,7 @@ export async function loadCatalog() {
   return cat;
 }
 
-/** A clip's record, `clip.json`, with its tracks also by id. */
+/** Read a clip's record, `clip.json`, with its tracks also by id. */
 export async function loadClip(id) {
   checkClipId(id);
   return cachedJSON(`${id}/clip.json`, (rec) => {
@@ -142,7 +142,7 @@ export async function loadClip(id) {
 }
 
 /**
- * One track's regions on frame `i`: the label of every point of the cloud, its classes, and whether the
+ * Read one track's regions on frame `i`: the label of every point of the cloud, its classes, and whether the
  * frame is where the regions were made (`anchor`) or carried to (`propagated`). Null on a frame the track
  * does not cover.
  *
@@ -188,7 +188,7 @@ export function fetchHierarchy(clip, i) {
   return cachedJSON(`${clip.id}/hierarchy/${frameName(i)}.json`);
 }
 
-/** The URL of frame `i` as an image. */
+/** Return the URL of frame `i` as an image. */
 export function frameImageURL(clip, i) {
   return new URL(`${clip.id}/frames/${frameName(i)}.jpg`, dataBase()).href;
 }
@@ -217,7 +217,7 @@ export function checkCloud(gltf, clip, i) {
   return gltf;
 }
 
-/** Frame `i`'s point cloud, as a parsed glTF. The caller clones it; the cache owns its geometry. */
+/** Load frame `i`'s point cloud, as a parsed glTF. The caller clones it; the cache owns its geometry. */
 export function loadCloud(clip, i) {
   const url = new URL(`${clip.id}/clouds/${frameName(i)}.glb`, dataBase()).href;
   let p = cloudCache.get(url);
