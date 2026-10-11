@@ -234,6 +234,6 @@ def eval_code_sha(package_dir: Path = PACKAGE_DIR) -> str:
 
 
 def eval_code_files(package_dir: Path = PACKAGE_DIR) -> list[str]:
-    """The hashed files, package-relative, in the order hashed; written beside the sha so a reader can see what it covered."""
+    """Return the hashed files, package-relative, in the order hashed."""
     package_dir = Path(package_dir).resolve()
     return [p.relative_to(package_dir).as_posix() for p in hashed_files(package_dir)]
