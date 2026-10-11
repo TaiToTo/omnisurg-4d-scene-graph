@@ -251,9 +251,10 @@ def mark_of(ci95_video: tuple[float, float] | list[float] | None, sign: int = +1
         `"★"`, `"✗"` or `""`.
 
     Raises:
-        ValueError: `sign` is not +1, -1 or 0.
+        ValueError: `sign` is not the int +1, -1 or 0.
     """
-    if sign not in (1, -1, 0):
+    # `True` and `1.0` equal 1, so the type is checked too.
+    if type(sign) is not int or sign not in (1, -1, 0):
         raise ValueError(f"sign is +1, -1 or 0, not {sign!r}")
     if sign == 0 or ci95_video is None or ci95_video[0] is None or ci95_video[1] is None:
         return ""

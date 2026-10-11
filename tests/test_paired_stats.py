@@ -138,6 +138,13 @@ def test_mark_of_reads_the_interval_in_the_metric_s_direction():
         PS.mark_of([0.01, 0.05], sign=None)
 
 
+@pytest.mark.parametrize("sign", [True, False, 1.0, -1.0, np.int64(1)])
+def test_mark_of_refuses_a_sign_that_only_equals_an_int(sign):
+    """`True == 1` and `1.0 == 1`, so a membership test alone lets a flag or a float through."""
+    with pytest.raises(ValueError, match="sign is"):
+        PS.mark_of([0.01, 0.05], sign=sign)
+
+
 def test_is_star_matches_mark_of():
     assert PS.is_star([0.01, 0.05]) and not PS.is_star([-0.05, -0.01]) and not PS.is_star([-0.01, 0.05])
     assert PS.is_star([-0.05, -0.01], sign=-1) and not PS.is_star([0.01, 0.05], sign=-1)
