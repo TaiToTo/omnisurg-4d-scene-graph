@@ -35,6 +35,13 @@ measured after — silently, because nothing crashes. `compare_eval.py` refuses
 scores whose `eval_code_sha` differs, and that refusal is the only thing
 standing between us and a plausible-looking wrong table.
 
+The camera trajectory scorer, `trajectory_eval`, is under the same rule
+through a hash of its own, `trajectory_code_sha`. It is frozen before the
+StereoMIS numbers are measured. The two hashes are separate so that freezing
+or changing one scorer never makes the other's scores incomparable.
+`trajectory_eval.tools.scores` refuses rows whose `trajectory_code_sha`
+differs.
+
 The pilot measurements were scored by the *pilot evaluator* (`eval_code_sha =
 1f8a813a…`). It stays frozen in the private workbench and is not part of this
 repository. The evaluator is checked against it where it lives, taking the
@@ -71,9 +78,12 @@ omnisurg-4d-scene-graph/
 ├── evalkit/           the evaluator, hashed into eval_code_sha with its class tables
 │   └── tools/         what reads scores or predictions, never hashed: scores
 │                      paired_stats compare_eval condition_inventory check_provenance
-│                      pilot_check kmerge pose_metrics pose_controls paired_table
-│                      arms_paired leave_one_video_out claims_table print_status_tables
+│                      pilot_check kmerge paired_table arms_paired
+│                      leave_one_video_out claims_table print_status_tables
 │                      (track_metrics: not yet ported)
+├── trajectory_eval/   the camera trajectory scorer, hashed into trajectory_code_sha
+│   └── tools/         what makes the controls' trajectories, scores StereoMIS or
+│                      reads the scores, never hashed: pose_controls scores
 ├── pipeline/          depth → segmentation → tracking → viewer export
 ├── recon3d_wrapper/   3D reconstruction — DA3 and Pi3 behind one interface
 ├── sam3_wrapper/      promptable segmentation and tracking (SAM 3)

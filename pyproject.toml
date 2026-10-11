@@ -77,14 +77,14 @@ track = [
 [project.urls]
 Homepage = "https://github.com/TaiToTo/omnisurg-4d-scene-graph"
 
-# The install provides five packages: the libraries `surgical_core` and
-# `evalkit`, the stages in `pipeline`, and the models in `recon3d_wrapper` and
-# `sam3_wrapper`.
+# The install provides six packages: the libraries `surgical_core`,
+# `evalkit` and `trajectory_eval`, the stages in `pipeline`, and the models in
+# `recon3d_wrapper` and `sam3_wrapper`.
 # A stage runs as `python -m pipeline.<stage>`. The packages are installed
 # rather than run from the clone. A stage then runs the same from any
 # directory, and no script edits `sys.path` to find the other packages.
 [tool.setuptools.packages.find]
-include = ["surgical_core*", "evalkit*", "pipeline*", "recon3d_wrapper*", "sam3_wrapper*"]
+include = ["surgical_core*", "evalkit*", "trajectory_eval*", "pipeline*", "recon3d_wrapper*", "sam3_wrapper*"]
 
 # The class tables are data the evaluator reads and hashes, so an install
 # without them would score nothing.
