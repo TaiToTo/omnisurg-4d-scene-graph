@@ -46,6 +46,10 @@ def project_world_to_frame(Pw, K, ext_w2c):
         K: (3, 3) intrinsics.
         ext_w2c: (3, 4) world-to-camera extrinsics.
 
+    Returns:
+        `(u, v, Z)`: each (N,), the pixel column and row of each point and its
+        depth in the camera.
+
     Raises:
         ValueError: `Pw` is not (N, 3), `K` is not (3, 3), or `ext_w2c` is not
             (3, 4).
