@@ -182,8 +182,10 @@ def cell(claim: Claim, summaries: Mapping[str, dict | None], column: str, key: s
     for tag, s in ((base_tag, base), (cond_tag, cond)):
         if not any(key in row for row in s["per_clip"]):
             raise ValueError(f"{tag}'s score JSON holds no {key!r} on any clip")
+    # Comparability first: a pilot JSON records no rule, and the stage check would blame that.
+    out = compare_pair(base, cond, keys=[key])
     check_stage(claim, column, base, cond)
-    return compare_pair(base, cond, keys=[key])
+    return out
 
 
 def build(dirs: Mapping[str, str], key: str) -> tuple[list[tuple[Claim, list[dict | Unmeasured]]], str | None,

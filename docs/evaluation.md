@@ -621,7 +621,8 @@ Two scores are comparable only when all of these requirements hold:
 - they cover the same clips; `compare_eval --allow-subset` compares the
   common clips instead, and records the population as `intersection`;
 - they read the same GT masks, depth maps, crop rectangle and frame order:
-  every hash in `input_shas` but the predictions' is equal;
+  both record a hash of each of these in `input_shas`, and every hash but
+  the predictions' is equal;
 - they share a propagation rule, or one of them is `per_frame`.
 
 Pilot JSONs record no input hashes and no propagation rule, so between two

@@ -143,7 +143,9 @@ def leave_each_out_of_pair(ja: dict, jb: dict, keys: Sequence[str]) -> dict:
     for k in keys:
         sign = direction(ja, k)
         # A key in no row is a wrong key or a wrong JSON, not a key undefined on every clip.
-        for tag, rows in ((ja.get("tag", "base"), a), (jb.get("tag", "cond"), b)):
+        # A pilot JSON names its condition `tag`; the evaluator names the labels it read `track_dir_name`.
+        for tag, rows in ((ja.get("tag") or ja.get("track_dir_name") or "base", a),
+                          (jb.get("tag") or jb.get("track_dir_name") or "cond", b)):
             if not any(k in r for r in rows.values()):
                 raise ValueError(f"{k} is in no row of {tag}")
         # Per key, the clips on which both conditions define it: `SQ` is None on a clip with no hit.

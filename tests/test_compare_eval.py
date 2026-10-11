@@ -45,7 +45,7 @@ def evaluator_scores(pilot=False, class_set="original", views=("all", "tissue", 
     rows = [dict(clip=c, **{metric_key(m, v): round(rnd.random() + shift, 4) for v in views for m in metrics},
                  time_IoU=0.5) for c in clips]
     return dict(eval_code_sha=SHA, dataset="atlas120k", pilot=pilot, class_set=class_set, views=list(views),
-                clips=clips, input_shas={c: {"gt_masks": "g", "depth": "d", "predictions": "p"} for c in clips},
+                clips=clips, input_shas={c: {"gt_masks": "g", "depth": "d", "crop": "c", "frames": "f", "predictions": "p"} for c in clips},
                 versions={"numpy": "2.0.0"}, propagation="both_ways_from_centre", per_clip=rows)
 
 
