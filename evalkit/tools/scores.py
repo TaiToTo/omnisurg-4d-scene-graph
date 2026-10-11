@@ -206,7 +206,12 @@ def check_rows(summary: Mapping, side: str) -> None:
     twice = sorted({c for c in rows if rows.count(c) > 1})
     if twice:
         raise ValueError(f"{side}: per_clip holds more than one row for {twice}")
-    claimed = set(clips_of(summary))
+    # The set below would hide a clip listed twice, which a tool reading the list counts twice.
+    listed = clips_of(summary)
+    listed_twice = sorted({c for c in listed if listed.count(c) > 1})
+    if listed_twice:
+        raise ValueError(f"{side}: clips lists {listed_twice} more than once")
+    claimed = set(listed)
     if claimed != set(rows):
         raise ValueError(
             f"{side}: the JSON's clips and its per_clip rows name different clips\n"
