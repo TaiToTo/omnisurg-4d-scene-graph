@@ -29,9 +29,9 @@ its inputs, and two scores are compared only when these match.
   count, objects, the class map, class types and views.
 - [Metrics](#metrics): each key, how frames become a clip's value, the
   primary metrics, and the measures over time.
-- [Rules that keep the numbers honest](#rules-that-keep-the-numbers-honest):
-  thresholds, refusals, what every score records, and the check against the
-  pilot evaluator.
+- [Thresholds, refusals and provenance](#thresholds-refusals-and-provenance):
+  the thresholds, what is refused, what every score records, and the check
+  against the pilot evaluator.
 - [Class tables](#class-tables): every class's type, per dataset.
 
 `docs/pilot_evaluator.md` says why the pilot evaluator was replaced.
@@ -515,7 +515,7 @@ table that carries no star. The tool is not ported yet (`docs/porting.md`,
 carry a star would have to be computed by the evaluator before the
 evaluator is frozen, and none is.
 
-## Rules that keep the numbers honest
+## Thresholds, refusals and provenance
 
 ### Thresholds
 
