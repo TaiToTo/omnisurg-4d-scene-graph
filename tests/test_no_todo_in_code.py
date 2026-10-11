@@ -26,7 +26,6 @@ MARKER = re.compile(r"\b(TODO|FIXME|XXX|HACK)\b")
 # this file defines the pattern.
 ALLOWED = frozenset({
     "docs/porting.md",
-    "docs/workstreams.md",
     "docs/review.md",
     "AGENTS.md",
     "CLAUDE.md",
