@@ -89,17 +89,7 @@ not compared:
    Moving pilot mode out of `evalkit/` was the alternative. It could then be
    deleted at any time, but the check would reach a driver of its own and
    never the entry point.
-2. **The camera trajectory measures are hashed on their own.** `ate_rel`
-   decides the StereoMIS result, so the code that computes it is under the
-   freeze rule like the evaluator, and `eval_code_sha` does not cover it:
-   the two results are measured and frozen at their own times, and a
-   change to one must not make the other's scores incomparable. So
-   `pose_metrics` and the scoring of a clip are the package
-   `trajectory_eval`, hashed into `trajectory_code_sha` as `code_sha`
-   hashes the evaluator (each file's path and content, each preceded by
-   its length). Every StereoMIS score records that hash, and
-   `trajectory_eval.tools.scores` refuses rows whose hashes differ.
-3. **What the paper measures.** Decided on 2026-10-10:
+2. **What the paper measures.** Decided on 2026-10-10:
    - **The `forward_from_first` conditions.** The paper reports them. They
      are measured on the GPU machine before submission.
    - **The conditions seeded from GT masks.** They are measured again with

@@ -35,6 +35,13 @@ measured after — silently, because nothing crashes. `compare_eval.py` refuses
 scores whose `eval_code_sha` differs, and that refusal is the only thing
 standing between us and a plausible-looking wrong table.
 
+The camera trajectory scorer, `trajectory_eval`, is under the same rule
+through a hash of its own, `trajectory_code_sha`. It is frozen before the
+StereoMIS numbers are measured. The two hashes are separate so that freezing
+or changing one scorer never makes the other's scores incomparable.
+`trajectory_eval.tools.scores` refuses rows whose `trajectory_code_sha`
+differs.
+
 The pilot measurements were scored by the *pilot evaluator* (`eval_code_sha =
 1f8a813a…`). It stays frozen in the private workbench and is not part of this
 repository. The evaluator is checked against it where it lives, taking the
