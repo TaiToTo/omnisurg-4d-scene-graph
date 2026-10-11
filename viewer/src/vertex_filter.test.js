@@ -6,12 +6,13 @@ import { filteredGeometry, srcVertexIndex, fullGeometryOf } from './vertex_filte
 function cloud(n, { interleaved = false } = {}) {
   const g = new THREE.BufferGeometry();
   if (interleaved) {
-    // Position (3) and colour (4) sharing one buffer.
+    // Position (3) and colour (4) sharing one buffer. The colour's x is 100 + the index, so a colour read at
+    // the position's offset shows.
     const stride = 7;
     const arr = new Float32Array(n * stride);
     for (let i = 0; i < n; i++) {
       arr[i * stride] = i; arr[i * stride + 1] = 0; arr[i * stride + 2] = 0;
-      arr[i * stride + 3] = i; arr[i * stride + 4] = 0; arr[i * stride + 5] = 0; arr[i * stride + 6] = 1;
+      arr[i * stride + 3] = 100 + i; arr[i * stride + 4] = 0; arr[i * stride + 5] = 0; arr[i * stride + 6] = 1;
     }
     const ib = new THREE.InterleavedBuffer(arr, stride);
     g.setAttribute('position', new THREE.InterleavedBufferAttribute(ib, 3, 0));
@@ -50,7 +51,7 @@ describe('filteredGeometry', () => {
   it('de-interleaves without losing the per-vertex correspondence', () => {
     const out = filteredGeometry(cloud(6, { interleaved: true }), Uint8Array.from([1, 1, 0, 0, 0, 0]));
     expect(out.attributes.position.getX(0)).toBe(2);
-    expect(out.attributes.color.getX(0)).toBe(2);   // same vertex on both attributes
+    expect(out.attributes.color.getX(0)).toBe(102);   // same vertex on both attributes
     expect([...out.userData.srcIndex]).toEqual([2, 3, 4, 5]);
   });
 });

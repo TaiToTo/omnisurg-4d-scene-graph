@@ -1,4 +1,4 @@
-// The words of the page's two dialogs: the keys and the pointer, and the work the page is built on.
+// Hold the words of the page's two dialogs: the keys and the pointer, and the work the page is built on.
 
 /** The keys main.js acts on, and what the pointer does; the keys dialog lists them in this order. */
 export const KEYS = [
@@ -18,7 +18,7 @@ export const KEYS = [
   { keys: 'O', what: 'World mode: the followed region alone' },
   { keys: 'P', what: 'World mode: each frame\'s image under its regions in the strip' },
   { keys: 'R', what: 'Reset the 3D view' },
-  { keys: 'Esc', what: 'Stop following the region' },
+  { keys: 'Esc', what: 'Close a dialog or the enlarged map, or stop following the region' },
   { keys: '?', what: 'This list' },
 ];
 

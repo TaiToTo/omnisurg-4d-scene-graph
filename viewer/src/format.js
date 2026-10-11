@@ -1,4 +1,4 @@
-// Colours, words and escaping shared by the panels and the 3D view.
+// Hold the colours, the relation words and the escaping that the panels and the 3D view share.
 
 /** Edge colour per spatial relation, in the 3D view, the 2D graph and the focus band alike. */
 export const RELATION_COLORS = {
@@ -26,31 +26,33 @@ export function esc(s) {
   }[c]));
 }
 
-/** 0xRRGGBB as "#rrggbb". */
+/** Write 0xRRGGBB as "#rrggbb". */
 export function hexColor(c) {
   return `#${((c >>> 0) & 0xffffff).toString(16).padStart(6, '0')}`;
 }
 
-/** An [r, g, b] colour of 0-1 floats as 0xRRGGBB; `fallback` when it is not one. */
+/** Turn an [r, g, b] colour of 0-1 floats into 0xRRGGBB; return `fallback` when it is not one. */
 export function rgbToHex(color, fallback = 0x888888) {
   if (!Array.isArray(color) || color.length < 3 || !color.slice(0, 3).every(Number.isFinite)) return fallback;
   const ch = (v) => Math.max(0, Math.min(255, Math.round(v * 255)));
   return ((ch(color[0]) << 16) | (ch(color[1]) << 8) | ch(color[2])) >>> 0;
 }
 
-/** An [r, g, b] colour of 0-1 floats as a CSS colour, moved toward white by `k`. */
+/** Turn an [r, g, b] colour of 0-1 floats into a CSS colour, moved toward white by `k`. */
 export function lighten(color, k = 0) {
   if (!Array.isArray(color)) return '#dddddd';
   return `rgb(${color.slice(0, 3).map((c) => Math.round(c * 255 * (1 - k) + 255 * k)).join(',')})`;
 }
 
-/** The key that names one node of one track: "track:id". */
+/** Make the key that names one node of one track: "track:id". */
 export function nodeKey(track, id) {
   return `${track}:${id}`;
 }
 
-/** Split a node key into its track and its numeric id. */
+/** Split a node key into its track and its numeric id; refuse anything that is not a node key. */
 export function parseNodeKey(key) {
-  const at = String(key).lastIndexOf(':');
-  return { track: key.slice(0, at), id: Number(key.slice(at + 1)) };
+  const s = String(key);
+  const at = s.lastIndexOf(':');
+  if (at <= 0 || !/^\d+$/.test(s.slice(at + 1))) throw new Error(`not a node key: ${JSON.stringify(key)}`);
+  return { track: s.slice(0, at), id: Number(s.slice(at + 1)) };
 }

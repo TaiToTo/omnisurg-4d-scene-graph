@@ -1,7 +1,23 @@
+import * as THREE from 'three';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  checkClipId, checkFormat, clearCaches, decodeRuns, fetchRegions, fetchTemporal, FORMAT, frameName, loadClip, temporalProblem,
+  checkClipId, checkCloud, checkFormat, clearCaches, decodeRuns, fetchGraph, fetchHierarchy, fetchRegions, fetchTemporal,
+  FORMAT, frameName, loadCatalog, loadClip, loadCloud, temporalProblem,
 } from './data.js';
+
+const gltfLoad = vi.hoisted(() => ({ fn: null }));
+vi.mock('three/addons/loaders/GLTFLoader.js', () => ({ GLTFLoader: class { loadAsync(url) { return gltfLoad.fn(url); } } }));
+
+/** A parsed glTF holding one point list of each of `counts` points. */
+function cloudOf(...counts) {
+  const scene = new THREE.Group();
+  for (const n of counts) {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(3 * n), 3));
+    scene.add(new THREE.Points(g, new THREE.PointsMaterial()));
+  }
+  return { scene };
+}
 
 describe('decodeRuns', () => {
   it('expands value/count pairs into one label per point', () => {
@@ -16,7 +32,12 @@ describe('decodeRuns', () => {
   it('keeps labels in 16 bits when they fit, and in 32 when they do not', () => {
     expect(decodeRuns([3, 2], 2)).toBeInstanceOf(Uint16Array);
     expect([...decodeRuns([70000, 2], 2)]).toEqual([70000, 70000]);
-    expect(decodeRuns([-1, 2], 2)).toBeInstanceOf(Int32Array);
+    expect(decodeRuns([70000, 2], 2)).toBeInstanceOf(Int32Array);
+  });
+
+  it('refuses a label that is no region id, or that 32 bits would wrap round', () => {
+    for (const bad of [-1, 1.5, '3', 2 ** 31, 2 ** 32 + 5]) expect(() => decodeRuns([bad, 2], 2)).toThrow(/is not a region id/);
+    expect([...decodeRuns([2 ** 31 - 1, 1], 1)]).toEqual([2 ** 31 - 1]);
   });
 
   it('refuses what is not value/count pairs', () => {
@@ -31,6 +52,14 @@ describe('the bundle records', () => {
     expect(checkFormat({ format: FORMAT }, 'x')).toEqual({ format: FORMAT });
     expect(() => checkFormat({ format: FORMAT + 1 }, 'x')).toThrow(/not a bundle of format/);
     expect(() => checkFormat(null, 'x')).toThrow(/format missing/);
+  });
+
+  it('refuses a cloud without one point per pixel of the grid', () => {
+    const clip = { id: 'c', geometry: { grid: [2, 3] } };
+    expect(checkCloud(cloudOf(6), clip, 0).scene.children).toHaveLength(1);
+    expect(() => checkCloud(cloudOf(5), clip, 4)).toThrow(/c frame 4: the cloud holds 5 points, not one per pixel of the 2x3 grid/);
+    expect(() => checkCloud(cloudOf(6, 6), clip, 0)).toThrow(/holds 6 \+ 6 points/);
+    expect(() => checkCloud(cloudOf(), clip, 0)).toThrow(/holds no points/);
   });
 
   it('refuses a clip id that would leave the bundle directory', () => {
@@ -65,10 +94,54 @@ describe('fetching a clip', () => {
   });
 
   it('refuses regions on another grid than the cloud', async () => {
-    vi.stubGlobal('fetch', vi.fn((url) => respond(url.endsWith('clip.json') ? clipJSON
-      : { grid: [4, 1], runs: [0, 4], classes: [], stage: 'anchor', anchor_frame: null })));
+    for (const grid of [[4, 1], [2, 1]]) {
+      clearCaches();
+      vi.stubGlobal('fetch', vi.fn((url) => respond(url.endsWith('clip.json') ? clipJSON
+        : { grid, runs: [0, grid[0] * grid[1]], classes: [], stage: 'anchor', anchor_frame: null })));
+      const clip = await loadClip('c');
+      await expect(fetchRegions(clip, 't', 0)).rejects.toThrow(`${grid[0]}x${grid[1]} grid`);
+    }
+  });
+
+  it('takes a seed frame of the clip, and refuses one that is not', async () => {
+    const regions = (anchor) => ({ grid: [2, 2], runs: [0, 4], classes: [], stage: 'propagated', anchor_frame: anchor });
+    for (const [anchor, want] of [[null, null], [undefined, null], [0, 0], [1, 1]]) {
+      clearCaches();
+      vi.stubGlobal('fetch', vi.fn((url) => respond(url.endsWith('clip.json') ? clipJSON : regions(anchor))));
+      expect((await fetchRegions(await loadClip('c'), 't', 0)).anchorFrame).toBe(want);
+    }
+    for (const anchor of [-1, 2, 1.5, '0']) {
+      clearCaches();
+      vi.stubGlobal('fetch', vi.fn((url) => respond(url.endsWith('clip.json') ? clipJSON : regions(anchor))));
+      await expect(fetchRegions(await loadClip('c'), 't', 0)).rejects.toThrow(/as their seed frame, no frame of the clip/);
+    }
+  });
+
+  it('asks for no graph, graph through time or hierarchy the record does not list', async () => {
+    const fetch = vi.fn((url) => respond(clipJSON));
+    vi.stubGlobal('fetch', fetch);
     const clip = await loadClip('c');
-    await expect(fetchRegions(clip, 't', 0)).rejects.toThrow(/4x1 grid/);
+    expect(await fetchGraph(clip, 't', 0)).toBeNull();
+    expect(await fetchTemporal(clip, 't')).toBeNull();
+    expect(await fetchHierarchy({ ...clip, hierarchy: { tracks: ['t', 'u'], frames: [1] } }, 0)).toBeNull();
+    expect(await fetchHierarchy(clip, 0)).toBeNull();
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses a record of another format, an unsafe track id, or no list of tracks', async () => {
+    for (const [rec, msg] of [[{ ...clipJSON, format: FORMAT + 1 }, /not a bundle of format/],
+      [{ ...clipJSON, tracks: [{ ...clipJSON.tracks[0], id: '../t' }] }, /not a track id: "\.\.\/t"/],
+      [{ ...clipJSON, tracks: null }, /lists no tracks/], [{ ...clipJSON, tracks: { t: {} } }, /lists no tracks/]]) {
+      clearCaches();
+      vi.stubGlobal('fetch', vi.fn(() => respond(rec)));
+      await expect(loadClip('c')).rejects.toThrow(msg);
+    }
+    await expect(loadClip('../c')).rejects.toThrow(/not a clip id/);
+  });
+
+  it('names the file that is not JSON', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.reject(new SyntaxError('Unexpected token <')) })));
+    await expect(loadClip('c')).rejects.toThrow(/c\/clip\.json is not JSON \(Unexpected token </);
   });
 
   it('refuses a record of another clip, and does not keep a failed fetch', async () => {
@@ -122,5 +195,35 @@ describe('temporalProblem', () => {
     expect(problem({ relations: [{ ...rel, relation: 3 }] })).toMatch(/a word/);
     expect(problem({ relations: [{ ...rel, frames: null }] })).toMatch(/frames 0 to 1/);
     expect(problem({ relations: [{ ...rel, frames: [2] }] })).toMatch(/frames 0 to 1/);
+  });
+});
+
+describe('the catalog', () => {
+  const respond = (body) => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
+  afterEach(() => { vi.unstubAllGlobals(); clearCaches(); });
+
+  it('lists the clips of a bundle of this format, and refuses any other', async () => {
+    const good = { format: FORMAT, clips: [{ id: 'a' }, { id: 'b' }] };
+    for (const [cat, msg] of [[{ ...good, format: 0 }, /not a bundle of format/], [{ format: FORMAT }, /lists no clips/],
+      [{ format: FORMAT, clips: [{ id: 'a/../../x' }] }, /not a clip id/]]) {
+      clearCaches();
+      vi.stubGlobal('fetch', vi.fn(() => respond(cat)));
+      await expect(loadCatalog()).rejects.toThrow(msg);
+    }
+    clearCaches();
+    vi.stubGlobal('fetch', vi.fn(() => respond(good)));
+    expect((await loadCatalog()).clips.map((c) => c.id)).toEqual(['a', 'b']);
+  });
+});
+
+describe('a cloud', () => {
+  const clip = { id: 'c', n_frames: 2, geometry: { grid: [2, 2] } };
+  afterEach(() => { clearCaches(); });
+
+  it('is refused with too few points, and asked for again on the next call', async () => {
+    gltfLoad.fn = vi.fn().mockResolvedValueOnce(cloudOf(3)).mockResolvedValueOnce(cloudOf(4));
+    await expect(loadCloud(clip, 1)).rejects.toThrow(/holds 3 points/);
+    expect((await loadCloud(clip, 1)).scene.children).toHaveLength(1);
+    expect(gltfLoad.fn).toHaveBeenCalledTimes(2);
   });
 });

@@ -611,7 +611,11 @@ The tools enforce this:
 - `compare_eval` refuses a pair that is not comparable.
 - `paired_stats` refuses such a pair too, and a table that holds two rules
   other than `per_frame`.
-- Both report a difference in library versions but do not refuse it.
+- `paired_table` and `arms_paired` refuse a table that holds two
+  conditions that are not comparable.
+- `claims_table` refuses a column in which any two score JSONs are not
+  comparable.
+- All five report a difference in library versions but do not refuse it.
 
 The check against the pilot evaluator, below, is not bound by these
 conditions: the two `eval_code_sha` differ by construction. Its own script,
@@ -689,6 +693,10 @@ pilot evaluator's numbers.
   must the number of frames behind each. Ties are broken as the pilot
   evaluator breaks them. The check runs where the pilot evaluator and its
   scores are, and takes their paths as arguments.
+- The check passed on 2026-10-11, for `eval_code_sha` `a5d7ea46…`. On the
+  23 ATLAS-120k conditions that hold a propagation rule, 315 clips each,
+  every shared value was equal, and so was every number of frames the
+  pilot evaluator wrote.
 - Every difference in the normal mode then comes from a rule this document
   changes, and is listed.
 - A score made in pilot mode is marked as such and never enters a comparison

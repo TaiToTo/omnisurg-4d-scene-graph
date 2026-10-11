@@ -1,5 +1,5 @@
-// Each region's shape in the image, from one frame's labels: an ellipse of equal area, the convex hull,
-// and the traced outline. The 2D graph places its nodes by them and the strip draws them. Results are
+// Compute each region's shape in the image from one frame's labels: an ellipse of equal area, the convex
+// hull, and the traced outline. The 2D graph places its nodes by them and the strip draws them. Results are
 // cached per regions object, which the data cache returns unchanged while a frame stays loaded.
 
 /**
@@ -114,19 +114,21 @@ export function traceOutline(labels, w, h, id, step = 2) {
   // Neighbours clockwise from the west.
   const DIRS = [[-1, 0], [-1, -1], [0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1]];
   const out = [];
-  let cx = sx, cy = sy, back = 0;
+  let cx = sx, cy = sy, back = 0, first = -1;
   for (let n = 0; n < 4 * gw * gh; n++) {
-    out.push([Math.min(cx * step, w - 1), Math.min(cy * step, h - 1)]);
     let found = -1;
     for (let k = 1; k <= 8; k++) {
       const d = (back + k) % 8;
       if (at(cx + DIRS[d][0], cy + DIRS[d][1])) { found = d; break; }
     }
+    // Closed when the start would be left by its first step again: a first return can come down a thin arm.
+    if (n > 0 && cx === sx && cy === sy && found === first) break;
+    out.push([Math.min(cx * step, w - 1), Math.min(cy * step, h - 1)]);
     if (found < 0) break;
+    if (n === 0) first = found;
     cx += DIRS[found][0];
     cy += DIRS[found][1];
     back = (found + 5) % 8;
-    if (cx === sx && cy === sy) break;
   }
   return out.length >= 3 ? out : [];
 }

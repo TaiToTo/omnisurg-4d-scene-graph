@@ -102,8 +102,8 @@ export function exitWorld() {
  * Put the stacked frame nearest frame `i` on stage and fade the others.
  *
  * @param {'spotlight'|'overlay'} view  one frame on stage, or every frame alike.
- * @param {boolean} isolated  a region is followed: only the stage frame's cloud is drawn, since stacking a
- *        region's surface from every frame shows the depth estimates disagreeing, not the region moving.
+ * @param {boolean} isolated  a region is followed: only the stage frame's cloud is drawn, in either view, since
+ *        stacking a region's surface from every frame shows the depth estimates disagreeing, not the region moving.
  * @returns {number} the frame on stage.
  */
 export function focusWorldFrame(world, i, view, isolated) {
@@ -113,7 +113,7 @@ export function focusWorldFrame(world, i, view, isolated) {
   for (const fr of world.frames) {
     const away = Math.abs(world.indices.indexOf(fr.i) - rank);
     const isStage = fr.i === stage;
-    fr.group.visible = overlay || (isolated ? isStage : away < NEIGHBOUR_OPACITY.length);
+    fr.group.visible = isolated ? isStage : overlay || away < NEIGHBOUR_OPACITY.length;
     fr.group.traverse((o) => {
       if (!o.isPoints) return;
       if (o.userData.baseSize === undefined) o.userData.baseSize = o.material.size;

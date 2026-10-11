@@ -182,7 +182,7 @@ const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const norm = (a) => { const l = Math.hypot(...a) || 1; return a.map((v) => v / l); };
 
-/** Least squares y = a x + b; null when x does not spread. */
+/** Fit y = a x + b by least squares; return null when x does not spread. */
 export function fitLinear(xs, ys) {
   const n = xs.length;
   if (n < 2) return null;

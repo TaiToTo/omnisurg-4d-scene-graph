@@ -6,21 +6,23 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 /** The bundle format this page reads; a bundle of another format is refused. */
 export const FORMAT = 1;
 
-// A clip id names a directory of the bundle, so it may not climb out of it.
+// A clip id and a track id name directories of the bundle, so they may not climb out of it.
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9_.-]*$/;
+// The largest label an Int32Array holds; a larger one would wrap round to another region's.
+const MAX_LABEL = 2 ** 31 - 1;
 // The bounds hold what world mode and the strip read at once: a dozen frames' regions of each track.
 const JSON_ENTRIES = 256;
 const REGION_ENTRIES = 96;
 const CLOUD_ENTRIES = 24;
 
-/** The bundle's base URL: VITE_DATA_URL when the page was built with one, else ./data/ beside the page. */
+/** Return the bundle's base URL: VITE_DATA_URL when the page was built with one, else ./data/ beside the page. */
 export function dataBase() {
   const base = import.meta.env?.VITE_DATA_URL || 'data/';
   const page = globalThis.document?.baseURI ?? 'http://localhost/';
   return new URL(base.endsWith('/') ? base : `${base}/`, page);
 }
 
-/** Frame index as the bundle's four-digit file name. */
+/** Write a frame index as the bundle's four-digit file name. */
 export function frameName(i) {
   return String(i).padStart(4, '0');
 }
@@ -28,15 +30,15 @@ export function frameName(i) {
 /** Refuse a record of another format, or one that is not an object. */
 export function checkFormat(obj, what) {
   if (!obj || typeof obj !== 'object' || obj.format !== FORMAT) {
-    throw new Error(`${what} is not a bundle of format ${FORMAT} (format ${obj?.format ?? 'missing'}); `
-      + 'publish it again with this version of pipeline.viewer_bundle');
+    throw new Error(`${what} is not a bundle of format ${FORMAT}, the one this page reads (format ${obj?.format ?? 'missing'}); `
+      + 'build the page and write the bundle from one version of the repository');
   }
   return obj;
 }
 
-/** Refuse a clip id that is not a plain directory name. */
-export function checkClipId(id) {
-  if (typeof id !== 'string' || !SAFE_ID.test(id)) throw new Error(`not a clip id: ${JSON.stringify(id)}`);
+/** Refuse a clip id, or a track id, that is not a plain directory name. */
+export function checkClipId(id, what = 'clip id') {
+  if (typeof id !== 'string' || !SAFE_ID.test(id)) throw new Error(`not a ${what}: ${JSON.stringify(id)}`);
   return id;
 }
 
@@ -57,9 +59,8 @@ export function decodeRuns(runs, n) {
   let at = 0;
   for (let k = 0; k < runs.length; k += 2) {
     const value = runs[k], count = runs[k + 1];
-    if (!Number.isInteger(value) || !Number.isInteger(count) || count < 0 || at + count > n) {
-      throw new Error(`labels run past the ${n} points they label`);
-    }
+    if (!Number.isInteger(value) || value < 0 || value > MAX_LABEL) throw new Error(`label ${JSON.stringify(value)} is not a region id`);
+    if (!Number.isInteger(count) || count < 0 || at + count > n) throw new Error(`labels run past the ${n} points they label`);
     out.fill(value, at, at + count);
     at += count;
   }
@@ -105,7 +106,14 @@ function cachedJSON(path, parse = (x) => x, cache = jsonCache) {
   if (!p) {
     p = fetch(url).then(async (r) => {
       if (!r.ok) throw new Error(`could not load ${path} (HTTP ${r.status})`);
-      return parse(await r.json());
+      let body;
+      try {
+        body = await r.json();
+      } catch (err) {
+        // A host may answer a missing file with a page of HTML and status 200.
+        throw new Error(`${path} is not JSON (${err.message})`);
+      }
+      return parse(body);
     });
     p.catch(() => { if (cache.get(url) === p) cache.delete(url); });
     cache.set(url, p);
@@ -113,7 +121,7 @@ function cachedJSON(path, parse = (x) => x, cache = jsonCache) {
   return p;
 }
 
-/** The catalog: every clip of the bundle, as `{id, dataset_name, procedure, video, n_frames, ...}`. */
+/** Read the catalog: every clip of the bundle, as `{id, dataset_name, procedure, video, n_frames, ...}`. */
 export async function loadCatalog() {
   const cat = checkFormat(await cachedJSON('catalog.json'), 'catalog.json');
   if (!Array.isArray(cat.clips)) throw new Error('catalog.json lists no clips');
@@ -121,18 +129,20 @@ export async function loadCatalog() {
   return cat;
 }
 
-/** A clip's record, `clip.json`, with its tracks also by id. */
+/** Read a clip's record, `clip.json`, with its tracks also by id. */
 export async function loadClip(id) {
   checkClipId(id);
   return cachedJSON(`${id}/clip.json`, (rec) => {
     checkFormat(rec, `${id}/clip.json`);
     if (rec.id !== id) throw new Error(`${id}/clip.json describes ${rec.id}`);
+    if (!Array.isArray(rec.tracks)) throw new Error(`${id}/clip.json lists no tracks`);
+    for (const t of rec.tracks) checkClipId(t?.id, 'track id');
     return { ...rec, trackById: new Map(rec.tracks.map((t) => [t.id, t])) };
   });
 }
 
 /**
- * One track's regions on frame `i`: the label of every point of the cloud, its classes, and whether the
+ * Read one track's regions on frame `i`: the label of every point of the cloud, its classes, and whether the
  * frame is where the regions were made (`anchor`) or carried to (`propagated`). Null on a frame the track
  * does not cover.
  *
@@ -147,10 +157,14 @@ export function fetchRegions(clip, track, i) {
     if (w !== clip.geometry.grid[0] || h !== clip.geometry.grid[1]) {
       throw new Error(`${clip.id} frame ${i}: ${track} regions are on a ${w}x${h} grid, the cloud on another`);
     }
+    const anchor = r.anchor_frame ?? null;
+    if (anchor !== null && !(Number.isInteger(anchor) && anchor >= 0 && anchor < clip.n_frames)) {
+      throw new Error(`${clip.id} frame ${i}: ${track} regions name ${JSON.stringify(anchor)} as their seed frame, no frame of the clip`);
+    }
     return {
       grid: [w, h], labels: decodeRuns(r.runs, w * h), classes: r.classes,
       classById: new Map(r.classes.map((c) => [c.id, c])),
-      stage: r.stage, anchorFrame: Number.isInteger(r.anchor_frame) ? r.anchor_frame : null, track,
+      stage: r.stage, anchorFrame: anchor, track,
     };
   }, regionCache);
 }
@@ -201,7 +215,7 @@ export function fetchHierarchy(clip, i) {
   return cachedJSON(`${clip.id}/hierarchy/${frameName(i)}.json`);
 }
 
-/** The URL of frame `i` as an image. */
+/** Return the URL of frame `i` as an image. */
 export function frameImageURL(clip, i) {
   return new URL(`${clip.id}/frames/${frameName(i)}.jpg`, dataBase()).href;
 }
@@ -216,12 +230,26 @@ function disposeGLTF(p) {
 const cloudCache = new LRU(CLOUD_ENTRIES, disposeGLTF);
 const gltfLoader = new GLTFLoader();
 
-/** Frame `i`'s point cloud, as a parsed glTF. The caller clones it; the cache owns its geometry. */
+/**
+ * Refuse a cloud that is not one point list with a point per pixel of the clip's grid, since the labels
+ * index the points by pixel.
+ */
+export function checkCloud(gltf, clip, i) {
+  const [w, h] = clip.geometry.grid;
+  const counts = [];
+  gltf.scene.traverse((o) => { if (o.isPoints) counts.push(o.geometry.getAttribute('position')?.count ?? 0); });
+  if (counts.length !== 1 || counts[0] !== w * h) {
+    throw new Error(`${clip.id} frame ${i}: the cloud holds ${counts.join(' + ') || 'no'} points, not one per pixel of the ${w}x${h} grid`);
+  }
+  return gltf;
+}
+
+/** Load frame `i`'s point cloud, as a parsed glTF. The caller clones it; the cache owns its geometry. */
 export function loadCloud(clip, i) {
   const url = new URL(`${clip.id}/clouds/${frameName(i)}.glb`, dataBase()).href;
   let p = cloudCache.get(url);
   if (!p) {
-    p = gltfLoader.loadAsync(url);
+    p = gltfLoader.loadAsync(url).then((gltf) => checkCloud(gltf, clip, i));
     p.catch(() => { if (cloudCache.get(url) === p) cloudCache.delete(url); });
     cloudCache.set(url, p);
   }

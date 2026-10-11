@@ -51,5 +51,6 @@ uses is relative, so it works from any directory of a host.
 
 The address keeps what is on screen,
 `?clip=<id>&track=<track>&frame=<n>&mode=world&focus=<track>:<id>`, so a view
-can be shared as a link; `track=both` shows the two tracks of the hierarchy. The page opens only clips the catalog
-lists.
+can be shared as a link; `track=both` shows the two tracks of the hierarchy.
+The page opens only clips the catalog lists, and names a link's setting the
+clip lacks.

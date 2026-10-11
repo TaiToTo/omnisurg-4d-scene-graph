@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { nodeEvents, runsOf, topPartners } from './focus_band.js';
+import { axisX, frameAtX, nodeEvents, renderFocusBand, runsOf, topPartners } from './focus_band.js';
 
 const tg = {
   nodes: [{ id: 1, present_frames: [0, 1, 2, 3, 4] }, { id: 2, present_frames: [0, 1, 2, 3, 4] }, { id: 3, present_frames: [0, 1] }],
@@ -48,6 +48,16 @@ describe('topPartners', () => {
     expect(topPartners({ relations: mirrored }, 1)[0][1].relByFrame.get(0)).toBe('below');
   });
 
+  it('puts the neighbour that changes most first, then the one sharing most frames', () => {
+    const many = { relations: [
+      { src: 1, dst: 4, relation: 'left', edge_type: 'spatial', frames: [0, 1, 2] },
+      { src: 1, dst: 3, relation: 'above', edge_type: 'spatial', frames: [0, 1, 2, 3, 4, 5] },
+      { src: 1, dst: 2, relation: 'left', edge_type: 'spatial', frames: [0] },
+      { src: 1, dst: 2, relation: 'right', edge_type: 'spatial', frames: [1] },
+    ] };
+    expect(topPartners(many, 1, 3).map(([other]) => other)).toEqual([2, 3, 4]);
+  });
+
   it('leaves out relations that are not spatial', () => {
     const third = topPartners(tg, 1, 2)[1][1];
     expect([...third.relByFrame.values()]).toEqual(['above', 'above']);
@@ -68,9 +78,80 @@ describe('events', () => {
   });
 
   it('lists entries, exits and relation changes in time order', () => {
-    const ev = nodeEvents(tg.nodes[2], [], 4, String);
+    const ev = nodeEvents(tg.nodes[2], [], [0, 4], String);
     expect(ev).toEqual([{ f: 2, kind: 'exit', label: 'leaves the view' }]);
-    const ev1 = nodeEvents(tg.nodes[0], topPartners(tg, 1), 4, (id) => `obj ${id}`);
+    const ev1 = nodeEvents(tg.nodes[0], topPartners(tg, 1), [0, 4], (id) => `obj ${id}`);
     expect(ev1).toEqual([{ f: 3, kind: 'rel', partner: 2, label: 'to obj 2: left → right' }]);
+  });
+
+  it('lets a node enter or leave only within the frames the graph covers', () => {
+    // A track whose regions run from frame 2 to frame 6 of a longer clip.
+    const node = { present_frames: [2, 3, 4, 5, 6] };
+    expect(nodeEvents(node, [], [2, 6], String)).toEqual([]);
+    expect(nodeEvents(node, [], [0, 9], String).map((e) => [e.kind, e.f])).toEqual([['enter', 2], ['exit', 7]]);
+  });
+});
+
+/** An element just big enough for renderFocusBand: it keeps the markup and hands back a stand-in SVG. */
+function bandElement(width) {
+  return {
+    innerHTML: '',
+    getBoundingClientRect: () => ({ width: width + 2 }),
+    firstElementChild: { addEventListener() {}, setPointerCapture() {} },
+    querySelectorAll: () => [],
+  };
+}
+
+// Text that opens a tag, or ends an attribute, wherever it is not escaped.
+const HOSTILE = '<img src=x onerror=alert(1)>" onmouseover="x';
+const INJECTED = /<img|\sonmouseover="/;
+
+const attrs = (tag, html) => [...html.matchAll(new RegExp(`<${tag} ([^>]*)>`, 'g'))]
+  .map(([, a]) => Object.fromEntries([...a.matchAll(/([\w-]+)="([^"]*)"/g)].map(([, k, v]) => [k, v])));
+
+describe('the band', () => {
+  const frames = [...Array(15).keys()];
+  const band = {
+    frames,
+    nodes: [{ id: 1, present_frames: frames }, { id: 2, present_frames: frames }],
+    relations: [{ src: 1, dst: 2, relation: 'right', edge_type: 'spatial', frames }],
+  };
+  const axes = { byFrame: new Map(frames.map((f) => [f, { c: [1, 0.2, -0.3], word: 'right' }])) };
+
+  it('draws every column clear of the row labels and the right edge', () => {
+    const W = 1576;
+    const el = bandElement(W);
+    renderFocusBand(el, { tg: band, nodeId: 1, lastFrame: 14, frame: 0, onFrame() {}, labelOf: String, axes });
+    const cols = attrs('rect', el.innerHTML).filter((r) => r.width);
+    expect(cols.length).toBeGreaterThan(0);
+    const labelsEnd = Math.max(...attrs('text', el.innerHTML).filter((t) => t['text-anchor'] === 'end' && t.class === 'nf-axis')
+      .map((t) => Number(t.x)));
+    expect(Math.min(...cols.map((r) => Number(r.x)))).toBeGreaterThan(labelsEnd);
+    expect(Math.max(...cols.map((r) => Number(r.x) + Number(r.width)))).toBeLessThanOrEqual(W);
+  });
+
+  it('escapes the node names and the relations', () => {
+    const hostile = { ...band, relations: [
+      { src: 1, dst: 2, relation: HOSTILE, edge_type: 'spatial', frames: frames.slice(0, 7) },
+      { src: 1, dst: 2, relation: 'left', edge_type: 'spatial', frames: frames.slice(7) },
+    ] };
+    const el = bandElement(1576);
+    const events = renderFocusBand(el, { tg: hostile, nodeId: 1, lastFrame: 14, frame: 0, onFrame() {}, labelOf: () => HOSTILE });
+    expect(events).toHaveLength(1);
+    expect(el.innerHTML).toContain('class="nf-seg"');
+    expect(el.innerHTML).toContain('&lt;img');
+    expect(el.innerHTML).not.toMatch(INJECTED);
+  });
+
+  it('turns an x anywhere on a frame\'s column back into that frame', () => {
+    for (const n of [2, 15, 300]) {
+      // A column spans 0.72 of a step, centred on its frame.
+      const edge = 0.3 * (axisX(1, 900, n) - axisX(0, 900, n));
+      for (const f of [0, 1, Math.floor(n / 2), n - 1]) {
+        for (const dx of [-edge, 0, edge]) expect(frameAtX(axisX(f, 900, n) + dx, 900, n)).toBe(f);
+      }
+    }
+    expect(frameAtX(0, 900, 15)).toBe(0);
+    expect(frameAtX(900, 900, 15)).toBe(14);
   });
 });

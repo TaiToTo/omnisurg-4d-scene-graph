@@ -5,12 +5,8 @@ import * as THREE from 'three';
 /**
  * Copy every attribute of `geom`, keeping only vertices where mask[i] === 0.
  *
- * Reads through the RAW backing array with stride/offset so this works for
- * both plain and INTERLEAVED attributes, and copies raw values so a normalized
- * Uint8 colour attribute (what these GLBs carry) keeps its 0–255 encoding —
- * going through getX/setX would silently rescale it. The result is always
- * de-interleaved, which is fine: the filtered copy is only ever rendered,
- * never blended into (blending happens on the full geometry).
+ * Values are copied as stored, through the backing array's stride and offset, so interleaved attributes and
+ * normalized colours copy alike. The copy is de-interleaved; it is only drawn, never blended into.
  *
  * The copy carries `userData.srcIndex`, filtered index to original index. Read it through
  * srcVertexIndex; never index the labels with a raw hit index.

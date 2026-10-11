@@ -6,7 +6,7 @@ import {
   clearCaches, fetchGraph, fetchHierarchy, fetchRegions, fetchTemporal, frameImageURL, loadClip, loadCloud, prefetchCloud,
 } from './data.js';
 import { camera, clearGroup, groups, invalidate, measureSceneScale, onSceneScale, resetView } from './stage.js';
-import { applyCloudFilter, applyRegionHighlight, applySegBlend, regionsToCanvas } from './cloud_paint.js';
+import { applyRegionHighlight, applySegBlend, regionsToCanvas } from './cloud_paint.js';
 import { cameraInCloudFrame, INSTRUMENT_HALO_PX, MP_GRAZING_DEG, MP_REL_THRESH } from './depth_filter.js';
 import { srcVertexIndex } from './vertex_filter.js';
 import { enterWorld, exitWorld, focusWorldFrame, nearestStacked, worldIndices } from './world.js';
@@ -59,6 +59,7 @@ export const state = {
 };
 
 let playToken = 0;
+let eventSeq = 0;
 let drawnFrame = 0;
 // The view is framed on the first frame a clip draws, which may not be its first frame.
 let needsFraming = false;
@@ -119,8 +120,9 @@ function paint(group, regionsByTrack, stats = null) {
 /** The frame on stage, in either mode: its index, cloud group, regions, graphs, hierarchy and offset. */
 function stageEntry() {
   if (state.mode === 'world' && state.world) return state.world.frames.find((f) => f.i === state.stageFrame) ?? null;
+  // The drawn frame: the regions and graphs stay its own until the next load ends.
   const group = groups.points.children[0];
-  return group ? { i: state.frame, group, regionsByTrack: state.regionsByTrack, graphByTrack: state.graphByTrack,
+  return group ? { i: drawnFrame, group, regionsByTrack: state.regionsByTrack, graphByTrack: state.graphByTrack,
     hierarchy: state.hierarchy, offset: [0, 0, 0] } : null;
 }
 
@@ -228,6 +230,7 @@ export async function loadFrame(i) {
   state.regionsByTrack = Object.fromEntries(tracks.map((t, k) => [t, regions[k]]));
   state.graphByTrack = Object.fromEntries(tracks.map((t, k) => [t, graphs[k]]));
   state.hierarchy = hierarchy;
+  drawnFrame = i;
   clearGroup(groups.points);
   const group = new THREE.Group();
   gltf.scene.traverse((obj) => {
@@ -249,7 +252,6 @@ export async function loadFrame(i) {
   renderNodeLinkPanel();
   prefetchCloud(clip, i + 1);
   setStatus(`Frame ${i} of ${clip.n_frames - 1} · ${clip.geometry.name} reconstruction`);
-  drawnFrame = i;
   if (needsFraming) { resetView(clip.frames[i]); needsFraming = false; }
   invalidate();
   return true;
@@ -266,12 +268,15 @@ export function seekFrame(f, { keepEvent = false } = {}) {
 }
 
 export function stepFrame(delta) {
+  if (!state.clip) return;
   const next = Math.min(state.clip.n_frames - 1, Math.max(0, state.frame + delta));
   if (next !== state.frame) seekFrame(next);
 }
 
 export function setPlaying(on) {
   state.playing = !!on && !!state.clip;
+  // A stopped playback is no longer the second step's.
+  if (!state.playing) followPlaying = false;
   const token = ++playToken;
   if (state.playing) play(token);
   const b = $('btn-play');
@@ -305,7 +310,7 @@ function syncFrameUI() {
   const t = state.clip.frames[state.frame]?.time_s;
   $('frame-label').textContent = `${state.frame} / ${state.clip.n_frames - 1}${Number.isFinite(t) ? ` · ${t.toFixed(1)} s` : ''}`;
   updateFocusCursor($('nf-body'), state.frame, state.clip.n_frames - 1);
-  if (state.mode === 'frame' && state.trackStrip) updateStripStage($('strip'), nearestStacked(state.frame, state.trackStrip.indices));
+  if (state.mode === 'frame' && state.trackStrip?.indices) updateStripStage($('strip'), nearestStacked(state.frame, state.trackStrip.indices));
 }
 
 // ── World mode ──────────────────────────────────────────────────────────────
@@ -323,9 +328,12 @@ export async function switchMode(mode) {
     const seq = state.loadSeq;
     setStatus('Stacking the frames in one space…');
     let world;
+    const stale = () => state.loadSeq !== seq || state.mode !== 'world';
     try {
-      world = await enterWorld(state.clip, (g, r) => paint(g, r), () => state.loadSeq !== seq || state.mode !== 'world');
+      world = await enterWorld(state.clip, (g, r) => paint(g, r), stale);
     } catch (err) {
+      // A stack no longer asked for fails silently.
+      if (stale()) return;
       report(`World mode could not load: ${err.message}`);
       state.mode = 'frame';
       document.body.classList.remove('mode-world');
@@ -342,6 +350,8 @@ export async function switchMode(mode) {
     updateThumbs();
     renderNodeLinkPanel();
     setStatus(`World mode: ${world.indices.length} of ${state.clip.n_frames} frames stacked`);
+    needsFraming = false;
+    resetView(state.clip.frames[state.frame], { withCameraMarks: !isolating() });
   } else {
     // Isolation is a view of the stack; one frame shows the region in its scene.
     state.isolate = false;
@@ -352,10 +362,10 @@ export async function switchMode(mode) {
     groups.cameraViz.visible = true;
     syncFocusBar();
     renderTrackStrip_();
+    // Whichever load draws first frames the view, this one or a play step after it.
+    needsFraming = true;
     await loadFrame(state.frame);
   }
-  needsFraming = false;
-  resetView(state.clip.frames[state.frame], { withCameraMarks: !isolating() });
 }
 
 const isolating = () => state.isolate && !!state.focusKey && state.mode === 'world';
@@ -365,10 +375,15 @@ function applyWorldStage() {
   if (!state.world) return;
   const stage = focusWorldFrame(state.world, state.frame, state.worldView, isolating());
   if (stage === state.stageFrame) return;
+  const left = state.stageFrame;
   state.stageFrame = stage;
   if (isolating()) {
+    // Only the frames leaving and taking the stage change.
     markIsolationStage();
-    repaintAll();
+    for (const fr of state.world.frames) if (fr.i === left || fr.i === stage) paint(fr.group, fr.regionsByTrack);
+    applyFocusHighlight();
+    rebuildGraph3D();
+    invalidate();
   } else {
     rebuildGraph3D();
   }
@@ -430,7 +445,7 @@ export function toggleRegions(track) {
   setStatus(state.painted ? `Regions on the cloud: ${name}` : 'Regions off: the cloud as reconstructed');
 }
 
-/** Show another track in the panels, or both tracks with `BOTH`, without painting it. */
+/** Show another track in the panels, or both tracks with `BOTH`, and on the cloud when regions are painted. */
 export function setTrack(track) {
   const both = track === BOTH;
   if (both ? !bothPair() : !trackInfo(track)) return;
@@ -525,13 +540,16 @@ export async function setFocusNode(key, { stage = null } = {}) {
   syncFocusBar();
   if (key) {
     const { track } = parseNodeKey(key);
-    let tg = null;
+    const clip = state.clip;
+    let tg = null, failure = null;
     try {
-      tg = await fetchTemporal(state.clip, track);
+      tg = await fetchTemporal(clip, track);
     } catch (err) {
-      report(`The graph through time did not load: ${err.message}`);
+      failure = err;
     }
-    if (state.focusKey !== key) return;
+    // Another clip can have a region of the same key.
+    if (state.focusKey !== key || state.clip !== clip) return;
+    if (failure) report(`The graph through time did not load: ${failure.message}`);
     state.temporal = tg;
     state.focusLabel = labelOf(key);
     syncFocusBar();
@@ -555,7 +573,13 @@ export async function setFocusStage(n) {
   syncFocusBar();
   if (n >= 2 && state.mode !== 'world') {
     await switchMode('world');
-    if (state.mode !== 'world' || state.focusStage !== n) return;
+    if (state.focusStage !== n) return;
+    if (state.mode !== 'world') {
+      // The stack did not load, and the later steps need it.
+      state.focusStage = 1;
+      syncFocusBar();
+      return;
+    }
   }
   if (state.mode === 'world' && state.isolate !== (n >= 2)) setIsolate(n >= 2);
   // The motion is seen by playing it; leaving the step stops what the step started.
@@ -597,12 +621,13 @@ function partnerKey() {
 /** The edge's three axes per frame, from each frame's graph in the camera the relations were chosen in. */
 async function loadEdgeAxes(key, other) {
   const { track, id } = parseNodeKey(key);
+  const clip = state.clip;
   const present = (nid) => new Set(state.temporal.nodes.find((n) => n.id === nid)?.present_frames ?? []);
   const inOther = present(other);
-  const frames = [...present(id)].filter((f) => inOther.has(f) && f < state.clip.n_frames).sort((a, b) => a - b);
-  const graphs = await Promise.all(frames.map((f) => fetchGraph(state.clip, track, f)));
+  const frames = [...present(id)].filter((f) => inOther.has(f) && f < clip.n_frames).sort((a, b) => a - b);
+  const graphs = await Promise.all(frames.map((f) => fetchGraph(clip, track, f)));
   const data = edgeAxes(frames.map((f, k) => {
-    const fr = state.clip.frames[f];
+    const fr = clip.frames[f];
     const g = graphs[k];
     return {
       f,
@@ -619,7 +644,17 @@ function renderBand() {
   const el = $('nf-body');
   const show = state.focusStage >= 3 && !!state.temporal && !!state.focusKey;
   $('node-focus').hidden = !show;
-  if (!show) { state.events = []; clearGroup(groups.highlight); return; }
+  if (!show) {
+    state.events = [];
+    clearGroup(groups.highlight);
+    // With the band gone, no event stays picked.
+    if (state.selectedEvent != null) {
+      state.selectedEvent = null;
+      applyFocusHighlight();
+      invalidate();
+    }
+    return;
+  }
   const { id } = parseNodeKey(state.focusKey);
   const partner = partnerKey();
   const { track } = parseNodeKey(state.focusKey);
@@ -627,10 +662,14 @@ function renderBand() {
     const entry = { key: `${state.focusKey}>${partner}`, data: null };
     state.edge = entry;
     loadEdgeAxes(state.focusKey, parseNodeKey(partner).id).catch((err) => {
-      setStatus(`The edge's axes did not load (${err.message}); the band shows its relations alone`);
+      if (state.edge === entry) report(`The edge's axes did not load (${err.message}); the band shows its relations alone`);
       return { byFrame: new Map(), checked: 0, wrong: 0 };
     }).then((data) => {
       if (state.edge !== entry) return;
+      if (data.wrong) {
+        setStatus(`The axes give another relation than the graph for ${data.wrong} of ${data.checked} edges; `
+          + 'the band shows the stored relations alone');
+      }
       entry.data = data;
       renderBand();
     });
@@ -688,15 +727,18 @@ async function showEvent(idx) {
   const ev = state.events[idx];
   const key = state.focusKey;
   if (!ev || !key) return;
+  // The event picked last wins.
+  const seq = ++eventSeq;
+  const current = () => seq === eventSeq && state.focusKey === key;
   clearEventHighlight();
   if (state.mode === 'world' && !state.world?.indices.includes(ev.f)) {
     await switchMode('frame');
-    if (state.focusKey !== key) return;
+    if (!current()) return;
   }
   state.selectedEvent = idx;
   await seekFrame(ev.f, { keepEvent: true });
   const fr = stageEntry();
-  if (state.focusKey !== key || state.selectedEvent !== idx || fr?.i !== ev.f) return;
+  if (!current() || state.selectedEvent !== idx || fr?.i !== ev.f) return;
   const { track, id } = parseNodeKey(key);
   const keys = new Map([[key, FOCUS_RGB]]);
   if (ev.kind === 'rel') keys.set(nodeKey(track, ev.partner), PARTNER_RGB);
@@ -816,10 +858,13 @@ async function loadTrackStrip() {
     frames = await Promise.all(indices.map(row));
     // A track's seed frame is always a column: it is where the track's regions were made.
     const anchors = new Set(frames.flatMap((fr) => Object.values(fr.regionsByTrack))
-      .map((r) => r?.anchorFrame).filter((f) => Number.isInteger(f) && f < clip.n_frames && !indices.includes(f)));
+      .map((r) => r?.anchorFrame).filter((f) => f != null && !indices.includes(f)));
     if (anchors.size) frames = [...frames, ...await Promise.all([...anchors].map(row))].sort((a, b) => a.i - b.i);
   } catch (err) {
-    if (state.clip === clip) report(`The regions through time did not load: ${err.message}`);
+    if (state.clip !== clip) return;
+    report(`The regions through time did not load: ${err.message}`);
+    state.trackStrip = { failed: true };
+    renderTrackStrip_();
     return;
   }
   if (state.clip !== clip) return;
@@ -831,9 +876,9 @@ async function loadTrackStrip() {
 function renderTrackStrip_() {
   if (state.mode !== 'frame') return;
   const el = $('strip');
-  if (!state.trackStrip) {
+  if (!state.trackStrip || state.trackStrip.failed) {
     el.classList.remove('tstrip');
-    el.innerHTML = '<div class="strip-empty">Loading the regions through time…</div>';
+    el.innerHTML = `<div class="strip-empty">${state.trackStrip ? 'The regions through time did not load.' : 'Loading the regions through time…'}</div>`;
     return;
   }
   renderTrackStrip(el, {

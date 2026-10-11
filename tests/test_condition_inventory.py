@@ -260,6 +260,35 @@ def test_a_tag_tracked_both_ways_on_some_clips_and_forward_on_others_is_reported
     assert any("conditions are mixed" in p for p in problems(tr, ev))
 
 
+def test_two_merges_of_one_condition_to_different_k_under_one_tag_are_reported(tree):
+    # The seeds alone differ, and only `seed_labels` names them.
+    tr, ev = tree
+    external = {**provenance("rgb", 8), "seed_source": "external"}
+    plant(tr, {"track_rgb_a_rgb": [(c, {**external, "seed_labels": "out/seeds/k10"}, LABELS[c]) for c in ("c1", "c2")]
+               + [("c3", {**external, "seed_labels": "out/seeds/k6"}, 13)]})
+    assert any("conditions are mixed" in p for p in problems(tr, ev))
+
+
+def test_a_record_written_before_seed_labels_and_one_without_seed_labels_are_one_condition(tree):
+    # `t12_gtseed` on the workbench's 13-video set: the clips run again later hold "", the others no key.
+    tr, ev = tree
+    gt = {**provenance("rgb", 8), "seed_source": "gt"}
+    plant(tr, {"track_rgb_a_rgb": [(c, {**gt, "seed_labels": ""}, LABELS[c]) for c in ("c1", "c2")]
+               + [("c3", gt, 13)]})
+    assert not any("conditions are mixed" in p for p in problems(tr, ev))
+
+
+@pytest.mark.parametrize("record, why", [([8], "a JSON list, not an object"),
+                                         ({**provenance("rgb", 8), "seed_input": [8]},
+                                          "seed_input is a JSON list, not an object")])
+def test_a_provenance_or_a_seed_input_that_is_not_an_object_is_unreadable(tree, record, why):
+    tr, ev = tree
+    plant(tr, {"track_rgb_a_rgb": [("c2", record, 9)]})
+    notes = CI.read_conditions(str(tr))["track_rgb_a_rgb"]["notes"]
+    assert notes == {f"unreadable provenance: {why}": ["c2"]}
+    assert any("a_rgb: 1 clips have no provenance" in p for p in problems(tr, ev))
+
+
 def test_a_pilot_json_and_an_evaluator_json_are_two_groups(tree):
     tr, ev = tree
     write_score(ev, "a_rgb", evaluator_score("track_rgb_a_rgb"))

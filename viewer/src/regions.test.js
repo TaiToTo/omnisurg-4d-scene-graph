@@ -24,6 +24,13 @@ describe('regionEllipses', () => {
     expect(fitEllipse({ n: 3, sx: 3, sy: 3, sxx: 3, syy: 3, sxy: 3 })).toMatchObject({ a: 4, b: 4 });
     expect(fitEllipse({ n: 0 })).toBeNull();
   });
+
+  it('turns the major axis along the region: +45 degrees for a band down to the right', () => {
+    const band = Array.from({ length: 10 }, (_, y) => Array.from({ length: 10 }, (_, x) => (Math.abs(x - y) <= 1 ? 1 : 0)).join(''));
+    const e = regionEllipses(regions(band)).get(1);
+    expect(e.theta).toBeCloseTo(Math.PI / 4);
+    expect(e.a).toBeGreaterThan(e.b);
+  });
 });
 
 describe('hulls', () => {
@@ -31,6 +38,10 @@ describe('hulls', () => {
     expect(convexHull2D([[0, 0], [1, 1], [2, 0], [2, 2], [0, 2], [1, 0]]).length).toBe(4);
     const hull = regionHulls(square).get(1);
     expect(hull.map(([x]) => x).sort((a, b) => a - b)).toEqual([1, 1, 6, 6]);
+  });
+
+  it('gives no hull to a region too thin for one: a dot or a line', () => {
+    expect([...regionHulls(regions(['1033', '0033', '2220'])).keys()]).toEqual([3]);
   });
 
   it('returns a point set under three points as it is', () => {
@@ -54,6 +65,15 @@ describe('outlines', () => {
     expect(poly.some(([x, y]) => x === 3 && y === 1)).toBe(true);
   });
 
+  it('goes on round the region when a thin arm joins it at the start', () => {
+    // The longest row starts at (2, 2), where the arm from the corner meets the region.
+    const armed = regions(['10000000', '01000000', '00111110', '00111100', '00011000', '00000000']);
+    const poly = traceOutline(armed.labels, 8, 6, 1, 1);
+    expect(Math.max(...poly.map((p) => p[0]))).toBe(6);
+    expect(Math.max(...poly.map((p) => p[1]))).toBe(4);
+    expect(poly.some(([x, y]) => x === 0 && y === 0)).toBe(true);
+  });
+
   it('simplifies a straight run of points to its ends', () => {
     const line = [[0, 0], [1, 0], [2, 0], [3, 0], [4, 0], [4, 4]];
     expect(simplifyRDP(line, 0.5)).toEqual([[0, 0], [4, 0], [4, 4]]);
@@ -61,5 +81,7 @@ describe('outlines', () => {
 
   it('outlines every listed region and nothing for background', () => {
     expect([...regionOutlines(regions(['1100', '1100', '0022', '0022']), 1, 0.5).keys()].sort()).toEqual([1, 2]);
+    const ring = regions(['0000', '0110', '0110', '0000']);
+    expect([...regionOutlines({ ...ring, classes: [{ id: 0 }, ...ring.classes] }, 1, 0.5).keys()]).toEqual([1]);
   });
 });

@@ -8,17 +8,17 @@ import { defineConfig } from 'vite';
 const TYPES = { '.json': 'application/json', '.glb': 'model/gltf-binary', '.jpg': 'image/jpeg' };
 
 /**
- * Serve VIEWER_DATA read-only at /data/: GET and HEAD of the bundle's file types, under the directory
- * after symbolic links are resolved. A request from another host than the server's own is refused, as
- * Vite refuses one for its own files.
+ * Serve directory `dataDir` read-only at /data/: GET and HEAD of the bundle's file types, under the directory
+ * after symbolic links are resolved. A request is refused unless it names localhost, an IP address or an
+ * allowed host, as Vite refuses one for its own files.
  */
-function bundleDirectory() {
-  const root = process.env.VIEWER_DATA ? fs.realpathSync(path.resolve(process.env.VIEWER_DATA)) : null;
+export function bundleDirectory(dataDir = process.env.VIEWER_DATA) {
+  const root = dataDir ? fs.realpathSync(path.resolve(dataDir)) : null;
   const inside = (file) => {
     const rel = path.relative(root, file);
     return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
   };
-  const LOCAL = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/;
+  const LOCAL = /^(localhost|[\w-]+\.localhost|\d{1,3}(\.\d{1,3}){3}|\[[0-9a-f:.]+\])(:\d+)?$/i;
   const refuse = (res, code) => { res.statusCode = code; res.end(); };
   const serve = (allowedHosts) => (req, res, next) => {
     const url = new URL(req.url, 'http://localhost');
@@ -27,21 +27,26 @@ function bundleDirectory() {
     if (!LOCAL.test(host) && allowedHosts !== true && !(allowedHosts ?? []).includes(host.replace(/:\d+$/, ''))) {
       return refuse(res, 403);
     }
-    let file;
+    let file, stat;
     try {
-      file = path.resolve(root, decodeURIComponent(url.pathname.slice('/data/'.length)));
-      file = fs.realpathSync(file);
+      file = fs.realpathSync(path.resolve(root, decodeURIComponent(url.pathname.slice('/data/'.length))));
+      stat = fs.statSync(file);
     } catch {
       return refuse(res, 404);
     }
     const type = TYPES[path.extname(file)];
-    if (!['GET', 'HEAD'].includes(req.method) || !type || !inside(file) || !fs.statSync(file).isFile()) {
-      return refuse(res, 404);
-    }
+    if (!['GET', 'HEAD'].includes(req.method) || !type || !inside(file) || !stat.isFile()) return refuse(res, 404);
     res.setHeader('Content-Type', type);
-    res.setHeader('Content-Length', fs.statSync(file).size);
+    res.setHeader('Content-Length', stat.size);
     if (req.method === 'HEAD') return res.end();
-    fs.createReadStream(file).pipe(res);
+    // An unreadable file ends this response only; an unhandled stream error would stop the server.
+    const stream = fs.createReadStream(file);
+    stream.on('error', () => {
+      if (res.headersSent) { res.destroy(); return; }
+      res.removeHeader('Content-Length');
+      refuse(res, 404);
+    });
+    stream.pipe(res);
     return undefined;
   };
   return {

@@ -7,6 +7,8 @@ import { regionsToCanvas } from './cloud_paint.js';
 import { esc, hexColor, lighten, nodeKey, rgbToHex } from './format.js';
 
 const DEFAULT_CELL_H = 96;
+// A cell's padding, border and caption round its box: 4 + 4, 1 + 1 and 2 + 14 px.
+const CELL_EXTRA = 26;
 // The plate: a parallelogram 230 x 96 units, which an SVG matrix maps the frame image onto exactly.
 const SLAB_QUAD = [[0, 10.2], [202.9, 0], [229.6, 85.9], [26.6, 96.1]];
 const SLAB_VB = { x: -3, y: -3, w: 236, h: 102 };
@@ -208,7 +210,7 @@ export function renderTrackStrip(el, { frames, tracks, painted, stageFrame, imag
     const label = document.createElement('button');
     label.type = 'button';
     label.className = `tstrip-label ${on ? 'on' : 'off'}`;
-    label.style.height = `${cellH + 18}px`;
+    label.style.height = `${cellH + CELL_EXTRA}px`;
     label.innerHTML = `${esc(t.name)}<span>${esc(t.anchor_badge.toLowerCase())}s → ${esc(t.tracked_badge)}s</span>`
       + `<em>${on ? 'on the 3D view · hide' : 'show on the 3D view'}</em>`;
     label.title = on ? 'Take these regions off the 3D view' : 'Paint these regions on the 3D view';

@@ -93,20 +93,27 @@ def paint_masks(masks: list[np.ndarray], shape: tuple[int, int]) -> np.ndarray:
     return lut[labels + 1]
 
 
+def seed_labels_dir(seed_labels: str, clip: str) -> Path:
+    """Return the directory of a clip's seed regions: `seed_labels` with `{clip}` replaced by the clip's name.
+
+    Such a directory can be a condition that `evalkit.tools.kmerge` wrote. Without `{clip}`, the directory is
+    `<seed_labels>/<clip>/`.
+    """
+    return Path(seed_labels.replace("{clip}", clip)) if "{clip}" in seed_labels else Path(seed_labels) / clip
+
+
 def read_seed_labels(seed_labels: str, clip: str, frame: int, shape: tuple[int, int]) -> np.ndarray:
     """Return the seed regions made outside the stage, numbered 0..K-1 in the order of their ids.
 
-    The file is `label_<frame:04d>.npy` in `seed_labels`, with `{clip}` replaced by the clip's name; such a
-    directory can be a condition that `evalkit.tools.kmerge` wrote. Without `{clip}`, the file is in
-    `<seed_labels>/<clip>/`. The regions are numbered again, so that the tracker's ids are 1..K whatever ids the
-    file holds. The workbench's seed files were numbered 0..K-1 when written, so they gave the same ids.
+    The file is `label_<frame:04d>.npy` in `seed_labels_dir(seed_labels, clip)`. The regions are numbered again,
+    so that the tracker's ids are 1..K whatever ids the file holds. The workbench's seed files were numbered
+    0..K-1 when written, so they gave the same ids.
 
     Raises:
         FileNotFoundError: the file is missing, as when the seeds were made for another seed frame.
         ValueError: the map is not the depth's shape, or holds no region.
     """
-    d = Path(seed_labels.replace("{clip}", clip)) if "{clip}" in seed_labels else Path(seed_labels) / clip
-    p = d / f"label_{frame:04d}.npy"
+    p = seed_labels_dir(seed_labels, clip) / f"label_{frame:04d}.npy"
     if not p.is_file():
         raise FileNotFoundError(f"no seed labels {p}; were they made for seed frame {frame}?")
     labels = np.load(p).astype(int)
