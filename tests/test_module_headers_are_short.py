@@ -22,9 +22,9 @@ REPO = Path(__file__).resolve().parent.parent
 # The most lines a header may have before its Usage.
 HEADER_LINES = 12
 
-# The modules longer than the cap when the rule was made. A module is removed
-# here when it is shortened; a module that is short and still listed fails the
-# ratchet.
+# The modules whose header was over the cap when the rule was made. The list
+# only shrinks: a module leaves it once its header is short, and a test fails
+# if a short module stays listed or a new one is added.
 STILL_LONG = frozenset({
     "evalkit/code_sha.py",
     "evalkit/pilot.py",
@@ -100,7 +100,7 @@ def test_no_header_is_longer_than_the_cap():
 
 
 def test_a_listed_module_is_tracked_and_still_long():
-    """The ratchet: a module leaves `STILL_LONG` when shortened, and a stale entry is refused."""
+    """Every listed module is tracked and still over the cap; one that is now short must leave the list."""
     tracked = set(tracked_modules(REPO))
     assert "tests/test_module_headers_are_short.py" in tracked, "the scan sees no module; this file is one"
     missing = STILL_LONG - tracked
