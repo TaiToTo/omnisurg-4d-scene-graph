@@ -18,6 +18,8 @@ from pathlib import Path
 import pytest
 
 REPO = Path(__file__).resolve().parent.parent
+# This file, as git names it.
+THIS = Path(__file__).resolve().relative_to(REPO).as_posix()
 
 # The most lines a header may have before its Usage.
 HEADER_LINES = 12
@@ -62,20 +64,23 @@ def header_length(source: str) -> int:
 
 
 def first_listed(repo: Path) -> frozenset[str]:
-    """`STILL_LONG` as the commit that added this file wrote it.
+    """`STILL_LONG` as the commit that added this file to `repo` wrote it.
 
     Raises:
-        RuntimeError: The history does not reach that commit (a shallow
-            clone), so what the list may hold cannot be known.
+        RuntimeError: `repo` is a shallow clone, or no commit in it adds this
+            file. A shallow clone's oldest commit seems to add every file in
+            it, so a later version of the list would pass for the first.
     """
-    rel = Path(__file__).resolve().relative_to(repo).as_posix()
-    log = subprocess.run(["git", "-C", str(repo), "log", "--diff-filter=A", "--format=%H", "--", rel],
-                         check=True, capture_output=True).stdout.decode("utf-8").split()
+    def git(*args: str) -> str:
+        return subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True).stdout.decode("utf-8")
+
+    if git("rev-parse", "--is-shallow-repository").strip() == "true":
+        raise RuntimeError("the clone is shallow, so the commit that added the list may be missing; "
+                           "clone with the full history")
+    log = git("log", "--diff-filter=A", "--format=%H", "--", THIS).split()
     if not log:
-        raise RuntimeError(f"the commit that added {rel} is not in the history; clone with the full history")
-    source = subprocess.run(["git", "-C", str(repo), "show", f"{log[-1]}:{rel}"],
-                            check=True, capture_output=True).stdout.decode("utf-8")
-    return listed_in(source)
+        raise RuntimeError(f"no commit adds {THIS}")
+    return listed_in(git("show", f"{log[-1]}:{THIS}"))
 
 
 def listed_in(source: str) -> frozenset[str]:
@@ -134,6 +139,23 @@ def test_the_measure_counts_what_follows_a_usage_that_is_not_the_last_section():
     assert header_length(usage_in_prose) == 15 > HEADER_LINES
     indented_usage_is_prose = '"""Short.\n\n  Usage:\n    run it\n"""\n'
     assert header_length(indented_usage_is_prose) == 4
+
+
+def test_the_list_is_read_from_the_commit_that_added_this_file_and_a_shallow_clone_is_refused(tmp_path):
+    """The planted history: the first version lists a.py, the next adds b.py, and a shallow clone holds the next."""
+    src = tmp_path / "src"
+    (src / THIS).parent.mkdir(parents=True)
+    git = ["git", "-c", "user.name=test", "-c", "user.email=test@example.com", "-c", "commit.gpgsign=false"]
+    subprocess.run([*git, "init", "-q", str(src)], check=True, capture_output=True)
+    for names in (["a.py"], ["a.py", "b.py"]):
+        (src / THIS).write_text(f"STILL_LONG = frozenset({names!r})\n")
+        for args in (["add", THIS], ["commit", "-q", "-m", "list"]):
+            subprocess.run([*git, "-C", str(src), *args], check=True, capture_output=True)
+    assert first_listed(src) == {"a.py"}
+    shallow = tmp_path / "shallow"
+    subprocess.run([*git, "clone", "-q", "--depth", "1", src.as_uri(), str(shallow)], check=True, capture_output=True)
+    with pytest.raises(RuntimeError, match="the clone is shallow"):
+        first_listed(shallow)
 
 
 def test_the_list_is_read_back_from_a_version_of_this_file():
