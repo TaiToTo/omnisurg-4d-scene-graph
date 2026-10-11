@@ -688,13 +688,14 @@ The stage refuses:
   regions;
 - regions off DA3's grid, a label that is not an integer or of no listed
   class, a class without an integer id above 0, a string name and a colour
-  of three numbers, or a stage other than `anchor` or `propagated`;
+  of three numbers, a stage other than `anchor` or `propagated`, or an
+  anchor frame that is no frame of the clip;
 - a frame's scene graph with a node that is no region of the frame, has no
   string label or no position of three numbers, or an edge that does not
   join two of its nodes with a string relation;
 - a hierarchy that does not relate two of the bundle's tracks, or whose
-  nodes and edges are not string keys, integer ids and string labels and
-  relations;
+  nodes are not keyed `track:id` with integer ids and string labels, or
+  whose edges do not join two of its nodes with a string relation;
 - a graph through time whose node ids, relation ends or frames are not
   integers, frames from 0 to the clip's last, or whose labels and relations
   are not strings;

@@ -343,6 +343,29 @@ Each stage is described in `docs/pipeline.md`.
   `specimen`. Run on the workbench's census, it writes the workbench's
   `population.json` and `pop_all.txt` byte for byte. It does not write
   `pop_moved.txt` or `pop_static.txt`, which nothing reads.
+- `depth_sam_tracking_experiment/track_sam3.py`, as the `single` mode of
+  `run_track_conditions.py` runs it, is `pipeline/track.py`. The worker of
+  `ipcai2027_experiment/scripts/run_per_frame_seg.py` is
+  `pipeline/per_frame.py`. For the centred conditions, the workbench's
+  drivers passed `--seed_inst_thresh 1.0`, so that `--seed_auto` chose the
+  centre frame. Under `both_ways_from_centre`, the tracking stage seeds on
+  the centre frame without reading GT. On the GPU machine, each stage
+  wrote the workbench's files byte for byte on
+  `adrenalectomy__16GPCUPkXYQ__gt_0004`,
+  `adrenalectomy__16GPCUPkXYQ__tile_0007` and `VID01_s15_80_crop`. The
+  workbench ran at the determinism measurement's commit, and wrote the same
+  bytes twice in each case before the comparison. The settings compared:
+  - the tracking stage: those of `op_edge_center` and `rgb_center18`, and
+    those of `op_edge_center` under `forward_from_first`;
+  - the per-frame stage: those of `op_edge_perframe`,
+    `op_rgb_perframe_pps24` and `op_edge_pf_pps8_pi3x`.
+
+  Every case masked the edge ring. The paper's conditions use these
+  settings, which were not compared:
+  - `--seed-labels`, which the `t5_*` conditions use;
+  - the segmenter inputs `normal`, `depth` and `rgb_edge`;
+  - `--keep-edge-ring`, which `ch_edge_center` and `ch_edge_perframe` most
+    likely used.
 - `ipcai2027_experiment/scripts/make_t5_seeds.py` is the per-frame stage,
   `kmerge` and the tracking stage ("The granularity conditions"). They make
   its seeds, ids aside, on 315 of 315 ATLAS-120k clips and 27 of 27
@@ -393,36 +416,6 @@ below.
     `depth_sam_tracking_experiment/run_all17_pipeline.sh` runs before the
     crop and the depth stage. `extract_cholec_frames.py`, which the take
     list named, ran in no condition.
-  - Segmentation and tracking, from `depth_sam_tracking_experiment/`:
-    `track_sam3.py`, `sam3d_core.py` (`num_to_natural` and `get_sam`),
-    `loaders.py` (`CholecGtLoader`), `depth_source.py` (DA3 and the `pi3`
-    swap), `viz_common.py` and `sam_env.py`. From
-    `ipcai2027_experiment/scripts/`: `run_per_frame_seg.py`, whose five
-    modes `geom_blend.sam_input_image` passes to `geometry.sam_input_image`
-    unchanged, and `run_conditions.py`, which spreads one tracked condition
-    over the GPUs and imports the command from `run_track_conditions.py`.
-    From `seg_quality_experiment/scripts/`: `run_track_conditions.py`, whose
-    `MODES` hold the operating point's flags (`--seed_auto --bidir
-    --max_frames 0`). The operating point's `--seed_inst_thresh 1.0` is not
-    in `MODES`: the drivers `ipcai2027_experiment/atlas97/scripts/run_batch97.sh`
-    and `ipcai2027_experiment/task11_atlas13/scripts/run_batch.sh` pass it
-    after `--`, and neither driver moves. The ported stage needs no such
-    flag, because it seeds on the centre frame and never chooses a seed
-    frame from GT ("Two propagation rules, and no seed chosen from GT").
-    `eval_atlas_gt_clips.py`, which `run_track_conditions.py` imports for
-    its list of clips, only re-exports `gt_clips` from the pilot evaluator's
-    `eval_gt_clips.py`; the ported stage reads the population file instead.
-    `get_sam`, five lines that paint the mask generator's masks into one
-    map, is written again in the stage from what it does; the mask generator
-    comes from the `segment-anything` package. `loaders.py` returns a black
-    image for a missing frame; the port raises. The worker of
-    `run_per_frame_seg.py` becomes the per-frame segmentation stage, which
-    runs the clips it is given, or every clip with depth, in order on one
-    device, and refuses labels an earlier run left. Its dispatcher ran one
-    clip per GPU, resumed a run by counting its labels, and took every clip
-    with GT unless given `--clips`. The dispatcher, with `run_conditions.py`
-    and the `single` mode of `run_track_conditions.py`, is
-    `pipeline/condition_population.py` ("Pipeline stages already ported").
   - The paper's tables: from `ipcai2027_experiment/scripts/`,
     `claims_grid.py` and `summarize_20.py`, the StereoMIS table; and
     `ipcai2027_experiment/task15_granularity/scripts/settle_inputs.py`.
@@ -501,12 +494,36 @@ below.
     `ipcai2027_experiment/task22_atlas100/out/manifest/videos.json`.
   - The readers: `surgical_core/atlas/clip_rects.py` and `frame_ratio.py`,
     into `surgical_core/atlas120k/`.
-- **Viewer.**
-  - The `demo`, `workbench` and `depthcmp` pages.
-  - Their `src/` directories.
-  - `viewer/scripts/merge_geometry_sources.py` and
-    `verify_geometry_alignment.mjs`.
-  - `vite.config.js`, without the experiment routes.
+
+### The viewer
+
+The views of the `demo` page that show the scene graph are `viewer/`: the
+cloud with a track's regions on it, the scene graph from the frame's camera,
+the world stack with the camera's path, the graph through time, the three
+steps that follow a region, the three axes of an edge, the events and the
+graph drawn on the cloud. The page is written again on the bundle ("The
+public viewer reads a bundle"), from `viewer/demo.html` and
+`viewer/src/demo/`, with the modules of `src/graph/`, `src/workbench/` and
+`src/depthcmp/` it imports. Where it departs from the demo page:
+
+- It lists the clips from the bundle's catalog, where the demo asked the
+  development server (`/api/clips`) and narrowed the answer to a hand-written
+  list (`curated.js`). The development server only serves the bundle,
+  read-only; none of the workbench's routes that list or write files
+  remain.
+- It reads each region's shape from the labels, where the demo matched the
+  colour raster against the class colours; two classes of one colour are no
+  longer one region.
+- It shows one track at a time, chosen in the regions menu or the strip; the
+  demo's pair of tracks side by side was reachable only by address.
+- It shows the side panel in per-frame mode too, where the demo hid it.
+- The focus band reads spatial relations only; the demo mixed in the action
+  relations of CholecT50, where a clip has them.
+- A file the clip's record lists that does not load stops the frame with an
+  error, where the demo drew the frame without it.
+
+The workbench's `depthcmp` and `workbench` pages, which compare depth models
+and browse every clip for research, are not carried ("Not carried for now").
 
 ### Not carried for now
 
@@ -536,16 +553,26 @@ and not before.
   - propagation over the pasted floor, in the abstract;
   - the loss of a geometry rendering under GT seeds.
 
-  They are measured again with this repository's code ("What the paper
-  measures"). Two questions stay open:
+  The draft's table of identity over time comes from
+  `ipcai2027_experiment/scripts/summarize_track12.py`, which measures the
+  conditions with `track_metrics`. Both results are measured again with
+  this repository's code ("What the paper measures"). Two questions stay
+  open:
   - whether the paper reports them;
   - how a GT seed is placed and scored ("Conditions seeded from GT").
 - **Two comparisons of the granularity result.** The manuscript's draft
   reports both, and `claims_table` leaves both out:
   - the geometry inputs against `rgb` at a matched number of regions.
-    `settle_inputs.py`, listed under "Not yet extracted anywhere",
-    interpolates `rgb`'s value on its curve over K, clip by clip, at the
-    geometry input's number of regions;
+    The draft's table of this comparison comes from
+    `ipcai2027_experiment/task15_granularity/scripts/fair_merge_recheck.py --mode input_track`.
+    The script scores the tracked labels of ATLAS-120k's 315 clips itself,
+    with the pilot evaluator's functions. Its table also compares the
+    inputs at the same K. `settle_inputs.py`, listed under "Not yet
+    extracted anywhere", makes the same comparison with its own F1, at both
+    stages, on the 13-video ATLAS-120k set and CholecSeg8k. The workbench's
+    claims table read its rows. Both scripts interpolate `rgb`'s value on
+    its curve over K, clip by clip, at the geometry input's number of
+    regions;
   - merges that never join two regions across a boundary of a depth,
     normal or depth-edge map, made by `kgeo_sequence` in
     `ipcai2027_experiment/scripts/kmerge.py`. The draft reports their gain
@@ -591,6 +618,19 @@ The second list holds what the paper's numbers do not use.
   `depth_sam_tracking_experiment/track_sam3_consensus.py` and
   `track_sam3_3d.py`. `consensus` is a mode of `run_track_conditions.py`,
   and the manuscript reports no consensus condition.
+- **The control without SAM**, `ipcai2027_experiment/atlas97/scripts/classic_seg.py`:
+  a marker-controlled watershed cuts the normal image and the RGB image from
+  the same markers. It tells whether the normal image lacks the boundaries
+  or SAM fails to read a normal image. The manuscript's draft reports no
+  number from it.
+- **The paired comparisons of `kmerge.py --pairs`**, in
+  `ipcai2027_experiment/scripts/`: the per-frame stage's F1 for two
+  conditions, both merged to one K or to the frame's count of the pilot's
+  GT objects, with the video-level interval of the difference. The run the
+  workbench reports compares `rgb_edge` merged with `rgb` merged, and the
+  draft reports no number from it. Ported, a comparison at one K is a run
+  of `kmerge` on each condition and a pair given to `paired_stats`, on the
+  evaluator's scores.
 - **Graphs built again**: `scripts/export_graph_cleanup_compare.py`, which
   builds each graph twice for a comparison page, and
   `scripts/backfill_depth_rel.py`, which adds `depth_rel` to graphs written
@@ -657,6 +697,29 @@ The second list holds what the paper's numbers do not use.
 - **The `kgt` seeds** of `ipcai2027_experiment/scripts/make_t5_seeds.py`,
   whose K is the clip's median count of the pilot's GT objects ("`kmerge`
   is a tool").
+- **The demo page's parts for a conference stand**, in `viewer/src/demo/`:
+  the guided tour (`tour.js`), the unattended mode that restarts it
+  (`kiosk.js`, `keymap.js`, `scripts/demo_account.sh` and the scripts that
+  stage the data on the stand's account), the catalog of clips with live 3D
+  tiles and video previews (`catalog.js`, `catalog3d.js`, `catalog_tree.js`,
+  `curated.js`), the marks and the project page in the About panel
+  (`about.js`, `logos.js`), and the address flags for the poster's captures
+  (`?graphmark=`, `?bg=` and the rest, and `capture_demo_shots.mjs`).
+- **The rest of the demo page's views**: the choice of depth model on
+  screen, the band of graph changes it no longer drew, the camera's pose
+  drawn on one frame, the ellipse glyphs as a choice, and the instrument
+  masks from SAM 3's text prompts (`scripts/export_instrument_mask.py`,
+  `inst_frame_*.json`), which only clips without annotation read.
+- **The `workbench` and `depthcmp` pages**, with `src/app/`, `src/catalog/`
+  and `src/geom/`: tools for comparing depth models and browsing every
+  clip, not views of a scene graph.
+- **`viewer/scripts/merge_geometry_sources.py`**, which copied a Pi3X run's
+  records into another manifest; the Pi3X stage writes them into the
+  clip's manifest itself.
+- **`viewer/scripts/verify_geometry_alignment.mjs`**, which checked the
+  demo's transfer of labels onto the Pi3X cloud against the clouds' colours.
+  The bundle stage makes that transfer now, by the same rule, and its tests
+  check the rule; a check on each clip's colours would be the stage's.
 
 What stays behind is listed in `repo_migration_plan.md`, in the section on
 what stays.
