@@ -111,6 +111,14 @@ describe('the address', () => {
     expect(els['toast-text'].textContent).toBe('This clip has no frame two; the link opens without it.');
   });
 
+  it('names a frame that is not a whole number once, and does not seek it', async () => {
+    await start('?clip=A&frame=1.5');
+    const app = await import('./app.js');
+    expect(app.seekFrame).not.toHaveBeenCalled();
+    expect(console.error).toHaveBeenCalledTimes(1);
+    expect(els['toast-text'].textContent).toBe('This clip has no frame 1.5; the link opens without it.');
+  });
+
   it('shows both tracks on a clip with a hierarchy, and names track=both on one without', async () => {
     await start('?clip=A&track=both', { hierarchy: { tracks: ['t', 'u'], frames: [0] } });
     const app = await import('./app.js');
