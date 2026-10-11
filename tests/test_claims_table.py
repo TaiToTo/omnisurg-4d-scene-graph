@@ -107,6 +107,20 @@ MERGE = CT.CLAIMS[0]
 # ---------------------------------------------------------------- the cells
 
 
+def test_a_pilot_json_beside_an_evaluator_json_is_refused_for_its_evaluator_not_its_stage():
+    # A pilot JSON records no rule, so the stage check alone would blame the rule, not the evaluator.
+    claim = next(c for c in CT.CLAIMS if c.stage == "per frame → propagated")
+    column = "atlas120k"
+    base_tag, cond_tag = claim.pairs[column]
+    vals = values(column, 1, 0.0)
+    pilot = pilot_json(column, base_tag, vals)
+    for row in pilot["per_clip"]:
+        row[KEY] = row[PILOT_KEY]
+    scored = evaluator_json(column, cond_tag, vals, rule_of(cond_tag))
+    with pytest.raises(ValueError, match="scored by different evaluators"):
+        CT.cell(claim, {base_tag: pilot, cond_tag: scored}, column, KEY)
+
+
 def test_a_cell_is_the_pair_statistics_of_paired_stats_on_the_key(tmp_path):
     dirs = write_table(tmp_path, {("atlas120k", "t5_k10"): 0.05})
     rows, rule, _ = CT.build(dirs, PILOT_KEY)
