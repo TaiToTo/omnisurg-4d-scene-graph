@@ -28,7 +28,7 @@ def rows_of(conds=tuple(OFFSET)) -> list[dict]:
         for k, stratum in enumerate(("moving", "slow")):
             base = 0.9 - 0.1 * i - 0.05 * k
             for c in conds:
-                rows.append(dict(clip=f"{s}__clip_{k:04d}", seq=s, stratum=stratum, cond=c,
+                rows.append(dict(clip=f"{s}__clip_{k:04d}", seq=s, stratum=stratum, span_mm=20.0 - 15 * k, cond=c,
                                  ate_rel=round(base + OFFSET[c](s), 4), rpe_trans_rel=0.5, rpe_rot_deg=1.0,
                                  scale_ratio=None if c == "floor_static" else 2.0, trajectory_code_sha=SHA,
                                  clip_list_sha=SHA))
@@ -55,6 +55,14 @@ def test_the_interval_is_the_paired_stats_bootstrap_over_sequences():
     assert pair["mark"] == "" and pair["better"] == 2 and pair["worse"] == 4
 
 
+def test_an_interval_end_near_zero_keeps_its_sign_its_mark_and_its_printed_digits(capsys):
+    rows = rows_of(("floor_static",))
+    rows += [dict(r, cond="tiny", ate_rel=r["ate_rel"] - 2e-5) for r in rows]
+    pair = T.compare(rows, "floor_static", "tiny")
+    assert pair["mark"] == "★" and pair["ci95_seq"] == [-2e-5, -2e-5]
+    assert "95%CI(seq) [-2.00e-05, -2.00e-05]" in capsys.readouterr().out
+
+
 def test_a_stratum_pairs_its_own_clips():
     pair = T.compare(rows_of(), "floor_static", "good", stratum="slow")
     assert (pair["n"], pair["n_seq"], pair["stratum"]) == (3, 3, "slow")
@@ -71,8 +79,22 @@ def test_every_condition_is_paired_with_the_base_overall_and_in_each_stratum(cap
 
 def test_a_condition_scored_on_other_clips_than_the_base_is_refused():
     rows = [r for r in rows_of() if not (r["cond"] == "good" and r["clip"] == "P2_1__clip_0001")]
-    with pytest.raises(ValueError, match=r"other clips than the base 'floor_static': \['good \(0 clips the base "
-                                         r"lacks, 1 it lacks\)'\]"):
+    with pytest.raises(ValueError, match=r"other clips than the base 'floor_static': "
+                                         r"\[\"good \(lacks 1 of the base's clips, adds 0\)\"\]"):
+        T.summarize(rows, "floor_static")
+
+
+@pytest.mark.parametrize("field, value", [("seq", "P2_0"), ("stratum", "moving"), ("span_mm", 5.001)])
+def test_a_clip_cut_in_two_ways_is_refused(field, value):
+    rows = [dict(r, **{field: value}) if r["cond"] == "good" and r["clip"] == "P1__clip_0001" else r
+            for r in rows_of()]
+    with pytest.raises(ValueError, match=r"differs between conditions: \['P1__clip_0001'\]"):
+        T.summarize(rows, "floor_static")
+
+
+def test_a_pair_of_one_sequence_is_refused_with_its_name():
+    rows = [r for r in rows_of() if r["seq"] == "P1"]
+    with pytest.raises(ValueError, match="bad - floor_static: a bootstrap over 1 "):
         T.summarize(rows, "floor_static")
 
 
@@ -89,7 +111,8 @@ def test_the_command_reads_the_score_files_and_refuses_two_versions_of_the_score
     out = tmp_path / "summary.json"
     monkeypatch.setattr(sys, "argv", ["stereomis_table", str(a), str(b), "--out", str(out)])
     T.main()
-    assert len(json.loads(out.read_text())["pairs"]) == 9
+    written = json.loads(out.read_text())
+    assert len(written["pairs"]) == 9 and written["trajectory_code_sha"] == written["clip_list_sha"] == SHA
     b.write_text(json.dumps([dict(r, trajectory_code_sha="d" * 64) for r in rows if r["cond"] != "floor_static"]))
     with pytest.raises(SystemExit, match="2 versions of the scorer"):
         T.main()
