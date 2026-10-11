@@ -37,7 +37,8 @@ DEFAULT_DATASET = "cholec_gt"
 
 # The datasets whose clips need no crop. ATLAS-120k frames have no endoscope border; their extraction removes any
 # letterbox and records it in the manifest's `crop`. StereoMIS frames are rectified views that keep no black border.
-# LapEx frames keep the black surround, and are taken whole, as the workbench took them for its depth.
+# LapEx frames keep a thin black border, about 1.5 % of the frame, whose pixels LapEx labels with classes. So they
+# are taken whole, border included.
 UNCROPPED_DATASETS = frozenset({"atlas120k", "lapex", "stereomis"})
 
 # The stage's own files in a clip, by the directory or file that holds them. The later stages and other depth
@@ -48,9 +49,9 @@ BUNDLE = "exports/mini_npz/results.npz"
 
 
 def check_cropped(clip_dir: Path, manifest: dict) -> None:
-    """Refuse an endoscope clip that was not cut to the endoscope's view.
+    """Refuse a clip outside `UNCROPPED_DATASETS` that has no `crop_info.json`.
 
-    The model would otherwise see the black border around the view.
+    A CholecSeg8k frame keeps a wide black border around the endoscope's view, and the model would otherwise see it.
 
     Raises:
         ValueError: the clip needs `crop_info.json` and has none.
@@ -58,7 +59,7 @@ def check_cropped(clip_dir: Path, manifest: dict) -> None:
     dataset = manifest.get("dataset", DEFAULT_DATASET)
     if dataset not in UNCROPPED_DATASETS and not (clip_dir / "crop_info.json").is_file():
         raise ValueError(f"{clip_dir.name}: a {dataset} clip without crop_info.json is not cut to the endoscope's "
-                         "view; the depth stage takes cropped clips only")
+                         f"view; the depth stage takes uncropped clips of {', '.join(sorted(UNCROPPED_DATASETS))} only")
 
 
 def own_files(clip_dir: Path) -> dict[str, list[Path]]:

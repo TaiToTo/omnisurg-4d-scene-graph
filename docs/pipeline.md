@@ -228,8 +228,9 @@ the summary an earlier run wrote:
 
 So a summary always counts the clips of one run over the whole release.
 
-The frames are not cropped: they keep the black surround of the
-endoscope's view, and the depth stage takes them whole.
+The frames are not cropped. They keep a thin black border, about 1.5 % of
+the frame, whose pixels LapEx labels with classes, and the depth stage
+takes them whole.
 
 The stage refuses, before any case is extracted:
 
