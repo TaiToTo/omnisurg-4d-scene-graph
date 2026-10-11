@@ -63,13 +63,15 @@ The stage refuses:
   no JPEGs;
 - a frame or a mask whose size is not the mp4's;
 - a mask with an id or a colour the class table lacks;
+- a frame it cannot read or write;
 - a video that already has output, unless `--overwrite` is given, which
   removes the video's clips and report first;
 - clips written that are not the population's.
 
 A refused video is left as it was: the stage writes and removes nothing
-until every check has passed, apart from the class table's, which is made
-while a mask is written.
+until every check has passed. The checks made while a clip is written are
+the exception: the class table's on each mask, and whether each frame can
+be read and written.
 
 `python -m pipeline.extract_atlas120k --help` lists the options.
 
@@ -134,9 +136,13 @@ The stage refuses:
 - a video, or a CholecSeg8k directory, that is missing;
 - a video that cannot be opened or reports no frame count;
 - a mask without the image it was drawn on;
-- an annotated image that is not the video's size, that matches no frame
-  of its search window, or that matches a frame on the window's edge;
+- an annotated image:
+  - whose search window starts past the video's last frame;
+  - that is not the video's size;
+  - that matches no frame of its search window;
+  - that matches a frame on the window's edge;
 - a video frame that cannot be decoded;
+- an image or a mask it cannot write;
 - a clip with fewer than two annotated frames, or whose annotated frames
   run at a rate CholecSeg8k numbers no video at;
 - a clip whose frames do not rise in the video;
@@ -228,8 +234,9 @@ the summary an earlier run wrote:
 
 So a summary always counts the clips of one run over the whole release.
 
-The frames are not cropped: they keep the black surround of the
-endoscope's view, so the depth stage refuses the clips.
+The frames are not cropped. They keep a thin black border, about 1.5 % of
+the frame, whose pixels LapEx labels with classes, and the depth stage
+takes them whole.
 
 The stage refuses, before any case is extracted:
 
@@ -359,8 +366,8 @@ longest side (`--process-res`). It writes into the clip:
 
 The stage refuses:
 
-- a clip without `crop_info.json`, unless it is an ATLAS-120k or a
-  StereoMIS clip: a CholecSeg8k clip before the crop stage, or a LapEx clip;
+- a clip without `crop_info.json`, unless it is an ATLAS-120k, a StereoMIS
+  or a LapEx clip: a CholecSeg8k clip before the crop stage;
 - a clip that already holds the stage's output. `--overwrite` replaces the
   stage's own files and leaves every other file.
 
@@ -391,8 +398,8 @@ and without the point clouds. A clip whose manifest already holds
 is run again; the stage refuses it until its files are removed or
 `pipeline.depth --overwrite` is run on it. Each process writes its output
 to `<input-dir>/_logs/depth_gpu<N>.log`. A driver that is stopped, by
-`kill`, a closed terminal or Ctrl-C, stops its processes with it. The
-command refuses:
+`kill`, a closed terminal or Ctrl-C, stops its processes with it. Under
+`nohup`, a closed terminal does not stop the driver. The command refuses:
 
 - before any process starts: a clip of the population that is not under
   `--input-dir` or whose manifest cannot be read; a clip whose
@@ -463,7 +470,9 @@ and writes its logs to `<input-dir>/_logs/<stage>_gpu<N>.log`. A clip that
 holds a stage's bundle without its record is run again; the stage refuses
 it until its files are removed or the stage is run on it with
 `--overwrite`. Neither record says whether the point clouds were written,
-so the command does not check them. The command refuses what
+so the command does not check them. A driver that is stopped, by `kill`,
+a closed terminal or Ctrl-C, stops its processes with it. Under `nohup`,
+a closed terminal does not stop the driver. The command refuses what
 `pipeline.depth_population` refuses, for each stage:
 
 - before any process starts: a usable clip that is not under
@@ -510,6 +519,7 @@ The stage refuses:
   the depth, or empty.
 - Pi3X depth with another number of frames than DA3's.
 - a seed frame with no region of `--seed-min-area` pixels or more.
+- a montage it cannot write.
 - a condition an earlier run left, unless `--overwrite` is given.
 
 A clip that fails keeps the labels an earlier run left: the stage replaces
@@ -728,3 +738,49 @@ earlier copy only once every file is written. The stage runs every clip,
 rewrites `catalog.json`, and exits with an error if one failed.
 
 `python -m pipeline.viewer_bundle --help` lists the options.
+
+## The StereoMIS camera trajectory scores
+
+```bash
+python -m trajectory_eval.tools.score_stereomis --root /path/to/StereoMIS --depth-root /path/to/StereoMIS_depth \
+    --controls --out controls.json
+python -m trajectory_eval.tools.score_stereomis --root /path/to/StereoMIS --depth-root /path/to/StereoMIS_depth \
+    --methods da3 pi3x --clip-root /path/to/clips --shuffled --out methods.json
+```
+
+The command scores the camera trajectory of each usable StereoMIS clip
+against the ground truth, one row per clip and condition. `--controls`
+scores the static floor, the line floor and the stereo ceiling.
+`--methods` scores the poses the depth stages wrote into each clip, and
+`--shuffled` adds each method's poses in a shuffled order. `--masked`
+names the conditions `<method>_masked`, for the clips extracted with
+`--mask-instruments`. Every row records `trajectory_code_sha`, the hash of
+the `trajectory_eval` modules that compute it.
+
+The command refuses, before anything is scored:
+
+- a sequence or a method named twice;
+- a clip without a method's bundle, or without its `frame_manifest.json`;
+- a clip whose manifest lists other frames than the ground truth is read at;
+- `--masked` when no clip has a painted image;
+- a painted image without `--masked`.
+
+With `--controls`, the command also refuses a usable clip the ceiling
+returns no trajectory for, and then writes nothing.
+
+```bash
+python -m trajectory_eval.tools.stereomis_table controls.json methods.json [--out summary.json]
+```
+
+The table prints each condition's scores, and each condition's paired
+difference from `floor_static` on `ate_rel`, with its interval over
+sequences and its mark. The JSON of `--out` records `trajectory_code_sha`.
+
+The table refuses:
+
+- rows that record two versions of the scorer, or none;
+- a clip scored twice under one condition;
+- a base with no row;
+- a condition scored on other clips than the base;
+- a clip whose sequence, stratum or `span_mm` differs between conditions;
+- a pair whose clips come from fewer than two sequences.

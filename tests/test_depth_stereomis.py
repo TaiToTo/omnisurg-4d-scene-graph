@@ -8,6 +8,7 @@ refusal has a test that plants its fault.
 """
 
 import json
+import signal
 import sys
 from pathlib import Path
 
@@ -197,11 +198,31 @@ def test_a_pi3x_bundle_of_another_version_or_unreadable_is_refused(stand_in):
         driver.check_pi3x(stand_in, ["P1__clip_0000", "P1__clip_0001"])
 
 
-def test_the_command_takes_the_population_from_the_reader_and_exits_non_zero_on_a_refusal(stand_in, monkeypatch):
+@pytest.fixture
+def handlers_restored():
+    """Put back the signal handlers `main` replaces, so that the test process keeps its own."""
+    old = {s: signal.getsignal(s) for s in population.STOP_SIGNALS}
+    yield
+    for s, handler in old.items():
+        signal.signal(s, handler)
+
+
+@pytest.mark.parametrize("hup", [signal.SIG_IGN, signal.SIG_DFL], ids=["nohup", "terminal"])
+def test_the_command_stops_on_sighup_unless_nohup_ignores_it(tmp_path, monkeypatch, handlers_restored, hup):
+    signal.signal(signal.SIGHUP, hup)
+    signal.signal(signal.SIGTERM, signal.SIG_DFL)
+    monkeypatch.setattr(sys, "argv", ["depth_stereomis", "--root", "x", "--depth-root", "y", "--input-dir",
+                                      str(tmp_path / "nowhere")])
+    with pytest.raises(SystemExit, match="no such directory"):
+        driver.main()
+    assert signal.getsignal(signal.SIGHUP) is (signal.SIG_IGN if hup is signal.SIG_IGN else population.stop)
+    assert signal.getsignal(signal.SIGTERM) is population.stop
+
+
+def test_the_command_takes_the_population_from_the_reader_and_exits_non_zero_on_a_refusal(stand_in, monkeypatch,
+                                                                                         handlers_restored):
     make_clip(stand_in, "P1__clip_0000")
     monkeypatch.setattr(driver, "usable_clips", lambda stereomis_root, depth_root: ["P1__clip_0000"])
-    # `main` installs its stop handlers; the test process keeps its own.
-    monkeypatch.setattr(driver.signal, "signal", lambda *a: None)
     argv = ["depth_stereomis", "--root", "x", "--depth-root", "y", "--input-dir", str(stand_in), "--gpus", "3"]
     monkeypatch.setattr(sys, "argv", argv)
     driver.main()

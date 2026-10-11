@@ -16,7 +16,6 @@ Usage:
 """
 
 import argparse
-import signal
 import sys
 import zipfile
 from pathlib import Path
@@ -153,8 +152,7 @@ def run_stereomis(root: Path, clips: list[str], gpus: list[int]) -> None:
 
 
 def main() -> None:
-    for s in population.STOP_SIGNALS:
-        signal.signal(s, population.stop)
+    population.install_stop_handlers()
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--root", required=True, help="The StereoMIS directory, which holds one directory per sequence.")
     ap.add_argument("--depth-root", required=True, help="The depth export, which holds <sequence>/stats.npy.")
