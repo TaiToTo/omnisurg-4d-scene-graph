@@ -106,6 +106,10 @@ def edge_reliable_mask(m):
     return r
 
 
+# The `parts` names `geom_edge_map` accepts: both cues, the creases alone or the steps alone.
+EDGE_PARTS = ("both", "normal", "depth")
+
+
 def geom_edge_map(depth, K, normal_thresh=0.3, depth_thresh=0.04, parts="both", *,
                   mask_ring, normals=None):
     """Geometric edge strength in [0, 1] from normal discontinuity and depth steps.
@@ -121,8 +125,8 @@ def geom_edge_map(depth, K, normal_thresh=0.3, depth_thresh=0.04, parts="both", 
             edge saturates (0.3 is about 45 degrees).
         depth_thresh: the relative depth step at which the edge saturates
             (4 %, for occlusion boundaries).
-        parts: `"both"` (the default), `"normal"` (creases only) or
-            `"depth"` (steps only), to tell which cue is doing the work.
+        parts: one of `EDGE_PARTS`: `"both"` (the default), `"normal"` (creases
+            only) or `"depth"` (steps only), to tell which cue is doing the work.
         mask_ring: whether to zero the ring along the image border and
             around invalid pixels, True or False.
         normals: `camera_normals(depth, K)`, when the caller has it already.
@@ -133,7 +137,7 @@ def geom_edge_map(depth, K, normal_thresh=0.3, depth_thresh=0.04, parts="both", 
     Raises:
         ValueError: one of these:
             - `mask_ring` is not a bool, `None` included.
-            - `parts` is not `"both"`, `"normal"` or `"depth"`.
+            - `parts` is not one of `EDGE_PARTS`.
             - `normals` is given and its shapes are not the depth's, so it was
               computed from another depth.
 
@@ -148,9 +152,9 @@ def geom_edge_map(depth, K, normal_thresh=0.3, depth_thresh=0.04, parts="both", 
     """
     if not isinstance(mask_ring, bool):
         raise ValueError(f"mask_ring is True or False, not {mask_ring!r}")
-    # A misspelt name raises. Taken as "both", it would run both cues under another name.
-    if parts not in ("both", "normal", "depth"):
-        raise ValueError(f"parts is 'both', 'normal' or 'depth', not {parts!r}")
+    # Taken as "both", a misspelt name would run both cues under another name.
+    if parts not in EDGE_PARTS:
+        raise ValueError(f"parts is one of {EDGE_PARTS}, not {parts!r}")
     if normals is None:
         n, m = camera_normals(depth, K)
     else:

@@ -78,5 +78,20 @@ def test_normals_of_another_depth_are_refused():
 def test_an_unknown_edge_parts_name_is_refused():
     from surgical_core.geometry import normals
     depth, K, _, _ = _inputs()
-    with pytest.raises(ValueError, match="parts is 'both', 'normal' or 'depth', not 'normals'"):
+    with pytest.raises(ValueError, match=r"parts is one of \('both', 'normal', 'depth'\), not 'normals'"):
         normals.geom_edge_map(depth, K, parts="normals", mask_ring=True)
+
+
+def test_each_edge_parts_name_reads_its_own_cue():
+    from surgical_core.geometry import normals
+    depth, K, _, _ = _inputs()
+
+    def edge(**kw):
+        return normals.geom_edge_map(depth, K, mask_ring=True, **kw)
+
+    # The crease term reads normal_thresh alone, and the step term reads depth_thresh alone.
+    assert np.array_equal(edge(parts="normal"), edge(parts="normal", depth_thresh=0.5))
+    assert np.array_equal(edge(parts="depth"), edge(parts="depth", normal_thresh=0.9))
+    assert not np.array_equal(edge(parts="depth"), edge(parts="depth", depth_thresh=0.5))
+    assert not np.array_equal(edge(parts="normal"), edge(parts="normal", normal_thresh=0.9))
+    assert np.array_equal(edge(), np.maximum(edge(parts="normal"), edge(parts="depth")))
