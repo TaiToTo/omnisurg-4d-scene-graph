@@ -288,6 +288,15 @@ def test_a_json_whose_clips_and_rows_disagree_is_refused(make):
         check_comparable(make(), twice)
 
 
+@pytest.mark.parametrize("make", [pilot_json, evaluator_json])
+def test_a_json_that_lists_a_clip_twice_is_refused(make):
+    # A set of the clips hides the second listing, while a tool that reads the list counts the clip twice.
+    twice = make()
+    twice["clips"] = [CLIPS[0], *clips_of(twice)]
+    with pytest.raises(ValueError, match=r"cond: clips lists \['VID01_s15_80_crop'\] more than once"):
+        check_comparable(make(), twice)
+
+
 # ---------------------------------------------------------------- the inputs and the versions
 
 
