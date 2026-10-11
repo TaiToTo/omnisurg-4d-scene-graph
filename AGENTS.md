@@ -81,7 +81,8 @@ omnisurg-4d-scene-graph/
 ├── cholecseg8k_meta/  crop rectangles, clip population (no video)
 ├── d4d_meta/          census clip list, scored sides (no frame or point cloud)
 ├── viewer/
-├── docs/              evaluation.md, review.md, porting.md, data_contract.md, pipeline.md
+├── docs/              evaluation.md, pilot_evaluator.md, review.md, porting.md,
+│                      data_contract.md, pipeline.md
 ├── tests/
 └── .github/workflows/ci.yml
 ```
