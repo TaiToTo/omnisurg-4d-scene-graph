@@ -7,7 +7,7 @@ swapped are told apart. Each refusal has a test that plants its fault:
 - a clip without a rectangle, without a manifest, or without an image;
 - a manifest that does not list one frame per image;
 - an image or a mask of another size, or an image whose data is cut short;
-- a cropped clip left by an earlier run, or one that holds a later stage's output.
+- a cropped clip left by an earlier run, or one that holds a later stage's file or manifest key.
 
 The command's own checks are run through `main`.
 """
@@ -178,6 +178,30 @@ def test_a_crop_that_holds_a_later_stage_s_output_is_refused_even_with_overwrite
         crop_clip(clip, {"VID07_s15_80": RECT}, overwrite=True)
     assert (dst / "depth_raw" / "depth_000000.npy").read_bytes() == b"depth"
     assert len(list((dst / "input_images").iterdir())) == 3
+
+
+@pytest.mark.parametrize("plant, said", [
+    (lambda m: m.update(depth_info={"process_res": 504}), "depth_info in frame_manifest.json"),
+    (lambda m: m["frames"][0].update(camera_pos_glb=[0, 0, 0]), "camera_pos_glb in a frame of frame_manifest.json"),
+])
+def test_a_crop_whose_manifest_holds_a_later_stage_s_record_is_refused_even_with_overwrite(clip, plant, said):
+    # The record stays in the manifest when the later stage's files are removed by hand, so no file is left here.
+    dst = crop_clip(clip, {"VID07_s15_80": RECT})
+    manifest = json.loads((dst / "frame_manifest.json").read_text())
+    plant(manifest)
+    (dst / "frame_manifest.json").write_text(json.dumps(manifest, indent=2))
+    before = (dst / "frame_manifest.json").read_bytes()
+    with pytest.raises(ValueError, match=f"holds {said}, which a later stage wrote; remove .* by hand"):
+        crop_clip(clip, {"VID07_s15_80": RECT}, overwrite=True)
+    assert (dst / "frame_manifest.json").read_bytes() == before
+
+
+def test_a_key_the_clip_s_own_manifest_holds_is_not_taken_for_a_later_stage_s(tmp_path):
+    frames = [dict(f, triplets=[]) for f in FRAMES]
+    clip = make_clip(tmp_path, manifest={"video_id": "VID07", "n_frames": 3, "frames": frames, "note": "kept"})
+    crop_clip(clip, {"VID07_s15_80": RECT})
+    dst = crop_clip(clip, {"VID07_s15_80": RECT}, overwrite=True)
+    assert json.loads((dst / "frame_manifest.json").read_text())["note"] == "kept"
 
 
 def test_a_part_left_by_a_run_that_was_killed_is_replaced(clip):

@@ -16,6 +16,7 @@ Usage:
 """
 
 import argparse
+import copy
 import json
 import shutil
 from pathlib import Path
@@ -67,8 +68,30 @@ def crop_image(path: Path, dst: Path, rect: dict[str, int]) -> None:
     Image.fromarray(img[rect["y0"]:rect["y1"], rect["x0"]:rect["x1"]]).save(dst)
 
 
+def cropped_manifest(manifest: dict, rect: dict[str, int]) -> dict:
+    """Return the cropped clip's manifest: the clip's, with each frame's new `image_size` and the rectangle."""
+    cropped = copy.deepcopy(manifest)
+    for f in cropped["frames"]:
+        f["image_size"] = [rect["x1"] - rect["x0"], rect["y1"] - rect["y0"]]
+    cropped["crop_info"] = {k: rect[k] for k in RECT_KEYS}
+    return cropped
+
+
+def later_keys(held: dict, cropped: dict) -> list[str]:
+    """List the keys of a cropped clip's manifest that this stage does not write, in the manifest and its frames.
+
+    A later stage records its run in the manifest, as the depth stage adds `depth_info`. A key of `held` that
+    `cropped` lacks is such a record.
+    """
+    def frame_keys(manifest: dict) -> set[str]:
+        return {k for f in manifest.get("frames", []) for k in f}
+
+    return ([f"{k} in frame_manifest.json" for k in sorted(set(held) - set(cropped))]
+            + [f"{k} in a frame of frame_manifest.json" for k in sorted(frame_keys(held) - frame_keys(cropped))])
+
+
 def write_cropped(dst: Path, images: list[Path], masks: list[Path], manifest: dict, rect: dict[str, int]) -> None:
-    """Write the cropped images and masks into `dst`, then the manifest with the new size, then the rectangle."""
+    """Write the cropped images and masks into `dst`, then the cropped clip's manifest, then the rectangle."""
     (dst / "input_images").mkdir(parents=True)
     for p in images:
         crop_image(p, dst / "input_images" / p.name, rect)
@@ -76,9 +99,6 @@ def write_cropped(dst: Path, images: list[Path], masks: list[Path], manifest: di
         (dst / "seg_masks").mkdir()
     for p in masks:
         crop_image(p, dst / "seg_masks" / p.name, rect)
-    for f in manifest["frames"]:
-        f["image_size"] = [rect["x1"] - rect["x0"], rect["y1"] - rect["y0"]]
-    manifest["crop_info"] = {k: rect[k] for k in RECT_KEYS}
     with open(dst / "frame_manifest.json", "w") as f:
         json.dump(manifest, f, indent=2)
     with open(dst / "crop_info.json", "w") as f:
@@ -118,11 +138,15 @@ def crop_clip(clip_dir: Path, rects: dict[str, dict[str, int]], overwrite: bool 
         raise ValueError(f"{manifest_path} lists {n} frames; {clip_dir.name} holds {len(images)} images")
     for p in images + masks:
         check_size(p, rect)
+    cropped = cropped_manifest(manifest, rect)
     dst = clip_dir.parent / f"{clip_dir.name}{SUFFIX}"
     if dst.exists() and not overwrite:
         raise ValueError(f"{dst} exists; pass --overwrite to replace it")
-    # A later stage's output, such as depth, is not this stage's to remove, even when asked to overwrite.
+    # A later stage's output, such as depth, is not this stage's to remove, even when asked to overwrite. A later
+    # stage writes files of its own, and may add keys to the manifest without leaving a file.
     later = sorted(p.name for p in dst.iterdir() if p.name not in OUTPUTS) if dst.exists() else []
+    if (dst / "frame_manifest.json").is_file():
+        later += later_keys(json.loads((dst / "frame_manifest.json").read_text()), cropped)
     if later:
         raise ValueError(f"{dst} holds {', '.join(later)}, which a later stage wrote; remove {dst} by hand to "
                          f"crop {clip_dir.name} again")
@@ -132,7 +156,7 @@ def crop_clip(clip_dir: Path, rects: dict[str, dict[str, int]], overwrite: bool 
     if part.exists():
         shutil.rmtree(part)
     try:
-        write_cropped(part, images, masks, manifest, rect)
+        write_cropped(part, images, masks, cropped, rect)
     except BaseException:
         shutil.rmtree(part, ignore_errors=True)
         raise
