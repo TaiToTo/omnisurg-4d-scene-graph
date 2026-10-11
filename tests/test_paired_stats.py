@@ -138,6 +138,13 @@ def test_mark_of_reads_the_interval_in_the_metric_s_direction():
         PS.mark_of([0.01, 0.05], sign=None)
 
 
+@pytest.mark.parametrize("sign", [True, False, 1.0, -1.0, np.int64(1)])
+def test_mark_of_refuses_a_sign_that_only_equals_an_int(sign):
+    """`True == 1` and `1.0 == 1`, so a membership test alone lets a flag or a float through."""
+    with pytest.raises(ValueError, match="sign is"):
+        PS.mark_of([0.01, 0.05], sign=sign)
+
+
 def test_is_star_matches_mark_of():
     assert PS.is_star([0.01, 0.05]) and not PS.is_star([-0.05, -0.01]) and not PS.is_star([-0.01, 0.05])
     assert PS.is_star([-0.05, -0.01], sign=-1) and not PS.is_star([0.01, 0.05], sign=-1)
@@ -185,7 +192,7 @@ def evaluator_scores(tag: str, shift: float, seed: int, views=("all",)) -> dict:
     rows = [{"clip": c, **{k: round(rnd.gauss(0.5 + shift, 0.15), 4) for k in keys}} for c in clips]
     return dict(tag=tag, eval_code_sha="a" * 64, dataset="atlas", pilot=False, class_set="original",
                 views=list(views), clips=clips,
-                input_shas={c: {"gt_masks": "g" * 64, "depth": "d" * 64, "predictions": f"p{c}"} for c in clips},
+                input_shas={c: {"gt_masks": "g" * 64, "depth": "d" * 64, "crop": "c" * 64, "frames": "f" * 64, "predictions": f"p{c}"} for c in clips},
                 versions={"python": "3.12.0", "numpy": "2.0.0"}, propagation="both_ways_from_centre", per_clip=rows)
 
 
@@ -204,6 +211,20 @@ WORKBENCH = {
            "wins": 6, "losses": 4, "ties": 0, "wilcoxon_p": 0.625, "wilcoxon_p_video": 0.84375,
            "ci95_clip": [-0.1513, 0.0926], "ci95_video": [-0.1758, 0.0882]},
 }
+
+
+def test_wins_and_losses_are_counted_in_the_key_s_direction():
+    """A key where smaller is better wins where it falls; a reference value counts no wins or losses."""
+    base, cond = evaluator_scores("base", 0.0, 1), evaluator_scores("cond", 0.0, 1)
+    vi = metric_key("VI_split", "all")
+    for row in cond["per_clip"]:
+        row[vi] = round(row[vi] - 0.1, 4)
+        row["time_IoU"] = round(row["time_IoU"] + 0.1, 4)
+    res = PS.compare_pair(base, cond, keys=[vi, "time_IoU"])
+    got = res["metrics"][vi]
+    assert (got["sign"], got["wins"], got["losses"], got["ties"]) == (-1, 6, 0, 0)
+    got = res["metrics"]["time_IoU"]
+    assert (got["sign"], got["wins"], got["losses"], got["ties"]) == (0, None, None, 0)
 
 
 def test_the_pair_statistics_are_the_workbench_s():

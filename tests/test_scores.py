@@ -2,8 +2,8 @@
 
 Two score JSONs are built for each case, one of the pilot evaluator's
 layout and one of the evaluator's, and one field at a time is changed.
-A check earns its place by failing when it should, so every rule has the
-case that trips it, and one case checks that an untouched pair passes.
+A check must fail when it should, so every rule has the case that trips
+it, and one case checks that an untouched pair passes.
 """
 import copy
 
@@ -13,6 +13,7 @@ from evalkit.tools import scores
 from evalkit.tools.scores import (
     PILOT_DOMAINS,
     PILOT_EVAL_CODE_SHA,
+    REQUIRED_INPUTS,
     check_comparable,
     clips_of,
     defined_clips,
@@ -45,7 +46,7 @@ def evaluator_json(sha=SHA, clips=CLIPS, dataset="cholecseg8k", pilot=False, cla
     return dict(
         eval_code_sha=sha, dataset=dataset, pilot=pilot, class_set=class_set, views=list(views),
         clips=list(clips), propagation=propagation,
-        input_shas={c: {"gt_masks": "g" * 64, "depth": "d" * 64, "predictions": f"p{c}"} for c in clips},
+        input_shas={c: {"gt_masks": "g" * 64, "depth": "d" * 64, "crop": "c" * 64, "frames": "f" * 64, "predictions": f"p{c}"} for c in clips},
         versions={"python": "3.12.0", "numpy": "2.0.0"},
         per_clip=[dict(clip=c, **{metric_key("F1_50", v): 0.5 for v in views}) for c in clips],
     )
@@ -287,6 +288,15 @@ def test_a_json_whose_clips_and_rows_disagree_is_refused(make):
         check_comparable(make(), twice)
 
 
+@pytest.mark.parametrize("make", [pilot_json, evaluator_json])
+def test_a_json_that_lists_a_clip_twice_is_refused(make):
+    # A set of the clips hides the second listing, while a tool that reads the list counts the clip twice.
+    twice = make()
+    twice["clips"] = [CLIPS[0], *clips_of(twice)]
+    with pytest.raises(ValueError, match=r"cond: clips lists \['VID01_s15_80_crop'\] more than once"):
+        check_comparable(make(), twice)
+
+
 # ---------------------------------------------------------------- the inputs and the versions
 
 
@@ -317,16 +327,25 @@ def test_a_clip_without_input_shas_is_refused():
         check_comparable(evaluator_json(), b)
 
 
+@pytest.mark.parametrize("missing", REQUIRED_INPUTS)
+def test_input_shas_that_both_leave_out_an_input_are_refused(missing):
+    # Both sides agreeing on the other inputs says nothing about the one neither recorded.
+    a, b = evaluator_json(), evaluator_json()
+    for j in (a, b):
+        del j["input_shas"][CLIPS[0]][missing]
+    with pytest.raises(ValueError, match=f"VID01_s15_80_crop: a score records no {missing} hash"):
+        check_comparable(a, b)
+
+
 def test_input_shas_that_name_no_input_beyond_the_predictions_are_refused():
-    # `{}` on both sides slips past a name-by-name comparison: there is no
-    # name to compare, and nothing says the two read the same GT.
+    # `{}` on both sides has no name to compare, and nothing says the two read the same GT.
     a, b = evaluator_json(), evaluator_json()
     a["input_shas"][CLIPS[0]], b["input_shas"][CLIPS[0]] = {}, {}
-    with pytest.raises(ValueError, match="no input beyond the predictions"):
+    with pytest.raises(ValueError, match="a score records no gt_masks hash"):
         check_comparable(a, b)
     a["input_shas"][CLIPS[0]] = {"predictions": "p"}
     b["input_shas"][CLIPS[0]] = {"predictions": "q"}
-    with pytest.raises(ValueError, match="no input beyond the predictions"):
+    with pytest.raises(ValueError, match="a score records no gt_masks hash"):
         check_comparable(a, b)
 
 

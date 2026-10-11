@@ -38,6 +38,13 @@ measured after — silently, because nothing crashes. `compare_eval.py` refuses
 scores whose `eval_code_sha` differs, and that refusal is the only thing
 standing between us and a plausible-looking wrong table.
 
+The camera trajectory scorer, `trajectory_eval`, is under the same rule
+through a hash of its own, `trajectory_code_sha`. It is frozen before the
+StereoMIS numbers are measured. The two hashes are separate so that freezing
+or changing one scorer never makes the other's scores incomparable.
+`trajectory_eval.tools.scores` refuses rows whose `trajectory_code_sha`
+differs.
+
 The pilot measurements were scored by the *pilot evaluator* (`eval_code_sha =
 1f8a813a…`). It stays frozen in the private workbench and is not part of this
 repository. The evaluator is checked against it where it lives, taking the
@@ -75,9 +82,12 @@ omnisurg-4d-scene-graph/
 ├── evalkit/           the evaluator, hashed into eval_code_sha with its class tables
 │   └── tools/         what reads scores or predictions, never hashed: scores
 │                      paired_stats compare_eval condition_inventory check_provenance
-│                      pilot_check kmerge pose_metrics pose_controls paired_table
-│                      arms_paired leave_one_video_out claims_table print_status_tables
+│                      pilot_check kmerge paired_table arms_paired
+│                      leave_one_video_out claims_table print_status_tables
 │                      (track_metrics: waits on its GT track)
+├── trajectory_eval/   the camera trajectory scorer, hashed into trajectory_code_sha
+│   └── tools/         what makes the controls' trajectories, scores StereoMIS or
+│                      reads the scores, never hashed: pose_controls scores
 ├── pipeline/          depth → segmentation → tracking → viewer export
 ├── recon3d_wrapper/   3D reconstruction — DA3 and Pi3 behind one interface
 ├── sam3_wrapper/      promptable segmentation and tracking with SAM 3
@@ -100,10 +110,10 @@ and clips enter a measurement is data, kept in the population file under
 
 ## The port
 
-The port follows `docs/porting.md`: what moves, which version of it was
-already reviewed and where, the order of the steps, and what must hold before
-the next one. Read it before porting anything. The order is load-bearing: the
-evaluator is checked against the pilot scores before anything is re-scored. A
+The port follows `docs/porting.md`: what is ported and checked, what is not
+ported yet, the order of the steps, and what must hold before the next one.
+Read it before porting anything. Keep its order: the evaluator is
+checked against the pilot scores before anything is re-scored. A
 pipeline stage is done only when its output equals the workbench's, byte for
 byte, apart from the exceptions `docs/porting.md` names. Nothing is frozen
 during the port.
@@ -120,7 +130,7 @@ test refuses a breach are in `docs/review.md`, which a change is reviewed
 against.
 
 - **Fail closed.** If an invariant cannot be checked, raise. Never skip quietly.
-- **A check earns its place by failing when it should**, with a test that
+- **A check is kept only if it fails when it should**, with a test that
   plants the fault.
 - **No TODO in code.** A wrong path raises on its input; an open decision is
   written under "Open questions", in `docs/porting.md` while the port lasts

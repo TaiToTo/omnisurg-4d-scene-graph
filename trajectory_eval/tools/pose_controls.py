@@ -17,7 +17,7 @@ import cv2
 import numpy as np
 
 import surgical_core.stereomis as stereomis
-from evalkit.tools.pose_metrics import centers_from_cam_to_world
+from trajectory_eval.pose_metrics import centers_from_cam_to_world
 
 # The depth range a disparity is kept in, in mm. The clips see tissue from 30 to 400 mm.
 DEPTH_RANGE_MM = (20.0, 500.0)

@@ -226,6 +226,14 @@ def test_a_bundle_that_cannot_be_read_is_refused(stand_in):
         check_depth(stand_in, ["clip0"])
 
 
+def test_a_clip_with_depth_info_but_no_bundle_is_refused_as_without_depth(stand_in):
+    make_clip(stand_in, "clip0")
+    write_depth(stand_in, "clip0")
+    (stand_in / "clip0" / driver.BUNDLE).unlink()
+    with pytest.raises(ValueError, match=r"^1 clip\(s\) without depth: \['clip0'\]$"):
+        check_depth(stand_in, ["clip0"])
+
+
 def test_depth_with_a_filled_border_is_refused_as_another_version_of_the_stage(stand_in):
     make_clip(stand_in, "clip0")
     write_depth(stand_in, "clip0", border_inpaint=True)
