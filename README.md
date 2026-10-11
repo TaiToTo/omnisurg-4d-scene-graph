@@ -34,6 +34,17 @@ DA3-LARGE and 5.1 GB for Pi3X. Both are licensed CC BY-NC 4.0, for
 non-commercial use only, unlike this repository's code. `docs/pipeline.md`
 describes a clip and the files each stage writes.
 
+## Tests
+
+Run the tests with the three extras, as CI does. Without them the tests
+that need matplotlib, trimesh or scipy are skipped, and the run still looks
+green.
+
+```bash
+pip install -e ".[render,tools,stereomis]" pytest
+pytest
+```
+
 ## Viewer
 
 `viewer/` is a web page that shows a clip's 4D scene graph: its point

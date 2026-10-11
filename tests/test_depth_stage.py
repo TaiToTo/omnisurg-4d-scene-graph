@@ -18,17 +18,23 @@ from pipeline.depth import check_cropped, existing_output, main, run_depth
 from recon3d_wrapper import Reconstruction
 
 
+# A quarter turn about y: its transpose is another rotation, so a stage that uses R where it should use R.T shows.
+QUARTER_TURN_Y = np.array([[0, 0, 1], [0, 1, 0], [-1, 0, 0]], np.float32)
+
+
 class StandIn:
     """Return a fixed depth ramp at (H, W), confidence 1, and a camera that moves along x.
 
-    `returns` makes it return that many frames, whatever the number of images.
+    `returns` makes it return that many frames, whatever the number of images. `turn_frame` gets the quarter turn
+    as its rotation; `hole` names a (frame, row, column) pixel without depth.
     """
 
     model_id = "stand-in"
     device = "cpu"
 
-    def __init__(self, shape=(6, 8), zero_frame=None, returns=None):
+    def __init__(self, shape=(6, 8), zero_frame=None, returns=None, turn_frame=None, hole=None):
         self.shape, self.zero_frame, self.returns = shape, zero_frame, returns
+        self.turn_frame, self.hole = turn_frame, hole
         self.seen = []
 
     def reconstruct(self, image_paths):
@@ -37,9 +43,13 @@ class StandIn:
         depth = np.stack([np.full((h, w), 1.0 + i) + np.linspace(0, 1, w) for i in range(n)]).astype(np.float32)
         if self.zero_frame is not None:
             depth[self.zero_frame] = 0.0
+        if self.hole is not None:
+            depth[self.hole] = 0.0
         K = np.tile(np.array([[10.0, 0, w / 2], [0, 10.0, h / 2], [0, 0, 1]], np.float32), (n, 1, 1))
         E = np.tile(np.eye(4, dtype=np.float32)[:3], (n, 1, 1))
         E[:, 0, 3] = np.arange(n)
+        if self.turn_frame is not None:
+            E[self.turn_frame, :3, :3] = QUARTER_TURN_Y
         return Reconstruction(depth=depth, conf=np.ones_like(depth), intrinsics=K, extrinsics=E)
 
 
@@ -67,15 +77,45 @@ def test_the_stage_writes_every_file_and_the_manifest_keys_in_order(tmp_path):
     assert sorted(p.name for p in (clip / "depth_raw").iterdir()) == [f"depth_{i:06d}.npy" for i in range(3)]
     assert sorted(p.name for p in (clip / "depth_vis").iterdir()) == [f"{i:04d}.jpg" for i in range(3)]
     assert sorted(p.name for p in (clip / "pc_vis").iterdir()) == [f"frame_{i:04d}.glb" for i in range(3)]
+    rec = model.reconstruct([clip] * 3)
     with np.load(clip / "exports" / "mini_npz" / "results.npz") as z:
         assert z.files == ["depth", "conf", "extrinsics", "intrinsics"]
-        assert all(z[k].dtype == np.float32 for k in z.files)
-        assert z["depth"].shape == (3, 6, 8)
+        assert {k: z[k].shape for k in z.files} == {
+            "depth": (3, 6, 8), "conf": (3, 6, 8), "extrinsics": (3, 3, 4), "intrinsics": (3, 3, 3)}
+        for k in z.files:
+            assert z[k].dtype == np.float32 and np.array_equal(z[k], getattr(rec, k)), k
     info = json.loads((clip / "frame_manifest.json").read_text())["depth_info"]
     assert list(info) == ["model", "process_res", "depth_shape", "depth_range", "conf_range", "border_inpaint"]
     assert info["model"] == "stand-in" and info["process_res"] == 504 and info["depth_shape"] == [3, 6, 8]
     assert info["border_inpaint"] is False
-    assert np.array_equal(np.load(clip / "depth_raw" / "depth_000001.npy"), model.reconstruct([clip] * 2).depth[1])
+    assert np.array_equal(np.load(clip / "depth_raw" / "depth_000001.npy"), rec.depth[1])
+
+
+def test_a_cloud_holds_the_frames_points_in_gltf_centred_and_its_images_colours(tmp_path):
+    pytest.importorskip("matplotlib")
+    trimesh = pytest.importorskip("trimesh")
+    clip = make_clip(tmp_path)
+    # Each 2x2 block of an image has its own colour, with red, green and blue all different, so the stage's 2x
+    # downscale keeps the colours exactly and a pixel or a channel out of place shows.
+    yy, xx = np.mgrid[0:12, 0:16]
+    for i in range(3):
+        image = np.stack([10 * (xx // 2), 100 + 20 * (yy // 2), np.full_like(xx, 220 + i)], -1).astype(np.uint8)
+        Image.fromarray(image).save(clip / "input_images" / f"{i:06d}.png")
+    model = StandIn(turn_frame=2, hole=(0, 0, 0))
+    run_depth(clip, model, process_res=504)
+    rec = model.reconstruct([clip] * 3)
+    v, u = np.mgrid[0:6, 0:8]
+    for i in range(3):
+        # The pinhole and the pose here compute the points, not the stage's functions. The cloud is centred, so
+        # the camera's move along x does not show in it; its turn on frame 2 does.
+        d, K, E = rec.depth[i], rec.intrinsics[i], rec.extrinsics[i]
+        cam = np.stack([(u - K[0, 2]) * d / K[0, 0], (v - K[1, 2]) * d / K[1, 1], d], -1).reshape(-1, 3)
+        usable = d.reshape(-1) > 0
+        expected = ((E[:, :3].T @ (cam - E[:, 3]).T).T * [1, -1, -1])[usable]
+        colours = np.stack([10 * u, 100 + 20 * v, np.full_like(u, 220 + i)], -1).reshape(-1, 3)[usable]
+        cloud = trimesh.load(clip / "pc_vis" / f"frame_{i:04d}.glb", force="scene").to_geometry()
+        assert np.asarray(cloud.vertices) == pytest.approx(expected - expected.mean(0), abs=1e-5)
+        assert np.array_equal(np.asarray(cloud.colors)[:, :3], colours), "the frame's own image, as RGB"
 
 
 def test_a_frame_with_no_usable_depth_gets_no_point_cloud_and_the_rest_do(tmp_path):

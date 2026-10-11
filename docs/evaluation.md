@@ -4,15 +4,17 @@
 
 ## Summary
 
-The evaluator compares the regions the pipeline cuts each frame into, which
-carry no class, with the ground-truth (GT) masks of ATLAS-120k and
-CholecSeg8k. A GT object is one class's whole region in a frame, and a
-predicted object is one region. Every key is computed in three views: all
-classes, tissue only, and the tissue that depth and shape can separate. The
-paper asks three questions of the regions and judges two of them on
-primary keys. The third, like every measure over time, gets reference
-values only, which decide no claim. Every score records `eval_code_sha` and
-the hashes of its inputs, and two scores are compared only when these match.
+The pipeline splits each frame into regions and gives them no class. The
+evaluator compares these regions with the ground-truth (GT) masks of
+ATLAS-120k and CholecSeg8k. A GT object is all pixels of one class in one
+frame, and a predicted object is one region. Every metric but `time_IoU` is
+computed in three views: `all` (every class), `tissue` (without tools) and
+`geometric` (only the tissue that depth and shape can separate). The paper
+asks three questions of the regions and judges two of them each on a
+primary metric of its own. The question about following a region over time,
+like every measure over time, gets reference values only, which decide no
+claim. Every score records `eval_code_sha` and the hashes of its inputs, and
+two scores are compared only when they are comparable ("Terms").
 
 | question | primary metric | view |
 |---|---|---|
@@ -22,7 +24,7 @@ the hashes of its inputs, and two scores are compared only when these match.
 
 ## Contents
 
-- [Terms](#terms): the words this document and the tools use for a score.
+- [Terms](#terms): the words this document and the tools use.
 - [The evaluator at a glance](#the-evaluator-at-a-glance): the six steps of
   scoring, in two figures.
 - [How a frame is scored](#how-a-frame-is-scored): the inputs, which frames
@@ -34,20 +36,22 @@ the hashes of its inputs, and two scores are compared only when these match.
   pilot evaluator.
 - [Class tables](#class-tables): every class's type, per dataset.
 
-`docs/pilot_evaluator.md` says why the pilot evaluator was replaced.
-
 ## Terms
 
 - The *pilot evaluator* scored the pilot measurements (`eval_code_sha =
-  1f8a813a…`), and stays frozen in the private research workbench. *Pilot
+  1f8a813a…`), and stays frozen in the private research workbench.
+  `docs/pilot_evaluator.md` says why this evaluator replaced it. *Pilot
   mode* runs this evaluator with the pilot evaluator's rules, to check that
-  it writes the same numbers ("Checked against the pilot evaluator").
+  it writes the same numbers ("Checked against the pilot evaluator"). Every
+  other run is in *normal mode*.
 - A *condition* is one configuration of the pipeline that the paper
   compares. It gives one prediction per clip.
 - A *video* is one recording in a dataset. A *clip* is a stretch of one
   video that the pipeline processes as a unit; a video can supply several.
-- A *view* is the set of classes a key is computed over: `all`, `tissue` or
-  `geometric` ("Views").
+- A *class set* is the list of classes a score reads the GT in. `original`
+  is the dataset's own labels, and claims are judged on it. ATLAS-120k has
+  a second class set, `benchmark`: its benchmark's 30 classes, scored as
+  reference values only ("ATLAS-120k: the benchmark's 30 classes").
 - A *score JSON* is one condition's scores: a summary and one *row* per
   clip, under `per_clip`. A *key* is one column of the rows: the evaluator
   writes `metric/view` (`F1_50/geometric`) and `time_IoU` once per clip; a
@@ -56,6 +60,8 @@ the hashes of its inputs, and two scores are compared only when these match.
   (`scores.EVALUATOR_FIELDS`) and keeps the pilot evaluator's spellings
   (`inst_F1_50`, `inst_F1_50_tissue`, with the domain after an underscore).
   A JSON this evaluator writes in pilot mode is not a pilot JSON.
+- A *view* is the set of classes a key is computed over: `all`, `tissue` or
+  `geometric` ("Views").
 - A *ruler* is what a score was measured with, as `scores.Ruler` holds it:
   `eval_code_sha`, dataset, mode, class set, views, and for a pilot JSON its
   domain. Two scores are *comparable* when every requirement listed under
@@ -252,7 +258,8 @@ masks: many classes were neither shape nor colour, but one of these two.
 
 ### Views
 
-Every metric is computed over each of three views, the same way:
+Every metric but `time_IoU` is computed over each of three views, the same
+way:
 
 - `all`: every class that is not `ignored`, `background` or `excluded`
 - `tissue`: the same, without `tool`
@@ -463,23 +470,23 @@ diagnostics and decide no claim.
 
 The paper asks three questions, each as a comparison between two
 conditions, and judges two of them on a key of their own, on each dataset's
-own labels (the `original` class set). The table in the summary gives
-them.
+own labels (the `original` class set). The table in the summary lists the
+questions and their primary metrics.
 
 ![The three questions on a drawn scene. Q1: a region picked out in one frame follows the gallbladder for two frames, then leaves it. Q2: the regions' boundaries against the GT's class boundaries, giving boundary_R_raw. Q3: regions matched to the GT's objects, giving F1_50 and SQ.](figures/three_questions.png)
 
-The second question is answered within each view, between conditions that
-differ in what the pipeline is given: the image, the depth, or both. The
-views sort the classes by what should separate them, so the answer can
-differ from one view to the next.
+The question about boundaries is answered within each view, between
+conditions that differ in what the pipeline is given: the image, the depth,
+or both. The views sort the classes by what should separate them, so the
+answer can differ from one view to the next.
 
 These were chosen before any score of this evaluator was looked at. The
 pilot evaluator's scores of the same quantities have been seen, which is why
 the choice is fixed before this evaluator scores anything.
 
 The set is kept as small as the claims allow. The evaluator computes every
-metric in the metrics table; which of them the paper reports is settled before any
-score of this evaluator is seen.
+metric in the metrics table; which of them the paper reports is settled
+before any score of this evaluator is seen.
 
 ### Consistency over time: reference values only
 
