@@ -1,14 +1,14 @@
 """Make the camera trajectories the StereoMIS result is compared with: two floors and a ceiling.
 
 - `static_floor`: a camera that never moves. Its `ate_rel` is exactly 1.0.
-- `line_floor`: a camera that moves in a straight line at the true
-  trajectory's mean speed. It looks plausible and carries no information.
+- `line_floor`: a camera that moves in a straight line at the true mean speed.
+  It looks plausible but has none of the true trajectory's shape.
 - `StereoVO`: stereo visual odometry, from disparity, sparse tracks and PnP.
   It shows what an estimate with true scale reaches.
 
-No control is cut from the ground truth, because the similarity fit of `ate`
-would fit the truth to itself. The ceiling reads the instrument masks, which
-a method may not read.
+The ceiling is not cut from the ground truth, because the similarity fit of
+`ate` would fit the truth to itself at no error. The ceiling reads the tissue
+masks, which a method may not read.
 """
 
 from pathlib import Path
@@ -84,9 +84,10 @@ def sgbm_depth(matcher, left: np.ndarray, right: np.ndarray, bf: float,
 class StereoVO:
     """Chain the camera's poses over a clip from stereo depth, sparse tracks and PnP.
 
-    Each step takes depth from the earlier frame only, and the later frame's tracked pixels: PnP needs 3D
-    points in one frame and their 2D sightings in the other, so a hole in one frame's depth costs less than
-    in a fit of points to points. A step that cannot be solved repeats the earlier pose, and is counted.
+    Each step lifts tracked pixels to 3D with the earlier frame's depth, and solves the later camera by PnP from
+    where those pixels are in the later frame. PnP needs depth in the earlier frame only, so it loses fewer
+    tracks to holes in the depth than a fit of 3D points to 3D points would. A step that cannot be solved repeats
+    the earlier pose, and is counted.
     """
 
     # The fewest tracks a step is solved from, before and after PnP's inliers.
@@ -177,7 +178,8 @@ def run_sequence(root: Path, depth_root: Path, seq: str) -> dict[str, tuple[np.n
         For each clip's name, its camera centres, its camera-to-world rotations and how many steps failed.
 
     Raises:
-        ValueError: two clips share a frame, a clip holds a frame twice, or two clips interleave.
+        ValueError: a clip is empty or its frames do not increase, or a clip does not end before the next
+            one starts.
     """
     # Find the clips, and map each frame to its clip.
     clips = [c for c in stereomis.clips(root, depth_root, seq) if c["usable"]]
@@ -185,13 +187,13 @@ def run_sequence(root: Path, depth_root: Path, seq: str) -> dict[str, tuple[np.n
         return {}
     owner = {f: c["name"] for c in clips for f in c["frames"]}
 
-    # Refuse clips one decode cannot feed in turn. A shared frame would go to one clip only, and an interleaved
-    # clip would restart its trajectory and lose the frames before.
-    order = [owner[f] for f in sorted(owner)]
-    n_runs = 1 + sum(a != b for a, b in zip(order, order[1:]))
-    if len(owner) != sum(len(c["frames"]) for c in clips) or n_runs != len(clips):
-        raise ValueError(f"{seq}: the clips share a frame, repeat one, or interleave, so one decode cannot "
-                         "feed them in turn")
+    # Refuse clips one decode cannot feed in turn. The decode yields each frame once and in increasing order, so
+    # each clip's frames must increase, and each clip must end before the next one starts.
+    runs = sorted(list(c["frames"]) for c in clips)
+    if (not all(len(f) and np.all(np.diff(f) > 0) for f in runs)
+            or any(a[-1] >= b[0] for a, b in zip(runs, runs[1:]))):
+        raise ValueError(f"{seq}: a clip is empty, its frames do not increase, or it does not end before the "
+                         "next clip starts, so one decode cannot feed the clips in turn")
 
     # Decode the sequence once, and chain each clip's poses from its first frame.
     c = stereomis.calib(root, seq)
