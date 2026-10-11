@@ -452,7 +452,9 @@ and writes its logs to `<input-dir>/_logs/<stage>_gpu<N>.log`. A clip that
 holds a stage's bundle without its record is run again; the stage refuses
 it until its files are removed or the stage is run on it with
 `--overwrite`. Neither record says whether the point clouds were written,
-so the command does not check them. The command refuses what
+so the command does not check them. A driver that is stopped, by `kill`,
+a closed terminal or Ctrl-C, stops its processes with it. Under `nohup`,
+a closed terminal does not stop the driver. The command refuses what
 `pipeline.depth_population` refuses, for each stage:
 
 - before any process starts: a usable clip that is not under
