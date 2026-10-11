@@ -6,23 +6,27 @@ writes it. Rows are compared only when they record one
 reader refuses:
 
 - a file that is not a list of rows;
-- a row without `trajectory_code_sha`;
+- a row without `clip` or `cond`;
+- a row whose `trajectory_code_sha` is missing or is not a sha256 hex digest;
 - rows that record more than one `trajectory_code_sha`;
 - a clip scored twice under one condition.
 """
 
 import json
+import re
 from pathlib import Path
 
 HASH_KEY = "trajectory_code_sha"
+HASH_PATTERN = re.compile(r"[0-9a-f]{64}")
 
 
 def read_rows(paths: list[Path]) -> list[dict]:
     """Return the rows of every file, in order.
 
     Raises:
-        ValueError: a file is not a list of rows, a row records no hash, the rows record more than one hash, or a
-            clip is scored twice under one condition. The message names the files.
+        ValueError: a file is not a list of rows, a row names no clip or condition, a row records no hash, the
+            rows record more than one hash, or a clip is scored twice under one condition. The message names the
+            files.
     """
     rows, by_hash, seen = [], {}, {}
     for path in map(Path, paths):
@@ -31,7 +35,9 @@ def read_rows(paths: list[Path]) -> list[dict]:
         if not isinstance(data, list) or not all(isinstance(r, dict) for r in data):
             raise ValueError(f"{path} is not a list of rows")
         for i, row in enumerate(data):
-            if HASH_KEY not in row:
+            if "clip" not in row or "cond" not in row:
+                raise ValueError(f"{path}: row {i} names no clip or no condition")
+            if not (isinstance(row.get(HASH_KEY), str) and HASH_PATTERN.fullmatch(row[HASH_KEY])):
                 raise ValueError(f"{path}: row {i} records no {HASH_KEY}, so the scorer that made it is not known")
             by_hash.setdefault(row[HASH_KEY], set()).add(str(path))
             key = (row["clip"], row["cond"])

@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 
 from trajectory_eval.code_sha import trajectory_code_sha
-from trajectory_eval.score import METHOD_BUNDLES, method_trajectory, score
+from trajectory_eval.score import method_trajectory, score
 
 N = 112
 TIMES = np.arange(N) * 0.2
@@ -36,11 +36,10 @@ def true_poses() -> np.ndarray:
     return T
 
 
-def write_bundle(clip_dir, method: str, extrinsics: np.ndarray) -> None:
-    """Write a bundle of `method` into `clip_dir` as the depth stage does, extrinsics in float32."""
-    (clip_dir / "exports" / "mini_npz").mkdir(parents=True, exist_ok=True)
-    np.savez(clip_dir / "exports" / "mini_npz" / METHOD_BUNDLES[method], extrinsics=extrinsics.astype(np.float32),
-             depth=np.zeros((len(extrinsics), 2, 2), np.float32))
+def write_bundle(path, extrinsics: np.ndarray):
+    """Write a bundle at `path` as a depth stage does, extrinsics in float32, and return the path."""
+    np.savez(path, extrinsics=extrinsics.astype(np.float32), depth=np.zeros((len(extrinsics), 2, 2), np.float32))
+    return path
 
 
 def world_to_cam(T: np.ndarray) -> np.ndarray:
@@ -51,19 +50,17 @@ def world_to_cam(T: np.ndarray) -> np.ndarray:
     return E
 
 
-@pytest.mark.parametrize("method", sorted(METHOD_BUNDLES))
-def test_the_truth_read_back_through_a_bundle_scores_0_and_negated_scores_badly(tmp_path, method):
+def test_the_truth_read_back_through_a_bundle_scores_0_and_negated_scores_badly(tmp_path):
     T = true_poses()
     # Scaled to metres, as a depth model's poses are on a scale of their own.
     T_m = T.copy()
     T_m[:, :3, 3] /= 1000.0
-    write_bundle(tmp_path, method, world_to_cam(T_m))
-    est_c, est_R = method_trajectory(tmp_path, method, N)
-    row = score(CLIP, method, T, est_c, est_R)
+    est_c, est_R = method_trajectory(write_bundle(tmp_path / "results.npz", world_to_cam(T_m)), N)
+    row = score(CLIP, "da3", T, est_c, est_R)
     # float32 extrinsics leave a few thousandths of a degree; the camera turns 7.5 degrees between a pair.
     assert row["ate_rel"] < 1e-4 and row["rpe_trans_rel"] < 1e-4 and row["rpe_rot_deg"] < 0.05
     assert abs(row["scale"] - 1000.0) < 0.1
-    assert score(CLIP, method, T, -est_c, est_R)["ate_rel"] > 0.1
+    assert score(CLIP, "da3", T, -est_c, est_R)["ate_rel"] > 0.1
 
 
 def test_a_camera_that_never_moves_scores_exactly_1():
@@ -84,22 +81,20 @@ def test_an_estimate_of_another_length_than_the_truth_is_refused():
         score(CLIP, "da3", true_poses(), np.zeros((N - 1, 3)), np.tile(np.eye(3), (N - 1, 1, 1)))
 
 
-def test_a_bundle_holds_4x4_extrinsics_too(tmp_path):
+def test_a_bundle_of_another_number_of_frames_than_the_clip_is_refused(tmp_path):
+    bundle = write_bundle(tmp_path / "results.npz", world_to_cam(true_poses())[:-1])
+    with pytest.raises(ValueError, match=r"extrinsics of shape \(111, 3, 4\), where \(112, 3, 4\) is expected"):
+        method_trajectory(bundle, N)
+
+
+def test_a_bundle_of_4x4_extrinsics_is_refused(tmp_path):
+    # No depth stage writes them, and their last row would be read without a check.
     E = np.tile(np.eye(4), (N, 1, 1))
     E[:, :3, :] = world_to_cam(true_poses())
-    write_bundle(tmp_path, "pi3x", E)
-    est_c, est_R = method_trajectory(tmp_path, "pi3x", N)
-    np.testing.assert_allclose(est_c, true_poses()[:, :3, 3], atol=1e-3)
-    np.testing.assert_allclose(est_R, true_poses()[:, :3, :3], atol=1e-6)
+    with pytest.raises(ValueError, match=r"extrinsics of shape \(112, 4, 4\)"):
+        method_trajectory(write_bundle(tmp_path / "results.npz", E), N)
 
 
-def test_a_bundle_of_another_number_of_frames_than_the_clip_is_refused(tmp_path):
-    write_bundle(tmp_path, "da3", world_to_cam(true_poses())[:-1])
-    with pytest.raises(ValueError, match=r"extrinsics of shape \(111, 3, 4\), where 112 frames"):
-        method_trajectory(tmp_path, "da3", N)
-
-
-def test_a_clip_without_the_bundle_is_refused(tmp_path):
-    write_bundle(tmp_path, "da3", world_to_cam(true_poses()))
+def test_a_missing_bundle_is_refused(tmp_path):
     with pytest.raises(FileNotFoundError):
-        method_trajectory(tmp_path, "pi3x", N)
+        method_trajectory(tmp_path / "results.npz", N)

@@ -74,7 +74,7 @@ def test_a_listed_module_that_is_missing_is_refused(tmp_path):
 
 @pytest.mark.parametrize("line, target", [
     ("import surgical_core.stereomis", "surgical_core.stereomis"),
-    ("from evalkit.tools import pose_controls", "evalkit.tools"),
+    ("from evalkit import code_sha", "evalkit"),
     ("from trajectory_eval.tools import scores", "trajectory_eval.tools"),
     ("from .tools import scores", "trajectory_eval.tools"),
     ("from .. import evalkit", r"\.\."),

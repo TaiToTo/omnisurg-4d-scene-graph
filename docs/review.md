@@ -18,6 +18,10 @@ which test refuses a breach.
 
 A rule without a test in this table is checked by the reviewer.
 
+In a new clone, set the repository-local `user.email` to the GitHub no-reply
+address before the first commit. A development machine's global config may
+hold a personal one.
+
 ## A module's header
 
 The module docstring says what the module does, in at most twelve lines,
@@ -54,9 +58,9 @@ The modules longer than the cap when the rule was made are listed in the
 test as `STILL_LONG`, and the workstream `docs/short-headers` shortens them.
 A module leaves the list when it is shortened, and cannot rejoin it: the
 test reads the list as the commit that introduced it wrote it, and refuses
-a name that was not there. The modules that `eval_code_sha` hashes are
-shortened before the evaluator is frozen, since afterwards not a byte of
-them changes.
+a name that was not there. The modules that `eval_code_sha` or
+`trajectory_code_sha` hashes are shortened before their freeze, since
+afterwards not a byte of them changes.
 
 ## Docstrings and comments
 
@@ -82,8 +86,8 @@ them changes.
   every new docstring and header must say, by itself, what the code does,
   and the first sentence of a comment states the fact before the reason.
   Existing text is rewritten when a change touches it; for the modules
-  `eval_code_sha` hashes that rewrite must land before the evaluator is
-  frozen, as with their headers.
+  `eval_code_sha` or `trajectory_code_sha` hashes, that rewrite must land
+  before their freeze, as with their headers.
 - Google-style docstrings; imports at the module top.
 - **A function of several steps names each step.** A function that composes
   other modules is read to find where one result comes from, not top to
@@ -146,7 +150,7 @@ does. Existing text is rewritten when a change touches the sentence.
 
 - **Fail closed.** If an invariant cannot be checked, raise. Never skip
   quietly.
-- **A check earns its place by failing when it should**, not by passing.
+- **A check is kept only if it fails when it should**; passing proves nothing.
   Every check comes with a test that plants the fault and shows the check
   refusing it.
 - **No TODO in code.** A path known to give a wrong answer for some input

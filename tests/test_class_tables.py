@@ -122,7 +122,7 @@ def test_a_missing_table_is_reported(tmp_path, monkeypatch):
         table_paths()
 
 
-# A check earns its place by failing when it should: each fault below is
+# A check must fail when it should: each fault below is
 # planted in a copy of the real table, and the loader has to refuse it.
 
 def _plant(tmp_path: Path, edit) -> Path:

@@ -13,11 +13,11 @@ import pytest
 
 pytest.importorskip("scipy")
 
-import evalkit.tools.pose_controls as pose_controls  # noqa: E402
 import surgical_core.stereomis as stereomis  # noqa: E402
+import trajectory_eval.tools.pose_controls as pose_controls  # noqa: E402
 import trajectory_eval.tools.score_stereomis as cmd  # noqa: E402
 from trajectory_eval.code_sha import trajectory_code_sha  # noqa: E402
-from trajectory_eval.score import METHOD_BUNDLES, score  # noqa: E402
+from trajectory_eval.score import method_trajectory, score  # noqa: E402
 
 N = 20
 
@@ -64,8 +64,9 @@ def write_bundles(clip_root, methods=("da3", "pi3x"), skip=()) -> None:
         for m in methods:
             if (c["name"], m) in skip:
                 continue
-            (clip_root / c["name"] / "exports" / "mini_npz").mkdir(parents=True, exist_ok=True)
-            np.savez(clip_root / c["name"] / "exports" / "mini_npz" / METHOD_BUNDLES[m], extrinsics=E)
+            bundle = clip_root / c["name"] / cmd.METHOD_BUNDLES[m]
+            bundle.parent.mkdir(parents=True, exist_ok=True)
+            np.savez(bundle, extrinsics=E)
 
 
 def test_the_controls_score_each_usable_clip_in_order_and_the_ceiling_records_its_failures(stand_in):
@@ -99,7 +100,7 @@ def test_the_methods_score_each_usable_clip_and_the_shuffled_poses_keep_the_shap
     c = CLIPS["P1"][0]
     T = gt_pose(None, "P1", c["frames"])
     order = np.random.default_rng(cmd.SHUFFLE_SEED).permutation(N)
-    est = cmd.method_trajectory(stand_in / c["name"], "da3", N)
+    est = method_trajectory(stand_in / c["name"] / cmd.METHOD_BUNDLES["da3"], N)
     assert rows[1] == score(c, "da3_shuf", T, est[0][order], est[1][order])
 
 

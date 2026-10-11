@@ -15,7 +15,7 @@ pytest.importorskip("scipy")
 
 import cv2  # noqa: E402
 
-import evalkit.tools.pose_controls as PC  # noqa: E402
+import trajectory_eval.tools.pose_controls as PC  # noqa: E402
 import surgical_core.stereomis as stereomis  # noqa: E402
 from trajectory_eval.pose_metrics import ate  # noqa: E402
 
@@ -218,10 +218,12 @@ def test_a_reset_starts_a_new_trajectory_at_the_identity():
     np.testing.assert_array_equal(vo.poses[0], np.eye(4))
 
 
-def test_each_clip_of_a_sequence_gets_its_own_trajectory_from_one_decode(monkeypatch, tmp_path):
-    clips = (dict(name="P1__clip_0000", frames=[0, 1, 2, 3], usable=True),
-             dict(name="P1__clip_0001", frames=[4, 5, 6], usable=False),
-             dict(name="P1__clip_0002", frames=[7, 8, 9], usable=True))
+def fake_sequence(monkeypatch, clips, mask_of=lambda f: None) -> tuple[list, list]:
+    """Make `stereomis` serve `clips`, frame `f` as `pair(f)` and its nearest mask as `mask_of(f)`.
+
+    Returns:
+        The lists the frames asked of each decode and the frames asked for a mask are appended to.
+    """
     decoded, masked = [], []
 
     class Calib:
@@ -234,12 +236,20 @@ def test_each_clip_of_a_sequence_gets_its_own_trajectory_from_one_decode(monkeyp
 
     def load_mask_nearest(root, seq, f):
         masked.append(f)
-        return None
+        return mask_of(f)
 
     monkeypatch.setattr(stereomis, "clips", lambda root, depth_root, seq: clips)
     monkeypatch.setattr(stereomis, "calib", lambda root, seq: Calib)
     monkeypatch.setattr(stereomis, "iter_frame_set", iter_frame_set)
     monkeypatch.setattr(stereomis, "load_mask_nearest", load_mask_nearest)
+    return decoded, masked
+
+
+def test_each_clip_of_a_sequence_gets_its_own_trajectory_from_one_decode(monkeypatch, tmp_path):
+    clips = (dict(name="P1__clip_0000", frames=[0, 1, 2, 3], usable=True),
+             dict(name="P1__clip_0001", frames=[4, 5, 6], usable=False),
+             dict(name="P1__clip_0002", frames=[7, 8, 9], usable=True))
+    decoded, masked = fake_sequence(monkeypatch, clips)
     out = PC.run_sequence(tmp_path, tmp_path, "P1")
     assert decoded == [[0, 1, 2, 3, 7, 8, 9]] and masked == [0, 1, 2, 3, 7, 8, 9]
     assert list(out) == ["P1__clip_0000", "P1__clip_0002"]
@@ -249,6 +259,18 @@ def test_each_clip_of_a_sequence_gets_its_own_trajectory_from_one_decode(monkeyp
         np.testing.assert_array_equal(c, alone.result()[0])
         np.testing.assert_array_equal(R, alone.result()[1])
         assert n_fail == alone.n_fail == 0
+
+
+def test_each_frame_of_a_sequence_takes_its_nearest_mask(monkeypatch, tmp_path):
+    """Frame 2's nearest mask hides everything, so the step from frame 2 to 3 fails, as it does with the clip alone."""
+    none = np.zeros((VIEW_H, VIEW_W), bool)
+    fake_sequence(monkeypatch, (dict(name="P1__clip_0000", frames=[0, 1, 2, 3, 4], usable=True),),
+                  mask_of=lambda f: none if f == 2 else None)
+    c, R, n_fail = PC.run_sequence(tmp_path, tmp_path, "P1")["P1__clip_0000"]
+    alone = run_vo(range(5), masks=[None, None, none, None, None])
+    assert n_fail == alone.n_fail == 1
+    np.testing.assert_array_equal(c, alone.result()[0])
+    np.testing.assert_array_equal(R, alone.result()[1])
 
 
 def test_a_sequence_without_a_usable_clip_decodes_nothing(monkeypatch, tmp_path):
@@ -261,10 +283,12 @@ def test_a_sequence_without_a_usable_clip_decodes_nothing(monkeypatch, tmp_path)
     pytest.param(([0, 1, 2], [2, 3, 4]), id="a shared frame"),
     pytest.param(([0, 1, 1], [3, 4, 5]), id="a frame held twice"),
     pytest.param(([0, 2, 4], [1, 3, 5]), id="interleaved clips"),
+    pytest.param(([2, 0, 1],), id="frames out of order"),
+    pytest.param(([], [0, 1, 2]), id="a clip without a frame"),
 ])
 def test_clips_one_decode_cannot_feed_in_turn_are_refused_before_decoding(monkeypatch, tmp_path, frames):
     clips = tuple(dict(name=f"P1__clip_{k:04d}", frames=f, usable=True) for k, f in enumerate(frames))
     monkeypatch.setattr(stereomis, "clips", lambda root, depth_root, seq: clips)
     monkeypatch.setattr(stereomis, "iter_frame_set", lambda *a: pytest.fail("decoded"))
-    with pytest.raises(ValueError, match="cannot feed them in turn"):
+    with pytest.raises(ValueError, match="cannot feed the clips in turn"):
         PC.run_sequence(tmp_path, tmp_path, "P1")
