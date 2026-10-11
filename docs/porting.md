@@ -547,13 +547,16 @@ and not before.
 - **Two comparisons of the granularity result.** The manuscript's draft
   reports both, and `claims_table` leaves both out:
   - the geometry inputs against `rgb` at a matched number of regions.
-    The draft's table of it, which also compares them at the same K, comes
-    from `fair_merge_recheck.py --mode input_track`, in
-    `ipcai2027_experiment/task15_granularity/scripts/`, which scores the
-    tracked labels itself with the pilot evaluator's functions.
-    `settle_inputs.py`, listed under "Not yet extracted anywhere",
-    interpolates `rgb`'s value on its curve over K, clip by clip, at the
-    geometry input's number of regions;
+    The draft's table of this comparison comes from
+    `ipcai2027_experiment/task15_granularity/scripts/fair_merge_recheck.py --mode input_track`.
+    The script scores the tracked labels of ATLAS-120k's 315 clips itself,
+    with the pilot evaluator's functions. Its table also compares the
+    inputs at the same K. `settle_inputs.py`, listed under "Not yet
+    extracted anywhere", makes the same comparison with its own F1, at both
+    stages, on the 13-video ATLAS-120k set and CholecSeg8k. The workbench's
+    claims table read its rows. Both scripts interpolate `rgb`'s value on
+    its curve over K, clip by clip, at the geometry input's number of
+    regions;
   - merges that never join two regions across a boundary of a depth,
     normal or depth-edge map, made by `kgeo_sequence` in
     `ipcai2027_experiment/scripts/kmerge.py`. The draft reports their gain
@@ -601,15 +604,17 @@ The second list holds what the paper's numbers do not use.
   and the manuscript reports no consensus condition.
 - **The control without SAM**, `ipcai2027_experiment/atlas97/scripts/classic_seg.py`:
   a marker-controlled watershed cuts the normal image and the RGB image from
-  the same markers. It tells a loss of normals apart from SAM failing to
-  read a normal image. The manuscript's draft reports no number from it.
+  the same markers. It tells whether the normal image lacks the boundaries
+  or SAM fails to read a normal image. The manuscript's draft reports no
+  number from it.
 - **The paired comparisons of `kmerge.py --pairs`**, in
-  `ipcai2027_experiment/scripts/kmerge.py`: the per-frame stage's F1 for two
+  `ipcai2027_experiment/scripts/`: the per-frame stage's F1 for two
   conditions, both merged to one K or to the frame's count of the pilot's
   GT objects, with the video-level interval of the difference. The run the
   workbench reports compares `rgb_edge` merged with `rgb` merged, and the
   draft reports no number from it. Ported, a comparison at one K is a run
-  of `kmerge` on each condition and a pair given to `paired_stats`.
+  of `kmerge` on each condition and a pair given to `paired_stats`, on the
+  evaluator's scores.
 - **Graphs built again**: `scripts/export_graph_cleanup_compare.py`, which
   builds each graph twice for a comparison page, and
   `scripts/backfill_depth_rel.py`, which adds `depth_rel` to graphs written
