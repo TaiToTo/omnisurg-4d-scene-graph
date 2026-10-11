@@ -58,7 +58,7 @@ describe('the development server', () => {
     expect((await ask('/index.html')).status).toBe(299);
   });
 
-  it('serves localhost, an IP address and an allowed host, and refuses any other host', async () => {
+  it('serves localhost, an IP address and an allowed host only', async () => {
     for (const host of [`127.0.0.1:${port}`, `192.168.1.20:${port}`, '[::1]', 'viewer.example']) {
       expect((await ask('/data/catalog.json', { host })).status).toBe(200);
     }
@@ -67,7 +67,7 @@ describe('the development server', () => {
     }
   });
 
-  it('refuses a write, a file outside the directory, a link out of it, a directory and another type', async () => {
+  it('refuses a write, a path or link out of the directory, a directory and another type', async () => {
     expect((await ask('/data/catalog.json', { method: 'POST' })).status).toBe(404);
     expect((await ask('/data/%2e%2e%2fsecret.json')).status).toBe(404);
     expect((await ask('/data/clip/link.json')).status).toBe(404);

@@ -25,7 +25,7 @@ describe('regionEllipses', () => {
     expect(fitEllipse({ n: 0 })).toBeNull();
   });
 
-  it('turns the major axis along the region: a band down to the right lies at +45 degrees in image pixels', () => {
+  it('turns the major axis along the region: +45 degrees for a band down to the right', () => {
     const band = Array.from({ length: 10 }, (_, y) => Array.from({ length: 10 }, (_, x) => (Math.abs(x - y) <= 1 ? 1 : 0)).join(''));
     const e = regionEllipses(regions(band)).get(1);
     expect(e.theta).toBeCloseTo(Math.PI / 4);

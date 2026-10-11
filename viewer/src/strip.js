@@ -7,7 +7,7 @@ import { regionsToCanvas } from './cloud_paint.js';
 import { esc, hexColor, lighten, nodeKey, rgbToHex } from './format.js';
 
 const DEFAULT_CELL_H = 96;
-// A row of cells is a cell's box and its padding (4 + 4), border (1 + 1) and caption (2 px margin, 14 px line).
+// A cell's padding, border and caption round its box: 4 + 4, 1 + 1 and 2 + 14 px.
 const CELL_EXTRA = 26;
 // The plate: a parallelogram 230 x 96 units, which an SVG matrix maps the frame image onto exactly.
 const SLAB_QUAD = [[0, 10.2], [202.9, 0], [229.6, 85.9], [26.6, 96.1]];

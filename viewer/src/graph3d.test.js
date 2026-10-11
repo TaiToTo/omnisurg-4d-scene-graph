@@ -41,7 +41,7 @@ describe('the graph in the 3D view', () => {
     expect(drawn()).toEqual([]);
   });
 
-  it('draws a node as its region\'s hull, and as an ellipsoid at its centroid when the region is too small, empty or a line', () => {
+  it('draws a node as its region\'s hull, or as an ellipsoid when the region is small, empty or a line', () => {
     buildGraph3D({ on: true, track: 't', stage: frame() });
     const hull = nodeMesh(1).geometry;
     expect(hull).toBeInstanceOf(ConvexGeometry);
@@ -51,7 +51,7 @@ describe('the graph in the 3D view', () => {
     expect(nodeMesh(3).position.toArray()).toEqual([10, 4, 0]);
   });
 
-  it('draws every node as an ellipsoid when the labels are missing or do not match the cloud\'s points', () => {
+  it('draws ellipsoids when the labels are missing or do not fit the cloud', () => {
     for (const cut of [() => undefined, (l) => l.slice(1), (l) => Int32Array.of(...l, 0)]) {
       const stage = frame();
       stage.regionsByTrack.t.labels = cut(stage.regionsByTrack.t.labels);
@@ -69,7 +69,7 @@ describe('the graph in the 3D view', () => {
     expect(nodeMesh(1).geometry).toBeInstanceOf(ConvexGeometry);
   });
 
-  it('fades every node but the followed one, and every edge that does not touch it', () => {
+  it('fades every node and edge but the followed node\'s', () => {
     const opacities = () => [1, 2, 3].map((id) => nodeMesh(id).material.opacity);
     const edgeOpacities = () => tubes().map((m) => m.material.opacity);
     buildGraph3D({ on: true, track: 't', stage: frame() });

@@ -51,7 +51,7 @@ describe('framing the view', () => {
   const expectNear = (v, xyz) => v.toArray().forEach((x, k) => expect(x).toBeCloseTo(xyz[k], 6));
   const facingX = { camera_forward: [1, 0, 0], camera_up: [0, 0, 1] };
 
-  it('puts the camera behind the scene along the frame\'s forward, looking along it with the frame\'s up', () => {
+  it('puts the camera behind the scene, looking along the frame\'s forward with its up', () => {
     putCloud();
     const controls = start();
     resetView(facingX);
@@ -63,7 +63,7 @@ describe('framing the view', () => {
     expectNear(new THREE.Vector3(0, 1, 0).applyQuaternion(controls._quatInverse), [0, 0, 1]);
   });
 
-  it('keeps +Y up and looks down -Z when the controls\' rotation is not where this three keeps it', () => {
+  it('falls back to +Y up when the controls\' rotation is not where it is looked for', () => {
     putCloud();
     for (const field of ['_quat', '_quatInverse']) {
       const controls = start();

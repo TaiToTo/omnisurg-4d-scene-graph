@@ -114,7 +114,7 @@ async function fresh() {
 afterEach(() => { vi.useRealTimers(); });
 
 describe('framing the view', () => {
-  it('waits for a cloud when playback steps on during the switch to per-frame mode', async () => {
+  it('frames the view on a cloud when playback steps on during the switch', async () => {
     vi.useFakeTimers();
     const { app, data, stage, world, THREE } = await fresh();
     data.loadClip.mockResolvedValue(makeClip('a', 40));
@@ -158,7 +158,7 @@ describe('framing the view', () => {
 });
 
 describe('the frame panel', () => {
-  it('shows the image of the frame whose regions it shows while the next frame loads', async () => {
+  it('pairs the image with the regions while the next frame loads', async () => {
     const { app, data } = await fresh();
     data.loadClip.mockResolvedValue(makeClip('a', 40));
     await app.openClip('a');
@@ -187,7 +187,7 @@ describe('the per-frame strip', () => {
 });
 
 describe('following a region', () => {
-  it('marks the region again at the first step after an event was picked at the third', async () => {
+  it('marks the region again on going back from an event to the first step', async () => {
     const { app, data, world, band, paint, THREE } = await fresh();
     data.loadClip.mockResolvedValue(makeClip('a', 40));
     await app.openClip('a');
@@ -204,7 +204,7 @@ describe('following a region', () => {
     expect(paint.applyRegionHighlight).toHaveBeenCalled();
   });
 
-  it('shows the event picked last when two picks wait for the switch to per-frame mode', async () => {
+  it('shows the event picked last', async () => {
     const { app, data, world, band, THREE } = await fresh();
     data.loadClip.mockResolvedValue(makeClip('a', 40));
     await app.openClip('a');
@@ -228,7 +228,7 @@ describe('following a region', () => {
     expect(app.state.selectedEvent).toBe(1);
   });
 
-  it('drops an edge whose graphs arrive after another clip opened, without a word', async () => {
+  it('drops an edge whose graphs arrive after another clip opened', async () => {
     const { app, data, world, THREE, reports } = await fresh();
     data.loadClip.mockResolvedValueOnce(makeClip('a', 40)).mockResolvedValueOnce(makeClip('b', 10));
     await app.openClip('a');
@@ -259,7 +259,7 @@ describe('following a region', () => {
     expect(reports).toEqual([expect.stringMatching(/edge's axes did not load \(could not load a\/graphs\/t\/0003\.json/)]);
   });
 
-  it('keeps the graph through time of the clip on screen when an older clip\'s arrives last', async () => {
+  it('keeps the graph through time of the clip on screen', async () => {
     const { app, data } = await fresh();
     data.loadClip.mockResolvedValueOnce(makeClip('a', 40)).mockResolvedValueOnce(makeClip('b', 40));
     await app.openClip('a');
@@ -274,7 +274,7 @@ describe('following a region', () => {
     expect(app.state.temporal).toBe(tgB);
   });
 
-  it('lets the reader\'s own playback run on after the clip that the second step played was closed', async () => {
+  it('keeps the reader\'s own playback after the second step\'s clip is closed', async () => {
     vi.useFakeTimers();
     const { app, data, world, THREE } = await fresh();
     data.loadClip.mockResolvedValueOnce(makeClip('a', 40)).mockResolvedValueOnce(makeClip('b', 40));
@@ -291,7 +291,7 @@ describe('following a region', () => {
     app.setPlaying(false);
   });
 
-  it('repaints only the frames leaving and taking the stage while the region is isolated', async () => {
+  it('repaints only the frames leaving and taking the stage while isolated', async () => {
     const { app, data, world, paint, THREE } = await fresh();
     data.loadClip.mockResolvedValue(makeClip('a', 40));
     await app.openClip('a');
@@ -309,7 +309,7 @@ describe('following a region', () => {
 });
 
 describe('world mode', () => {
-  it('leaves a failed stack the page no longer asks for unreported, and keeps the stack asked for last', async () => {
+  it('keeps the stack asked for last, and does not report one no longer asked for', async () => {
     const { app, data, world, THREE, reports } = await fresh();
     data.loadClip.mockResolvedValue(makeClip('a', 40));
     await app.openClip('a');
@@ -332,7 +332,7 @@ describe('world mode', () => {
     expect(app.state.world).not.toBe(null);
   });
 
-  it('goes back to the first step when the stack for a later step does not load', async () => {
+  it('goes back to the first step when the stack does not load', async () => {
     const { app, data, world, reports } = await fresh();
     data.loadClip.mockResolvedValue(makeClip('a', 40));
     await app.openClip('a');

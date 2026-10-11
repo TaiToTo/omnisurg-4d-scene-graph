@@ -39,8 +39,7 @@ export function bundleDirectory(dataDir = process.env.VIEWER_DATA) {
     res.setHeader('Content-Type', type);
     res.setHeader('Content-Length', stat.size);
     if (req.method === 'HEAD') return res.end();
-    // A file that cannot be read, or that a new bundle replaces while it is sent, ends this response only;
-    // an unhandled stream error would stop the server.
+    // An unreadable file ends this response only; an unhandled stream error would stop the server.
     const stream = fs.createReadStream(file);
     stream.on('error', () => {
       if (res.headersSent) { res.destroy(); return; }

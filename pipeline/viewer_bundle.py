@@ -352,8 +352,7 @@ def check_graph(graph: dict, labels: np.ndarray, where: str) -> None:
 def check_hierarchy(h: dict, tracks: list[str], where: str) -> None:
     """Check that a hierarchy relates two of the bundle's tracks, with nodes keyed `track:id` and string labels.
 
-    The viewer draws the labels and the relations into the page, joins the nodes by their keys, and reads a
-    key's track and region id back out of it.
+    The viewer draws the labels and relations, and reads a node's track and id back out of its key.
 
     Raises:
         ValueError: `tracks` is not two of the bundle's tracks; a node has no track of the two, no integer id,

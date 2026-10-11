@@ -111,7 +111,7 @@ describe('renderWorldNodeLink', () => {
     expect(el.innerHTML).not.toMatch(INJECTED);
   });
 
-  it('draws a node outside the view small at the panel\'s edge, and counts it and those behind the camera', () => {
+  it('draws a node outside the view small at the edge, and counts those behind the camera', () => {
     renderWorldNodeLink(el, stack('zs', 'n'));
     const dots = attrs('circle', el.innerHTML);
     expect(dots).toHaveLength(5);
@@ -125,7 +125,7 @@ describe('renderWorldNodeLink', () => {
     expect(el.innerHTML).toContain('4 at the edge · 1 behind the camera');
   });
 
-  it('draws a node\'s trail through its frames in view, never through one drawn at the edge', () => {
+  it('draws a trail only through the frames in view', () => {
     renderWorldNodeLink(el, stack('zs', 'n'));
     expect(attrs('polyline', el.innerHTML).map((p) => p['data-node-key'])).toEqual(['zs:2']);
   });

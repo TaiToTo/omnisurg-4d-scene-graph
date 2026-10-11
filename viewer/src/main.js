@@ -86,12 +86,12 @@ function fillPicker(catalog) {
 
 /**
  * Open a clip, then the address's frame, mode, track and followed region, unless another clip is asked for.
- * A setting the clip has no place for is left out, and the reader is told which.
+ * A setting the clip lacks is left out and named to the reader.
  */
 async function open(id, { frame = '0', mode = 'frame', track = null, focus = null } = {}) {
   $('clip-select').value = id;
   if (!await openClip(id)) {
-    // The clip on screen is still the last one; the picker says so again, unless the reader picked another meanwhile.
+    // Name the clip on screen again, unless the reader has picked another since.
     if (state.clip && $('clip-select').value === id) $('clip-select').value = state.clip.id;
     return;
   }
@@ -269,8 +269,7 @@ function initResizers() {
 
 async function boot() {
   onError(showError);
-  // A browser limits how often a page changes its address, and Safari throws past the limit; a drag across
-  // the frames in world mode changes the frame once per frame passed, so the address follows once it settles.
+  // Safari throws when the address changes too often, as a drag across world mode's frames would make it.
   let addressTimer = null;
   onChange(() => { clearTimeout(addressTimer); addressTimer = setTimeout(writeAddress, 250); });
   fillDialogs();

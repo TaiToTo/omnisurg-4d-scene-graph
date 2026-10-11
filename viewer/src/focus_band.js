@@ -9,13 +9,13 @@ const AXIS_L = 118, AXIS_R = 30;
 // A frame's column, as a share of the step between frames.
 const COL = 0.72;
 
-/** The x of frame `f` of `n`; the axis keeps half a column clear at each end, so every column fits on it. */
+/** Return the x of frame `f` of `n`, half a column in from each end of the axis. */
 export function axisX(f, W, n) {
   const step = (W - AXIS_L - AXIS_R) / Math.max(1, n - 1 + COL);
   return AXIS_L + step * (COL / 2 + f);
 }
 
-/** The frame nearest x, the inverse of `axisX`, within 0 to n - 1. */
+/** Return the frame drawn at x, the inverse of `axisX`. */
 export function frameAtX(px, W, n) {
   const step = (W - AXIS_L - AXIS_R) / Math.max(1, n - 1 + COL);
   return Math.min(n - 1, Math.max(0, Math.round((px - AXIS_L) / step - COL / 2)));
@@ -65,8 +65,7 @@ export function runsOf(frames) {
 
 /**
  * List the events of a node, in time order: where it enters and leaves the view, and where its relation to
- * each given neighbour changes. A node can only enter or leave within the frames the graph through time
- * covers, `[first, last]`: a track's regions may end before the clip does.
+ * each given neighbour changes. A node enters or leaves only within `[first, last]`, the frames the graph covers.
  *
  * @returns {Array<{f:number, kind:'enter'|'exit'|'rel', partner?:number, label:string}>}
  */

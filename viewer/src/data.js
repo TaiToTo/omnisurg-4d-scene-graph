@@ -204,8 +204,8 @@ const cloudCache = new LRU(CLOUD_ENTRIES, disposeGLTF);
 const gltfLoader = new GLTFLoader();
 
 /**
- * Refuse a cloud that is not one point list with a point per pixel of the clip's grid. The labels and the
- * depth filter index the points by pixel, so a cloud of another size would leave every region unpainted.
+ * Refuse a cloud that is not one point list with a point per pixel of the clip's grid, since the labels
+ * index the points by pixel.
  */
 export function checkCloud(gltf, clip, i) {
   const [w, h] = clip.geometry.grid;

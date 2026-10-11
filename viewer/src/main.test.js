@@ -1,4 +1,4 @@
-// Start main.js against a stand-in for app.js whose loads end when a test says, and check the picker and the address.
+// Drive main.js against a stand-in app.js, to check the picker and the address.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const pending = {};
@@ -87,7 +87,7 @@ describe('the clip picker', () => {
 });
 
 describe('the address', () => {
-  it('opens a link\'s frame, track and region when the clip has them, and says nothing', async () => {
+  it('opens a link\'s frame, track and region without a notice', async () => {
     await start('?clip=A&frame=1&track=t&focus=t:3');
     const app = await import('./app.js');
     expect(app.setTrack).toHaveBeenLastCalledWith('t');
@@ -96,7 +96,7 @@ describe('the address', () => {
     expect(els['toast-text']?.textContent ?? '').toBe('');
   });
 
-  it('tells the reader which of a link\'s settings the clip has no place for', async () => {
+  it('names a link\'s settings the clip lacks', async () => {
     // The clip has frames 0 and 1, and one track, t.
     await start('?clip=A&frame=2&track=nope&focus=other:3');
     const app = await import('./app.js');

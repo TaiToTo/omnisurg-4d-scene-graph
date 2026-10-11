@@ -243,7 +243,7 @@ export function makeLabelSprite(text, color, height = 0.05) {
   const cv = document.createElement('canvas');
   const ctx = cv.getContext('2d');
   ctx.font = font;
-  // The canvas is as wide as the text, so a long name is drawn whole; the sprite keeps the canvas's aspect.
+  // As wide as the text, so a long name is drawn whole.
   cv.width = Math.max(64, Math.ceil(ctx.measureText(text).width) + 24);
   cv.height = 64;
   // Resizing a canvas resets its context.

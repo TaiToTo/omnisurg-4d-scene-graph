@@ -73,7 +73,7 @@ describe('renderTrackStrip', () => {
     expect(labels[0].innerHTML).not.toMatch(INJECTED);
   });
 
-  it('marks the cell a track\'s regions were made on, as annotation or as seed, and names it by the track\'s badges', () => {
+  it('marks the cell a track\'s regions were made on, with the track\'s badge', () => {
     const { rows } = draw([
       { id: 'gt', name: 'Annotation', semantic: true, anchor_badge: 'GT', tracked_badge: 'GT tracked' },
       { id: 'zs', name: 'Zero-shot', semantic: false, anchor_badge: 'Seed', tracked_badge: 'Tracked' },

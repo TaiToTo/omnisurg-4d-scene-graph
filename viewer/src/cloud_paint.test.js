@@ -113,7 +113,7 @@ describe('painting the regions', () => {
     expect(reds(short)).toEqual([0, 0, 0]);
   });
 
-  it('lights a region and pales the rest, and lights nothing from labels that do not fit', () => {
+  it('lights a region and pales the rest, but not from labels that do not fit', () => {
     const key = new Map([['zs:1', [1, 0, 0]]]);
     const fits = cloudGroup();
     expect(applyRegionHighlight(fits, { zs: { labels: [1, 1, 0] } }, key, showAll)).toBe(true);

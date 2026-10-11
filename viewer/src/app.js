@@ -110,7 +110,7 @@ function paint(group, regionsByTrack, stats = null) {
 /** The frame on stage, in either mode: its index, cloud group, regions, graphs, hierarchy and offset. */
 function stageEntry() {
   if (state.mode === 'world' && state.world) return state.world.frames.find((f) => f.i === state.stageFrame) ?? null;
-  // The frame drawn, not the one asked for: until its load ends, the regions and graphs are the drawn frame's.
+  // The drawn frame: the regions and graphs stay its own until the next load ends.
   const group = groups.points.children[0];
   return group ? { i: drawnFrame, group, regionsByTrack: state.regionsByTrack, graphByTrack: state.graphByTrack,
     hierarchy: state.hierarchy, offset: [0, 0, 0] } : null;
@@ -265,7 +265,7 @@ export function stepFrame(delta) {
 
 export function setPlaying(on) {
   state.playing = !!on && !!state.clip;
-  // Playback that stopped, for any reason, is no longer the one the second step started.
+  // A stopped playback is no longer the second step's.
   if (!state.playing) followPlaying = false;
   const token = ++playToken;
   if (state.playing) play(token);
@@ -322,7 +322,7 @@ export async function switchMode(mode) {
     try {
       world = await enterWorld(state.clip, (g, r) => paint(g, r), stale);
     } catch (err) {
-      // A stack the page no longer asks for fails silently; the request that replaced it decides the mode.
+      // A stack no longer asked for fails silently.
       if (stale()) return;
       report(`World mode could not load: ${err.message}`);
       state.mode = 'frame';
@@ -352,7 +352,7 @@ export async function switchMode(mode) {
     groups.cameraViz.visible = true;
     syncFocusBar();
     renderTrackStrip_();
-    // The first frame drawn frames the view, whichever load draws it: this one, or a step that replaces it.
+    // Whichever load draws first frames the view, this one or a play step after it.
     needsFraming = true;
     await loadFrame(state.frame);
   }
@@ -368,7 +368,7 @@ function applyWorldStage() {
   const left = state.stageFrame;
   state.stageFrame = stage;
   if (isolating()) {
-    // Only the frame leaving the stage and the one taking it change; the second step plays through this.
+    // Only the frames leaving and taking the stage change.
     markIsolationStage();
     for (const fr of state.world.frames) if (fr.i === left || fr.i === stage) paint(fr.group, fr.regionsByTrack);
     applyFocusHighlight();
@@ -521,7 +521,7 @@ export async function setFocusNode(key, { stage = null } = {}) {
     } catch (err) {
       failure = err;
     }
-    // Another clip may have a region of the same key; only the graph of the clip on screen is kept.
+    // Another clip can have a region of the same key.
     if (state.focusKey !== key || state.clip !== clip) return;
     if (failure) report(`The graph through time did not load: ${failure.message}`);
     state.temporal = tg;
@@ -622,7 +622,7 @@ function renderBand() {
   if (!show) {
     state.events = [];
     clearGroup(groups.highlight);
-    // An event is picked on the band; with the band gone, the cloud marks the followed region again.
+    // With the band gone, no event stays picked.
     if (state.selectedEvent != null) {
       state.selectedEvent = null;
       applyFocusHighlight();
@@ -702,7 +702,7 @@ async function showEvent(idx) {
   const ev = state.events[idx];
   const key = state.focusKey;
   if (!ev || !key) return;
-  // The event picked last is the one shown, whichever load ends last.
+  // The event picked last wins.
   const seq = ++eventSeq;
   const current = () => seq === eventSeq && state.focusKey === key;
   clearEventHighlight();

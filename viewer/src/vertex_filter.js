@@ -5,9 +5,8 @@ import * as THREE from 'three';
 /**
  * Copy every attribute of `geom`, keeping only vertices where mask[i] === 0.
  *
- * The values are read through the backing array with its stride and offset, so a plain and an interleaved
- * attribute are copied alike, and copied as stored, so a normalized Uint8 colour keeps its bytes. The copy
- * is always de-interleaved: it is only drawn, never blended into, since blending works on the full geometry.
+ * Values are copied as stored, through the backing array's stride and offset, so interleaved attributes and
+ * normalized colours copy alike. The copy is de-interleaved; it is only drawn, never blended into.
  *
  * The copy carries `userData.srcIndex`, filtered index to original index. Read it through
  * srcVertexIndex; never index the labels with a raw hit index.

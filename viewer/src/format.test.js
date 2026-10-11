@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { esc, hexColor, lighten, nodeKey, parseNodeKey, rgbToHex } from './format.js';
 
 describe('esc', () => {
-  it('escapes the five characters that end text or an attribute, and takes a number as text', () => {
+  it('escapes the five characters that end text or an attribute', () => {
     expect(esc(`a&b<c>d"e'f`)).toBe('a&amp;b&lt;c&gt;d&quot;e&#39;f');
     expect(esc(7)).toBe('7');
   });

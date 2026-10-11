@@ -28,7 +28,7 @@ describe('topPartners', () => {
     expect(topPartners(gap, 1)[0][1].changes).toEqual([]);
   });
 
-  it('puts the neighbour whose relation changes most first, then the one that shares most frames', () => {
+  it('puts the neighbour that changes most first, then the one sharing most frames', () => {
     const many = { relations: [
       { src: 1, dst: 4, relation: 'left', edge_type: 'spatial', frames: [0, 1, 2] },
       { src: 1, dst: 3, relation: 'above', edge_type: 'spatial', frames: [0, 1, 2, 3, 4, 5] },
@@ -98,7 +98,7 @@ describe('the band', () => {
   };
   const axes = { byFrame: new Map(frames.map((f) => [f, { c: [1, 0.2, -0.3], word: 'right' }])) };
 
-  it('draws every frame\'s column on the axis, clear of the row labels and of the right edge', () => {
+  it('draws every column clear of the row labels and the right edge', () => {
     const W = 1576;
     const el = bandElement(W);
     renderFocusBand(el, { tg: band, nodeId: 1, lastFrame: 14, frame: 0, onFrame() {}, labelOf: String, axes });
