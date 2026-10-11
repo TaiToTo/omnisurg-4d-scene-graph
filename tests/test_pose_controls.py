@@ -15,7 +15,7 @@ pytest.importorskip("scipy")
 
 import cv2  # noqa: E402
 
-import evalkit.tools.pose_controls as PC  # noqa: E402
+import trajectory_eval.tools.pose_controls as PC  # noqa: E402
 import surgical_core.stereomis as stereomis  # noqa: E402
 from trajectory_eval.pose_metrics import ate  # noqa: E402
 

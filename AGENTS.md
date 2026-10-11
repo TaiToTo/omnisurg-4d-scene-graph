@@ -71,11 +71,12 @@ omnisurg-4d-scene-graph/
 ├── evalkit/           the evaluator, hashed into eval_code_sha with its class tables
 │   └── tools/         what reads scores or predictions, never hashed: scores
 │                      paired_stats compare_eval condition_inventory check_provenance
-│                      pilot_check kmerge pose_controls paired_table arms_paired
+│                      pilot_check kmerge paired_table arms_paired
 │                      leave_one_video_out claims_table print_status_tables
 │                      (track_metrics: not yet ported)
-├── trajectory_eval/   the camera trajectory scorer, hashed into trajectory_code_sha;
-│                      its tools score StereoMIS and read the scores, never hashed
+├── trajectory_eval/   the camera trajectory scorer, hashed into trajectory_code_sha
+│   └── tools/         what makes the controls' trajectories, scores StereoMIS or
+│                      reads the scores, never hashed: pose_controls scores
 ├── pipeline/          depth → segmentation → tracking → viewer export
 ├── recon3d_wrapper/   3D reconstruction — DA3 and Pi3 behind one interface
 ├── sam3_wrapper/      promptable segmentation and tracking (SAM 3)
