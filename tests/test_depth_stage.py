@@ -67,15 +67,34 @@ def test_the_stage_writes_every_file_and_the_manifest_keys_in_order(tmp_path):
     assert sorted(p.name for p in (clip / "depth_raw").iterdir()) == [f"depth_{i:06d}.npy" for i in range(3)]
     assert sorted(p.name for p in (clip / "depth_vis").iterdir()) == [f"{i:04d}.jpg" for i in range(3)]
     assert sorted(p.name for p in (clip / "pc_vis").iterdir()) == [f"frame_{i:04d}.glb" for i in range(3)]
+    rec = model.reconstruct([clip] * 3)
     with np.load(clip / "exports" / "mini_npz" / "results.npz") as z:
         assert z.files == ["depth", "conf", "extrinsics", "intrinsics"]
-        assert all(z[k].dtype == np.float32 for k in z.files)
-        assert z["depth"].shape == (3, 6, 8)
+        assert {k: z[k].shape for k in z.files} == {
+            "depth": (3, 6, 8), "conf": (3, 6, 8), "extrinsics": (3, 3, 4), "intrinsics": (3, 3, 3)}
+        for k in z.files:
+            assert z[k].dtype == np.float32 and np.array_equal(z[k], getattr(rec, k)), k
     info = json.loads((clip / "frame_manifest.json").read_text())["depth_info"]
     assert list(info) == ["model", "process_res", "depth_shape", "depth_range", "conf_range", "border_inpaint"]
     assert info["model"] == "stand-in" and info["process_res"] == 504 and info["depth_shape"] == [3, 6, 8]
     assert info["border_inpaint"] is False
-    assert np.array_equal(np.load(clip / "depth_raw" / "depth_000001.npy"), model.reconstruct([clip] * 2).depth[1])
+    assert np.array_equal(np.load(clip / "depth_raw" / "depth_000001.npy"), rec.depth[1])
+
+
+def test_a_cloud_holds_the_frames_points_in_gltf_centred_and_its_images_colours(tmp_path):
+    pytest.importorskip("matplotlib")
+    trimesh = pytest.importorskip("trimesh")
+    clip = make_clip(tmp_path)
+    run_depth(clip, StandIn(), process_res=504)
+    u, v = np.meshgrid(np.arange(8), np.arange(6))
+    for i in range(3):
+        # The stand-in's camera does not turn and the cloud is centred, so the points are the camera's, flipped
+        # into glTF's frame. The pinhole here computes them, not the stage's functions.
+        d = 1.0 + i + u / 7
+        expected = np.stack([(u - 4) * d / 10, (v - 3) * d / 10, d], axis=-1).reshape(-1, 3) * [1, -1, -1]
+        cloud = trimesh.load(clip / "pc_vis" / f"frame_{i:04d}.glb", force="scene").to_geometry()
+        assert np.asarray(cloud.vertices) == pytest.approx(expected - expected.mean(0), abs=1e-5)
+        assert (np.asarray(cloud.colors)[:, :3] == 40 * i).all(), "the frame's own image"
 
 
 def test_a_frame_with_no_usable_depth_gets_no_point_cloud_and_the_rest_do(tmp_path):
