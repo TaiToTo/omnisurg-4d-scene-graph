@@ -9,7 +9,7 @@ confirmed rectangle and resized to `--long-side`; the masks hold the class id
 of each pixel. A run with the frames and rectangle of one already written is
 not written again. Each video gets `<procedure>__<video>__extract_report.json`,
 which says what became of every clip of its index. With `--population`, the
-clips written must be the population's clips of those videos.
+clips to be written must be the population's clips of those videos.
 
 Usage:
     python -m pipeline.extract_atlas120k --atlas-root /path/to/ATLAS --out /path/to/clips \\
@@ -329,7 +329,7 @@ def extract_video(atlas_root: Path, procedure: str, video: str, out: Path, rects
     # Decide what becomes of every clip of the index, and check the files each kept run needs.
     rows, kept = plan_clips(index, gt_dir, digits, stride, min_frames, rects, src_size, procedure, video)
 
-    # Refuse clips off the population now, since the removal below deletes what later stages wrote into them.
+    # Compare with the population before the removal below, which deletes what later stages wrote into the clips.
     if population is not None:
         check_population([run.name for run in kept], population, procedure, video)
 
@@ -409,7 +409,7 @@ def main() -> None:
     ap.add_argument("--frame-ratios", required=True, help="The measured frame ratios, frame_ratio.json.")
     ap.add_argument("--videos", nargs="*",
                     help="<procedure>/<video> to extract. Default: every video whose frame ratio was measured.")
-    ap.add_argument("--population", help="A population file; the clips written must be its clips of the videos.")
+    ap.add_argument("--population", help="A population file; the clips to be written must be its clips of the videos.")
     ap.add_argument("--step-sec", type=float, default=0.52, help="Seconds between two frames of a clip.")
     ap.add_argument("--min-frames", type=int, default=8, help="The fewest frames a clip may have once thinned.")
     ap.add_argument("--long-side", type=int, default=854, help="The longer side of a written frame.")
