@@ -1134,7 +1134,13 @@ Every command takes those paths as arguments.
       That table is the only place a workbench name appears;
     - whether `paired_table.PILOT_BLOCKS` and `claims_table.CLAIMS`, which
       read the pilot's score JSONs by their tags, keep those tags or take
-      them from that table.
+      them from that table;
+    - whether the comparisons the paper reports are listed in one place,
+      read by every tool that prints them. An entry would hold the base,
+      then the compared condition, and whether each condition is
+      `per_frame`, as `claims_table.CLAIMS` does. `paired_table.PILOT_BLOCKS`
+      puts the compared condition first, and `arms_paired` takes its pairs
+      from the command line ("The pairs `arms_paired` reports").
 23. **How LapEx is scored.** The evaluator holds class tables for
     ATLAS-120k and CholecSeg8k only, so it cannot read a LapEx clip.
     `kmerge` reads a condition through the evaluator, so it cannot merge
