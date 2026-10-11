@@ -120,7 +120,8 @@ not compared:
    and the questions under "Before the freeze" are answered. Then the
    freeze rule of `AGENTS.md` applies.
 4. **Prepare the release.**
-   - An English README, `docs/data_contract.md` and `CITATION.cff`.
+   - `CITATION.cff`, once the anonymity rules below allow the authors to be
+     named. A clip's layout is specified in `docs/pipeline.md`, "A clip".
    - The `recon3d` extra pins Depth Anything 3 and Pi3 to the commits the
      workbench's GPU machine ran, read from pip's `direct_url.json` there.
      A constraints file beside `pyproject.toml` lists that machine's
