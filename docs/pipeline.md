@@ -229,7 +229,7 @@ the summary an earlier run wrote:
 So a summary always counts the clips of one run over the whole release.
 
 The frames are not cropped: they keep the black surround of the
-endoscope's view, so the depth stage refuses the clips.
+endoscope's view, and the depth stage takes them whole.
 
 The stage refuses, before any case is extracted:
 
@@ -348,8 +348,8 @@ longest side (`--process-res`). It writes into the clip:
 
 The stage refuses:
 
-- a clip without `crop_info.json`, unless it is an ATLAS-120k or a
-  StereoMIS clip: a CholecSeg8k clip before the crop stage, or a LapEx clip;
+- a clip without `crop_info.json`, unless it is an ATLAS-120k, a StereoMIS
+  or a LapEx clip: a CholecSeg8k clip before the crop stage;
 - a clip that already holds the stage's output. `--overwrite` replaces the
   stage's own files and leaves every other file.
 

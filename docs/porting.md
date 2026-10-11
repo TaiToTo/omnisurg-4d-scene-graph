@@ -159,6 +159,10 @@ only:
   thousand differs by one level. So frames are compared on one machine.
 - **The ATLAS-120k manifest key `pixel_source`.** The workbench's extractor
   gained it after the GPU machine's clips were extracted.
+- **LapEx's depth.** The workbench filled the endoscope's border on 710 of
+  the 735 clips, and set the depth outside the view to 0, which the
+  evaluator refuses. The depth stage fills no border and takes the frames
+  whole, so the depth of those clips differs.
 
 ## Open questions
 
@@ -374,8 +378,6 @@ Each question says what it blocks and where its answer is written.
   neither it nor `kmerge` reads a LapEx clip. Open:
   - its class table, where level 0, interstitial space, is a class that the
     extraction writes as 11;
-  - its depth: the workbench filled the endoscope's border on 710 of the
-    735 clips, leaving zeros the evaluator refuses;
   - its comparison: the workbench resampled 30 case means, which weighs
     the cases unlike `paired_stats`.
 
