@@ -276,8 +276,10 @@ def read_clip(clip_dir: Path, geometry: str, ratios: FrameRatios | None = None) 
             "placements": placements}
 
 
-def regions_of(seg: dict, overlay_grid: tuple[int, int], where: str) -> tuple[np.ndarray, dict]:
+def regions_of(seg: dict, overlay_grid: tuple[int, int], n: int, where: str) -> tuple[np.ndarray, dict]:
     """Check one frame's regions, as the export stage wrote them, and return its labels and the rest of the record.
+
+    `n` is the number of frames of the clip.
 
     Raises:
         ValueError: one of these:
@@ -285,6 +287,7 @@ def regions_of(seg: dict, overlay_grid: tuple[int, int], where: str) -> tuple[np
             - a label is not an integer, or is no class the record lists
             - a class has no integer id above 0, no string name, or no colour of three numbers
             - the stage is neither `anchor` nor `propagated`
+            - the anchor frame is neither None nor a frame from 0 to n - 1
     """
     w, h = seg.get("width"), seg.get("height")
     labels = np.asarray(seg.get("vertex_seg", []))
@@ -308,7 +311,10 @@ def regions_of(seg: dict, overlay_grid: tuple[int, int], where: str) -> tuple[np
     prov = seg.get("provenance", {})
     if prov.get("stage") not in ("anchor", "propagated"):
         raise ValueError(f"{where}: provenance stage {prov.get('stage')!r} is neither anchor nor propagated")
+    # The viewer adds the anchor frame to its strip as a column, by its index.
     anchor = prov.get("anchor_frame")
+    if anchor is not None and not (type(anchor) is int and 0 <= anchor < n):
+        raise ValueError(f"{where}: anchor frame {anchor!r} is not a frame from 0 to {n - 1}")
     return labels, {"classes": classes, "stage": prov["stage"], "anchor_frame": anchor}
 
 
@@ -344,24 +350,24 @@ def check_graph(graph: dict, labels: np.ndarray, where: str) -> None:
 
 
 def check_hierarchy(h: dict, tracks: list[str], where: str) -> None:
-    """Check that a hierarchy relates two of the bundle's tracks, with string keys and labels.
+    """Check that a hierarchy relates two of the bundle's tracks, with nodes keyed `track:id` and string labels.
 
-    The viewer draws the labels and the relations into the page and joins the nodes by their keys.
+    The viewer draws the labels and relations, and reads a node's track and id back out of its key.
 
     Raises:
-        ValueError: `tracks` is not two of the bundle's tracks; a node has no string key, no track of the two,
-            no integer id or no string label; or an edge has no node keys of the hierarchy at its ends or no
-            string relation.
+        ValueError: `tracks` is not two of the bundle's tracks; a node has no track of the two, no integer id,
+            no string label or a key other than `track:id`; or an edge has no node keys of the hierarchy at its
+            ends or no string relation.
     """
     pair = h.get("tracks")
     if not (isinstance(pair, list) and len(pair) == 2 and set(pair) <= set(tracks) and pair[0] != pair[1]):
         raise ValueError(f"{where}: tracks {pair!r} are not two of {', '.join(tracks)}")
     keys = set()
     for node in h.get("nodes", []):
-        if (not isinstance(node.get("key"), str) or node.get("track") not in pair or type(node.get("id")) is not int
-                or not isinstance(node.get("label"), str)):
-            raise ValueError(f"{where}: node {node.get('key')!r} is not a string key of one of the two tracks "
-                             "with an integer id and a string label")
+        if (node.get("track") not in pair or type(node.get("id")) is not int or not isinstance(node.get("label"), str)
+                or node.get("key") != f"{node['track']}:{node['id']}"):
+            raise ValueError(f"{where}: node {node.get('key')!r} is not a node of one of the two tracks, keyed "
+                             "track:id, with an integer id and a string label")
         keys.add(node["key"])
     for e in h.get("edges", []):
         if e.get("src") not in keys or e.get("dst") not in keys or not isinstance(e.get("relation"), str):
@@ -514,7 +520,8 @@ def _write_track_frame(clip_dir: Path, partial: Path, rec: dict, i: int, clip: d
     if i not in rec["region_frames"]:
         return
     where = f"{clip_dir.name} frame {i} {track}"
-    labels, rest = regions_of(_read_json(_overlay(clip_dir, "seg_frame", i, track)), clip["overlay_grid"], where)
+    labels, rest = regions_of(_read_json(_overlay(clip_dir, "seg_frame", i, track)), clip["overlay_grid"],
+                              len(clip["placements"]), where)
     # The graph names regions of DA3's grid, so it is checked against the labels before they are resampled.
     graph = _read_json(_overlay(clip_dir, "graph_frame", i, track)) if i in rec["graph_frames"] else None
     if graph is not None:

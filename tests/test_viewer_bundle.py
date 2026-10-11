@@ -218,6 +218,9 @@ def test_a_da3_clip_gets_its_frames_clouds_regions_graphs_and_a_catalog_entry(tm
     for i in range(3):
         (clip / "pc_vis" / f"hierarchy_frame_{i:04d}.json").write_text(
             json.dumps({"tracks": ["cholecseg8k", "sam3d"], "nodes": [], "edges": []}))
+    seg = read(clip / "pc_vis" / "seg_frame_0002__sam3d.json")
+    seg["provenance"]["anchor_frame"] = 0
+    (clip / "pc_vis" / "seg_frame_0002__sam3d.json").write_text(json.dumps(seg))
     out = tmp_path / "out"
     rec = vb.bundle_clip(clip, out, ["sam3d", "cholecseg8k"])
     d = out / CLIP
@@ -234,6 +237,7 @@ def test_a_da3_clip_gets_its_frames_clouds_regions_graphs_and_a_catalog_entry(tm
     assert (d / "clouds" / "0001.glb").read_bytes() == (clip / "pc_vis" / "frame_0001.glb").read_bytes()
     r = read(d / "regions" / "sam3d" / "0002.json")
     assert vb.decode_runs(r["runs"]).tolist() == two_regions(W, H).tolist() and r["grid"] == [W, H]
+    assert r["anchor_frame"] == 0
     assert read(d / "graphs" / "sam3d" / "0002.json") == graph()
     assert Image.open(d / "frames" / "0002.jpg").size == (W, H)
     entries = vb.write_catalog(out)
@@ -328,6 +332,10 @@ def test_a_track_without_regions_or_with_a_graph_but_no_regions_is_refused(tmp_p
     (lambda s: s["classes"][0].update(name=["Liver"]), "class 1 is not"),
     (lambda s: s["classes"][0].update(id="1"), "class '1' is not"),
     (lambda s: s["classes"][0].update(id=0), "class 0 is not"),
+    (lambda s: s["provenance"].update(anchor_frame=-1), "anchor frame -1 is not a frame from 0 to 2"),
+    (lambda s: s["provenance"].update(anchor_frame=3), "anchor frame 3 is not a frame from 0 to 2"),
+    (lambda s: s["provenance"].update(anchor_frame="1"), "anchor frame '1' is not"),
+    (lambda s: s["provenance"].update(anchor_frame=True), "anchor frame True is not"),
 ])
 def test_regions_that_do_not_fit_the_clip_are_refused(tmp_path, fault, match):
     clip = make_clip(tmp_path / "in")
@@ -386,7 +394,9 @@ HIERARCHY = {"tracks": ["cholecseg8k", "sam3d"],
 @pytest.mark.parametrize("fault,match", [
     (lambda h: h.update(tracks="cholecseg8k"), "tracks 'cholecseg8k' are not two of"),
     (lambda h: h.update(tracks=["sam3d", "sam3d"]), "are not two of"),
-    (lambda h: h["nodes"][0].update(key=1), "node 1 is not a string key"),
+    (lambda h: h["nodes"][0].update(key=1), "node 1 is not a node"),
+    (lambda h: h["nodes"][0].update(key="cholecseg8k_1"), "node 'cholecseg8k_1' is not a node of one of the two tracks, keyed"),
+    (lambda h: h["nodes"][0].update(key="cholecseg8k:2"), "node 'cholecseg8k:2' is not"),
     (lambda h: h["nodes"][0].update(track="atlas_gt"), "node 'cholecseg8k:1' is not"),
     (lambda h: h["nodes"][0].update(id="1"), "node 'cholecseg8k:1' is not"),
     (lambda h: h["nodes"][0].update(label=None), "node 'cholecseg8k:1' is not"),

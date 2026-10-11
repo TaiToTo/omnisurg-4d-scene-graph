@@ -34,6 +34,13 @@ DA3-LARGE and 5.1 GB for Pi3X. Both are licensed CC BY-NC 4.0, for
 non-commercial use only, unlike this repository's code. `docs/pipeline.md`
 describes a clip and the files each stage writes.
 
+## Viewer
+
+`viewer/` is a web page that shows a clip's 4D scene graph: its point
+clouds, its regions and the graph of their relations through time.
+`viewer/README.md` says how to run it and how to publish it, with the files
+`python -m pipeline.viewer_bundle` writes for it.
+
 ## License
 
 Apache-2.0. Copyright 2026 Yasuto Tamura.
