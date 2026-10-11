@@ -228,8 +228,9 @@ the summary an earlier run wrote:
 
 So a summary always counts the clips of one run over the whole release.
 
-The frames are not cropped: they keep the black surround of the
-endoscope's view, so the depth stage refuses the clips.
+The frames are not cropped. They keep a thin black border, about 1.5 % of
+the frame, whose pixels LapEx labels with classes, and the depth stage
+takes them whole.
 
 The stage refuses, before any case is extracted:
 
@@ -348,8 +349,8 @@ longest side (`--process-res`). It writes into the clip:
 
 The stage refuses:
 
-- a clip without `crop_info.json`, unless it is an ATLAS-120k or a
-  StereoMIS clip: a CholecSeg8k clip before the crop stage, or a LapEx clip;
+- a clip without `crop_info.json`, unless it is an ATLAS-120k, a StereoMIS
+  or a LapEx clip: a CholecSeg8k clip before the crop stage;
 - a clip that already holds the stage's output. `--overwrite` replaces the
   stage's own files and leaves every other file.
 
@@ -731,11 +732,21 @@ The command scores the camera trajectory of each usable StereoMIS clip
 against the ground truth, one row per clip and condition. `--controls`
 scores the static floor, the line floor and the stereo ceiling.
 `--methods` scores the poses the depth stages wrote into each clip, and
-`--shuffled` adds each method's poses in a shuffled order. `--suffix
-_masked` names the conditions of the clips extracted with
+`--shuffled` adds each method's poses in a shuffled order. `--masked`
+names the conditions `<method>_masked`, for the clips extracted with
 `--mask-instruments`. Every row records `trajectory_code_sha`, the hash of
-the `trajectory_eval` modules that compute it. The command refuses a clip
-without a method's bundle, before anything is scored.
+the `trajectory_eval` modules that compute it.
+
+The command refuses, before anything is scored:
+
+- a sequence or a method named twice;
+- a clip without a method's bundle, or without its `frame_manifest.json`;
+- a clip whose manifest lists other frames than the ground truth is read at;
+- `--masked` when no clip has a painted image;
+- a painted image without `--masked`.
+
+With `--controls`, the command also refuses a usable clip the ceiling
+returns no trajectory for, and then writes nothing.
 
 ```bash
 python -m trajectory_eval.tools.stereomis_table controls.json methods.json [--out summary.json]

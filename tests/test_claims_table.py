@@ -55,7 +55,7 @@ def evaluator_json(column: str, tag: str, vals: dict[str, float], rule: str) -> 
     rows = [{"clip": c, KEY: v, metric_key("VI_split", "all"): v} for c, v in vals.items()]
     return dict(tag=tag, eval_code_sha="a" * 64, dataset=column, pilot=False, class_set="original",
                 views=["all"], clips=list(vals),
-                input_shas={c: {"gt_masks": "g" * 64, "depth": "d" * 64, "predictions": f"p{tag}{c}"} for c in vals},
+                input_shas={c: {"gt_masks": "g" * 64, "depth": "d" * 64, "crop": "c" * 64, "frames": "f" * 64, "predictions": f"p{tag}{c}"} for c in vals},
                 versions={"python": "3.12.0"}, propagation=rule, per_clip=rows)
 
 
@@ -105,6 +105,20 @@ MERGE = CT.CLAIMS[0]
 
 
 # ---------------------------------------------------------------- the cells
+
+
+def test_a_pilot_json_beside_an_evaluator_json_is_refused_for_its_evaluator_not_its_stage():
+    # A pilot JSON records no rule, so the stage check alone would blame the rule, not the evaluator.
+    claim = next(c for c in CT.CLAIMS if c.stage == "per frame → propagated")
+    column = "atlas120k"
+    base_tag, cond_tag = claim.pairs[column]
+    vals = values(column, 1, 0.0)
+    pilot = pilot_json(column, base_tag, vals)
+    for row in pilot["per_clip"]:
+        row[KEY] = row[PILOT_KEY]
+    scored = evaluator_json(column, cond_tag, vals, rule_of(cond_tag))
+    with pytest.raises(ValueError, match="scored by different evaluators"):
+        CT.cell(claim, {base_tag: pilot, cond_tag: scored}, column, KEY)
 
 
 def test_a_cell_is_the_pair_statistics_of_paired_stats_on_the_key(tmp_path):

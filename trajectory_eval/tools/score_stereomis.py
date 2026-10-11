@@ -1,18 +1,20 @@
-"""Score the camera trajectories of the StereoMIS clips: the controls', or the depth stages'.
+"""Score the camera trajectory of each usable StereoMIS clip, for the controls or for the depth stages.
 
 `--controls` scores the static floor, the line floor and the stereo ceiling
-of `pose_controls` on every usable clip. `--methods` scores the
-trajectories the depth stages wrote into each clip under `--clip-root`;
-`--shuffled` also scores each method's poses in a shuffled order, which keeps
-the trajectory's shape and loses its order. Every row is made by
-`trajectory_eval.score.score`, so it records `trajectory_code_sha`. A clip
-without a method's bundle is refused before anything is scored.
+of `pose_controls`. `--methods` scores the trajectories the depth stages
+wrote into each clip under `--clip-root`. `--shuffled` also scores each
+method's poses in a shuffled order, which keeps the trajectory's shape and
+loses its order. `--masked` names the conditions `<method>_masked`, for clips
+extracted with `--mask-instruments`. Every row is made by
+`trajectory_eval.score.score`, so it records `trajectory_code_sha`. Before
+anything is scored, `check_clip_root` refuses clips the rows would misname or
+score against the wrong frames.
 
 Usage:
     python -m trajectory_eval.tools.score_stereomis --root /path/to/StereoMIS --depth-root /path/to/StereoMIS_depth \\
         --controls --out controls.json
     python -m trajectory_eval.tools.score_stereomis --root /path/to/StereoMIS --depth-root /path/to/StereoMIS_depth \\
-        --methods da3 pi3x --clip-root /path/to/clips [--shuffled] [--suffix _masked] --out methods.json
+        --methods da3 pi3x --clip-root /path/to/clips [--shuffled] [--masked] --out methods.json
 """
 
 import argparse
@@ -30,6 +32,8 @@ from trajectory_eval.score import method_trajectory, score
 
 # The bundle each depth stage writes into a clip, as the stage names it.
 METHOD_BUNDLES = {"da3": pipeline.depth.BUNDLE, "pi3x": pipeline.pi3x.BUNDLE}
+# The file in which the extraction stage lists a clip's frames.
+MANIFEST = "frame_manifest.json"
 # The conditions `--controls` scores, in the order each clip's rows are written.
 CONTROLS = ("floor_static", "floor_line", "ceil_stereo")
 # The seed of the shuffled order. One generator is made for each clip and method, so every clip of one length
@@ -43,7 +47,9 @@ def usable_clips(root: Path, depth_root: Path, seq: str) -> list[dict]:
 
 
 def score_controls(root: Path, depth_root: Path, sequences: list[str]) -> list[dict]:
-    """Return the rows of the three controls on every usable clip; a ceiling row also records `vo_fail`.
+    """Return the rows of the three controls on every usable clip.
+
+    A ceiling row also records `vo_fail`, the number of the odometry's steps that failed.
 
     Raises:
         ValueError: the ceiling returns no trajectory for a usable clip.
@@ -73,29 +79,59 @@ def score_controls(root: Path, depth_root: Path, sequences: list[str]) -> list[d
     return rows
 
 
-def score_methods(root: Path, depth_root: Path, sequences: list[str], clip_root: Path, methods: list[str],
-                  shuffled: bool = False, suffix: str = "") -> list[dict]:
-    """Return the rows of each method on every usable clip, and of its shuffled poses when `shuffled` is set.
-
-    A method's condition is its name followed by `suffix`, and the shuffled one adds `_shuf`.
+def check_clip_root(clips: list[dict], clip_root: Path, methods: list[str], masked: bool) -> None:
+    """Refuse clips whose rows would be misnamed or scored against the wrong frames.
 
     Raises:
-        FileNotFoundError: a clip lacks a method's bundle. Every such clip is named, before anything is scored.
+        FileNotFoundError: a clip lacks a method's bundle, or its manifest. Every clip that lacks a bundle is named.
+        ValueError: a clip's manifest lists other frames than `stereomis.clips` gives it, or the painted images
+            contradict `masked`.
     """
-    clips = [c for seq in sequences for c in usable_clips(root, depth_root, seq)]
+    # Refuse the clips that lack a method's bundle, naming every one.
     lacking = [f"{c['name']}:{m}" for c in clips for m in methods
                if not (clip_root / c["name"] / METHOD_BUNDLES[m]).is_file()]
     if lacking:
         raise FileNotFoundError(f"{len(lacking)} bundle(s) missing under {clip_root}: {lacking}")
+    manifests = [json.loads((clip_root / c["name"] / MANIFEST).read_text()) for c in clips]
+
+    # Refuse a clip cut from other frames. Its bundle holds as many poses as the truth, so only its manifest shows it.
+    moved = [c["name"] for c, m in zip(clips, manifests)
+             if [f["native_frame"] for f in m["frames"]] != list(c["frames"])]
+    if moved:
+        raise ValueError(f"{len(moved)} clip(s) under {clip_root} hold other frames than the ground truth is read "
+                         f"at: {moved}")
+
+    # Refuse `masked` when the painted images contradict it. The clips are counted together, since a masked clip
+    # with no tissue mask near its frames paints no image. A clip extracted without masks may not record the count.
+    painted = sum(m.get("instruments_masked", 0) for m in manifests)
+    if masked and not painted:
+        raise ValueError(f"--masked is given, but no clip under {clip_root} has a painted image")
+    if painted and not masked:
+        raise ValueError(f"{painted} images under {clip_root} are painted outside their tissue mask; pass --masked")
+
+
+def score_methods(root: Path, depth_root: Path, sequences: list[str], clip_root: Path, methods: list[str],
+                  shuffled: bool = False, masked: bool = False) -> list[dict]:
+    """Return the rows of each method on every usable clip, and of its shuffled poses when `shuffled` is set.
+
+    A method's condition is its name, followed by `_masked` when `masked` is set. The shuffled one adds `_shuf`.
+
+    Raises:
+        FileNotFoundError: `check_clip_root` finds a bundle or a manifest missing, before anything is scored.
+        ValueError: `check_clip_root` refuses a clip's frames or the painted images, before anything is scored.
+    """
+    clips = [c for seq in sequences for c in usable_clips(root, depth_root, seq)]
+    check_clip_root(clips, clip_root, methods, masked)
     rows = []
     for c in clips:
         gt_T = stereomis.gt_pose(root, c["seq"], c["frames"])
         for m in methods:
+            cond = f"{m}_masked" if masked else m
             est_c, est_R = method_trajectory(clip_root / c["name"] / METHOD_BUNDLES[m], len(c["frames"]))
-            rows.append(score(c, f"{m}{suffix}", gt_T, est_c, est_R))
+            rows.append(score(c, cond, gt_T, est_c, est_R))
             if shuffled:
                 order = np.random.default_rng(SHUFFLE_SEED).permutation(len(est_c))
-                rows.append(score(c, f"{m}{suffix}_shuf", gt_T, est_c[order], est_R[order]))
+                rows.append(score(c, f"{cond}_shuf", gt_T, est_c[order], est_R[order]))
     return rows
 
 
@@ -108,21 +144,27 @@ def main() -> None:
     what.add_argument("--methods", nargs="+", choices=sorted(METHOD_BUNDLES), help="Score these depth stages.")
     ap.add_argument("--clip-root", help="The clips the depth stages wrote into; --methods needs it.")
     ap.add_argument("--shuffled", action="store_true", help="Also score each method's poses in a shuffled order.")
-    ap.add_argument("--suffix", default="", help="Appended to each method's name to name its condition.")
+    ap.add_argument("--masked", action="store_true",
+                    help="The clips were extracted with --mask-instruments; name each condition <method>_masked.")
     ap.add_argument("--sequences", nargs="+", default=list(stereomis.SEQUENCES), choices=stereomis.SEQUENCES,
                     help="The sequences to score; every sequence by default.")
     ap.add_argument("--out", required=True, help="The JSON file the rows are written to.")
     args = ap.parse_args()
     if args.methods and not args.clip_root:
         ap.error("--methods needs --clip-root")
-    if args.controls and (args.clip_root or args.shuffled or args.suffix):
-        ap.error("--clip-root, --shuffled and --suffix apply to --methods only")
+    if args.controls and (args.clip_root or args.shuffled or args.masked):
+        ap.error("--clip-root, --shuffled and --masked apply to --methods only")
+    # A sequence or a method named twice scores its clips twice, which `scores.read_rows` refuses only later.
+    for flag, names in (("--sequences", args.sequences), ("--methods", args.methods or [])):
+        twice = sorted({n for n in names if names.count(n) > 1})
+        if twice:
+            ap.error(f"{flag} names {twice} more than once")
 
     root, depth_root = Path(args.root), Path(args.depth_root)
     try:
         rows = (score_controls(root, depth_root, args.sequences) if args.controls else
                 score_methods(root, depth_root, args.sequences, Path(args.clip_root), args.methods, args.shuffled,
-                              args.suffix))
+                              args.masked))
     except (FileNotFoundError, ValueError) as e:
         raise SystemExit(f"{type(e).__name__}: {e}")
     out = Path(args.out)

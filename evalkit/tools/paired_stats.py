@@ -251,9 +251,10 @@ def mark_of(ci95_video: tuple[float, float] | list[float] | None, sign: int = +1
         `"★"`, `"✗"` or `""`.
 
     Raises:
-        ValueError: `sign` is not +1, -1 or 0.
+        ValueError: `sign` is not the int +1, -1 or 0.
     """
-    if sign not in (1, -1, 0):
+    # `True` and `1.0` equal 1, so the type is checked too.
+    if type(sign) is not int or sign not in (1, -1, 0):
         raise ValueError(f"sign is +1, -1 or 0, not {sign!r}")
     if sign == 0 or ci95_video is None or ci95_video[0] is None or ci95_video[1] is None:
         return ""
@@ -302,7 +303,9 @@ def _stats_of(va: np.ndarray, vb: np.ndarray, kvids: np.ndarray, sign: int) -> d
 
     A quantity that has no value on this few clips or videos is None, never
     a NaN or a point: the SDs on one clip, the clip interval on one clip,
-    the video interval and the video-level p below their minimum.
+    the video interval and the video-level p below their minimum. Wins and
+    losses are clips that moved the better and the worse way, in `sign`'s
+    direction; a reference value, of `sign` 0, has neither.
     """
     from scipy import stats
 
@@ -320,7 +323,8 @@ def _stats_of(va: np.ndarray, vb: np.ndarray, kvids: np.ndarray, sign: int) -> d
         cond_mean=round(float(vb.mean()), 4), cond_sd=_sd(vb),
         delta_mean=round(float(d.mean()), 4), delta_sd=_sd(d),
         delta_median=round(float(np.median(d)), 4),
-        wins=int((d > 0).sum()), losses=int((d < 0).sum()), ties=int((d == 0).sum()),
+        wins=int((d * sign > 0).sum()) if sign else None, losses=int((d * sign < 0).sum()) if sign else None,
+        ties=int((d == 0).sum()),
         wilcoxon_p=None if w is None else round(float(w.pvalue), 5),
         wilcoxon_p_video=None if pv is None else round(pv, 5),
         ci95_clip=ci_clip,
@@ -416,8 +420,10 @@ def _print_pair(base: str, cond: str, pair: dict, keys: Sequence[str]) -> None:
         print(f"  {k}{note}")
         print(f"    per condition (SD over clips): {base} {r['base_mean']:.4f}±{_num(r['base_sd'], '.4f')}"
               f"   {cond} {r['cond_mean']:.4f}±{_num(r['cond_sd'], '.4f')}")
+        # A reference value has no better way, so it has ties and no wins or losses.
+        moved = f"ties {r['ties']}" if r["wins"] is None else f"wins-losses-ties {r['wins']}-{r['losses']}-{r['ties']}"
         print(f"    paired difference: mean {r['delta_mean']:+.4f} / median {r['delta_median']:+.4f}"
-              f" / SD {_num(r['delta_sd'], '.4f')} / wins-losses-ties {r['wins']}-{r['losses']}-{r['ties']}")
+              f" / SD {_num(r['delta_sd'], '.4f')} / {moved}")
         print(f"    95% CI  clips resampled {_interval(r['ci95_clip'])}"
               f"   videos resampled {_interval(r['ci95_video'])}"
               f"   Wilcoxon p={r['wilcoxon_p']} (per video p={r['wilcoxon_p_video']})")
