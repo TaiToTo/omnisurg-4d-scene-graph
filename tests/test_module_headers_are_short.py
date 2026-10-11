@@ -68,8 +68,8 @@ def first_listed(repo: Path) -> frozenset[str]:
 
     Raises:
         RuntimeError: `repo` is a shallow clone, or no commit in it adds this
-            file. A shallow clone's oldest commit seems to add every file in
-            it, so a later version of the list would pass for the first.
+            file. git shows a shallow clone's oldest commit as adding every
+            file in it, so the list would be read from that commit.
     """
     def git(*args: str) -> str:
         return subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True).stdout.decode("utf-8")
@@ -107,7 +107,7 @@ def test_no_header_is_longer_than_the_cap():
 def test_a_listed_module_is_tracked_and_still_long():
     """The ratchet: a module leaves `STILL_LONG` when shortened, and a stale entry is refused."""
     tracked = set(tracked_modules(REPO))
-    assert "tests/test_module_headers_are_short.py" in tracked, "the scan sees no module; this file is one"
+    assert THIS in tracked, "the scan sees no module; this file is one"
     missing = STILL_LONG - tracked
     assert not missing, f"listed but not tracked: {sorted(missing)}"
     short = {rel: header_length((REPO / rel).read_text(encoding="utf-8")) for rel in STILL_LONG}
@@ -141,11 +141,14 @@ def test_the_measure_counts_what_follows_a_usage_that_is_not_the_last_section():
     assert header_length(indented_usage_is_prose) == 4
 
 
-def test_the_list_is_read_from_the_commit_that_added_this_file_and_a_shallow_clone_is_refused(tmp_path):
-    """The planted history: the first version lists a.py, the next adds b.py, and a shallow clone holds the next."""
+def test_a_shallow_clone_is_refused(tmp_path, monkeypatch):
+    """The full history yields the first list, a.py; its depth-1 clone, which holds a later list, is refused."""
+    # This machine's git config, such as hooks or log.showRoot, must not decide the result.
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
     src = tmp_path / "src"
     (src / THIS).parent.mkdir(parents=True)
-    git = ["git", "-c", "user.name=test", "-c", "user.email=test@example.com", "-c", "commit.gpgsign=false"]
+    git = ["git", "-c", "user.name=test", "-c", "user.email=test@example.com"]
     subprocess.run([*git, "init", "-q", str(src)], check=True, capture_output=True)
     for names in (["a.py"], ["a.py", "b.py"]):
         (src / THIS).write_text(f"STILL_LONG = frozenset({names!r})\n")
