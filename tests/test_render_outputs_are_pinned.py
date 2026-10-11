@@ -1,10 +1,11 @@
 """Check that every segmenter input renders the same bytes as when the hashes were recorded.
 
 A change that moves one pixel of one input mode changes a measured
-condition, and nothing else would notice. Each mode runs at both edge
-gains the conditions used, with and without smoothing, with the ring of
-the edges masked and kept, on one synthetic frame. Each hash in
-`render_outputs.sha256.json` equals the one the workbench's renderer gives.
+condition, and nothing else would notice. Each mode runs on one synthetic
+frame, once per combination of:
+- the two edge gains the conditions used;
+- smoothing on and off;
+- the edge ring masked and kept.
 A failure also follows a change in numpy, OpenCV or matplotlib, whose
 versions the file records under `recorded_with`.
 
@@ -54,7 +55,7 @@ def inputs(h=48, w=64):
 
 
 def cases():
-    """Return every mode at each edge gain, with and without smoothing and the ring, as (key, keyword arguments)."""
+    """Return every combination of mode, edge gain, smoothing and ring setting, as (key, keyword arguments)."""
     return [(f"{mode} edge_gain={gain} smooth={smooth} mask_ring={ring}",
              {"mode": mode, "edge_gain": gain, "smooth": smooth, "mask_ring": ring})
             for mode in render.SAM_INPUT_MODES for gain in (0.85, 1.0) for smooth in (True, False)
