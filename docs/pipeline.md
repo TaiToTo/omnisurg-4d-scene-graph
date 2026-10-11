@@ -380,8 +380,8 @@ and without the point clouds. A clip whose manifest already holds
 is run again; the stage refuses it until its files are removed or
 `pipeline.depth --overwrite` is run on it. Each process writes its output
 to `<input-dir>/_logs/depth_gpu<N>.log`. A driver that is stopped, by
-`kill`, a closed terminal or Ctrl-C, stops its processes with it. The
-command refuses:
+`kill`, a closed terminal or Ctrl-C, stops its processes with it. Under
+`nohup`, a closed terminal does not stop the driver. The command refuses:
 
 - before any process starts: a clip of the population that is not under
   `--input-dir` or whose manifest cannot be read; a clip whose
