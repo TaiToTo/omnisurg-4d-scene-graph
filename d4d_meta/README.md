@@ -19,7 +19,8 @@ cloud and the camera pose that places it in the endoscope's view.
 The census measures each side's inputs. The rule reads these of its fields:
 
 - `key`, of a clip: `<specimen>/<session>/<clip>`;
-- `moved_camera`, of a clip: whether the endoscope moves during the clip;
+- `moved_camera`, of a clip: whether the endoscope moves during the clip's
+  session, as the dataset's `info/session_details.txt` records it;
 - `present`: whether the side has a point cloud, a camera pose and the
   endoscope's calibration;
 - `gt_blk_frac`: the share of the view's 16 × 16-pixel blocks, among those
@@ -27,10 +28,12 @@ The census measures each side's inputs. The rule reads these of its fields:
 - `frame_minus_gt_s`: the time of the frame nearest to the scan, less the
   time of the scan, in seconds;
 - `active`: whether the tissue moves at the clip's first moment, for
-  `start`, or at its last, for `end`.
+  `start`, or at its last, for `end`, by the record that
+  `pipeline.d4d_tissue_motion` makes from the clip's stereo depth.
 
 `present`, `active` and `moved_camera` are true or false. `gt_blk_frac` and
-`frame_minus_gt_s` are finite numbers. The census itself is not here.
+`frame_minus_gt_s` are finite numbers. `pipeline.d4d_census` makes the
+census, which is not kept here.
 
 ## The population
 
@@ -69,5 +72,5 @@ all 98 sessions and 5 specimens.
 
 `pipeline/select_d4d_population.py` writes `population.json` and `clips.txt`
 from the census and `census_clips.txt`; `docs/pipeline.md` says how to run it
-and what it refuses. `tests/test_select_d4d_population.py` pins what must
-hold between the files.
+and the two steps that make the census. `tests/test_select_d4d_population.py`
+pins what must hold between the files.

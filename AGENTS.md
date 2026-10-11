@@ -77,7 +77,7 @@ shape of another repo.
 ```
 omnisurg-4d-scene-graph/
 ├── LICENSE  README.md  pyproject.toml  (CITATION.cff: waits on the release)
-├── surgical_core/     atlas120k clip_time geometry stereomis viewer
+├── surgical_core/     atlas120k clip_time d4d geometry stereomis viewer
 │                      (cholec pointcloud: wait on the export stage)
 ├── evalkit/           the evaluator, hashed into eval_code_sha with its class tables
 │   └── tools/         what reads scores or predictions, never hashed: scores

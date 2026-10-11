@@ -14,7 +14,7 @@ no check is recorded.
 | evaluator, `evalkit/` | class tables, metrics, entry point, pilot mode | in pilot mode, every key shared with the pilot evaluator equal on 23 conditions × 315 clips, at `eval_code_sha` `a5d7ea46…` |
 | score tools, `evalkit/tools/` | every tool in the layout of `AGENTS.md` but `track_metrics` | `paired_table`, `arms_paired`, `claims_table`, `leave_one_video_out`, `print_status_tables`, `kmerge`: the workbench's values on the same inputs |
 | camera trajectory scorer, `trajectory_eval/` | `pose_metrics`, the scoring of a clip, `pose_controls`, `scores` | `pose_metrics`: the workbench's values on 1200 random, planar and static trajectories. The scoring of a clip and `pose_controls`: the workbench's 387 StereoMIS rows, every value, scored again from its stored outputs |
-| extraction and crop | ATLAS-120k, CholecSeg8k, LapEx, StereoMIS, the D4D population | the CholecSeg8k crop, 13 of the 27 CholecSeg8k clips and the D4D population: the workbench's bytes |
+| extraction and crop | ATLAS-120k, CholecSeg8k, LapEx, StereoMIS, the D4D census, its record of the tissue's motion, and the D4D population | the CholecSeg8k crop, 13 of the 27 CholecSeg8k clips and the D4D population: the workbench's bytes. The D4D census and the motion record: the values of the workbench and of the dataset's scripts, on the 271 clips |
 | depth | DA3, Pi3X, point clouds, the population drivers | DA3, point clouds and Pi3X: the workbench's bytes on the GPU machine, on three clips |
 | segmentation and tracking | `track`, `per_frame`, `condition_population` | `track` and `per_frame`: the workbench's bytes on the GPU machine, on three clips. `condition_population`: the workbench's commands, for 43 conditions. The 40 segmenter inputs that `tests/test_render_outputs_are_pinned.py` pins: the workbench's, rendered with each case's ring setting |
 | viewer | `viewer/`, `pipeline/viewer_bundle` | — (new: the workbench's demo read other files) |
@@ -52,9 +52,8 @@ not compared:
 - **The paper's tables**: the claims grid and the StereoMIS table.
 - **The StereoMIS scoring**: the command that scores each method and each
   control on every clip.
-- **D4D**: the census, depth, seeds, the front/behind relation and the
-  camera trajectory. The reader waits on "How this repository depends on
-  D4D's loader".
+- **D4D**: depth, seeds, the front/behind relation and the camera
+  trajectory.
 - **LapEx's comparisons**. They wait on "How LapEx is scored".
 - **The conditions seeded from GT masks** (`t12_gtseed`, `t12_paste`). They
   wait on "Conditions seeded from GT".
@@ -334,14 +333,6 @@ Each question says what it blocks and where its answer is written.
 
 ### D4D
 
-- **How this repository depends on D4D's loader.** The workbench imports
-  `d4d.loader` from a clone of https://github.com/reubendocea/d4d at commit
-  `efe12d26`. pip cannot install it: the project's find rule includes only
-  `d4d_surgical*`, while the package is `d4d/`. The repository has no
-  licence file, though its `pyproject.toml` declares MIT. Open: upstream
-  fixes both and an extra pins the commit; a fork carries the fix; or the
-  README says to put the clone on `PYTHONPATH`. Blocks: the census and the
-  D4D reader. Answer in: `pyproject.toml` and the README.
 - **Two inputs of the census whose code no repository holds.** The census
   reads `moved_camera` from `clip_table.json`, and `active` from
   `tissue_motion.json`. Scripts in the dataset's directory wrote both
