@@ -35,14 +35,14 @@ const tubes = () => drawn().filter((m) => m.geometry.type === 'TubeGeometry');
 
 describe('the graph in the 3D view', () => {
   it('draws nothing with the graph off', () => {
-    buildGraph3D({ on: true, track: 't', stage: frame() });
+    buildGraph3D({ on: true, tracks: ['t'], stage: frame() });
     expect(drawn().length).toBeGreaterThan(0);
-    buildGraph3D({ on: false, track: 't', stage: frame() });
+    buildGraph3D({ on: false, tracks: ['t'], stage: frame() });
     expect(drawn()).toEqual([]);
   });
 
   it('draws a node as its region\'s hull, or as an ellipsoid when the region is small, empty or a line', () => {
-    buildGraph3D({ on: true, track: 't', stage: frame() });
+    buildGraph3D({ on: true, tracks: ['t'], stage: frame() });
     const hull = nodeMesh(1).geometry;
     expect(hull).toBeInstanceOf(ConvexGeometry);
     hull.computeBoundingBox();
@@ -55,7 +55,7 @@ describe('the graph in the 3D view', () => {
     for (const cut of [() => undefined, (l) => l.slice(1), (l) => Int32Array.of(...l, 0)]) {
       const stage = frame();
       stage.regionsByTrack.t.labels = cut(stage.regionsByTrack.t.labels);
-      buildGraph3D({ on: true, track: 't', stage });
+      buildGraph3D({ on: true, tracks: ['t'], stage });
       expect(isSphere(nodeMesh(1))).toBe(true);
     }
   });
@@ -65,16 +65,16 @@ describe('the graph in the 3D view', () => {
     const cloud = stage.group.children[0];
     cloud.userData.fullGeometry = cloud.geometry;
     cloud.geometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3()]);
-    buildGraph3D({ on: true, track: 't', stage });
+    buildGraph3D({ on: true, tracks: ['t'], stage });
     expect(nodeMesh(1).geometry).toBeInstanceOf(ConvexGeometry);
   });
 
   it('fades every node and edge but the followed node\'s', () => {
     const opacities = () => [1, 2, 3].map((id) => nodeMesh(id).material.opacity);
     const edgeOpacities = () => tubes().map((m) => m.material.opacity);
-    buildGraph3D({ on: true, track: 't', stage: frame() });
+    buildGraph3D({ on: true, tracks: ['t'], stage: frame() });
     const [nodesBefore, edgesBefore] = [opacities(), edgeOpacities()];
-    buildGraph3D({ on: true, track: 't', stage: frame(), focusKey: 't:2' });
+    buildGraph3D({ on: true, tracks: ['t'], stage: frame(), focusKey: 't:2' });
     const [n1, n2, n3] = opacities();
     expect(n2).toBe(nodesBefore[1]);
     expect(n1).toBeLessThan(nodesBefore[0]);
@@ -85,9 +85,9 @@ describe('the graph in the 3D view', () => {
   });
 
   it('outlines the followed node on its own shape, and no other', () => {
-    buildGraph3D({ on: true, track: 't', stage: frame() });
+    buildGraph3D({ on: true, tracks: ['t'], stage: frame() });
     expect(drawn().filter((m) => m.material.wireframe)).toEqual([]);
-    buildGraph3D({ on: true, track: 't', stage: frame(), focusKey: 't:2' });
+    buildGraph3D({ on: true, tracks: ['t'], stage: frame(), focusKey: 't:2' });
     const outlines = drawn().filter((m) => m.material.wireframe);
     expect(outlines).toHaveLength(1);
     const [o] = outlines, node = nodeMesh(2);
@@ -98,9 +98,31 @@ describe('the graph in the 3D view', () => {
   });
 
   it('colours each edge, its arc and its arrowhead, by its relation', () => {
-    buildGraph3D({ on: true, track: 't', stage: frame() });
+    buildGraph3D({ on: true, tracks: ['t'], stage: frame() });
     const arcs = drawn().filter((m) => ['TubeGeometry', 'ConeGeometry'].includes(m.geometry.type));
     expect(arcs.map((m) => m.material.color.getHex())).toEqual(
       [RELATION_COLORS.left, RELATION_COLORS.left, RELATION_COLORS.above, RELATION_COLORS.above]);
+  });
+});
+
+describe('the graph in the 3D view with two tracks', () => {
+  // Both tracks label the frame alike; the annotation's region 1 contains the automatic region 2.
+  function pair() {
+    const f = frame();
+    const { labels } = f.regionsByTrack.t;
+    return { ...f, regionsByTrack: { gt: { labels }, auto: { labels } }, graphByTrack: { gt: f.graphByTrack.t, auto: f.graphByTrack.t },
+      hierarchy: { edges: [{ src: 'gt:1', dst: 'auto:2', relation: 'contains' }] } };
+  }
+  const opacity = (key) => drawn().find((m) => m.userData.nodeKey === key).material.opacity;
+
+  it('draws the contains links instead of each track\'s relations', () => {
+    buildGraph3D({ on: true, tracks: ['gt', 'auto'], stage: pair() });
+    expect(tubes()).toHaveLength(0);
+    expect(drawn().filter((o) => o.material?.isLineDashedMaterial)).toHaveLength(1);
+  });
+
+  it('keeps the region the followed node contains bright', () => {
+    buildGraph3D({ on: true, tracks: ['gt', 'auto'], stage: pair(), focusKey: 'gt:1' });
+    expect(opacity('auto:2')).toBeGreaterThan(opacity('auto:3'));
   });
 });
