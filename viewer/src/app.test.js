@@ -2,12 +2,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 function fakeEl() {
+  const parts = new Map();
   return {
     textContent: '', value: '', max: '', hidden: false, innerHTML: '', src: '', className: '', title: '', disabled: false,
     style: {}, dataset: {},
     classList: { toggle() {}, add() {}, remove() {}, contains() { return false; } },
     setAttribute() {}, getAttribute() { return null; }, appendChild() {}, append() {}, addEventListener() {},
-    querySelectorAll() { return []; }, querySelector() { return null; }, firstElementChild: null,
+    querySelectorAll() { return []; }, firstElementChild: null,
+    querySelector(sel) { if (!parts.has(sel)) parts.set(sel, fakeEl()); return parts.get(sel); },
     getContext() { return { clearRect() {} }; }, getBoundingClientRect() { return { width: 800 }; },
   };
 }
@@ -105,7 +107,7 @@ async function fresh() {
   data.fetchGraph.mockResolvedValue(null);
   data.fetchHierarchy.mockResolvedValue(null);
   const all = [...Array(40).keys()];
-  data.fetchTemporal.mockResolvedValue({ nodes: [{ id: 1, present_frames: all }, { id: 7, present_frames: all }], relations: [] });
+  data.fetchTemporal.mockResolvedValue({ frames: all, nodes: [{ id: 1, present_frames: all }, { id: 7, present_frames: all }], relations: [] });
   const reports = [];
   app.onError((m) => reports.push(m));
   return { app, data, stage, world, band, paint, THREE, reports };
@@ -264,12 +266,12 @@ describe('following a region', () => {
     data.loadClip.mockResolvedValueOnce(makeClip('a', 40)).mockResolvedValueOnce(makeClip('b', 40));
     await app.openClip('a');
     const tgA = deferred();
-    const tgB = { nodes: [{ id: 3, present_frames: [0] }], relations: [] };
+    const tgB = { frames: [...Array(40).keys()], nodes: [{ id: 3, present_frames: [0] }], relations: [] };
     data.fetchTemporal.mockReturnValueOnce(tgA.promise).mockResolvedValueOnce(tgB);
     const followA = app.setFocusNode('t:3');
     await app.openClip('b');
     await app.setFocusNode('t:3');
-    tgA.resolve({ nodes: [], relations: [] });
+    tgA.resolve({ frames: [...Array(40).keys()], nodes: [], relations: [] });
     await followA;
     expect(app.state.temporal).toBe(tgB);
   });
@@ -342,5 +344,94 @@ describe('world mode', () => {
     expect(app.state.mode).toBe('frame');
     expect(app.state.focusStage).toBe(1);
     expect(reports).toHaveLength(1);
+  });
+});
+
+/** A clip with an annotation `gt` and an automatic track `auto`, which its hierarchy relates. */
+function makePairClip(id, n, { gtSemantic = true } = {}) {
+  const clip = makeClip(id, n);
+  const all = [...Array(n).keys()];
+  const track = (tid, semantic) => ({ ...clip.tracks[0], id: tid, name: tid, short: tid, semantic });
+  clip.tracks = [track('auto', false), track('gt', gtSemantic)];
+  clip.trackById = new Map(clip.tracks.map((t) => [t.id, t]));
+  clip.hierarchy = { tracks: ['auto', 'gt'], frames: all };
+  return clip;
+}
+
+describe('both tracks of the hierarchy', () => {
+  const painted = (paint) => paint.applySegBlend.mock.calls.at(-1)[2];
+
+  it('paints the annotation and the automatic regions, the annotation first', async () => {
+    const { app, data, paint } = await fresh();
+    data.loadClip.mockResolvedValue(makePairClip('a', 4));
+    await app.openClip('a');
+    app.toggleRegions(app.BOTH);
+    expect(painted(paint)).toEqual(['gt', 'auto']);
+    app.setTrack('auto');
+    expect(painted(paint)).toEqual(['auto']);
+    app.setTrack(app.BOTH);
+    expect(painted(paint)).toEqual(['gt', 'auto']);
+  });
+
+  it('offers no Both for two tracks of one kind', async () => {
+    const { app, data, paint } = await fresh();
+    data.loadClip.mockResolvedValue(makePairClip('a', 4, { gtSemantic: false }));
+    await app.openClip('a');
+    app.toggleRegions(app.BOTH);
+    expect(app.state.both).toBe(false);
+    expect(painted(paint)).toEqual([]);
+  });
+
+  it('takes one track off the cloud from its strip row, and leaves the other painted', async () => {
+    const { app, data, paint } = await fresh();
+    const strip = await import('./strip.js');
+    data.loadClip.mockResolvedValue(makePairClip('a', 4));
+    await app.openClip('a');
+    await flush();
+    app.toggleRegions(app.BOTH);
+    strip.renderTrackStrip.mock.calls.at(-1)[1].onPickTrack('gt');
+    expect(painted(paint)).toEqual(['auto']);
+  });
+
+  it('stops following a region whose track is no longer shown', async () => {
+    const { app, data } = await fresh();
+    data.loadClip.mockResolvedValue(makePairClip('a', 4));
+    await app.openClip('a');
+    app.setTrack(app.BOTH);
+    await app.setFocusNode('gt:1');
+    app.setTrack('auto');
+    expect(app.state.focusKey).toBe(null);
+  });
+
+  it('drops the graph through time of the other track while the followed region\'s loads', async () => {
+    const { app, data } = await fresh();
+    data.loadClip.mockResolvedValue(makePairClip('a', 4));
+    await app.openClip('a');
+    app.setTrack(app.BOTH);
+    await app.setFocusNode('gt:1');
+    expect(app.state.temporal).not.toBe(null);
+    const d = deferred();
+    data.fetchTemporal.mockReturnValueOnce(d.promise);
+    const follow = app.setFocusNode('auto:1');
+    expect(app.state.temporal).toBe(null);
+    d.resolve({ nodes: [], relations: [] });
+    await follow;
+  });
+
+  it('picks the automatic region on the cloud before the annotated region that contains it', async () => {
+    const { app, data, THREE } = await fresh();
+    data.loadClip.mockResolvedValue(makePairClip('a', 4));
+    const cloud = new THREE.Group().add(new THREE.Points(new THREE.BufferGeometry().setFromPoints(
+      [[0, 0, -1], [5, 5, -1], [-5, 5, -1], [5, -5, -1]].map((p) => new THREE.Vector3(...p)))));
+    data.loadCloud.mockResolvedValue({ scene: cloud });
+    data.fetchRegions.mockImplementation((clip, track) => Promise.resolve({ grid: [2, 2], classes: [], classById: new Map(),
+      stage: 'anchor', labels: Uint16Array.from(track === 'gt' ? [3, 3, 3, 3] : [7, 0, 0, 0]) }));
+    await app.openClip('a');
+    // A click in the middle of the canvas casts the camera's ray down -z, through the first point.
+    const click = () => app.pickNode({ getBoundingClientRect: () => ({ left: 0, top: 0, width: 100, height: 100 }) }, { clientX: 50, clientY: 50 });
+    app.setTrack(app.BOTH);
+    expect(click()).toBe('auto:7');
+    app.setTrack('gt');
+    expect(click()).toBe('gt:3');
   });
 });

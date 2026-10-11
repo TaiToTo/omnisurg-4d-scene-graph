@@ -1,15 +1,17 @@
 // Draw the scene graph as a 2D picture of the camera's view: each node at its region's centroid in the
-// image, drawn as the region's convex hull, with the graph's edges between them. In world mode every
-// stacked frame's nodes are projected into the camera of the frame on stage, as dots that a line
-// follows through time.
+// image, drawn as the region's convex hull, with the graph's edges between them. Two tracks draw
+// together with the hierarchy's `contains` edges between them. In world mode every stacked frame's nodes
+// are projected into the camera of the frame on stage, as dots that a line follows through time.
 import { ellipsesOf, hullsOf } from './regions.js';
-import { RELATION_COLORS, esc, hexColor, nodeKey, rgbToHex } from './format.js';
+import { RELATION_COLORS, containmentPartners, esc, hexColor, nodeKey, rgbToHex } from './format.js';
 
 const PAD = 18;
 const GLYPH_SCALE = 0.55;
 // A frame's spatial edges hold every ordered pair of nodes; past this many the lines say nothing.
 const MAX_RELATION_EDGES = 30;
 const DIM_OPACITY = 0.18;
+// About the width of one character of an 11 px label, to keep a label inside the panel.
+const LABEL_CHAR_W = 6;
 
 const fill = (n) => hexColor(rgbToHex(n.color));
 
@@ -74,47 +76,99 @@ function glyphSVG(n, key, [x, y], g, { opacity = 1, hover = false } = {}) {
     + `stroke="${fill(n)}">${title}</ellipse>`;
 }
 
+/** Draw a node's label beside it: to its right, or to its left where the right has no room. */
+export function labelSVG(label, [x, y], rx, width, opacity) {
+  const w = label.length * LABEL_CHAR_W, rightX = x + rx + 2, leftX = x - rx - 2;
+  const right = rightX + w <= width || (leftX < w && width - rightX >= leftX);
+  // A label with room on neither side is moved inside the panel, over its node if need be.
+  const at = right ? Math.max(0, Math.min(rightX, width - w)) : Math.min(width, Math.max(leftX, w));
+  return `<text class="nl-label" x="${at.toFixed(1)}" y="${(y + 3).toFixed(1)}"`
+    + `${right ? '' : ' text-anchor="end"'} opacity="${opacity}">${esc(label)}</text>`;
+}
+
+/** Draw a `contains` link of the hierarchy, dashed, between two placed nodes. */
+function containsLine([x1, y1], [x2, y2], faded) {
+  return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="#7d8898" `
+    + `stroke-width="1.4" stroke-dasharray="3 2" opacity="${faded ? DIM_OPACITY : 0.6}"/>`;
+}
+
+/**
+ * Place every shown track's nodes, keyed `track:id`. The tracks' regions share the cloud's grid, so one
+ * fit holds them all.
+ *
+ * @returns {?{positions:Map, glyphs:Map, nodes:Array<{n:object, key:string, track:string}>, scale:number,
+ *          offX:number, offY:number}} null when no node has a region on this frame.
+ */
+export function projectTracks(tracks, graphByTrack, regionsByTrack, W, H, bounds = null) {
+  const positions = new Map(), glyphs = new Map(), nodes = [];
+  let fit = null;
+  for (const track of tracks) {
+    const graph = graphByTrack[track], regions = regionsByTrack[track];
+    const proj = graph?.nodes?.length && regions ? projectNodes(graph.nodes, regions, W, H, bounds) : null;
+    if (!proj) continue;
+    fit = fit ?? proj;
+    for (const n of graph.nodes) {
+      if (!proj.positions.has(n.id)) continue;
+      const key = nodeKey(track, n.id);
+      positions.set(key, proj.positions.get(n.id));
+      glyphs.set(key, proj.glyphs.get(n.id));
+      nodes.push({ n, key, track });
+    }
+  }
+  return fit && { positions, glyphs, nodes, scale: fit.scale, offX: fit.offX, offY: fit.offY };
+}
+
 function emptyPanel(el, msg) {
   el.innerHTML = `<div class="nl-empty">${esc(msg)}</div>`;
 }
 
 /**
- * Draw one frame's scene graph of one track.
+ * Draw one frame's scene graph: one track's nodes and its relation edges, or two tracks' nodes and the
+ * hierarchy's `contains` edges between them.
  *
  * @param {HTMLElement} el
  * @param {object} p
- * @param {?object} p.graph  the frame's scene graph.
- * @param {?object} p.regions  the frame's regions of the same track.
- * @param {string} p.track
+ * @param {string[]} p.tracks  the tracks shown; the first is drawn first, under the others.
+ * @param {object} p.graphByTrack  the frame's scene graph per track.
+ * @param {object} p.regionsByTrack  the frame's regions per track.
+ * @param {?object} p.hierarchy  the frame's hierarchy: its contains links, and the regions paired with `focusKey`.
  * @param {?string} p.hoverKey  the node key to glow.
- * @param {?string} p.focusKey  the followed node: the others dim.
+ * @param {?string} p.focusKey  the followed node: the others dim, but for the regions it is paired with.
  */
-export function renderFrameNodeLink(el, { graph, regions, track, hoverKey = null, focusKey = null }) {
+export function renderFrameNodeLink(el, { tracks, graphByTrack, regionsByTrack, hierarchy = null, hoverKey = null, focusKey = null }) {
   const W = el.clientWidth || 320, H = el.clientHeight || 260;
-  if (!graph?.nodes?.length) { emptyPanel(el, 'No scene graph on this frame.'); return; }
-  const proj = regions && projectNodes(graph.nodes, regions, W, H);
+  if (!tracks.some((t) => graphByTrack[t]?.nodes?.length)) { emptyPanel(el, 'No scene graph on this frame.'); return; }
+  const proj = projectTracks(tracks, graphByTrack, regionsByTrack, W, H);
   if (!proj) { emptyPanel(el, 'No regions on this frame to place the graph by.'); return; }
-  const dimmed = (key) => !!focusKey && key !== focusKey;
-  const edges = (graph.edges || []).length <= MAX_RELATION_EDGES ? graph.edges || [] : [];
-  const svg = [`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" class="nl-svg" xmlns="http://www.w3.org/2000/svg">`];
-  for (const e of edges) {
-    const a = proj.positions.get(e.src), b = proj.positions.get(e.dst);
-    if (!a || !b) continue;
-    const faded = dimmed(nodeKey(track, e.src)) && dimmed(nodeKey(track, e.dst));
-    svg.push(`<line x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${b[0].toFixed(1)}" y2="${b[1].toFixed(1)}" `
-      + `stroke="${hexColor(RELATION_COLORS[e.relation] ?? 0x888888)}" stroke-width="1.4" opacity="${faded ? DIM_OPACITY : 0.7}"/>`);
+  const bright = focusKey ? new Set([focusKey, ...containmentPartners(focusKey, hierarchy)]) : null;
+  const dimmed = (key) => !!bright && !bright.has(key);
+
+  // The edges: one track's relations while they are few, else the containment between two tracks.
+  const edges = [];
+  if (tracks.length === 1) {
+    const raw = graphByTrack[tracks[0]]?.edges || [];
+    if (raw.length <= MAX_RELATION_EDGES) {
+      for (const e of raw) edges.push({ a: nodeKey(tracks[0], e.src), b: nodeKey(tracks[0], e.dst), relation: e.relation });
+    }
+  } else {
+    for (const e of hierarchy?.edges || []) if (e.relation === 'contains') edges.push({ a: e.src, b: e.dst, relation: 'contains' });
   }
-  for (const n of graph.nodes) {
-    const pos = proj.positions.get(n.id);
-    if (!pos) continue;
-    const key = nodeKey(track, n.id);
-    const g = proj.glyphs.get(n.id);
+  const svg = [`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" class="nl-svg" xmlns="http://www.w3.org/2000/svg">`];
+  for (const { a, b, relation } of edges) {
+    const pa = proj.positions.get(a), pb = proj.positions.get(b);
+    if (!pa || !pb) continue;
+    // A relation stays lit while one end is; a containment link only between the followed node and its pair.
+    if (relation === 'contains') { svg.push(containsLine(pa, pb, dimmed(a) || dimmed(b))); continue; }
+    svg.push(`<line x1="${pa[0].toFixed(1)}" y1="${pa[1].toFixed(1)}" x2="${pb[0].toFixed(1)}" y2="${pb[1].toFixed(1)}" `
+      + `stroke="${hexColor(RELATION_COLORS[relation] ?? 0x888888)}" stroke-width="1.4" opacity="${dimmed(a) && dimmed(b) ? DIM_OPACITY : 0.7}"/>`);
+  }
+
+  // The nodes, track by track, and their labels.
+  for (const { n, key } of proj.nodes) {
+    const pos = proj.positions.get(key), g = proj.glyphs.get(key);
     const opacity = dimmed(key) ? DIM_OPACITY : 1;
     svg.push(glyphSVG(n, key, pos, g, { opacity, hover: key === hoverKey }));
-    if (n.label) {
-      svg.push(`<text class="nl-label" x="${(pos[0] + g.rx + 2).toFixed(1)}" y="${(pos[1] + 3).toFixed(1)}" `
-        + `opacity="${opacity}">${esc(n.label)}</text>`);
-    }
+    if (n.label) svg.push(labelSVG(String(n.label), pos, g.rx, W, opacity));
   }
   svg.push('</svg>');
   el.innerHTML = svg.join('');
@@ -166,36 +220,40 @@ export function projectToCamera(points, frame, origin) {
  * @param {object} p
  * @param {object} p.world  the world stack: {origin, indices, frames: [{i, offset, regionsByTrack, graphByTrack}]}.
  * @param {number} p.refFrame  the frame on stage, one of world.indices.
- * @param {string} p.track
+ * @param {string[]} p.tracks  the tracks shown.
  * @param {object[]} p.frames  clip.json's frames.
  * @param {boolean} [p.equalize]  draw every frame's dots alike, rather than fading with time from the stage.
  */
-export function renderWorldNodeLink(el, { world, refFrame, track, frames, hoverKey = null, focusKey = null, equalize = false }) {
+export function renderWorldNodeLink(el, { world, refFrame, tracks, frames, hoverKey = null, focusKey = null, equalize = false }) {
   const W = el.clientWidth || 320, H = el.clientHeight || 260;
-  const dimFor = (key, op) => (focusKey && key !== focusKey ? Math.min(op, 0.15) : op);
   const ref = world.frames.find((f) => f.i === refFrame);
-  const refRegions = ref?.regionsByTrack[track];
-  const refGraph = ref?.graphByTrack[track];
-  if (!refRegions || !refGraph?.nodes?.length) { emptyPanel(el, 'No scene graph on the frame on stage.'); return; }
-  const [imgW, imgH] = refRegions.grid;
+  // The followed node stays bright, and on each frame the regions that frame's hierarchy pairs it with.
+  const familyOf = (fr) => (focusKey ? new Set([focusKey, ...containmentPartners(focusKey, fr?.hierarchy)]) : null);
+  const families = new Map(world.frames.map((fr) => [fr.i, familyOf(fr)]));
+  const dimFor = (key, op, family = families.get(refFrame)) => (family && !family.has(key) ? Math.min(op, 0.15) : op);
+  const shown = tracks.filter((t) => ref?.regionsByTrack[t] && ref?.graphByTrack[t]?.nodes?.length);
+  if (!shown.length) { emptyPanel(el, 'No scene graph on the frame on stage.'); return; }
+  const [imgW, imgH] = ref.regionsByTrack[shown[0]].grid;
 
-  // Every stacked node, in world coordinates, as a ray of the stage frame's camera.
+  // Every stacked node of every shown track, in world coordinates, as a ray of the stage frame's camera.
   const nodes = [];
   for (const fr of world.frames) {
-    for (const n of fr.graphByTrack[track]?.nodes || []) {
-      if (!Array.isArray(n.pos)) continue;
-      nodes.push({ n, frameId: fr.i, key: nodeKey(track, n.id), isRef: fr.i === refFrame,
-        p: [n.pos[0] + fr.offset[0], n.pos[1] + fr.offset[1], n.pos[2] + fr.offset[2]] });
+    for (const track of shown) {
+      for (const n of fr.graphByTrack[track]?.nodes || []) {
+        if (!Array.isArray(n.pos)) continue;
+        nodes.push({ n, track, frameId: fr.i, key: nodeKey(track, n.id), isRef: fr.i === refFrame,
+          p: [n.pos[0] + fr.offset[0], n.pos[1] + fr.offset[1], n.pos[2] + fr.offset[2]] });
+      }
     }
   }
   const rays = projectToCamera(nodes.map((r) => r.p), frames[refFrame], world.origin);
   nodes.forEach((r, k) => Object.assign(r, rays[k]));
 
   // Fit rays to pixels on the stage frame's region centroids; a nominal 60-degree view when they are too few.
-  const ells = ellipsesOf(refRegions);
-  const fitPts = nodes.filter((r) => r.isRef && !r.behind && ells.has(r.n.id));
-  const fx = fitLinear(fitPts.map((r) => r.X), fitPts.map((r) => ells.get(r.n.id).cx));
-  const fy = fitLinear(fitPts.map((r) => r.Y), fitPts.map((r) => ells.get(r.n.id).cy));
+  const ellOf = (r) => ellipsesOf(ref.regionsByTrack[r.track])?.get(r.n.id);
+  const fitPts = nodes.filter((r) => r.isRef && !r.behind && ellOf(r));
+  const fx = fitLinear(fitPts.map((r) => r.X), fitPts.map((r) => ellOf(r).cx));
+  const fy = fitLinear(fitPts.map((r) => r.Y), fitPts.map((r) => ellOf(r).cy));
   const f0 = imgW / (2 * Math.tan(Math.PI / 6));
   const mapU = fx ? (X) => fx.a * X + fx.b : (X) => f0 * X + imgW / 2;
   const mapV = fy ? (Y) => fy.a * Y + fy.b : (Y) => -f0 * Y + imgH / 2;
@@ -214,7 +272,7 @@ export function renderWorldNodeLink(el, { world, refFrame, track, frames, hoverK
     y0: -imgH * margin(front.map((p) => Math.max(0, -p.v / imgH))),
     y1: imgH * (1 + margin(front.map((p) => Math.max(0, (p.v - imgH) / imgH)))),
   };
-  const proj = projectNodes(refGraph.nodes, refRegions, W, H, b);
+  const proj = projectTracks(shown, ref.graphByTrack, ref.regionsByTrack, W, H, b);
   if (!proj) { emptyPanel(el, 'No regions on the frame on stage to place the graph by.'); return; }
   const toPanel = (u, v) => [proj.offX + u * proj.scale, proj.offY + v * proj.scale];
   let behind = 0, clampedCount = 0;
@@ -251,23 +309,26 @@ export function renderWorldNodeLink(el, { world, refFrame, track, frames, hoverK
   for (const p of pts) {
     if (p.isRef) continue;
     const dist = Math.abs((order.get(p.frameId) ?? 0) - refOrder) / span;
-    let op = dimFor(p.key, equalize ? 0.8 : 0.85 - 0.6 * dist);
+    let op = dimFor(p.key, equalize ? 0.8 : 0.85 - 0.6 * dist, families.get(p.frameId));
     if (p.clamped) op *= 0.45;
     svg.push(`<circle class="nl-node${p.key === hoverKey ? ' nl-hover' : ''}" data-node-key="${esc(p.key)}" `
       + `cx="${p.panel[0].toFixed(1)}" cy="${p.panel[1].toFixed(1)}" r="${p.clamped ? 2.4 : 3.2}" fill="${fill(p.n)}" `
       + `opacity="${op.toFixed(2)}"><title>${esc(p.n.label ?? p.key)}, frame ${p.frameId}`
       + `${p.clamped ? ', outside the view and drawn at its edge' : ''}</title></circle>`);
   }
-  for (const n of refGraph.nodes) {
-    const pos = proj.positions.get(n.id);
-    if (!pos) continue;
-    const key = nodeKey(track, n.id);
-    const g = proj.glyphs.get(n.id);
+  if (shown.length > 1) {
+    const family = families.get(refFrame);
+    for (const e of ref.hierarchy?.edges || []) {
+      const pa = proj.positions.get(e.src), pb = proj.positions.get(e.dst);
+      if (e.relation !== 'contains' || !pa || !pb) continue;
+      svg.push(containsLine(pa, pb, !!family && !(family.has(e.src) && family.has(e.dst))));
+    }
+  }
+  for (const { n, key } of proj.nodes) {
+    const pos = proj.positions.get(key), g = proj.glyphs.get(key);
     const op = dimFor(key, 1);
     svg.push(glyphSVG(n, key, pos, g, { opacity: op, hover: key === hoverKey }));
-    if (n.label) {
-      svg.push(`<text class="nl-label" x="${(pos[0] + g.rx + 2).toFixed(1)}" y="${(pos[1] + 3).toFixed(1)}" opacity="${op}">${esc(n.label)}</text>`);
-    }
+    if (n.label) svg.push(labelSVG(String(n.label), pos, g.rx, W, op));
   }
   svg.push(`<text class="nl-ref-note" x="${(x0 + 4).toFixed(1)}" y="${(y0 + 12).toFixed(1)}">camera of frame ${refFrame}</text>`);
   const notes = [];

@@ -12,12 +12,13 @@ vi.mock('./app.js', () => {
   const noop = () => {};
   return {
     state,
+    BOTH: 'both',
     // As app.js's openClip: a sequence token, the record, then the first frame; each waits for the test.
     openClip: async (id) => {
       const seq = ++state.clipSeq;
       await new Promise((r) => { pending[`${id}:record`] = r; });
       if (state.clipSeq !== seq) return false;
-      state.clip = { id, n_frames: 2, trackById: new Map([['t', {}]]), frames: [] };
+      state.clip = { id, n_frames: 2, trackById: new Map([['t', {}]]), frames: [], hierarchy: state.hierarchy };
       await new Promise((r) => { pending[`${id}:frame`] = r; });
       return state.clipSeq === seq;
     },
@@ -41,11 +42,11 @@ let els = {};
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
 /** Start the page on address `search`, and let the clip it opens finish loading. */
-async function start(search) {
+async function start(search, { hierarchy = null } = {}) {
   vi.resetModules();
   vi.clearAllMocks();
   els = {};
-  Object.assign(state, { clip: null, clipSeq: 0, frame: 0, mode: 'frame', focusKey: null, track: null });
+  Object.assign(state, { clip: null, clipSeq: 0, frame: 0, mode: 'frame', focusKey: null, track: null, hierarchy });
   globalThis.document = {
     getElementById: (id) => (els[id] ??= el()), querySelectorAll: () => [], addEventListener() {},
     createElement: () => el(), documentElement: { style: { setProperty() {} } },
@@ -108,5 +109,14 @@ describe('the address', () => {
   it('tells the reader of a frame that is not a number', async () => {
     await start('?clip=A&frame=two');
     expect(els['toast-text'].textContent).toBe('This clip has no frame two; the link opens without it.');
+  });
+
+  it('shows both tracks on a clip with a hierarchy, and names track=both on one without', async () => {
+    await start('?clip=A&track=both', { hierarchy: { tracks: ['t', 'u'], frames: [0] } });
+    const app = await import('./app.js');
+    expect(app.setTrack).toHaveBeenLastCalledWith('both');
+    expect(els['toast-text']?.textContent ?? '').toBe('');
+    await start('?clip=A&track=both');
+    expect(els['toast-text'].textContent).toBe('This clip has no track both; the link opens without it.');
   });
 });
