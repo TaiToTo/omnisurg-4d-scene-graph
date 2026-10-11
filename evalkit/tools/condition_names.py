@@ -21,7 +21,7 @@ INPUTS = ("depth", "normal", "normal-edge", "rgb", "rgb-edge")
 READS_DEPTH = ("depth", "normal", "normal-edge", "rgb-edge")
 # The inputs that burn the geometric edges in, and so have an edge ring to mask or keep.
 EDGE_INPUTS = ("normal-edge", "rgb-edge")
-# The depth models: Depth Anything 3, and Pi3X.
+# The depth models: Depth Anything 3, and Pi3X. `seed_info.json` records them as the `depth_source` `da3` and `pi3`.
 DEPTH_MODELS = ("da3", "pi3x")
 # The seeds: `sam`, the tracking stage's segmenter on the seed frame; `gt`, the GT mask of the seed frame;
 # `unmerged`, a per-frame condition's regions of the seed frame; `kmerge<K>`, those regions merged to K by
