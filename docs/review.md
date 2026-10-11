@@ -18,6 +18,10 @@ which test refuses a breach.
 
 A rule without a test in this table is checked by the reviewer.
 
+In a new clone, set the repository-local `user.email` to the GitHub no-reply
+address before the first commit. A development machine's global config may
+hold a personal one.
+
 ## A module's header
 
 The module docstring says what the module does, in at most twelve lines,

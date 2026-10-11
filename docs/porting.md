@@ -4,747 +4,113 @@
 private research workbench (`$OMNISURG_SOURCE`) into this repository. It is
 deleted once the port is done; git history keeps it.
 
-It is committed on purpose. The first extraction kept its step-by-step plan
-in the git-ignored `docs/local/`, on one machine, and that plan is now lost.
+## Progress
 
-## History
+A check compares the port with the workbench on the same input; "—" means
+no check is recorded.
 
-The workbench is where every measurement so far was made. A first extraction
-went to an earlier repository, `TaiToTo/omnisurg-4dsg` (private). Part of the
-evaluation toolkit was reviewed there, on pull requests #2 to #6. None of them
-merged, because two things changed:
+| area | ported | checked |
+|---|---|---|
+| evaluator, `evalkit/` | class tables, metrics, entry point, pilot mode | in pilot mode, every key shared with the pilot evaluator equal on 23 conditions × 315 clips (step 2) |
+| score tools, `evalkit/tools/` | every tool in the layout of `AGENTS.md` but `track_metrics` | `paired_table`, `arms_paired`, `claims_table`, `leave_one_video_out`, `print_status_tables`, `kmerge`, `pose_controls`: the workbench's values on the same inputs |
+| camera trajectory scorer, `trajectory_eval/` | `pose_metrics`, the scoring of a clip, `scores` | `pose_metrics`: the workbench's values on 1200 random, planar and static trajectories |
+| extraction and crop | ATLAS-120k, CholecSeg8k, LapEx, StereoMIS, the D4D population | the CholecSeg8k crop, 13 of the 27 CholecSeg8k clips and the D4D population: the workbench's bytes |
+| depth | DA3, Pi3X, point clouds, the population drivers | — |
+| segmentation and tracking | `track`, `per_frame`, `condition_population` | `track` and `per_frame`: the workbench's bytes on the GPU machine, on three clips. `condition_population`: the workbench's commands, for 43 conditions. The 40 segmenter inputs that `tests/test_render_outputs_are_pinned.py` pins: the workbench's, rendered with each case's ring setting |
+| viewer | `viewer/`, `pipeline/viewer_bundle` | — (new: the workbench's demo read other files) |
 
-- the paper is now measured with a new evaluator (below);
-- the earlier repository's history keeps a personal email address in a pull
-  request ref that cannot be removed.
+The tracking and per-frame stages were compared at the settings of
+`op_edge_center` (under both propagation rules), `rgb_center18`,
+`op_edge_perframe`, `op_rgb_perframe_pps24` and `op_edge_pf_pps8_pi3x`,
+with the edge ring masked. These settings of the paper's conditions were
+not compared:
 
-This repository replaced it. The earlier repository stays, private, until the
-port is done: the reviewed code on its branches is the starting point for most
-of the toolkit here. `docs/evaluation.md` grew out of `docs/eval_v3.md` on its
-`archive/metric-guide` branch.
+- `--seed-labels`, which the `t5_*` conditions use;
+- the segmenter inputs `normal`, `depth` and `rgb_edge`;
+- `--keep-edge-ring`, which `ch_edge_center` and `ch_edge_perframe` most
+  likely used.
 
-The workbench's own planning documents are in Japanese, under
-`$OMNISURG_SOURCE/docs/`:
+## Not ported yet
 
-- `repo_migration.md` gives the reasons and the rules.
-- `repo_migration_plan.md` has the audit and the list of what moves.
-- `repo_migration_determinism.md` shows that the three pipeline stages are
-  byte-deterministic.
+- **`track_metrics`**, the measures of identity over time. It waits on "The
+  GT track of `track_metrics`". It is ported without its minimum area,
+  `MIN_AREA`, since the evaluator has no minimum object size.
+- **The export stage**: the regions, scene graphs, hierarchies and graphs
+  through time that `pipeline.viewer_bundle` reads, with the `surgical_core`
+  modules they need. Its byte check needs a clip whose tracking labels the
+  workbench holds.
+- **The paper's tables**: the claims grid and the StereoMIS table.
+- **The StereoMIS scoring**: the command that scores each method and each
+  control on every clip.
+- **D4D**: the census, depth, seeds, the front/behind relation and the
+  camera trajectory. The reader waits on "How this repository depends on
+  D4D's loader".
+- **LapEx's comparisons**. They wait on "How LapEx is scored".
+- **The conditions seeded from GT masks** (`t12_gtseed`, `t12_paste`). They
+  wait on "Conditions seeded from GT".
+- **Two comparisons of the granularity result**: the geometry inputs
+  against `rgb` at a matched number of regions, and merges that never join
+  two regions across a geometric boundary.
+- **A metric guide on the evaluator.** `docs/pilot_metric_guide.html` shows
+  the pilot evaluator. A page built from `tests/scenes.py` and
+  `tests/cartoon.py` would show the evaluator's values, taken from the
+  tests' pinned values.
+- **Short module headers** for the modules `STILL_LONG` lists in
+  `tests/test_module_headers_are_short.py`. The hashed ones go before the
+  freeze.
 
-Where they and this document differ, this document holds.
+## Decisions still to carry out
 
-## Decisions that change the original plan
+1. **Pilot mode is removed before the freeze.** Pilot mode stays in the
+   evaluator until just before the freeze, so that the check runs through
+   the entry point that produces the paper's numbers. Pilot mode is
+   `python -m evalkit.evaluate --pilot`, which scores each clip through
+   `evalkit/pilot_clip.py`; it is not a script of its own. Just before the
+   freeze, everything in the hashed files that only pilot mode uses is
+   removed:
+   - `evalkit/pilot.py` and `evalkit/pilot_clip.py`, and their entries in
+     `evalkit/code_sha.py`;
+   - the entry point's `--pilot`, and the `pilot` argument of
+     `score_condition` with the imports it needs;
+   - the `pilot` arguments of `evalkit/scored.py` and `evalkit/inst_bf.py`;
+   - every sentence of a hashed module that says what pilot mode does.
 
-1. **The paper is measured here.** Every IPCAI number comes from the evaluator
-   specified in `docs/evaluation.md`, run from this repository. The original
-   fallback to the workbench's numbers, and the date it was tied to, are
-   withdrawn. The workbench's schedule does not bind this plan.
-2. **Nothing is frozen during the port.** The evaluator is built, checked and
-   used without a freeze. Every score still carries `eval_code_sha`, and
-   `compare_eval` still refuses to mix shas, so a change to the evaluator
-   is visible in every number it touches; it is not forbidden. The freeze
-   in `AGENTS.md` comes once, later, before the numbers the paper reports
-   are measured.
-3. **The pilot evaluator is not copied here.** It stays frozen in the
-   workbench, `eval_code_sha = 1f8a813a…`. The check against it runs there,
-   taking paths as arguments. `docs/evaluation.md` describes the check, under
-   "Checked against the pilot evaluator".
-   - So the constraints the frozen files imposed no longer bind. Those were: the
-     import paths `surgical_core.cholec` and `surgical_core.atlas`, `evalkit/`
-     as a script directory at the repository root, `sam3_wrapper/` on
-     `PYTHONPATH` by name, and a copy of the older `eval_track.py` as a test
-     fixture.
-4. **`evalkit/` is a package.** Tools import the evaluator as
-   `evalkit.<module>` and each other as `evalkit.tools.<module>`, with no
-   `sys.path` edits. `check_env97` existed because frozen scripts could not
-   check their own import path; a package does not need it. `pyproject.toml`
-   includes `evalkit*` next to `surgical_core*`.
-5. **No minimum object size, anywhere.** The evaluator has none
-   (`docs/evaluation.md`, "Thresholds"). `track_metrics.MIN_AREA` (400 px)
-   is removed with it, and nothing filters GT objects or predicted regions by
-   pixel count. The one place a cut survives is pilot mode, which needs the
-   pilot evaluator's 300 px cut to reproduce its numbers, and nothing else
-   reads it.
-6. **AE-CAI stays in the workbench.** Its numbers are reproduced by the tag
-   `paper/aecai2026-endolina-final` and the code at that tag. Nothing here
-   reproduces them, and no tag of that name is created here.
-7. **No version labels.** The earlier evaluator is *the pilot evaluator*, and
-   the new one is *the evaluator*.
-8. **Names.** The project is `omnisurg-4d-scene-graph`, and the ATLAS-120k
-   module is `atlas120k`.
-9. **English only.** Workbench code comes with Japanese comments. Each file is
-   rewritten in English when it is ported, not afterwards. This holds for the
-   reviewed branches too: their `surgical_core` modules were translated in
-   part, the tools not at all.
-10. **No personal email address.** `tests/test_no_personal_email.py` checks the
-    history and the files. In every new clone, set the repository-local
-    `user.email` to the GitHub no-reply address before the first commit. The
-    global config on a development machine holds a personal one.
-11. **Pilot mode is removed before the freeze.** Pilot mode stays in the
-    evaluator until just before the freeze, so that the check runs through
-    the entry point that produces the paper's numbers. Pilot mode is
-    `python -m evalkit.evaluate --pilot`, which scores each clip through
-    `evalkit/pilot_clip.py`; it is not a script of its own. Just before the
-    freeze, everything in the hashed files that only pilot mode uses is
-    removed:
-    - `evalkit/pilot.py` and `evalkit/pilot_clip.py`, and their entries in
-      `evalkit/code_sha.py`;
-    - the entry point's `--pilot`, and the `pilot` argument of
-      `score_condition` with the imports it needs;
-    - the `pilot` arguments of `evalkit/scored.py` and `evalkit/inst_bf.py`;
-    - every sentence of a hashed module that says what pilot mode does.
-
-    The normal-mode tests must still pass, and then the evaluator is frozen.
-    Moving pilot mode out of `evalkit/` was the alternative. It could then be
-    deleted at any time, but the check would reach a driver of its own and
-    never the entry point.
-12. **Two propagation rules, and no seed chosen from GT.** Every tracked
-    condition the paper reports is measured under the two propagation rules
-    `docs/evaluation.md` defines: `forward_from_first`, the causal setting,
-    and `both_ways_from_centre`, the offline setting every pilot condition
-    used. The ported tracking stage carries no choice of seed frame from GT.
-    So `op_normal` and `op_edge` on ATLAS-120k and `ch_normal` on
-    CholecSeg8k, the three scored conditions the workbench's audit found
-    seeding by `--seed_auto` at its default, which reads the GT masks, are
-    dropped: their centred versions exist. The workbench's ATLAS-120k
-    pipeline script runs that default too, and its port does not. The
-    tracking stage records its rule with its output, the evaluator writes it
-    into every score, and the tools refuse a comparison or a table that
-    mixes two rules, as they refuse two shas. A condition with no tracker
-    has no rule and may sit beside either, since propagation against
-    per-frame segmentation is itself a comparison the paper makes.
-13. **The camera trajectory measures are hashed on their own.** `ate_rel`
-    decides the StereoMIS result, so the code that computes it is under the
-    freeze rule like the evaluator, and `eval_code_sha` does not cover it:
-    the two results are measured and frozen at their own times, and a
-    change to one must not make the other's scores incomparable. So
-    `pose_metrics` and the scoring of a clip are the package
-    `trajectory_eval`, hashed into `trajectory_code_sha` as `code_sha`
-    hashes the evaluator (each file's path and content, each preceded by
-    its length). Every StereoMIS score records that hash, and
-    `trajectory_eval.tools.scores` refuses rows whose hashes differ.
-14. **No measure over time carries a star.** `time_IoU` stays a reference
-    value, and the evaluator computes no measure of identity from the
-    workbench's `track_metrics` (hold, IDF1, ID switches, fragmentation,
-    re-entry). `track_metrics` is ported as a tool under `evalkit/tools/`,
-    outside `eval_code_sha`, and what it reports is a reference value: it
-    is measured and reported in a table that carries no star. So
-    `docs/evaluation.md` defines no GT track. The tool defines its own when
-    it is ported, without `MIN_AREA` ("No minimum object size, anywhere");
-    that track is an open question ("The GT track of `track_metrics`"). The
-    workbench pre-registered two definitions under the name `hold_mean`: one
-    per condition, in `track_metrics`, and one over the GT tracks that every
-    compared condition picked a region for on the seed frame, in
-    `summarize_track16`. The tool carries at most one of them under that
-    name, and the other under a name of its own, because a different
-    denominator is a different metric: in the workbench, moving the
-    denominator once flipped a result's sign. Which one keeps the name is
-    settled with the tool's GT track.
-15. **`kmerge` is a tool.** `kmerge` is ported under `evalkit/tools/`,
-    outside `eval_code_sha`. It changes predictions, not metrics: it merges
-    a condition's regions down to K and writes them as a condition of their
-    own, which the evaluator scores and `compare_eval` compares. So it
-    computes no metric, and a comparison of a merged condition can carry a
-    star like any other. The paper's granularity result merges to a fixed K
-    of 10. The `matched` setting, which took K from the pilot's GT
-    components of at least 300 px, is not carried for now, nor are the
-    `kgt` seeds, which took the clip's median of that count. Under the
-    evaluator a GT object is a whole class, and that K would need a
-    definition of its own.
-16. **CholecSeg8k clips are cropped as AE-CAI's were.** Every CholecSeg8k
-    clip is cropped to its rectangle in `cholecseg8k_meta/crop_rects.json`.
-    The table holds the rectangles of the workbench's clips, which the pilot
-    scored and AE-CAI reports. The original plan took the rectangle of the
-    circle fitted to the cholec80 video instead. `run_all17_pipeline.sh`
-    ran `crop_cholec_frames.py --method circle` on the GPU machine's host
-    without `--source-root`. The script found no video there, and took each
-    rectangle from the clip's own frames, as `paper_clean_rerun_spec.md`
-    asks of every clip. The circle's rectangles differ from these on all 27
-    clips, by up to 59 px. On VID26 and VID43 they hold black corners of 2
-    to 3.6 % of the crop. Run on the workbench's 27 clips with the table,
-    the crop stage writes the workbench's images, masks and
-    `crop_info.json` byte for byte, and every manifest key the stage writes
-    holds the workbench's value. On the clips the extraction stage writes,
-    the crops of 13 clips equal the workbench's byte for byte. The crops of
-    the other 14 differ in the gap frames alone, which the extraction stage
-    converts ("CholecSeg8k clips whose frames run out of order"). A rerun
-    of the tag `paper/aecai2026-endolina-final` reproduces these crops only
-    where the script finds no video. Where
-    `/work/SourceDatasets/cholec80/cholec80/videos` holds the videos, the
-    script fits the circle instead. AE-CAI keeps its clips. They stay in
-    the workbench's `outputs/cholec_gt`, which nothing here writes to. Each
-    of them holds depth, so the crop stage refuses to replace one even with
-    `--overwrite`.
-17. **What the paper measures.** Decided on 2026-10-10:
-    - **The `forward_from_first` conditions.** The paper reports them. They
-      are measured on the GPU machine before submission.
-    - **The conditions seeded from GT masks.** They are measured again with
-      this repository's code. Open: whether the paper reports them.
-    - **`track_metrics`.** It is run on the paper's conditions. Open: how
-      the paper reports its measures.
-18. **The public viewer reads a bundle.** The workbench's viewer read the
-    export stage's files from its development server, which listed the
-    clips through `/api/clips`, and drew a 10 MB colour raster per frame and
-    track. A page on the public internet has no such server. The stage
-    `pipeline.viewer_bundle` writes what the viewer reads instead: a catalog
-    of the clips, and per clip the frames, the clouds of one geometry
-    source, and per track the labels of the cloud's points, run-length
-    coded, with the scene graphs. A clip's overlays go from about 600 MB to
-    under 1 MB. The workbench's viewer resampled the overlays onto the Pi3X
-    cloud and placed the nodes on it in the browser, on every frame load;
-    the stage does both once, so the labels the viewer reads always index
-    the cloud it draws. Track names and instrument classes come from the
-    bundle; the instrument classes are the class tables' `tool` type. The
-    viewer names no track and no dataset.
-
-## What moves
-
-"Reviewed" names the earlier repository's branch that holds the version
-reviewed there. Every one of them needs its comments rewritten in English, in
-addition to the work listed.
-
-### The evaluator
-
-| part | from the workbench | reviewed | work |
-|---|---|---|---|
-| class tables, one per dataset | `surgical_core/cholec/__init__.py`, `surgical_core/atlas/labels.py` | — | New, as `docs/evaluation.md` defines them. The 30-class protocol comes from ATLAS-bench's `datasets/class_mapping.py`. |
-| metrics, entry point, `eval_code_sha` | `depth_sam_tracking_experiment/eval_track.py`, `eval_gt_clips.py` | — | New, from `docs/evaluation.md`. |
-| hand-derived test scenes | — | `archive/metric-guide` (`evalkit/tests/scenes.py`, `cartoon.py`) | Reuse the scenes. Expected values for the normal mode are derived again under the new rules. |
-| pilot-mode tests | — | `archive/metric-guide` (`evalkit/tests/test_v2_metric_guide.py`) | Its expected values are the pilot evaluator's, worked out by hand from the scenes. Pilot mode must reproduce them, so they are kept as pilot-mode tests rather than derived again. |
-| metric guide | — | `archive/metric-guide` (`docs/metrics/make_guide.py`, `index.html`) | The page as the pilot evaluator built it is `docs/pilot_metric_guide.html`, with notes where the evaluator differs. Whether a guide is built on the evaluator is the `evalkit/metric-guide` workstream in `docs/workstreams.md`; the script calls the pilot evaluator's functions, and would call the evaluator's instead. |
-
-The workbench's other copies of the CholecSeg8k colour table still carry
-the pilot's Hepatic Vein colour (`sam3_wrapper/scripts/cholec_utils.py`,
-`track_cholec_gt_comparison.py`), and `scripts/extract_cholec_frames.py` has
-a table of its own that is wrong and unused. None of the three is carried for
-now ("Not carried for now"), so the tables stay in the workbench. A later
-port reads `evalkit.classes` instead, or deletes the table.
-
-The same holds for ATLAS-120k: `surgical_core/atlas/labels.py` copies the
-label table, and `scripts/extract_atlas_frames.py` turns the RGB masks into
-ids with a colour table of its own (`rgb_mask_to_index`). The evaluator reads
-both kinds of mask through `ClassTable.mask_ids`, so it needs no extracted
-copy to read the RGB clips, and the ported copies read `evalkit.classes`.
-
-### The toolkit around it
-
-| file | from the workbench | reviewed | work |
-|---|---|---|---|
-| `paired_stats.py` | `ipcai2027_experiment/scripts/paired_stats.py` | `extract/03-metrics` (#3) | The rule does not change; `VERDICT_RULE` and `verdict` are named `MARK_RULE` and `mark_of`. The comparability check is `scores.check_comparable`, which applies the rule of `docs/evaluation.md`, in place of the pilot's, and the statistics are taken on the clips it compared. `video_of` is defined here rather than delegated. Each row records the metric's `sign` and `mark_of` reads the interval in it, so a metric where smaller is better, or a reference value that is never marked, is not oriented by the caller. An end of `ci95_video` that would round to zero at four places is written at two significant digits (`round_keeping_sign`), so a table gives the same ★ or ✗ from the written interval; the workbench wrote 0.0, which gives neither. `compare_pair` takes `keys`, and refuses one the evaluator does not write in the JSON's views. A bootstrap over fewer than two units refuses rather than return a point. |
-| `lovo_verdict.py` | `ipcai2027_experiment/scripts/lovo_verdict.py` | — | Ported as `evalkit/tools/leave_one_video_out.py`. It leaves each video out in turn and names the videos whose removal changes the mark that `paired_stats.mark_of` gives. It departs from the workbench in four places: the direction of each key comes from the table `paired_stats` reads, so the `_labeled` and `_tissue` keys are taken; `--keys` has no default; a key on three videos or fewer is refused, where the workbench printed that no video changed the mark; and a row prints how far the mean moved beside the ratio of widths, and names no cause. On the pilot's scores its rows equal the workbench's, with `verdict` named `mark`. Not carried: `--fairness-json`, `--doms` and `--keys all`. |
-| `print_status_tables.py` | `ipcai2027_experiment/atlas97/scripts/print_status_tables.py` | — | Ported as `evalkit/tools/print_status_tables.py`. It prints two of the workbench's four tables from the analysis JSONs, and computes nothing new: each geometry input against rgb merged to one K, and identity over time. It departs from the workbench in five places: each JSON's path is an argument; the identity table carries no mark ("No measure over time carries a star"); the identity table counts wins and losses in the key's direction, as `paired_table.py` does, where the workbench counted positive and negative differences; it prints `paired_stats.MARK_RULE` where the workbench printed the rule stored in the JSON; and it refuses a JSON of another mode of the analysis, a table's rows missing or extra, a matched row missing or extra, an interval that is `null`, and conditions measured against different GT tracks. It leaves out the other two tables, the paired comparisons of `kmerge.py --pairs` and the control without SAM, whose numbers the draft does not report. On the stored JSONs, every row holds the workbench's numbers, marks and names, the identity table's marks and the order of its wins and losses aside. Both tables read the JSONs of scripts not carried for now ("Conditions seeded from GT masks", "Two comparisons of the granularity result"). |
-| `compare_eval.py` | `depth_sam_tracking_experiment/compare_eval.py` | `extract/03-metrics` (#3) | It refuses to mix shas through `scores.check_comparable`, which also compares dataset, class set, view and mode. The table prints each metric's direction and no mark: the workbench's circle and cross followed the sign of the mean difference, a second rule for a mark besides `paired_stats.mark_of`. The per-clip list, the chart and `wins` follow the question's primary metric, named with `--key`; the directions of the pilot keys come from `scores.PILOT_SIGNS`, the one table `paired_stats` reads too. |
-| `paired_table.py` | `ipcai2027_experiment/atlas97/scripts/summary97.py` | — | Ported as `evalkit/tools/paired_table.py`. It prints the rows of `summary97.py`: each key's mean difference, with the mark that `paired_stats.mark_of` gives. It departs from the workbench in three places: it refuses a table whose conditions are not all comparable, leaves a cell on one video without a value, and refuses a reference value as a key. It leaves out the four `t12_*` rows ("Conditions seeded from GT masks") and the `t5_kgt` row ("`kmerge` is a tool"). On the pilot's 38 score JSONs, every number and mark equals the workbench's. Its rows on the evaluator's scores are open ("The paired table on the evaluator's scores"). |
-| `arms_paired.py` | `ipcai2027_experiment/scripts/arms_paired.py` | — | Ported as `evalkit/tools/arms_paired.py`. It prints one key's paired difference for several pairs of conditions, one line per pair. It departs from the workbench in five places: it reads one score JSON per condition, where the workbench read the per-clip F1 that `pps_f1.py` writes and no score JSON holds; a pair is `base:cond` and its line is `cond − base`, the reverse of the workbench's `a:b`; a condition with no score JSON is refused, where the workbench skipped the pair; it refuses a table whose conditions are not all comparable, with the check `paired_table` uses; and it marks a line in its key's direction, and never marks a key of direction 0. On the same per-clip values, every line equals the workbench's from the column after the pair's name on. It carries none of the workbench's 21 default pairs ("The pairs `arms_paired` reports"). |
-| `track_metrics.py` | `depth_sam_tracking_experiment/track_metrics.py` | `extract/03-metrics` (#3) | It imports `BACKGROUND`, `_gt_idmap` and `_load_depth` from the pilot's `eval_track`; they come from the evaluator instead. `MIN_AREA` is removed ("No minimum object size, anywhere"). It is a tool, outside the evaluator, and its values are reference values ("No measure over time carries a star"). Its GT track is open ("The GT track of `track_metrics`"). |
-| `surgical_core/clip_time.py` | `surgical_core/clip_time.py` | `extract/03-metrics` (#3) | English only. |
-| `surgical_core/viewer/labels.py`, `palette.py` | `surgical_core/viewer/` | `extract/03-metrics` (#3) | English only. `label_table_of` and `cholec_gt_table` move to a new `gt_tables.py`, the one viewer module that imports `evalkit`; `labels.py` builds its table from plain data, so a video with no class table gets one too. The rest of `surgical_core/viewer` is below, under "Not yet extracted anywhere". |
-| `kmerge.py` | `ipcai2027_experiment/scripts/kmerge.py` | `extract/04-kmerge` (#5) | Ported as `evalkit/tools/kmerge.py`, outside `eval_code_sha` ("`kmerge` is a tool"). It merges a condition's predictions down to K and writes them as a condition of their own, which the evaluator scores and `compare_eval` compares, so it computes no metric; `kmerge.json` records the source and the sha256 of its predictions, so a source re-tracked after the merge is told apart. Its merge equals the workbench's `kmerge_sequence` on 590 maps. It differs from the workbench in what it reads: it merges every frame that has a prediction, where the workbench merged every fifth; and it refuses a frame with a pixel without valid depth, or with a region id below -1, as the evaluator does, where the workbench dropped the labels of such pixels and merged on. Not carried for now: its scoring with the pilot's instance metrics, the curve over K, the `matched` K, `--pairs`, and the merges by threshold and by geometry (`tmerge_sequence`, `kgeo_sequence`). |
-| `claims_table.py` | `ipcai2027_experiment/task15_granularity/scripts/claims_table.py` | — | Ported as `evalkit/tools/claims_table.py`. It prints each claim of the granularity result: a pair of conditions in each dataset, with the pair's difference on one key, its interval, and ★ or ✗ from `paired_stats.mark_of`. A row is marked ★★ when both datasets are marked ★. It departs from the workbench in four places: it reads score JSONs through `paired_stats.compare_pair`, where the workbench read the analysis JSONs of `metric_fairness.py`, `fair_merge_recheck.py` and `settle_inputs.py`, which scored predictions themselves; it checks each claim's stage against the propagation rules the JSONs record; it refuses a column whose JSONs record another dataset or are not all comparable; and a cell with no score JSON is printed as not measured, and the command then exits non-zero. The first claim's base is `rgb_center18` (`ch_rgb_center`), where the workbench read `t5_floor`, which scored the same on every key. Checked with `t5_floor` on the pilot's score JSONs of the 13-video set and of CholecSeg8k, every cell's difference equals the workbench's analysis read at a stride of one frame, and every ★ and ✗ equals the workbench's table's. Its rows on the evaluator's scores are open ("The claims table on the evaluator's scores"). Not carried: the claims at K = 8, the comparisons at a matched number of regions and the merges stopped at a geometric boundary ("Not carried for now"), the per-frame stage's ceiling, the column of frame strides, and the note printed when the clip-level sign test disagrees with a ★. |
-| `surgical_core/geometry/` | `depth_sam_tracking_experiment/geometry.py` | `extract/04-kmerge` (#5) | English only. Shared by the pipeline and the viewer; the toolkit imports none of it. The workbench read the ring setting from the module flag `EDGE_MASK_RING`. Here it is `mask_ring`, an argument of `sam_input_image` and of the edge functions under it, with no default. A stage passes it at every call and records the value it passed under `edge_ring_masked`, or `None` for an input that burns no edges (`uses_geom_edge`). The 40 segmenter inputs that `tests/test_render_outputs_are_pinned.py` pins equal the workbench's, rendered with `EDGE_MASK_RING` set to each case's ring setting. |
-| `pose_metrics.py` | `ipcai2027_experiment/scripts/pose_metrics.py` | — | Ported as `trajectory_eval/pose_metrics.py`, hashed on its own ("The camera trajectory measures are hashed on their own"). It measures an estimated camera trajectory against StereoMIS's: `ate` after one similarity fit, `rpe` and `scale_consistency`; `ate_rel` decides the result. Its values equal the workbench's on 1200 random, planar and static trajectories. It refuses what the workbench let through: trajectories of unequal length, times out of order and values that are not finite. The reader of `stereomis_io.py` (calibration, rectified frames, the measured offsets between video, ground truth and depth, and the clips) is `surgical_core/stereomis.py`, and its clip writer is `pipeline/extract_stereomis.py`. The rest of the StereoMIS result is listed under "Not yet extracted anywhere": the command of `pose_controls.py`, and `summarize_20.py`, the table. `d4d_pose.py`, the D4D check of the same result, is listed there with D4D. |
-| `pose_controls.py` | `ipcai2027_experiment/scripts/pose_controls.py` | — | The floors and the ceiling (a static camera, constant motion and stereo visual odometry, which the result is compared with) are `evalkit/tools/pose_controls.py`. Scored by the workbench's `score`, they equal its `controls.json` on all 129 rows of the 43 clips, and the ceiling's trajectories equal the workbench's on P2_1's four clips. `score` and `method_traj` are `trajectory_eval/score.py`, hashed with `pose_metrics`; `method_traj` is `method_trajectory`, which refuses a clip without the bundle, where the workbench returned None. Every row records `trajectory_code_sha`, and `trajectory_eval/tools/scores.py` reads rows of one hash only. |
-| `condition_inventory.py` | `ipcai2027_experiment/scripts/condition_inventory.py` | `extract/05-inventory` (#4) | It reads `eval_code_sha`, `eval_code_tag` and `eval_version` from score JSONs. "One ruler" is now what `docs/evaluation.md` calls comparable: `eval_code_sha`, dataset, class set, view and mode all equal, and one propagation rule. The provenance fields now include `bidir`, whether the tracker ran both ways, and `seed_labels`, which alone tells two merges of one condition to different K apart. `condition_key` builds the key that tells two conditions apart; `check_provenance` reads it too. |
-| `check_provenance.py` | `ipcai2027_experiment/task11_atlas13/scripts/check_provenance.py` | — | Ported as `evalkit/tools/check_provenance.py`. It makes no table: it checks each clip's `seed_info.json` against the settings the condition states. It tells conditions apart by `condition_key`, where the script compared only the seed source, the segmenter input and the tracker input. It requires `--sam-input` under the seed sources `sam` and `per_frame`, and `--seed-labels` under `external`. It reads one tracks root, where the script also searched the workbench's other roots. Not carried: `--allow-missing`; a clip without a record is a problem. |
-| `check_env.py` | `ipcai2027_experiment/atlas97/scripts/check_env97.py` | `extract/05-inventory` (#4) | Not carried (decision 4). |
-| `reeval_diff.py` | — (written in the earlier repository) | `extract/06-rescore` (#6) | Ported as `evalkit/tools/pilot_check.py`, the check against the pilot evaluator, run in the workbench. The earlier repository's version insists the sha equals the pilot's and diffs `eval_code_sha` with everything else; `pilot_check` works the other way round: the shas differ by construction, only the keys the two evaluators share are compared, and those must be equal. |
-
-Tests come with the file they test:
-
-- `test_paired_stats_bootstrap.py` comes with `paired_stats`.
-- `test_eval_identity.py` comes with `track_metrics`. Its part that pins the
-  sha over the GT loaders changes with the evaluator.
-- `test_geom_edge_ring.py` comes with `geometry`.
-- `test_kmerge_per_clip.py` and `test_kmerge_root_resolution.py` tested what
-  the port of `kmerge` leaves out: its averaging by clip, and the root it
-  read clips from. `tests/test_kmerge.py` tests the merge.
-- `test_condition_inventory_roots.py` comes with `condition_inventory`.
-- `pose_metrics` has no test in the workbench; its `selftest` is
-  `tests/test_pose_metrics.py`, with the values worked out by hand.
-- `pose_controls.py --selftest`, which scores the truth through a bundle,
-  is a test in `tests/test_trajectory_score.py`.
-- `test_ipcai_guards.py`'s two tests of `oriented_verdict` come with
-  `leave_one_video_out`, as the tests of the direction in
-  `tests/test_leave_one_video_out.py`.
-
-All of these are in `$OMNISURG_SOURCE/depth_sam_tracking_experiment/tests/`,
-apart from the two tests of `kmerge`, `test_condition_inventory_roots.py` and
-`test_ipcai_guards.py`, which are in `$OMNISURG_SOURCE/tests/`.
-
-Not carried: `test_frozen_sha.py`, `test_eval_track_v2_regression.py`, its
-fixture `eval_track_v1.py`, and `test_eval_track_metrics.py`. All of them test
-the pilot evaluator. The properties the last one pins are pinned again by the
-evaluator's hand-derived tests.
-
-The workbench tests that touch the ported modules are counted in
-`repo_migration_plan.md` as 17 in `tests/` and 6 in
-`depth_sam_tracking_experiment/tests/`. List them when their module is ported.
-
-### Pipeline stages already ported
-
-Each stage is described in `docs/pipeline.md`.
-
-- `scripts/run_cholec_depth.py` is `pipeline/depth.py`. The ported stage
-  neither detects nor fills a border: the CholecSeg8k runs passed
-  `--no-border-inpaint`, and the ATLAS-120k runs left `--border-inpaint` at
-  `auto`.
-- `scripts/regen_cholec_glb.py` is `pipeline/point_clouds.py`.
-- `pi3_wrapper/scripts/run_pi3_depth.py` is `pipeline/pi3x.py`.
-- `scripts/measure_determinism.py` is `pipeline/byte_check.py`, which checks
-  every stage, not the depth stage alone.
-- `scripts/extract_atlas_frames.py`, as
-  `experiment/crop_necessity/run_atlas97_extract.sh` runs it
-  (`--skip-tiles --gt-step-sec 0.52 --gt-min-frames 8 --clip-rects`), is
-  `pipeline/extract_atlas120k.py`. The stage runs every video itself and
-  checks the clips it writes against `atlas120k_meta/clips.txt`, in place
-  of `run_atlas97_extract.sh`, `plan_atlas97_population.py` and
-  `verify_atlas97_population.py` from `experiment/crop_necessity/`.
-- `ipcai2027_experiment/task22_atlas100/scripts/prepare_video_root.py`,
-  which converts the one AV1 video of the population (`rarp/NitKIjCcS7U`)
-  to H.264, is `pipeline/prepare_atlas120k_videos.py`.
-- `experiment/crop_necessity/run_atlas97_depth.sh` is
-  `pipeline/depth_population.py`. The driver skips a clip by `depth_info`,
-  which the stage writes last, where the script skipped one by its bundle,
-  which the stage writes first; it passes `--device cuda`, where the
-  script left the device at `auto`; and it refuses, before anything runs,
-  a clip with depth at another model or resolution than the stage runs
-  at, and, after the run, a bundle of another version of the stage and a
-  population made at more than one setting, where the script counted the
-  depth maps alone.
-- `scripts/crop_cholec_frames.py`, as `run_all17_pipeline.sh` ran it, is
-  `pipeline/crop_cholecseg8k.py`. The stage reads each clip's rectangle
-  from `cholecseg8k_meta/crop_rects.json` and finds none itself
-  ("CholecSeg8k clips are cropped as AE-CAI's were"). It refuses what the
-  script cropped anyway: a clip without a rectangle in the table, a clip
-  without a manifest, a manifest that does not list one frame per image,
-  and an image whose size is not the rectangle's frame. It also refuses to
-  replace a cropped clip that holds a later stage's output.
-- `ipcai2027_experiment/scripts/lapex_extract.py` is
-  `pipeline/extract_lapex.py`, which extracts LapEx, the third population
-  of the granularity result. It refuses what the script let through: a
-  mask whose name is not a time, a file in `seg/` that the script skipped
-  because its name does not end in `_seg.jpg`, a time that is not a whole
-  frame, and a class table that lists a level twice. It refuses a clip an earlier run
-  left, which the script wrote over, unless `--overwrite` is given, and,
-  even with it, a clip a later stage wrote into. It checks every frame of a
-  case before it writes the case's clips, and goes on to the next case
-  after a refusal, where the script stopped at the first fault after
-  writing the clips before it. It writes `extraction_summary.json` only
-  after a run over every case, where the script replaced it with the
-  count of the cases it was given.
-- `ipcai2027_experiment/scripts/d4d_population.py` is
-  `pipeline/select_d4d_population.py`. The step also reads
-  `d4d_meta/census_clips.txt`, which the script had no list of, and refuses
-  what the script selected from anyway:
-  - a census cut short, as `d4d_census.py --limit` cuts it;
-  - a side that carries an `error`, which the script counted as `no_gt`;
-  - a field missing or of the wrong kind, such as a side with a point cloud
-    and no `active`, which the script took for still tissue.
-
-  It reads the specimen from the key, where the script read the census's
-  `specimen`. Run on the workbench's census, it writes the workbench's
-  `population.json` and `pop_all.txt` byte for byte. It does not write
-  `pop_moved.txt` or `pop_static.txt`, which nothing reads.
-- `depth_sam_tracking_experiment/track_sam3.py`, as the `single` mode of
-  `run_track_conditions.py` runs it, is `pipeline/track.py`. The worker of
-  `ipcai2027_experiment/scripts/run_per_frame_seg.py` is
-  `pipeline/per_frame.py`. For the centred conditions, the workbench's
-  drivers passed `--seed_inst_thresh 1.0`, so that `--seed_auto` chose the
-  centre frame. Under `both_ways_from_centre`, the tracking stage seeds on
-  the centre frame without reading GT. On the GPU machine, each stage
-  wrote the workbench's files byte for byte on
-  `adrenalectomy__16GPCUPkXYQ__gt_0004`,
-  `adrenalectomy__16GPCUPkXYQ__tile_0007` and `VID01_s15_80_crop`. The
-  workbench ran at the determinism measurement's commit, and wrote the same
-  bytes twice in each case before the comparison. The settings compared:
-  - the tracking stage: those of `op_edge_center` and `rgb_center18`, and
-    those of `op_edge_center` under `forward_from_first`;
-  - the per-frame stage: those of `op_edge_perframe`,
-    `op_rgb_perframe_pps24` and `op_edge_pf_pps8_pi3x`.
-
-  Every case masked the edge ring. The paper's conditions use these
-  settings, which were not compared:
-  - `--seed-labels`, which the `t5_*` conditions use;
-  - the segmenter inputs `normal`, `depth` and `rgb_edge`;
-  - `--keep-edge-ring`, which `ch_edge_center` and `ch_edge_perframe` most
-    likely used.
-- `ipcai2027_experiment/scripts/make_t5_seeds.py` is the per-frame stage,
-  `kmerge` and the tracking stage ("The granularity conditions"). They make
-  its seeds, ids aside, on 315 of 315 ATLAS-120k clips and 27 of 27
-  CholecSeg8k clips. Its unmerged arm, `t5_floor`, scored the same as
-  `rgb_center18` (`ch_rgb_center` on CholecSeg8k) on every key, so the
-  floor is tracked without `--seed-labels`. The `kgt` seeds are not carried
-  for now.
-- `ipcai2027_experiment/scripts/run_conditions.py`, with the `single` mode
-  of `run_track_conditions.py`, and the dispatcher of `run_per_frame_seg.py`
-  are `pipeline/condition_population.py`. It was checked on the paper's 29
-  ATLAS-120k and 14 CholecSeg8k conditions:
-  - each clip's command gives the stage the settings the workbench's gave;
-  - the workbench's records hold the values the driver expects, but lack
-    `depth_source` and `point_grids`, which the scripts did not yet write;
-  - `ch_edge_center` and `ch_edge_perframe` most likely kept the edge ring
-    (inferred from their dates), so a run that is to equal them passes
-    `--keep-edge-ring`.
-
-  The scripts skipped a clip by counting its labels. The driver refuses
-  labels whose record holds other settings.
-- `ipcai2027_experiment/scripts/stereomis_io.py --prepare`, and
-  `--prepare --masked`, is `pipeline/extract_stereomis.py`. The script's
-  `--masked` run read the plain clips' PNGs back; the stage decodes the
-  video again, which gives the same bytes. The script wrote over a clip
-  that existed, manifest and all; the stage refuses one.
-- `ipcai2027_experiment/scripts/run_20.sh`, with
-  `pi3_wrapper/scripts/queue_pi3_clips.sh`, is `pipeline/depth_stereomis.py`:
-  DA3 with its point clouds, then Pi3X with `--max-points 60000`, as the
-  script ran them. It takes the clips from `surgical_core.stereomis.clips`,
-  where the script listed the directory, and refuses for both stages what
-  `pipeline/depth_population.py` refuses. The depth stage now takes a
-  StereoMIS clip without `crop_info.json`: the rectification cuts the views
-  to the valid region, and the workbench's stage, which looked for a border
-  on every frame, recorded `border_inpaint: false` on all 43 plain clips
-  (checked). On the workbench's clips, the driver's checks refuse six clips
-  ("The StereoMIS depth outputs the ported stages do not reproduce").
-
-### Not yet extracted anywhere
-
-This list comes from the take list in `repo_migration_plan.md`, checked
-against what the paper's conditions ran: the workbench's run scripts and the
-documents its claims are written in. Within a file, only the code paths
-those runs exercise move; the rest is listed under "Not carried for now"
-below.
-
-- **Pipeline.**
-  - CholecSeg8k extraction: `scripts/extract_cholec_track.py`, which
-    `depth_sam_tracking_experiment/run_all17_pipeline.sh` runs before the
-    crop and the depth stage. `extract_cholec_frames.py`, which the take
-    list named, ran in no condition.
-  - The paper's tables: from `ipcai2027_experiment/scripts/`,
-    `claims_grid.py` and `summarize_20.py`, the StereoMIS table; and
-    `ipcai2027_experiment/task15_granularity/scripts/settle_inputs.py`.
-    `claims_grid.py` reads `outputs/atlas`, the 13-video set, and
-    `outputs/cholec_gt`.
-    `claims_grid.py` reads the rows whose granularity is not matched from
-    the analysis JSONs of `ipcai2027_experiment/scripts/pps_f1.py`: the
-    per-clip F1 that `settle_inputs.f1_prop` computes from the labels, which
-    no score JSON holds. `ipcai2027_experiment/scripts/export_prop_pps.py`
-    draws a figure from the same JSONs.
-  - LapEx's comparisons, from `ipcai2027_experiment/scripts/`, which the
-    manuscript reports and does not release. `lapex_kcurve.py` merges the
-    `rgb` condition at 24 points per side to fixed K with `kmerge`, and
-    compares the merge with the condition unmerged. `lapex_02b02c.py`
-    compares `normal_edge` with `rgb`, at 24 and at 4 points per side, and
-    the merge to K = 10 with `rgb` at 4. Their scores carry the earlier
-    frozen evaluator's `eval_code_sha` (`9cf136c7…`), and `reeval_v2.py`
-    lists `outputs/lapex` among the roots it scores again with the pilot
-    evaluator. Ported, each comparison is a run of `kmerge` and a pair
-    given to `paired_stats`, on the evaluator's scores. They wait on "How
-    LapEx is scored".
-  - The camera trajectory on StereoMIS, from `ipcai2027_experiment/scripts/`:
-    the command of `pose_controls.py`, which writes `controls.json` and
-    `methods.json` (with `--shuffled`, each method scored again with its
-    poses shuffled).
-  - D4D, from `ipcai2027_experiment/scripts/`: the front/behind relation,
-    scored against D4D's structured-light surfaces, and the camera
-    trajectory, scored against D4D's optical tracker.
-    - `d4d_io.py` reads D4D through the upstream loader `d4d.loader`,
-      which the port depends on and does not copy. How it depends on the
-      loader is open ("How this repository depends on D4D's loader").
-    - `d4d_census.py` measures the inputs the population is selected from,
-      before any score is read. `d4d_population.py` is ported (above).
-    - `d4d_depth.py` makes depth on the frames the GT was taken at, and
-      `d4d_seed.py` makes the seed regions on the same frames.
-      `d4d_seed.py` copies the tracking stage's seed step instead of
-      importing it, and records the sha256 of `track_sam3.py`'s source,
-      which no longer matches once the tracking stage is ported.
-      `d4d_seed.py` refuses a stored seed whose `edge_ring_masked` differs
-      from `EDGE_MASK_RING`, unless `--allow_stale_seed` is given; ported,
-      it compares the stored value with the `mask_ring` it passes.
-    - `d4d_predicate.py` scores the front/behind relation, and
-      `d4d_verdict.py` compares it with the area floor.
-    - `d4d_pose.py` scores the trajectory with `pose_metrics` and
-      `pose_controls`.
-
-    The development machine holds D4D's data and the workbench's D4D
-    outputs, so a D4D script that needs no GPU is checked there.
-  - What the viewer reads, and no score does: `export_viewer_dataset.py`
-    and `build_temporal_graph.py`, which build the graphs;
-    `export_instrument_mask.py`; `run_atlas_pipeline.sh`, which made the
-    13-video tree the demo opens through a `?clip=` link (its catalogue
-    reads `atlas97/`); `run_gt_tracked_export.sh`.
-- **Wrappers.** `da3_surgery_wrapper/` and `pi3_wrapper/` become
-  `recon3d_wrapper/`. Of `sam3_wrapper/`, the package moves: `get_device`,
-  `load_sam3_video_tracker_model` and the part of `Sam3VideoInstanceSession`
-  the tracker calls.
-- **Rest of `surgical_core`.** `cholec/seg8k_align.py`'s search, which
-  moves into the CholecSeg8k extraction; and, for the viewer, `pointcloud`,
-  the six modules of `viewer` not yet ported (`graph_frame`,
-  `hierarchy_frame`, `provenance`, `seg_frame`, `temporal_graph`,
-  `text_frame`) and `cholec/cholect50.py`.
-- **ATLAS-120k metadata, into `atlas120k_meta/`.** No video goes in.
-  - Crop rectangles: `experiment/crop_necessity/verdicts/verdicts_latest.json`.
-  - The 315-clip population: `ipcai2027_experiment/frozen/atlas97_clips.txt`.
-    Clips of the release overlap in two videos. `tests/test_atlas120k_meta.py`
-    pins the overlaps and checks that no two clips of the population share a
-    frame. The population's reader, when it is ported, refuses two clips of
-    one video that share a frame.
-  - The depth manifest: `ipcai2027_experiment/frozen/atlas97_depth_manifest.json`.
-  - The release's inventory, which the overlap check reads:
-    `ipcai2027_experiment/task22_atlas100/out/manifest/videos.json`.
-  - The readers: `surgical_core/atlas/clip_rects.py` and `frame_ratio.py`,
-    into `surgical_core/atlas120k/`.
-
-### The viewer
-
-The views of the `demo` page that show the scene graph are `viewer/`: the
-cloud with a track's regions on it, the scene graph from the frame's camera,
-the world stack with the camera's path, the graph through time, the three
-steps that follow a region, the three axes of an edge, the events and the
-graph drawn on the cloud. The page is written again on the bundle ("The
-public viewer reads a bundle"), from `viewer/demo.html` and
-`viewer/src/demo/`, with the modules of `src/graph/`, `src/workbench/` and
-`src/depthcmp/` it imports. Where it departs from the demo page:
-
-- It lists the clips from the bundle's catalog, where the demo asked the
-  development server (`/api/clips`) and narrowed the answer to a hand-written
-  list (`curated.js`). The development server only serves the bundle,
-  read-only; none of the workbench's routes that list or write files
-  remain.
-- It reads each region's shape from the labels, where the demo matched the
-  colour raster against the class colours; two classes of one colour are no
-  longer one region.
-- It shows one track, or the two tracks a clip's hierarchy relates, drawn
-  together and linked where one track's region contains the other's. The
-  regions menu chooses between them. The demo's pair of tracks side by side
-  was reachable only by address.
-- It shows the side panel in per-frame mode too, where the demo hid it.
-- The focus band reads spatial relations only; the demo mixed in the action
-  relations of CholecT50, where a clip has them.
-- The focus band takes a frame's relation from the edge stored from the
-  followed region, where the demo took whichever edge the file listed last.
-  The stored word is the one the edge's axes are checked against.
-- A file the clip's record lists that does not load stops the frame with an
-  error, where the demo drew the frame without it.
-- A graph through time that `pipeline.viewer_bundle` would refuse is
-  refused with an error, and no band is drawn from it.
-
-The workbench's `depthcmp` and `workbench` pages, which compare depth models
-and browse every clip for research, are not carried ("Not carried for now").
-
-### Not carried for now
-
-This section lists what the port leaves out for now. It is left out because
-the port is short of time, not thrown away. Each entry says where its code is
-in the workbench, so that a later pull request can port it. Git history keeps
-what had been merged here before it was left out.
-
-The first list holds experiments the manuscript reports. Their numbers come
-from this repository once they are ported ("The paper is measured here"),
-and not before.
-
-- **Conditions seeded from GT masks**, which the ported tracking stage does
-  not carry ("Two propagation rules, and no seed chosen from GT"):
-  - `track_sam3.py --seed_source gt`, the `gt_seed` mode of
-    `run_track_conditions.py`, which seeds on
-    `track_metrics.pick_seed_frame` with the regions of
-    `track_metrics.gt_instances`;
-  - `t12_gtseed` on five inputs on ATLAS-120k, and on four inputs on
-    CholecSeg8k, made by `ipcai2027_experiment/scripts/run_12_trackbase.sh`;
-  - `t12_paste`, made by
-    `ipcai2027_experiment/atlas97/scripts/make_paste_floor.py`, which copies
-    `t12_gtseed`'s seed frame onto every frame of the clip and runs no
-    tracker: the floor the propagated seeds are measured against.
-
-  The manuscript's draft reports two results from them:
-  - propagation over the pasted floor, in the abstract;
-  - the loss of a geometry rendering under GT seeds.
-
-  The draft's table of identity over time comes from
-  `ipcai2027_experiment/scripts/summarize_track12.py`, which measures the
-  conditions with `track_metrics`. Both results are measured again with
-  this repository's code ("What the paper measures"). Two questions stay
-  open:
-  - whether the paper reports them;
-  - how a GT seed is placed and scored ("Conditions seeded from GT").
-- **Two comparisons of the granularity result.** The manuscript's draft
-  reports both, and `claims_table` leaves both out:
-  - the geometry inputs against `rgb` at a matched number of regions.
-    The draft's table of this comparison comes from
-    `ipcai2027_experiment/task15_granularity/scripts/fair_merge_recheck.py --mode input_track`.
-    The script scores the tracked labels of ATLAS-120k's 315 clips itself,
-    with the pilot evaluator's functions. Its table also compares the
-    inputs at the same K. `settle_inputs.py`, listed under "Not yet
-    extracted anywhere", makes the same comparison with its own F1, at both
-    stages, on the 13-video ATLAS-120k set and CholecSeg8k. The workbench's
-    claims table read its rows. Both scripts interpolate `rgb`'s value on
-    its curve over K, clip by clip, at the geometry input's number of
-    regions;
-  - merges that never join two regions across a boundary of a depth,
-    normal or depth-edge map, made by `kgeo_sequence` in
-    `ipcai2027_experiment/scripts/kmerge.py`. The draft reports their gain
-    on the seed frame.
-
-The second list holds what the paper's numbers do not use.
-
-- **View consistency** (`view_consistency.py`, `camera_motion.py` and
-  `export_03b_figs.py`, in `ipcai2027_experiment/scripts/`): whether a
-  boundary stays on the same place of the tissue when the camera moves.
-  Its one paired test, `normal_edge` against `rgb`, did not favour the
-  geometry input; `depth` and `normal` were not tested against `rgb`. Every
-  input's score was close to the score measured on the GT boundaries, its
-  ceiling. These three are among the callers of the workbench's
-  `geometry.backproject` ("Two orders of the world transform").
-- **Blended inputs** of `ipcai2027_experiment/scripts/geom_blend.py`
-  (`Terms`, `blend`, `SPECS` and the rest of the blend machinery), and the
-  flattened RGB bases of `ipcai2027_experiment/scripts/rgb_flatten.py`
-  (`rgb_flat_*`), measured on CholecSeg8k and the 13-video ATLAS-120k set.
-  Both lost to the inputs they modified, and the manuscript does not report
-  them.
-- **Fifteen segmenter inputs.** Of the twenty modes of `sam_input_image`,
-  the paper's conditions ran `rgb`, `depth`, `normal`, `normal_edge` and
-  `rgb_edge`. The other fifteen (`rgb_refl`, `rgb_nedge`, `rgb_dedge`,
-  `rgb_shade`, `rgb_edge_shade`, `refl_edge`, `refl_shade`,
-  `refl_edge_shade`, `normal_shade`, `depth_edge`, `depth_shade`,
-  `edge_only`, `shade_only`, `rgb_shading` and `rgb_normal`) ran only in
-  sweeps: `ipcai2027_experiment/scripts/chain_arm_catalog.sh`,
-  `chain_resume_arms.sh` and `chain_atlas_fusion.sh`, and `rgb_edge_shade`
-  in `chain_kmatch.sh` and `chain_prop.sh` too. `chain_shortlist.sh` draws
-  six of them and runs none. `arms_paired.py` pairs `rgb_refl` with `rgb`
-  and with the `refl_*` arms, and the workbench's
-  `ipcai2027_experiment/README.md` reports those pairs.
-
-  With them go `pseudo_normal_from_rgb`, `relight_rgb`, `color_retinex` and
-  the composition table. They are in the workbench's
-  `depth_sam_tracking_experiment/geometry.py`.
-- **Label transfer and warping**, in the workbench's
-  `depth_sam_tracking_experiment/geometry.py`: `project_labels` and
-  `project_labels_region`, which only `legacy/pipeline.py` calls, and
-  `warp_labels`, which nothing calls.
-- **The consensus and 3D variants of the tracker**,
-  `depth_sam_tracking_experiment/track_sam3_consensus.py` and
-  `track_sam3_3d.py`. `consensus` is a mode of `run_track_conditions.py`,
-  and the manuscript reports no consensus condition.
-- **The control without SAM**, `ipcai2027_experiment/atlas97/scripts/classic_seg.py`:
-  a marker-controlled watershed cuts the normal image and the RGB image from
-  the same markers. It tells whether the normal image lacks the boundaries
-  or SAM fails to read a normal image. The manuscript's draft reports no
-  number from it.
-- **The paired comparisons of `kmerge.py --pairs`**, in
-  `ipcai2027_experiment/scripts/`: the per-frame stage's F1 for two
-  conditions, both merged to one K or to the frame's count of the pilot's
-  GT objects, with the video-level interval of the difference. The run the
-  workbench reports compares `rgb_edge` merged with `rgb` merged, and the
-  draft reports no number from it. Ported, a comparison at one K is a run
-  of `kmerge` on each condition and a pair given to `paired_stats`, on the
-  evaluator's scores.
-- **Graphs built again**: `scripts/export_graph_cleanup_compare.py`, which
-  builds each graph twice for a comparison page, and
-  `scripts/backfill_depth_rel.py`, which adds `depth_rel` to graphs written
-  before the builder wrote it.
-- **ATLAS-120k files the paper does not read.**
-  - The cut marks (`experiment/crop_necessity/marks/*.jsonl`), read by a
-    review page. A clip with a cut is used whole.
-  - The audits and clip lists of the earlier 96-video, 438-clip extraction
-    (`ipcai2027_experiment/task22_atlas100/out/{manifest,audit}/`, all but
-    `videos.json`).
-- **Code paths inside the files that move.** Each was never run for a
-  reported number, or never set off its default:
-  - `track_sam3.py`: seeding from instrument masks (`--instrument_*`), the
-    seed cache, `--seed_frame`, `--stride`, `--max_frames` above 0 (the
-    operating point passes 0, every frame), `--seed_topk`, the choice of
-    the seed frame from GT (`--seed_inst_thresh` below 1), and
-    `--track_edge_gain` and `--track_no_smooth`, which every run left at
-    their defaults;
-  - `sam3d_core.py`: everything but `num_to_natural` and `get_sam`;
-  - `sam3_wrapper/`: `scripts/`, `image_instance`, the concept session and
-    `add_boxes`;
-  - `depth_source.py`: the `da2` source and the bilateral `_bil` variants;
-  - `preprocess` (`surgical_core/preprocess/endoscope_mask.py`, the
-    package's one module): the border inpainting; the content-mask
-    detection and `largest_inscribed_rect`, which found the rectangles
-    `cholecseg8k_meta/` holds on each clip's own frames; the circle fit
-    (`fit_endoscope_circle`, `circle_frame_inscribed_rect`); and the
-    p90-mask path over a whole video (`video_endoscope_crop`). Every clip of
-    the paper has its rectangle; a new clip would need one found. With it go
-    `crop_cholec_frames.py`'s ways of finding a rectangle: `--source-root`,
-    `--method`, `--reduce`, `--video-samples`, `--shrink` and the fallback
-    to a clip's own frames;
-  - `extract_atlas_frames.py`, the paths `pipeline/extract_atlas120k.py`
-    does not carry: the tile clips; the per-video rectangle it estimates
-    from the frames (`detect_content_rect` and the three `refine_rect_*`
-    steps), which a confirmed rectangle replaces on every clip that has
-    one, and every clip of the population has one; reading the frames from
-    the mp4 by number, which the script does only for a clip without the
-    release's JPEGs or for one padded past its annotation
-    (`--gt-pad-factor`); and `--gt-stride`, `--keep-duplicates`,
-    `--dry-run` and `--no-clean`;
-  - `run_per_frame_seg.py`: `--point_grids_dir`, `--frames gt`, `--smooth`,
-    and `--seed_topk`, which every run passed as 0; and its dispatcher's
-    `--force` and `--log-root`.
-  - `run_conditions.py` and `run_track_conditions.py`: the `gt_seed` and
-    `consensus` modes, `--force`, `--log-root`, and the Hugging Face
-    settings they put in each process's environment.
-  - `run_20.sh` and `queue_pi3_clips.sh`: the `setsid nohup` wrapping,
-    and the clip root and the number of points taken from the environment
-    (`ROOT`, `MAX_POINTS`).
-  - `run_atlas97_depth.sh`: its `setsid nohup` wrapping and timestamped
-    log lines, which belong to the shell it was run from, and
-    `--overwrite`, so that no clip of a population is replaced without
-    someone looking at it.
-  - `stereomis_io.py`: the audit of the offsets (`--audit`), whose results
-    the reader keeps as tables; the depth maps (`load_depth`), which only
-    the audit and `pose_controls.py --check-sgbm` read; and `half=False`,
-    `extract_left`, `read_frame_set`, `population`, `depth_summary` and
-    `backproject`, which no run of the result calls.
-  - `pose_controls.py`: `--check-sgbm`, which compared the ceiling's
-    disparity with the depth export's maps, and `--no-mask`, which ran the
-    ceiling without the tissue masks.
-- **`scripts/extract_cholec_frames.py`**, which no condition ran.
-- **The `kgt` seeds** of `ipcai2027_experiment/scripts/make_t5_seeds.py`,
-  whose K is the clip's median count of the pilot's GT objects ("`kmerge`
-  is a tool").
-- **The demo page's parts for a conference stand**, in `viewer/src/demo/`:
-  the guided tour (`tour.js`), the unattended mode that restarts it
-  (`kiosk.js`, `keymap.js`, `scripts/demo_account.sh` and the scripts that
-  stage the data on the stand's account), the catalog of clips with live 3D
-  tiles and video previews (`catalog.js`, `catalog3d.js`, `catalog_tree.js`,
-  `curated.js`), the marks and the project page in the About panel
-  (`about.js`, `logos.js`), and the address flags for the poster's captures
-  (`?graphmark=`, `?bg=` and the rest, and `capture_demo_shots.mjs`).
-- **The rest of the demo page's views**: the choice of depth model on
-  screen, the band of graph changes it no longer drew, the camera's pose
-  drawn on one frame, the ellipse glyphs as a choice, and the instrument
-  masks from SAM 3's text prompts (`scripts/export_instrument_mask.py`,
-  `inst_frame_*.json`), which only clips without annotation read.
-- **The `workbench` and `depthcmp` pages**, with `src/app/`, `src/catalog/`
-  and `src/geom/`: tools for comparing depth models and browsing every
-  clip, not views of a scene graph.
-- **`viewer/scripts/merge_geometry_sources.py`**, which copied a Pi3X run's
-  records into another manifest; the Pi3X stage writes them into the
-  clip's manifest itself.
-- **`viewer/scripts/verify_geometry_alignment.mjs`**, which checked the
-  demo's transfer of labels onto the Pi3X cloud against the clouds' colours.
-  The bundle stage makes that transfer now, by the same rule, and its tests
-  check the rule; a check on each clip's colours would be the stage's.
-
-What stays behind is listed in `repo_migration_plan.md`, in the section on
-what stays.
+   The normal-mode tests must still pass, and then the evaluator is frozen.
+   Moving pilot mode out of `evalkit/` was the alternative. It could then be
+   deleted at any time, but the check would reach a driver of its own and
+   never the entry point.
+2. **The camera trajectory measures are hashed on their own.** `ate_rel`
+   decides the StereoMIS result, so the code that computes it is under the
+   freeze rule like the evaluator, and `eval_code_sha` does not cover it:
+   the two results are measured and frozen at their own times, and a
+   change to one must not make the other's scores incomparable. So
+   `pose_metrics` and the scoring of a clip are the package
+   `trajectory_eval`, hashed into `trajectory_code_sha` as `code_sha`
+   hashes the evaluator (each file's path and content, each preceded by
+   its length). Every StereoMIS score records that hash, and
+   `trajectory_eval.tools.scores` refuses rows whose hashes differ.
+3. **What the paper measures.** Decided on 2026-10-10:
+   - **The `forward_from_first` conditions.** The paper reports them. They
+     are measured on the GPU machine before submission.
+   - **The conditions seeded from GT masks.** They are measured again with
+     this repository's code. Open: whether the paper reports them.
+   - **`track_metrics`.** It is run on the paper's conditions. Open: how
+     the paper reports its measures.
 
 ## Order, and what must hold before the next step
 
-Which of these can move side by side, in separate branches and sessions,
-while the evaluator is built and reviewed is worked out in `docs/workstreams.md`.
-
 1. **Decide what the evaluator measures over time.** Decided: no measure
-   over time carries a star, and `track_metrics` and `kmerge` are tools
-   ("No measure over time carries a star", "`kmerge` is a tool").
+   over time carries a star, and `track_metrics` and `kmerge` are tools,
+   outside `eval_code_sha`.
 2. **Build the evaluator.** CPU only, as the `evalkit` package. Class tables,
    then metrics, then the entry point. It is done when:
    - the hand-derived tests pass, in both modes;
    - in pilot mode, the evaluator reproduces every key it shares with the
      pilot evaluator, at zero tolerance, on the 38 scored conditions, apart
      from those that hold neither propagation rule.
-   Record its sha with every score; do not freeze it (decision 2). Pilot
-   mode stays in it until just before the freeze (decision 11).
+   Record its sha with every score; do not freeze it during the port. Pilot
+   mode stays in it until just before the freeze ("Pilot mode is removed
+   before the freeze").
    The check against the pilot evaluator passed on 2026-10-11, for
    `eval_code_sha` `a5d7ea46…`. It compared the 23 conditions that hold a
    propagation rule, 315 clips each: per clip 18 values and 17 numbers of
@@ -799,7 +165,7 @@ while the evaluator is built and reviewed is worked out in `docs/workstreams.md`
    Predictions made again from output that is not the workbench's, the
    exceptions above, are scored as in step 3, after the evaluator's check
    against the pilot evaluator. The conditions under `forward_from_first`
-   ("Two propagation rules, and no seed chosen from GT") are new
+   ("Propagation rule" in `docs/evaluation.md`) are new
    measurement, not a port: every condition the paper reports ran through
    `run_track_conditions.py`, whose modes all pass `--bidir`. (The
    workshop's forward runs, `run_w2_main.sh` and `run_multi_tracking.sh`,
@@ -814,31 +180,12 @@ while the evaluator is built and reviewed is worked out in `docs/workstreams.md`
      and, on a machine with a CUDA GPU, install the pipeline with the
      README's steps and run each ported stage on a clip.
 
-The data these steps read stays in the workbench:
-
-- `outputs/atlas97` and `outputs/cholec_gt`, which the paper reads;
-- `outputs/atlas`, the 13-video set, which the workbench's `claims_table.py`
-  and `claims_grid.py` read, which the demo opens through a `?clip=` link, and
-  which holds the clips the determinism measurement used
-  (`adrenalectomy__16GPCUPkXYQ__gt_0004` and
-  `adrenalectomy__16GPCUPkXYQ__tile_0007`) and is where step 5 compares
-  stages, with one CholecSeg8k clip from `outputs/cholec_gt`;
-- `outputs/stereomis` and `outputs/stereomis_masked`, which `run_20.sh`
-  reads and writes;
-- `outputs/d4d_pose` and `ipcai2027_experiment/out/09`, which the D4D
-  scripts read and write;
-- `outputs/lapex`, which is not released;
-- the determinism measurement's JSON (`measure_determinism.py --json-out`);
-- the predictions under `ipcai2027_experiment/atlas97/out/`;
-- the pilot's score JSONs.
-
-Every command takes those paths as arguments.
-
 ## Open questions
 
 1. **The GT track of `track_metrics`.** The tool measures identity against
    GT tracks, and the datasets carry no ids for individual things, so the
-   tool defines the track itself ("No measure over time carries a star").
+   tool defines the track itself (`docs/evaluation.md`, "Consistency over
+   time: reference values only").
    The workbench linked each class's connected components over time: a
    component joins a track of the same class when its IoU with the track's
    last mask is at least 0.3, a track stays a candidate for three missed
@@ -860,7 +207,7 @@ Every command takes those paths as arguments.
      condition segmented frame by frame has no seed frame, and
      `summarize_track16` gave it the seed frame of a tracked condition;
    - which of the two pre-registered `hold_mean` definitions keeps the name
-     ("No measure over time carries a star");
+     (`docs/evaluation.md`, "Consistency over time: reference values only");
    - what hold means under forward propagation (`forward_from_first`),
      where its time offsets from the seed frame run one way only; the
      workbench claimed this changes the measure and did not measure it.
@@ -889,7 +236,8 @@ Every command takes those paths as arguments.
    OpenCV more deeply: `evalkit/pilot.py` numbers a class's components in
    the order `cv2.connectedComponents` labels them, and the pairing's tie
    rule reads those numbers. That never reaches the frozen files, since
-   pilot mode is removed before the freeze (decision 11).
+   pilot mode is removed before the freeze ("Pilot mode is removed before
+   the freeze").
 5. **The benchmark mapping against its source.** The ATLAS-120k mapping to
    the benchmark's 30 classes was typed from the document and checked by
    hand against ATLAS-bench's `datasets/class_mapping.py` at commit
@@ -1257,8 +605,8 @@ Every command takes those paths as arguments.
       averages over clips and resamples the cases, 10,000 times. A case
       holds 14 to 55 clips, so the two weigh the cases differently. The
       workbench's reading, fixed before the numbers, gave the merge a star
-      only if it had one at both K = 8 and K = 10. The paper merges to 10
-      ("`kmerge` is a tool").
+      only if it had one at both K = 8 and K = 10. The paper merges to 10,
+      `kmerge`'s default.
 24. **The paired table on the evaluator's scores.** `paired_table` prints
     the pilot's table. It does not yet print one from the evaluator's
     scores:
