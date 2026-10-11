@@ -310,6 +310,18 @@ def handlers_restored():
         signal.signal(s, handler)
 
 
+@pytest.mark.parametrize("hup", [signal.SIG_IGN, signal.SIG_DFL], ids=["nohup", "terminal"])
+def test_the_command_stops_on_sighup_unless_nohup_ignores_it(tmp_path, monkeypatch, handlers_restored, hup):
+    signal.signal(signal.SIGHUP, hup)
+    signal.signal(signal.SIGTERM, signal.SIG_DFL)
+    monkeypatch.setattr(sys, "argv", ["pipeline.depth_population", "--input-dir", str(tmp_path / "nowhere"),
+                                      "--clips", "-"])
+    with pytest.raises(SystemExit, match="no such directory"):
+        main()
+    assert signal.getsignal(signal.SIGHUP) is (signal.SIG_IGN if hup is signal.SIG_IGN else driver.stop)
+    assert signal.getsignal(signal.SIGTERM) is driver.stop
+
+
 def test_the_command_runs_the_population_file_and_exits_non_zero_on_a_refusal(stand_in, monkeypatch,
                                                                               handlers_restored):
     make_clip(stand_in, "clip0")
