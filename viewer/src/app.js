@@ -300,7 +300,7 @@ function syncFrameUI() {
   const t = state.clip.frames[state.frame]?.time_s;
   $('frame-label').textContent = `${state.frame} / ${state.clip.n_frames - 1}${Number.isFinite(t) ? ` · ${t.toFixed(1)} s` : ''}`;
   updateFocusCursor($('nf-body'), state.frame, state.clip.n_frames - 1);
-  if (state.mode === 'frame' && state.trackStrip) updateStripStage($('strip'), nearestStacked(state.frame, state.trackStrip.indices));
+  if (state.mode === 'frame' && state.trackStrip?.indices) updateStripStage($('strip'), nearestStacked(state.frame, state.trackStrip.indices));
 }
 
 // ── World mode ──────────────────────────────────────────────────────────────
@@ -824,10 +824,13 @@ async function loadTrackStrip() {
     frames = await Promise.all(indices.map(row));
     // A track's seed frame is always a column: it is where the track's regions were made.
     const anchors = new Set(frames.flatMap((fr) => Object.values(fr.regionsByTrack))
-      .map((r) => r?.anchorFrame).filter((f) => Number.isInteger(f) && f < clip.n_frames && !indices.includes(f)));
+      .map((r) => r?.anchorFrame).filter((f) => f != null && !indices.includes(f)));
     if (anchors.size) frames = [...frames, ...await Promise.all([...anchors].map(row))].sort((a, b) => a.i - b.i);
   } catch (err) {
-    if (state.clip === clip) report(`The regions through time did not load: ${err.message}`);
+    if (state.clip !== clip) return;
+    report(`The regions through time did not load: ${err.message}`);
+    state.trackStrip = { failed: true };
+    renderTrackStrip_();
     return;
   }
   if (state.clip !== clip) return;
@@ -839,9 +842,9 @@ async function loadTrackStrip() {
 function renderTrackStrip_() {
   if (state.mode !== 'frame') return;
   const el = $('strip');
-  if (!state.trackStrip) {
+  if (!state.trackStrip || state.trackStrip.failed) {
     el.classList.remove('tstrip');
-    el.innerHTML = '<div class="strip-empty">Loading the regions through time…</div>';
+    el.innerHTML = `<div class="strip-empty">${state.trackStrip ? 'The regions through time did not load.' : 'Loading the regions through time…'}</div>`;
     return;
   }
   renderTrackStrip(el, {

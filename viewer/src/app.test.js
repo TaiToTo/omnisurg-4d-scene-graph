@@ -173,6 +173,19 @@ describe('the frame panel', () => {
   });
 });
 
+describe('the per-frame strip', () => {
+  it('says that its regions did not load, rather than loading for ever', async () => {
+    const { app, data, reports } = await fresh();
+    data.loadClip.mockResolvedValue(makeClip('a', 40));
+    data.fetchRegions.mockImplementation((clip, t, i) => (i === 0 ? Promise.resolve(null)
+      : Promise.reject(new Error(`could not load a/regions/t/${i}.json (HTTP 404)`))));
+    await app.openClip('a');
+    await flush();
+    expect(reports).toEqual([expect.stringMatching(/^The regions through time did not load: could not load/)]);
+    expect(document.getElementById('strip').innerHTML).toMatch(/did not load/);
+  });
+});
+
 describe('following a region', () => {
   it('marks the region again at the first step after an event was picked at the third', async () => {
     const { app, data, world, band, paint, THREE } = await fresh();

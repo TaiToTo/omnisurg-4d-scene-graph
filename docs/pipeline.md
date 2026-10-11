@@ -621,7 +621,8 @@ The stage refuses:
   regions;
 - regions off DA3's grid, a label that is not an integer or of no listed
   class, a class without an integer id above 0, a string name and a colour
-  of three numbers, or a stage other than `anchor` or `propagated`;
+  of three numbers, a stage other than `anchor` or `propagated`, or an
+  anchor frame that is no frame of the clip;
 - a frame's scene graph with a node that is no region of the frame, has no
   string label or no position of three numbers, or an edge that does not
   join two of its nodes with a string relation;
