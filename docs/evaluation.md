@@ -11,10 +11,10 @@ frame, and a predicted object is one region. Every metric but `time_IoU` is
 computed in three views: `all` (every class), `tissue` (without tools) and
 `geometric` (only the tissue that depth and shape can separate). The paper
 asks three questions of the regions and judges two of them each on a
-primary metric of its own. The question about following a region over time
-gets reference values and no star, like every measure over time. Every
-score records `eval_code_sha` and the hashes of its inputs, and two scores
-are compared only when they are comparable ("Terms").
+primary metric of its own. The question about following a region over time,
+like every measure over time, gets reference values only, which decide no
+claim. Every score records `eval_code_sha` and the hashes of its inputs, and
+two scores are compared only when they are comparable ("Terms").
 
 | question | primary metric | view |
 |---|---|---|
@@ -64,9 +64,8 @@ are compared only when they are comparable ("Terms").
   `geometric` ("Views").
 - A *ruler* is what a score was measured with, as `scores.Ruler` holds it:
   `eval_code_sha`, dataset, mode, class set, views, and for a pilot JSON its
-  domain. Two scores are *comparable* when they share a ruler, cover the
-  same clips, read the same GT masks and depth maps, and share a
-  propagation rule unless one of them is `per_frame`.
+  domain. Two scores are *comparable* when every requirement listed under
+  "Recorded with every score" holds.
 - A *tag* is a condition's name on disk: the directory under each clip that
   holds its labels, and separately the name of its score JSON; the score
   names the label directory it read in `track_dir_name`.
@@ -78,6 +77,8 @@ are compared only when they are comparable ("Terms").
   hold the same clips and `intersection` when compared on the common ones;
   per key it shrinks to the clips on which both define it. The *wins* on a
   key are the clips on which it moved the better way, among those.
+- A *claim* says that one condition is better or worse than another on a
+  key. "From frames to clips" says how the clip values decide it.
 
 ## The evaluator at a glance
 
@@ -132,7 +133,7 @@ found in the code. A module's docstring says what it returns.
   refused, since the order of its frames is unknown.
 - **Clips and videos.** Which clips enter a measurement is data, kept in
   the population files, never a count in a name. Scores are made per clip;
-  the bootstrap that decides a star resamples videos, so the clips of one
+  the bootstrap that decides a claim resamples videos, so the clips of one
   video are never treated as independent.
 - **Frame manifest.** The pipeline writes `frame_manifest.json` into each
   clip. It lists the clip's frames with their times and GT flags, and holds
@@ -419,7 +420,7 @@ of their pixels lying on background among their pixels on scored or
 background pixels: the spill the other keys cannot see. A region on
 background alone is not among them, as it is no object, and pixels the view
 removed for another reason are in neither count. It reads no GT class, only
-where the GT is unlabelled, and gets no star. It is reported beside a
+where the GT is unlabelled, and decides no claim. It is reported beside a
 comparison whose two conditions differ in it by much, as the pilot
 measurements did for the share of pixels left without a region.
 
@@ -431,10 +432,19 @@ this scene.
 ### From frames to clips
 
 Every metric but `time_IoU` is computed per frame and averaged over a clip's
-GT frames; `time_IoU` is pooled over the clip as described above. The clip
-values are what `paired_stats` resamples, by video, to decide whether a claim
-gets a star: the rule in `AGENTS.md`, a video-level bootstrap 95 % CI that
-does not straddle zero. The JSON keeps the per-frame values.
+GT frames; `time_IoU` is pooled over the clip as described above. The JSON
+keeps the per-frame values.
+
+The clip values decide a claim. `paired_stats` takes the 95 % confidence
+interval of the difference with a bootstrap that resamples whole videos. A
+table then prints:
+
+- ★ when the interval lies wholly on the key's better side of zero;
+- ✗ when it lies wholly on the worse side;
+- neither when it contains zero, or when the key is a reference value.
+
+The p-value is reported too, and never decides. `paired_stats.mark_of` is
+the one code that applies this rule.
 
 A metric is not defined on some frames: `F1_50` on a frame with no GT object,
 `SQ` and `inst_BF` on a frame with no hit, `mIoU` on a frame with no class,
@@ -454,7 +464,7 @@ the per-frame values, with one rule that the product alone would miss: a frame
 that has GT objects but no hit has PQ = 0, although its `SQ` is not defined.
 Leaving such frames out would lift PQ above its usual definition, which the
 pilot evaluator follows. Counts (frames, objects, regions) are kept as
-diagnostics and never get a star.
+diagnostics and decide no claim.
 
 ### Primary metrics
 
@@ -480,7 +490,7 @@ before any score of this evaluator is seen.
 
 ### Consistency over time: reference values only
 
-`time_IoU` is kept only as a reference value and never gets a star. It uses no
+`time_IoU` is kept only as a reference value and decides no claim. It uses no
 GT, and the workbench measured three faults in it:
 
 - it rises as regions get coarser, and one region covering the whole frame
@@ -516,11 +526,11 @@ four of them, and the fifth depends on how the GT track is linked:
   property of the track definition as much as of the condition.
 
 So a tool outside the evaluator, `evalkit/tools/track_metrics`, is to compute
-the measures of identity, and they are reported as reference values: in a
-table that carries no star. The tool is not ported yet (`docs/porting.md`,
-"No measure over time carries a star"). The tool's GT track is an open question
+the measures of identity, and they are reported as reference values, in a
+table without ★ or ✗. The tool is not ported yet (`docs/porting.md`,
+"Not ported yet"). The tool's GT track is an open question
 (`docs/porting.md`, "The GT track of `track_metrics`"). A measure that is to
-carry a star would have to be computed by the evaluator before the
+decide a claim would have to be computed by the evaluator before the
 evaluator is frozen, and none is.
 
 ## Rules that keep the numbers honest
@@ -582,7 +592,7 @@ uses it.
 - `eval_code_sha`, which covers the class tables as well as the code, so a
   changed type is a new evaluator
 - the dataset, the class set (`original`, or for ATLAS-120k also
-  `benchmark`), the view, and whether the score was made in pilot mode
+  `benchmark`), the views, and whether the score was made in pilot mode
 - a sha256 hash of every input read, per clip, as `input_shas`: the GT
   masks, the depth maps (as `atlas120k_meta/depth_manifest.json`
   fingerprints them), the crop rectangle, the frames in time order, and the
@@ -605,12 +615,17 @@ the frames each key's mean covers, by key; the scored and excluded frames;
 predicted objects, hits and hits that entered `inst_BF`, per view. Its
 `frames` keeps every GT frame's values, by frame number, in time order.
 
-Two scores are comparable only when all of these hold:
+Two scores are comparable only when all of these requirements hold:
 
-- their `eval_code_sha`, dataset, class set, view and mode match;
-- they cover the same clips;
-- they read the same GT masks and depth maps;
+- they share a ruler (Terms);
+- they cover the same clips; `compare_eval --allow-subset` compares the
+  common clips instead, and records the population as `intersection`;
+- they read the same GT masks, depth maps, crop rectangle and frame order:
+  every hash in `input_shas` but the predictions' is equal;
 - they share a propagation rule, or one of them is `per_frame`.
+
+Pilot JSONs record no input hashes and no propagation rule, so between two
+of them only the ruler and the clips are compared.
 
 The same `eval_code_sha` is not enough on its own. Pilot mode and the
 normal mode share it, and so do the views.
@@ -633,7 +648,7 @@ The tools enforce this:
 - All five report a difference in library versions but do not refuse it.
 
 The check against the pilot evaluator, below, is not bound by these
-conditions: the two `eval_code_sha` differ by construction. Its own script,
+requirements: the two `eval_code_sha` differ by construction. Its own script,
 outside `compare_eval`, verifies that this evaluator in pilot mode writes the
 pilot evaluator's numbers.
 
@@ -833,7 +848,7 @@ background, and similar classes merge. The table below lists the original ids
 each class takes. The class set is then the benchmark's: Background and 29
 classes. It is scored as a second class set, `benchmark`, for comparison with
 the benchmark: written to a separate block of the JSON, as reference values
-only, and never given a star. Resolution, crop and metrics are this
+only, which decide no claim. Resolution, crop and metrics are this
 evaluator's own, so the numbers are not the benchmark's.
 
 The paper gives the reason for the 30: categories not represented in all
