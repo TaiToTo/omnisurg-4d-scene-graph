@@ -695,7 +695,8 @@ pilot evaluator's numbers.
   scores are, and takes their paths as arguments.
 - The check passed on 2026-10-11, for `eval_code_sha` `a5d7ea46…`. On the
   23 ATLAS-120k conditions that hold a propagation rule, 315 clips each,
-  every shared value and every frame count was equal.
+  every shared value was equal, and so was every number of frames the
+  pilot evaluator wrote.
 - Every difference in the normal mode then comes from a rule this document
   changes, and is listed.
 - A score made in pilot mode is marked as such and never enters a comparison
