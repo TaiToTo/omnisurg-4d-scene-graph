@@ -58,9 +58,9 @@ The modules longer than the cap when the rule was made are listed in the
 test as `STILL_LONG`, and the workstream `docs/short-headers` shortens them.
 A module leaves the list when it is shortened, and cannot rejoin it: the
 test reads the list as the commit that introduced it wrote it, and refuses
-a name that was not there. The modules that `eval_code_sha` hashes are
-shortened before the evaluator is frozen, since afterwards not a byte of
-them changes.
+a name that was not there. The modules that `eval_code_sha` or
+`trajectory_code_sha` hashes are shortened before their freeze, since
+afterwards not a byte of them changes.
 
 ## Docstrings and comments
 
@@ -86,8 +86,8 @@ them changes.
   every new docstring and header must say, by itself, what the code does,
   and the first sentence of a comment states the fact before the reason.
   Existing text is rewritten when a change touches it; for the modules
-  `eval_code_sha` hashes that rewrite must land before the evaluator is
-  frozen, as with their headers.
+  `eval_code_sha` or `trajectory_code_sha` hashes, that rewrite must land
+  before their freeze, as with their headers.
 - Google-style docstrings; imports at the module top.
 - **A function of several steps names each step.** A function that composes
   other modules is read to find where one result comes from, not top to

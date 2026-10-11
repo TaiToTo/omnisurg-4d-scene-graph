@@ -12,7 +12,8 @@ no check is recorded.
 | area | ported | checked |
 |---|---|---|
 | evaluator, `evalkit/` | class tables, metrics, entry point, pilot mode | in pilot mode, every key shared with the pilot evaluator equal on 23 conditions × 315 clips, at `eval_code_sha` `a5d7ea46…` |
-| score tools, `evalkit/tools/` | every tool in the layout of `AGENTS.md` but `track_metrics` | `paired_table`, `arms_paired`, `claims_table`, `leave_one_video_out`, `print_status_tables`, `kmerge`, `pose_metrics`, `pose_controls`: the workbench's values on the same inputs |
+| score tools, `evalkit/tools/` | every tool in the layout of `AGENTS.md` but `track_metrics` | `paired_table`, `arms_paired`, `claims_table`, `leave_one_video_out`, `print_status_tables`, `kmerge`: the workbench's values on the same inputs |
+| camera trajectory scorer, `trajectory_eval/` | `pose_metrics`, the scoring of a clip, `pose_controls`, `scores` | `pose_metrics`: the workbench's values on 1200 random, planar and static trajectories. The scoring of a clip and `pose_controls`: the workbench's 387 StereoMIS rows, every value, scored again from its stored outputs |
 | extraction and crop | ATLAS-120k, CholecSeg8k, LapEx, StereoMIS, the D4D population | the CholecSeg8k crop, 13 of the 27 CholecSeg8k clips and the D4D population: the workbench's bytes. LapEx's 735 clips: the workbench's frames and masks, and its manifests apart from `depth_info` |
 | depth | DA3, Pi3X, point clouds, the population drivers | DA3, point clouds and Pi3X: the workbench's bytes on the GPU machine, on three clips. DA3 also on the 25 LapEx clips whose border the workbench did not fill |
 | segmentation and tracking | `track`, `per_frame`, `condition_population` | `track` and `per_frame`: the workbench's bytes on the GPU machine, on three clips. `condition_population`: the workbench's commands, for 43 conditions. The 40 segmenter inputs that `tests/test_render_outputs_are_pinned.py` pins: the workbench's, rendered with each case's ring setting |
@@ -88,18 +89,7 @@ not compared:
    Moving pilot mode out of `evalkit/` was the alternative. It could then be
    deleted at any time, but the check would reach a driver of its own and
    never the entry point.
-2. **The camera trajectory measures are hashed on their own.** `ate_rel`
-   decides the StereoMIS result, so the code that computes it is under the
-   freeze rule like the evaluator, and `eval_code_sha` does not cover it:
-   the two results are measured and frozen at their own times, and a
-   change to one must not make the other's scores incomparable. When the
-   StereoMIS scorer is ported, `pose_metrics` moves out of `tools/` into a
-   package of its own, hashed as `code_sha` hashes the evaluator (each
-   file's path and content, each preceded by its length), and every
-   StereoMIS score records that hash and is compared only with scores
-   whose hash matches. Until then `pose_metrics` is a module under
-   `tools/`, tested, and nothing scores with it.
-3. **What the paper measures.** Decided on 2026-10-10:
+2. **What the paper measures.** Decided on 2026-10-10:
    - **The `forward_from_first` conditions.** The paper reports them. They
      are measured on the GPU machine before submission.
    - **The conditions seeded from GT masks.** They are measured again with
@@ -333,7 +323,8 @@ Each question says what it blocks and where its answer is written.
   computes the 86 clips on every run, from the tables of offsets and
   thresholds and from the `stats.npy` of the workbench's depth export,
   which no tracked file makes. A change to an offset moves every
-  `ate_rel`, but the trajectory hash covers `pose_metrics` only. Open:
+  `ate_rel`, but `trajectory_code_sha` covers the modules of
+  `trajectory_eval` only. Open:
   whether the clips are kept as data, as ATLAS-120k's population is;
   whether the hash covers the tables, the clip rule and `pose_controls`;
   and whether the export is made again here. Blocks: the StereoMIS result.
