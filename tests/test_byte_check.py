@@ -79,14 +79,14 @@ def make_clip(root: Path, name: str = "clip_0001", n: int = 3) -> Path:
 
 
 def run_check(tmp_path: Path, a: Path, b: Path | None = None, a_watch: tuple = ("surgical_core",),
-              b_watch: tuple = ("surgical_core",), **kw) -> dict:
+              b_watch: tuple = ("surgical_core",), a_alone: tuple = (), b_alone: tuple = (), **kw) -> dict:
     clips = tmp_path / "clips"
     if not clips.exists():
         make_clip(clips)
     work = tmp_path / "work"
     work.mkdir(exist_ok=True)
-    return bc.check(clips, "clip_0001", bc.Side(a, CMD, watch=a_watch),
-                    bc.Side(b, CMD, watch=b_watch) if b else None,
+    return bc.check(clips, "clip_0001", bc.Side(a, CMD, watch=a_watch, alone=a_alone),
+                    bc.Side(b, CMD, watch=b_watch, alone=b_alone) if b else None,
                     Path(os.path.realpath(work)) / f"w{len(list(work.iterdir()))}", **kw)
 
 
@@ -292,6 +292,60 @@ def test_runs_that_import_different_distributions_are_refused(tmp_path):
     b = make_repo(tmp_path / "b", prelude="import pytest  # noqa: F401")
     with pytest.raises(ValueError, match="different environments"):
         run_check(tmp_path, a, b)
+
+
+def test_what_one_run_is_named_to_import_alone_is_recorded_and_not_compared(tmp_path):
+    # The workbench's surgical_core imports trimesh, which no stage calls; named, it no longer refuses the pair.
+    a = make_repo(tmp_path / "a")
+    b = make_repo(tmp_path / "b", prelude="import iniconfig  # noqa: F401")
+    report = run_check(tmp_path, a, b, b_alone=("iniconfig",))
+    assert report["result"]["identical"]
+    assert report["alone"] == {"a": [], "b": ["iniconfig"]}
+    assert report["environment"]["b"]["distributions"]["iniconfig"][0]["name"] == "iniconfig"
+    assert "iniconfig" not in report["environment"]["a"]["distributions"]
+
+
+def test_a_module_named_alone_that_its_run_did_not_import_is_refused(tmp_path):
+    # A stale name would excuse a module the run never imported, and the list would no longer say what ran.
+    a = make_repo(tmp_path / "a")
+    b = make_repo(tmp_path / "b", prelude="import iniconfig  # noqa: F401")
+    with pytest.raises(ValueError, match="iniconfig, named as run a's alone, came from no distribution"):
+        run_check(tmp_path, a, b, a_alone=("iniconfig",), b_alone=("iniconfig",))
+
+
+def test_a_module_named_alone_that_the_other_run_imports_too_is_refused(tmp_path):
+    # Both runs imported it, so its versions must agree, and naming it would skip that comparison.
+    a = make_repo(tmp_path / "a", prelude="import iniconfig  # noqa: F401")
+    b = make_repo(tmp_path / "b", prelude="import iniconfig  # noqa: F401")
+    with pytest.raises(ValueError, match="iniconfig, named as run a's alone, was imported by the other run too"):
+        run_check(tmp_path, a, b, a_alone=("iniconfig",))
+
+
+def test_only_the_named_modules_are_left_out_of_the_comparison():
+    env = {"python": "3.12.3", "blas": None,
+           "distributions": {"numpy": [{"name": "numpy", "version": "1.26.4", "commit": None}],
+                             "trimesh": [{"name": "trimesh", "version": "4.11.3", "commit": None}]}}
+    other = {"python": "3.12.3", "blas": None,
+             "distributions": {"numpy": [{"name": "numpy", "version": "1.26.4", "commit": None}]}}
+    bc.check_same_environment(env, other, alone_a=("trimesh",))
+    with pytest.raises(ValueError, match="different environments"):
+        bc.check_same_environment(env, other)
+    changed = json.loads(json.dumps(other))
+    changed["distributions"]["numpy"][0]["version"] = "2.0.0"
+    with pytest.raises(ValueError, match="numpy"):
+        bc.check_same_environment(env, changed, alone_a=("trimesh",))
+
+
+def test_one_command_run_twice_imports_nothing_alone(tmp_path):
+    a = make_repo(tmp_path / "a")
+    with pytest.raises(ValueError, match="one command runs twice"):
+        run_check(tmp_path, a, a_alone=("iniconfig",))
+    make_clip(tmp_path / "clips2")
+    proc = subprocess.run([sys.executable, "-m", "pipeline.byte_check", "--root", str(tmp_path / "clips2"),
+                           "--clip", "clip_0001", "--a-repo", str(a), "--a-cmd", CMD, "--a-alone", "iniconfig",
+                           "--work", str(tmp_path)], capture_output=True, text=True)
+    assert proc.returncode == 2
+    assert "one command runs twice" in proc.stderr
 
 
 def test_processes_of_one_run_with_different_packages_are_refused():
