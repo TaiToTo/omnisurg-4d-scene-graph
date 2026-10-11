@@ -18,6 +18,10 @@ which test refuses a breach.
 
 A rule without a test in this table is checked by the reviewer.
 
+In a new clone, set the repository-local `user.email` to the GitHub no-reply
+address before the first commit. A development machine's global config may
+hold a personal one.
+
 ## A module's header
 
 The module docstring says what the module does, in at most twelve lines,
@@ -146,7 +150,7 @@ does. Existing text is rewritten when a change touches the sentence.
 
 - **Fail closed.** If an invariant cannot be checked, raise. Never skip
   quietly.
-- **A check earns its place by failing when it should**, not by passing.
+- **A check is kept only if it fails when it should**; passing proves nothing.
   Every check comes with a test that plants the fault and shows the check
   refusing it.
 - **No TODO in code.** A path known to give a wrong answer for some input
