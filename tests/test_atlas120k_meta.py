@@ -179,7 +179,7 @@ def test_the_private_material_patterns_match_what_they_are_for():
 
 
 def test_the_checks_fail_on_a_planted_clip_without_metadata(tmp_path):
-    """A check earns its place by failing: a clip added to the population
+    """The checks fail when they should: a clip added to the population
     without a rectangle or a depth fingerprint must be caught by both."""
     fake = tmp_path / "atlas120k_meta"
     shutil.copytree(META, fake)

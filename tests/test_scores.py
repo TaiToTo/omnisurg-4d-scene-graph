@@ -2,8 +2,8 @@
 
 Two score JSONs are built for each case, one of the pilot evaluator's
 layout and one of the evaluator's, and one field at a time is changed.
-A check earns its place by failing when it should, so every rule has the
-case that trips it, and one case checks that an untouched pair passes.
+A check must fail when it should, so every rule has the case that trips
+it, and one case checks that an untouched pair passes.
 """
 import copy
 
