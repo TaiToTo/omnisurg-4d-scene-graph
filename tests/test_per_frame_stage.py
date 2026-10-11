@@ -152,6 +152,7 @@ def test_labels_left_by_an_earlier_run_are_refused_unless_replaced(tmp_path):
     np.save(stale, np.zeros((H, W), np.int16))
     with pytest.raises(ValueError, match="pass --overwrite"):
         run_per_frame(clip, tmp_path / "tracks", "t", StandInSegmenter(), "rgb")
+    assert stale.exists()
     run_per_frame(clip, tmp_path / "tracks", "t", StandInSegmenter(), "rgb", overwrite=True)
     assert not stale.exists()
 

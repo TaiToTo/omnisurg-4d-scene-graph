@@ -285,12 +285,12 @@ def test_a_refused_clip_leaves_the_earlier_clip_in_place(source):
     roots, _ = source
     extract_clip(**roots, clip="VID01_s6_60", count=10)
     clip = roots["out"] / "VID01_s6_60"
-    before = {p.relative_to(clip): p.read_bytes() for p in clip.rglob("*") if p.is_file()}
+    before = {p.relative_to(clip): p.read_bytes() if p.is_file() else None for p in clip.rglob("*")}
     chunk = roots["seg8k_root"] / "video01" / "video01_00060"
     cv2.imwrite(str(chunk / "frame_66_endo.png"), np.full((SIZE[1], SIZE[0], 3), 7, np.uint8))
     with pytest.raises(ValueError, match="matches no video frame"):
         extract_clip(**roots, clip="VID01_s6_60", count=10, overwrite=True)
-    assert {p.relative_to(clip): p.read_bytes() for p in clip.rglob("*") if p.is_file()} == before
+    assert {p.relative_to(clip): p.read_bytes() if p.is_file() else None for p in clip.rglob("*")} == before
     assert [p.name for p in roots["out"].iterdir()] == ["VID01_s6_60"]
 
 
