@@ -183,7 +183,8 @@ def test_mark_of_refuses_a_sign_that_only_equals_an_int(sign):
 def test_is_star_matches_mark_of():
     assert (PS.is_star([0.01, 0.05], n_videos=ENOUGH) and not PS.is_star([-0.05, -0.01], n_videos=ENOUGH)
             and not PS.is_star([-0.01, 0.05], n_videos=ENOUGH))
-    assert PS.is_star([-0.05, -0.01], sign=-1, n_videos=ENOUGH) and not PS.is_star([0.01, 0.05], sign=-1, n_videos=ENOUGH)
+    assert PS.is_star([-0.05, -0.01], sign=-1, n_videos=ENOUGH)
+    assert not PS.is_star([0.01, 0.05], sign=-1, n_videos=ENOUGH)
     assert not PS.is_star([0.01, 0.05], n_videos=ENOUGH - 1)
 
 
