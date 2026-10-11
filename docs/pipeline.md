@@ -348,8 +348,8 @@ longest side (`--process-res`). It writes into the clip:
 
 The stage refuses:
 
-- a clip without `crop_info.json`, unless it is an ATLAS-120k clip: a
-  CholecSeg8k clip before the crop stage, or a LapEx clip;
+- a clip without `crop_info.json`, unless it is an ATLAS-120k or a
+  StereoMIS clip: a CholecSeg8k clip before the crop stage, or a LapEx clip;
 - a clip that already holds the stage's output. `--overwrite` replaces the
   stage's own files and leaves every other file.
 
@@ -435,6 +435,32 @@ A refused clip is left as it was: the stage writes and removes nothing
 until every check has passed.
 
 `python -m pipeline.pi3x --help` lists the options.
+
+### Every StereoMIS clip, with both models
+
+```bash
+python -m pipeline.depth_stereomis --root /path/to/StereoMIS --depth-root /path/to/StereoMIS_depth \
+    --input-dir /path/to/clips [--gpus 0 1 2 3]
+```
+
+The command runs the depth stage, then the Pi3X stage, on every usable
+StereoMIS clip under `--input-dir`, one process per GPU, on CUDA only. The
+depth stage writes its point clouds; the Pi3X stage keeps at most 60,000
+points a cloud (`--max-points`), which leaves its poses alone. Each stage
+skips a clip that holds its record (`depth_info`, `geometry_sources.pi3x`),
+and writes its logs to `<input-dir>/_logs/<stage>_gpu<N>.log`. A clip that
+holds a stage's bundle without its record is run again; the stage refuses
+it until its files are removed or the stage is run on it with
+`--overwrite`. Neither record says whether the point clouds were written,
+so the command does not check them. The command refuses what
+`pipeline.depth_population` refuses, for each stage:
+
+- before any process starts: a usable clip that is not under
+  `--input-dir`, and a clip with either stage's output made at another
+  model or resolution, Pi3X clouds of more than 60,000 points included;
+- after each stage: a clip without its output, with depth that records a
+  filled border, or with a bundle that is not one frame per image; the
+  Pi3X stage does not start after the depth stage fails.
 
 ## The tracking stage
 
@@ -669,13 +695,14 @@ The stage refuses:
   regions;
 - regions off DA3's grid, a label that is not an integer or of no listed
   class, a class without an integer id above 0, a string name and a colour
-  of three numbers, or a stage other than `anchor` or `propagated`;
+  of three numbers, a stage other than `anchor` or `propagated`, or an
+  anchor frame that is no frame of the clip;
 - a frame's scene graph with a node that is no region of the frame, has no
   string label or no position of three numbers, or an edge that does not
   join two of its nodes with a string relation;
 - a hierarchy that does not relate two of the bundle's tracks, or whose
-  nodes and edges are not string keys, integer ids and string labels and
-  relations;
+  nodes are not keyed `track:id` with integer ids and string labels, or
+  whose edges do not join two of its nodes with a string relation;
 - a graph through time whose node ids, relation ends or frames are not
   integers, frames from 0 to the clip's last, or whose labels and relations
   are not strings;

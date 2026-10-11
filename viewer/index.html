@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="4D scene graphs of surgical video: point clouds, regions and the graph of their relations through time, built by foundation models with no task-specific training." />
+  <title>4D Surgical Scene Graph Viewer</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='%230899b4'/%3E%3Ccircle cx='8' cy='8' r='2.6' fill='%23e07f00'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="./src/styles.css" />
+</head>
+<body>
+  <header id="topbar">
+    <div class="tb-row">
+      <div id="brand"><span class="brand-dot"></span><span class="brand-title">4D Surgical Scene Graph</span></div>
+      <label class="clip-pick">Clip <select id="clip-select" aria-label="Clip"></select></label>
+      <div id="regions-menu">
+        <button id="btn-regions" aria-haspopup="true" aria-expanded="false" title="Paint a track's regions on the cloud (S)">Regions: <b id="regions-now">off</b> ▾</button>
+        <div id="regions-pop" role="menu" hidden></div>
+      </div>
+      <div class="seg-group" id="mode-btns" role="group" aria-label="View mode">
+        <button data-mode="frame" class="active" title="One frame at a time">Per frame</button>
+        <button data-mode="world" title="The clip's frames stacked in one space (W)">World</button>
+      </div>
+      <div class="seg-group" id="worldview-btns" role="group" aria-label="World display" hidden>
+        <button data-wv="spotlight" class="active" title="One stacked frame on stage, its neighbours faint">Spotlight</button>
+        <button data-wv="overlay" title="Every stacked frame at once">Overlay</button>
+      </div>
+      <div class="seg-group" id="show-btns" role="group" aria-label="Points shown (I)" title="Points shown (I)">
+        <button data-show="all" class="active" title="Every reconstructed point">All</button>
+        <button data-show="tissue" title="Hide the instruments and the points that hang between surfaces">Tissue</button>
+        <button data-show="tools" title="Only the points of instrument classes">Instruments</button>
+      </div>
+      <button id="btn-graph3d" aria-pressed="false" title="Draw the scene graph on the cloud (G)">Graph on cloud</button>
+      <span class="tb-gap"></span>
+      <button id="btn-reset-view" title="Reset the 3D view (R)">Reset view</button>
+      <button id="btn-keys" title="Keys and pointer (?)" aria-label="Keys and pointer">?</button>
+      <button id="btn-about" title="The data and the models behind this page">About</button>
+    </div>
+    <div class="tb-row">
+      <div id="frame-nav">
+        <button id="btn-prev" title="Previous frame (←)" aria-label="Previous frame">◀</button>
+        <input type="range" id="frame-slider" min="0" max="0" value="0" aria-label="Frame" />
+        <button id="btn-next" title="Next frame (→)" aria-label="Next frame">▶</button>
+        <button id="btn-play" title="Play or pause (Space)" aria-pressed="false">▶ Play</button>
+        <span id="frame-label">– / –</span>
+      </div>
+      <div id="clip-info"></div>
+    </div>
+  </header>
+
+  <main id="layout">
+    <aside id="side">
+      <section class="card" id="thumb-card">
+        <h3>Frame</h3>
+        <div id="thumb-row">
+          <figure><img id="thumb-rgb" alt="The frame" /><figcaption>Video frame</figcaption></figure>
+          <figure><div class="overlay-box"><img id="thumb-rgb2" alt="" /><canvas id="thumb-seg"></canvas><div id="thumb-badge" class="cell-badge" hidden></div></div>
+            <figcaption id="thumb-seg-cap">Regions</figcaption></figure>
+        </div>
+        <div id="thumb-legend" hidden></div>
+      </section>
+      <section class="card grow" id="nodelink-card">
+        <h3><span id="nodelink-title">Scene graph · camera view</span>
+          <button id="btn-map-big" class="map-open" title="Show this graph large, over the 3D view">Enlarge</button></h3>
+        <div id="nodelink-body"></div>
+      </section>
+    </aside>
+    <div id="split-side" title="Drag to resize the side panel" role="separator" aria-orientation="vertical"></div>
+    <section id="viewport">
+      <canvas id="gl" aria-label="3D view of the clip's point cloud"></canvas>
+      <div id="focus-bar">
+        <span id="fb-hint">Click a region to follow it through time</span>
+        <span id="fb-on" hidden>Following <b id="fb-name"></b> <span id="fb-track"></span>
+          <span id="fb-steps" role="group" aria-label="Steps">
+            <button data-stage="1" title="The region, marked where it is">① Region</button>
+            <button data-stage="2" title="World mode: the region alone in each frame, with its path">② Motion in 3D</button>
+            <button data-stage="3" title="How its edge to a neighbour changes through time">③ Relations</button>
+          </span>
+          <button id="fb-clear" title="Stop following (Esc)" aria-label="Stop following">×</button></span>
+      </div>
+      <div id="map-big" hidden>
+        <div id="mb-head"><b>The stacked frames in one camera</b><span id="mb-note"></span>
+          <button id="mb-close" title="Back to the 3D view (Esc)">Back to 3D</button></div>
+        <div id="mb-body"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer id="dock">
+    <div id="split-dock" title="Drag to resize the strip" role="separator" aria-orientation="horizontal"></div>
+    <div id="dock-head">
+      <h3><span class="in-world">The graph through time <small>· one plate per stacked frame</small></span>
+        <span class="in-frame">Regions through time <small>· one row per track</small></span></h3>
+      <button id="btn-strip-photo" hidden title="Each frame's image under its regions (P)">Frame images</button>
+      <button id="btn-fuse" class="map-open" title="Project every stacked frame into one camera">Fuse into one map</button>
+    </div>
+    <div id="node-focus" hidden>
+      <div id="nf-head"><span id="nf-title"></span><span id="nf-hint"></span>
+        <button id="nf-close" title="Stop following" aria-label="Stop following">×</button></div>
+      <div id="nf-body"></div>
+    </div>
+    <div id="strip"></div>
+  </footer>
+
+  <div id="status" role="status">Loading…</div>
+
+  <div id="keys-overlay" class="overlay" hidden role="dialog" aria-modal="true" aria-labelledby="keys-title">
+    <div class="dialog"><h2 id="keys-title">Keys and pointer</h2><div id="keys-body"></div>
+      <div class="dialog-foot"><button id="keys-close">Close</button></div></div>
+  </div>
+  <div id="about-overlay" class="overlay" hidden role="dialog" aria-modal="true" aria-labelledby="about-title">
+    <div class="dialog wide"><h2 id="about-title">About this page</h2>
+      <p>Foundation models, with no training for surgery, reconstructed each clip in 3D, cut its frames into
+        regions and carried the regions through the clip. The regions and the relations between them make the
+        scene graph, frame by frame and through time.</p>
+      <div id="about-body"></div>
+      <div class="dialog-foot"><button id="about-close">Close</button></div></div>
+  </div>
+  <div id="toast" hidden role="alert"><span id="toast-text"></span><button id="toast-close" aria-label="Dismiss">×</button></div>
+  <noscript><p class="noscript">This page needs JavaScript to draw the clips.</p></noscript>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
