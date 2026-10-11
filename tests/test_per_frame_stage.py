@@ -34,7 +34,11 @@ RECORD = dict(clip="VID01_s15_80_crop", tag="t", seed_source="per_frame", track_
 
 
 class StandInSegmenter:
-    """Cut every image into a left half (region 0), a right half (1) and a 2x2 corner (2)."""
+    """Cut each image into a left part (region 0), a right part (1) and a 2x2 corner (2).
+
+    The k-th image this segmenter is given, counted across clips, is cut at column `W // 2 + k`, so a frame
+    written with another frame's labels shows. An image with `k` of `W // 2` or more has no right part.
+    """
 
     device = "cpu"
 
@@ -42,10 +46,10 @@ class StandInSegmenter:
         self.images, self.grids = [], []
 
     def label_map(self, image, points_per_side):
+        labels = np.zeros(image.shape[:2], int)
+        labels[:, W // 2 + len(self.images):] = 1
         self.images.append(image.copy())
         self.grids.append(points_per_side)
-        labels = np.zeros(image.shape[:2], int)
-        labels[:, W // 2:] = 1
         labels[:2, :2] = 2
         return labels
 
@@ -89,10 +93,13 @@ def test_every_frame_is_cut_and_written_under_the_trackers_ids(tmp_path):
     lab_dir = run_per_frame(_clip(tmp_path), tmp_path / "tracks", "t", seg, "rgb", seed_min_area=5)
     assert lab_dir.name == "track_rgb_t" and len(seg.images) == N
     assert sorted(p.name for p in lab_dir.iterdir()) == [f"label_{i:04d}.npy" for i in range(N)] + ["seed_info.json"]
-    labels = np.load(lab_dir / "label_0003.npy")
-    assert labels.dtype == np.int16
-    assert set(np.unique(labels)) == {-1, 1, 2}
-    assert (labels[:2, :2] == -1).all()
+    for i in range(N):
+        # Region r gets the tracker's id r + 1; the corner, under the minimum area, gets none.
+        want = np.full((H, W), 1, np.int16)
+        want[:, W // 2 + i:] = 2
+        want[:2, :2] = -1
+        labels = np.load(lab_dir / f"label_{i:04d}.npy")
+        assert labels.dtype == np.int16 and np.array_equal(labels, want), f"frame {i}"
     info = json.loads((lab_dir / "seed_info.json").read_text())
     assert (info["seed_source"], info["frames"], info["seed_min_area"]) == ("per_frame", "all", 5)
     assert info["seed_input"]["seed_smooth"] is False and info["seed_input"]["edge_ring_masked"] is None
