@@ -191,6 +191,19 @@ def test_a_key_undefined_on_a_clip_is_counted_on_the_clips_both_define():
     assert (r["n_clips"], r["n_videos"]) == (13, 7)
 
 
+def test_a_key_in_no_row_names_an_evaluator_json_by_its_label_directory():
+    # The evaluator writes `track_dir_name` and no `tag`, as these two JSONs do.
+    base, cond = evaluator_scores("base", 0.0, 1), evaluator_scores("cond", 0.02, 2)
+    for j, name in ((base, "track_rgb_a"), (cond, "track_rgb_b")):
+        del j["tag"]
+        j["track_dir_name"] = name
+    key = metric_key("SQ", "all")
+    for row in cond["per_clip"]:
+        del row[key]
+    with pytest.raises(ValueError, match=f"{key} is in no row of track_rgb_b"):
+        LV.leave_each_out_of_pair(base, cond, [key])
+
+
 def test_a_key_in_no_row_is_refused():
     # A key the JSON does not hold is a wrong key, not a key undefined on every clip.
     base, cond = pilot_pair()
