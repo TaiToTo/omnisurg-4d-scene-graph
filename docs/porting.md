@@ -526,8 +526,8 @@ public viewer reads a bundle"), from `viewer/demo.html` and
   The stored word is the one the edge's axes are checked against.
 - A file the clip's record lists that does not load stops the frame with an
   error, where the demo drew the frame without it.
-- A graph through time whose ids, frames or relations are not of their type
-  is refused with an error, and no band is drawn from it.
+- A graph through time that `pipeline.viewer_bundle` would refuse is
+  refused with an error, and no band is drawn from it.
 
 The workbench's `depthcmp` and `workbench` pages, which compare depth models
 and browse every clip for research, are not carried ("Not carried for now").

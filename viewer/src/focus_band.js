@@ -76,15 +76,19 @@ export function runsOf(frames) {
 
 /**
  * List the events of a node, in time order: where it enters and leaves the view, and where its relation to
- * each given neighbour changes. A node enters or leaves only within `[first, last]`, the frames the graph covers.
+ * each given neighbour changes. `frames` are the frames the graph covers, in order. A node enters on a frame
+ * of these it is on after one it is not on, and leaves on a frame it is not on after one it is on, so a
+ * frame the graph does not cover is no event.
  *
  * @returns {Array<{f:number, kind:'enter'|'exit'|'rel', partner?:number, label:string}>}
  */
-export function nodeEvents(node, partners, [first, last], labelOf) {
+export function nodeEvents(node, partners, frames, labelOf) {
   const events = [];
-  for (const [a, b] of runsOf(node.present_frames || [])) {
-    if (a > first) events.push({ f: a, kind: 'enter', label: 'enters the view' });
-    if (b < last) events.push({ f: b + 1, kind: 'exit', label: 'leaves the view' });
+  const present = new Set(node.present_frames || []);
+  for (let k = 1; k < frames.length; k++) {
+    const was = present.has(frames[k - 1]), is = present.has(frames[k]);
+    if (is && !was) events.push({ f: frames[k], kind: 'enter', label: 'enters the view' });
+    if (was && !is) events.push({ f: frames[k], kind: 'exit', label: 'leaves the view' });
   }
   for (const [other, e] of partners) {
     for (const c of e.changes) events.push({ f: c.f, kind: 'rel', partner: other, label: `to ${labelOf(other)}: ${c.from} → ${c.to}` });
@@ -111,9 +115,7 @@ export function renderFocusBand(el, { tg, nodeId, lastFrame, frame, onFrame, onE
   const W = Math.max(300, Math.floor(el.getBoundingClientRect().width || 0) - 2 || 800);
   const x = (f) => axisX(f, W, n);
   const partners = topPartners(tg, nodeId);
-  const covered = (Array.isArray(tg.frames) ? tg.frames : []).filter(Number.isInteger);
-  const span = covered.length ? [Math.min(...covered), Math.max(...covered)] : [0, lastFrame];
-  const events = nodeEvents(node, partners, span, labelOf);
+  const events = nodeEvents(node, partners, tg.frames, labelOf);
   const byAxis = partners.length && axes?.byFrame?.size ? axes.byFrame : null;
   const edgeH = !partners.length ? 0 : byAxis ? 3 * (AXIS_H + AXIS_GAP) : EDGE_H;
   const H = TOP + edgeH + ROW_H + 14;

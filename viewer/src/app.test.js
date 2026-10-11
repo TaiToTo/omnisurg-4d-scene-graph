@@ -107,7 +107,7 @@ async function fresh() {
   data.fetchGraph.mockResolvedValue(null);
   data.fetchHierarchy.mockResolvedValue(null);
   const all = [...Array(40).keys()];
-  data.fetchTemporal.mockResolvedValue({ nodes: [{ id: 1, present_frames: all }, { id: 7, present_frames: all }], relations: [] });
+  data.fetchTemporal.mockResolvedValue({ frames: all, nodes: [{ id: 1, present_frames: all }, { id: 7, present_frames: all }], relations: [] });
   const reports = [];
   app.onError((m) => reports.push(m));
   return { app, data, stage, world, band, paint, THREE, reports };
@@ -266,12 +266,12 @@ describe('following a region', () => {
     data.loadClip.mockResolvedValueOnce(makeClip('a', 40)).mockResolvedValueOnce(makeClip('b', 40));
     await app.openClip('a');
     const tgA = deferred();
-    const tgB = { nodes: [{ id: 3, present_frames: [0] }], relations: [] };
+    const tgB = { frames: [...Array(40).keys()], nodes: [{ id: 3, present_frames: [0] }], relations: [] };
     data.fetchTemporal.mockReturnValueOnce(tgA.promise).mockResolvedValueOnce(tgB);
     const followA = app.setFocusNode('t:3');
     await app.openClip('b');
     await app.setFocusNode('t:3');
-    tgA.resolve({ nodes: [], relations: [] });
+    tgA.resolve({ frames: [...Array(40).keys()], nodes: [], relations: [] });
     await followA;
     expect(app.state.temporal).toBe(tgB);
   });
