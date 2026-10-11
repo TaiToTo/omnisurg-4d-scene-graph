@@ -96,6 +96,13 @@ not compared:
      this repository's code. Open: whether the paper reports them.
    - **`track_metrics`.** It is run on the paper's conditions. Open: how
      the paper reports its measures.
+3. **The conditions take their names at the re-score.**
+   `evalkit/tools/condition_names.tsv` maps each workbench condition that
+   the paper's tables read to its name here, or says why its records show
+   none. With the re-score, and not before, the label directories and the
+   score JSONs take these names, and `paired_table`, `claims_table` and
+   `arms_paired` read their tags from the table. Until then the tools read
+   the workbench's names.
 
 ## Remaining steps
 
@@ -200,13 +207,6 @@ Each question says what it blocks and where its answer is written.
 
 ### Conditions
 
-- **Condition names.** A workbench name says which task made a condition
-  (`t12_*`, `t5_*`), not what it is. A condition also has two names: its
-  score's tag and its prediction directory, which the score records as
-  `track_dir_name`. Open: how a name says the input, the seed's source and
-  the propagation rule; where the one table that maps workbench names to
-  names here lives; and whether the tools read their tags and their pairs
-  from it. Blocks: naming new conditions. Answer in: that table.
 - **The edge ring of the tracker's input.** The tracking stage builds the
   seed's input and the tracker's input with one ring setting.
   `seed_info.json` records the setting once, as
@@ -264,7 +264,8 @@ Each question says what it blocks and where its answer is written.
 - **The pairs `arms_paired` reports.** The workbench compared 21 pairs of
   inputs by default. Two of them compare inputs the paper's conditions
   ran: `rgb_edge` with `rgb`, and `normal_edge` with `normal`. The port
-  carries no list, because the tags wait on "Condition names". Open: which
+  carries no list, because its tags change at the re-score ("The conditions
+  take their names at the re-score"). Open: which
   pairs the paper reports with the tool. Answer in: `arms_paired`'s
   docstring.
 - **The benchmark mapping against its source.** The ATLAS-120k mapping to
