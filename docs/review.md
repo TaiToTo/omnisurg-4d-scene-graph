@@ -146,7 +146,7 @@ does. Existing text is rewritten when a change touches the sentence.
 
 - **Fail closed.** If an invariant cannot be checked, raise. Never skip
   quietly.
-- **A check earns its place by failing when it should**, not by passing.
+- **A check is kept only if it fails when it should**; passing proves nothing.
   Every check comes with a test that plants the fault and shows the check
   refusing it.
 - **No TODO in code.** A path known to give a wrong answer for some input
