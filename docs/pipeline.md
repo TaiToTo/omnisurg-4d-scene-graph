@@ -52,7 +52,8 @@ Each video also gets `<procedure>__<video>__extract_report.json`, one row
 per clip of its index, saying whether the clip was kept, split, a duplicate,
 too short, or without masks. With no `--videos`, the stage extracts every
 video whose frame ratio was measured. With `--population`, it refuses a
-video whose clips written are not the population's clips of that video.
+video whose clips to be written are not the population's clips of that
+video.
 
 The stage refuses:
 
@@ -66,7 +67,7 @@ The stage refuses:
 - a frame it cannot read or write;
 - a video that already has output, unless `--overwrite` is given, which
   removes the video's clips and report first;
-- clips written that are not the population's.
+- clips to be written that are not the population's.
 
 A refused video is left as it was: the stage writes and removes nothing
 until every check has passed. The checks made while a clip is written are
