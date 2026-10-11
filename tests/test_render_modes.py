@@ -73,3 +73,10 @@ def test_normals_of_another_depth_are_refused():
     other = normals.camera_normals(depth[:-1, :-1], K)
     with pytest.raises(ValueError, match="not the depth's"):
         normals.geom_edge_map(depth, K, normals=other, mask_ring=True)
+
+
+def test_an_unknown_edge_parts_name_is_refused():
+    from surgical_core.geometry import normals
+    depth, K, _, _ = _inputs()
+    with pytest.raises(ValueError, match="parts is 'both', 'normal' or 'depth', not 'normals'"):
+        normals.geom_edge_map(depth, K, parts="normals", mask_ring=True)

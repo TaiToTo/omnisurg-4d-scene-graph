@@ -133,6 +133,7 @@ def geom_edge_map(depth, K, normal_thresh=0.3, depth_thresh=0.04, parts="both", 
     Raises:
         ValueError: one of these:
             - `mask_ring` is not a bool, `None` included.
+            - `parts` is not `"both"`, `"normal"` or `"depth"`.
             - `normals` is given and its shapes are not the depth's, so it was
               computed from another depth.
 
@@ -147,6 +148,9 @@ def geom_edge_map(depth, K, normal_thresh=0.3, depth_thresh=0.04, parts="both", 
     """
     if not isinstance(mask_ring, bool):
         raise ValueError(f"mask_ring is True or False, not {mask_ring!r}")
+    # A misspelt name raises. Taken as "both", it would run both cues under another name.
+    if parts not in ("both", "normal", "depth"):
+        raise ValueError(f"parts is 'both', 'normal' or 'depth', not {parts!r}")
     if normals is None:
         n, m = camera_normals(depth, K)
     else:
@@ -172,7 +176,7 @@ def geom_edge_map(depth, K, normal_thresh=0.3, depth_thresh=0.04, parts="both", 
     g = np.hypot(np.gradient(np.nan_to_num(d), axis=1), np.gradient(np.nan_to_num(d), axis=0))
     # The 1e-6 keeps the division finite where the depth is 0. It is not a depth test.
     ed = np.clip(np.nan_to_num(g) / (np.nan_to_num(d) * depth_thresh + 1e-6), 0, 1)
-    edge = {"normal": en, "depth": ed}.get(parts, np.maximum(en, ed))
+    edge = {"both": np.maximum(en, ed), "normal": en, "depth": ed}[parts]
     edge = np.array(edge, dtype=float)
     edge[~m] = 0
     if mask_ring:
