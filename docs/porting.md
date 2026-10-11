@@ -331,9 +331,10 @@ Each stage is described in `docs/pipeline.md`.
 - `depth_sam_tracking_experiment/track_sam3.py`, as the `single` mode of
   `run_track_conditions.py` runs it, is `pipeline/track.py`. The worker of
   `ipcai2027_experiment/scripts/run_per_frame_seg.py` is
-  `pipeline/per_frame.py`. The workbench's drivers passed
-  `--seed_inst_thresh 1.0`, so that `--seed_auto` chose the centre frame; the
-  tracking stage seeds there without it. On the GPU machine, each stage
+  `pipeline/per_frame.py`. For the centred conditions, the workbench's
+  drivers passed `--seed_inst_thresh 1.0`, so that `--seed_auto` chose the
+  centre frame. Under `both_ways_from_centre`, the tracking stage seeds on
+  the centre frame without reading GT. On the GPU machine, each stage
   wrote the workbench's files byte for byte on
   `adrenalectomy__16GPCUPkXYQ__gt_0004`,
   `adrenalectomy__16GPCUPkXYQ__tile_0007` and `VID01_s15_80_crop`. The
@@ -344,7 +345,12 @@ Each stage is described in `docs/pipeline.md`.
   - the per-frame stage: those of `op_edge_perframe`,
     `op_rgb_perframe_pps24` and `op_edge_pf_pps8_pi3x`.
 
-  Every case masked the edge ring; `--keep-edge-ring` was not compared.
+  Every case masked the edge ring. The paper's conditions use these
+  settings, which were not compared:
+  - `--seed-labels`, which the `t5_*` conditions use;
+  - the segmenter inputs `normal`, `depth` and `rgb_edge`;
+  - `--keep-edge-ring`, which `ch_edge_center` and `ch_edge_perframe` most
+    likely used.
 - `ipcai2027_experiment/scripts/make_t5_seeds.py` is the per-frame stage,
   `kmerge` and the tracking stage ("The granularity conditions"). They make
   its seeds, ids aside, on 315 of 315 ATLAS-120k clips and 27 of 27
