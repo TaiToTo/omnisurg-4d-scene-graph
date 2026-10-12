@@ -10,7 +10,7 @@
    "rule": "centre"
   },
   {
-   "what": "Each input segmented frame by frame at the grid of 24, the other side of the propagation comparison on CholecSeg8k, whose clips are all made again.",
+   "what": "Each input segmented frame by frame at the grid of 24, the other side of the propagation comparison on CholecSeg8k, where the table names no per-frame condition of an edge input with the ring masked.",
    "datasets": ["cholecseg8k"],
    "inputs": ["rgb", "rgb-edge", "normal", "normal-edge", "depth"],
    "depth": "da3",
