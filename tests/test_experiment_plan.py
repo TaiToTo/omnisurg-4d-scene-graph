@@ -5,9 +5,12 @@ import json
 
 import pytest
 
-from evalkit.tools.condition_names import read_table
-from pipeline.condition_population import build_parser, expected_record
-from pipeline.experiment_plan import (
+# The plan builds on `pipeline.condition_population`, whose stages draw the inputs with matplotlib: the `render` extra.
+pytest.importorskip("matplotlib")
+
+from evalkit.tools.condition_names import read_table  # noqa: E402
+from pipeline.condition_population import build_parser, expected_record  # noqa: E402
+from pipeline.experiment_plan import (  # noqa: E402
     PLAN, check_plan, command, conditions, label_dir, main, name_of_record, stage_options, status,
 )
 
