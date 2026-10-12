@@ -91,8 +91,8 @@ omnisurg-4d-scene-graph/
 │                      (track_metrics: waits on its GT track)
 ├── trajectory_eval/   the camera trajectory scorer, hashed into trajectory_code_sha
 │   └── tools/         what makes the controls' trajectories, scores StereoMIS or
-│                      reads the scores, never hashed: pose_controls score_stereomis
-│                      scores stereomis_table
+│                      D4D, or reads the scores, never hashed: pose_controls
+│                      score_stereomis score_d4d scores stereomis_table
 ├── pipeline/          depth → segmentation → tracking → viewer export
 ├── recon3d_wrapper/   3D reconstruction — DA3 and Pi3 behind one interface
 ├── sam3_wrapper/      promptable segmentation and tracking with SAM 3
