@@ -19,16 +19,28 @@ clip. Nothing is excluded on a score. Crop rectangles select nothing. A clip
 with a cut in its recording is used whole. `pipeline/extract_atlas120k.py`
 applies the rule.
 
-A cut is a scene change inside the mp4, judged by eye in the workbench. The
-search looked only inside GT clips, at the frame pairs whose pixel
-difference was above 40, and judged 40 of those 125 pairs; the rest were
-not looked at. Two of the 315 clips contain a judged cut:
-`cholecystectomy__1ud3syYKD3A__gt_0001` contains six, and
-`cholecystectomy__Bj13QcLRCVc__gt_0001` contains one candidate left
-undecided. Such a clip is used whole: that was decided when the crop
-rectangles were checked, before tracking was considered, and whether it
-stands for the tracked frames is not decided. No measurement of the paper
-reads the cuts.
+A cut is a scene change inside the mp4: the frame before it and the frame
+after it show different scenes, or one of them is an inserted slide.
+`cuts.csv` lists every candidate for a cut inside the 315 clips, with the
+judgement on it:
+
+- **The search.** A script compared mp4 frames 5 apart. For each pair it
+  computed `d_pix`, the mean absolute difference of the two frames in grey,
+  scaled to 160 pixels wide (0 to 255).
+- **The candidates.** A candidate is a pair with `d_pix` of at least 40 whose
+  frames overlap the range of a clip of the population: 112 pairs in 51
+  clips. Pairs below 40 were not looked at, so a cut with a smaller
+  difference may be missing.
+- **The judgement.** A person judged every candidate by eye: first from the
+  three frames on each side of it, and then, where those did not decide, from
+  the video played at its own speed around it. For a cut, the person also
+  chose the exact pair of adjacent frames, `cut_before` and `cut_after`; the
+  new scene starts at `cut_after`.
+
+Of the 112 candidates, 33 are cuts. 32 of them fall between two frames of
+their clip, in 23 clips. The other one falls after the last frame of its
+clip, so it splits nothing. These 23 clips are still used whole in this
+population. No measurement of the paper reads the cuts.
 
 `videos/videos.json` is the inventory of the release's tree: all 100 videos
 and their 502 clips. An earlier extraction wrote it, so its `keep`,
@@ -65,6 +77,7 @@ whose ranges intersect, and checks the population against them.
 | `clips.txt` | the population, one `<procedure>__<video>__gt_<n>` per line | `ipcai2027_experiment/frozen/atlas97_clips.txt` |
 | `depth_manifest.json` | per clip, sha256 of depth and intrinsics, frame count, shape | `ipcai2027_experiment/frozen/atlas97_depth_manifest.json` |
 | `crop_rects.json` | per clip, the rectangle to use (`rect`, in `src_size` pixels) and whether the automatic one was accepted (`verdict`); `rect_used` and `via` are history | `experiment/crop_necessity/verdicts/verdicts_latest.json` |
+| `cuts.csv` | per candidate pair inside the population, its clip, the pair and its `d_pix`, whether it is a cut, and for a cut the adjacent frames it falls between; all frame numbers are the mp4's | `experiment/crop_necessity/cut_review_targets.csv` |
 | `frame_ratio.json` | per video, the measured ratio between the clip index's frame numbers and the mp4's (1, 2, 3 or 4), with the frame pair it was matched on and their pixel difference; all 97 videos | `outputs/crop_cuts/_align2.json` |
 | `videos/videos.json` | the 100-video tree: per video its mp4, clips, frame counts, why any was dropped | `ipcai2027_experiment/task22_atlas100/out/manifest/videos.json` |
 
@@ -76,6 +89,10 @@ separate fields.
 The files are byte copies of the workbench's, except that an absolute path
 (`atlas_root` in `videos.json`) was removed and the eight `note` fields of
 `crop_rects.json` were translated from Japanese. Nothing reads the notes.
+`cuts.csv` is rewritten from the workbench's table: its columns are renamed,
+the clip-index frame numbers and the clip's range that the table derived
+from the mp4's are left out, and so is its one note, which asks about a
+frame that is not a cut.
 The workbench's other files about this tree (the cut marks, the audits of
 the earlier extraction, its clip lists) are not carried for now. No
 measurement of the paper reads them.
