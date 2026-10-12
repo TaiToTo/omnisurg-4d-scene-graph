@@ -44,6 +44,10 @@ tools = ["scipy", "matplotlib"]
 # `surgical_core` does: scipy turns the ground truth's quaternions into
 # rotation matrices.
 stereomis = ["scipy"]
+# What the D4D census needs: trimesh reads the scans, and D4D's loader, which
+# pip cannot install (the README says how to get it), imports PyYAML and
+# tqdm.
+d4d = ["trimesh", "PyYAML", "tqdm"]
 # The depth stages need the render extra, Depth Anything 3, Pi3X and torch. DA3
 # pins numpy below 2, and no numpy below 2 supports a Python newer than 3.12,
 # so this extra installs on Python 3.12 only. DA3 imports `addict` without

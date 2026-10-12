@@ -79,6 +79,12 @@ two scores are compared only when they are comparable ("Terms").
   key are the clips on which it moved the better way, among those.
 - A *claim* says that one condition is better or worse than another on a
   key. "From frames to clips" says how the clip values decide it.
+- A condition's *regions per frame* is the number of region ids a frame's
+  label map holds, every pixel read and every region counted whatever its
+  size, averaged over the frames with a prediction and then over the
+  clips. It reads no GT, view or depth. `evalkit/tools/region_counts`
+  counts it, and `evalkit/tools/region_curves` lays each input's scores
+  along it.
 
 ## The evaluator at a glance
 
@@ -223,7 +229,8 @@ scene.
 object as well, as reference values that decide no claim:
 
 - a GT object is one 8-connected piece of one class's scored pixels;
-- a predicted object is one region's scored pixels;
+- a predicted object is one region's scored pixels, whole: a region that
+  an instrument cuts in two is one object, as it is for the evaluator;
 - each is kept only at a minimum size, the same on both sides: 0, 100, 300
   or 400 pixels at the evaluation resolution, each size reported.
 

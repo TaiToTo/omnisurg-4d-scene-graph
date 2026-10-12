@@ -13,7 +13,7 @@ import pytest
 import clip_dirs as C
 from evalkit.classes import load_table
 from evalkit.frame import score_view as evaluator_score_view
-from evalkit.inputs import DEPTH_FILE
+from evalkit.inputs import DEPTH_FILE, read_clip
 from evalkit.scored import scored_pixels
 from evalkit.tools import component_scores
 from evalkit.tools.component_scores import (
@@ -124,6 +124,18 @@ def test_a_clip_on_disk_averages_each_size_over_its_scored_frames(tmp_path):
 def test_the_json_records_the_hash_of_the_tool(tmp_path):
     write_condition(tmp_path, [SPILL])
     assert measure(tmp_path)["tool_sha"] == tool_sha(component_scores.__file__)
+
+
+def test_the_hashes_are_taken_before_any_clip_is_scored(tmp_path, monkeypatch):
+    # A source file edited during a run must not relabel the values of the code in memory.
+    write_condition(tmp_path, [SPILL])
+    calls = []
+    monkeypatch.setattr(component_scores, "eval_code_sha", lambda: calls.append("eval") or "e")
+    monkeypatch.setattr(component_scores, "tool_sha", lambda *paths: calls.append("tool") or {})
+    monkeypatch.setattr(component_scores, "read_clip", lambda *a: calls.append("clip") or read_clip(*a))
+    summary = measure(tmp_path)
+    assert calls.index("clip") > max(calls.index("eval"), calls.index("tool"))
+    assert (summary["eval_code_sha"], summary["tool_sha"]) == ("e", {})
 
 
 def test_a_clip_whose_every_gt_frame_is_excluded_is_refused(tmp_path):

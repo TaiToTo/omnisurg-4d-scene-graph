@@ -78,7 +78,7 @@ shape of another repo.
 ```
 omnisurg-4d-scene-graph/
 ├── LICENSE  README.md  pyproject.toml  (CITATION.cff: waits on the release)
-├── surgical_core/     atlas120k clip_time geometry stereomis viewer
+├── surgical_core/     atlas120k clip_time d4d geometry stereomis viewer
 │                      (cholec pointcloud: wait on the export stage)
 ├── evalkit/           the evaluator, hashed into eval_code_sha with its class tables
 │   └── tools/         what reads scores, predictions, the class tables or the
@@ -87,6 +87,7 @@ omnisurg-4d-scene-graph/
 │                      check_benchmark_mapping pilot_check kmerge paired_table
 │                      arms_paired leave_one_video_out claims_table
 │                      print_status_tables condition_names component_scores
+│                      region_counts region_curves
 │                      (track_metrics: waits on its GT track)
 ├── trajectory_eval/   the camera trajectory scorer, hashed into trajectory_code_sha
 │   └── tools/         what makes the controls' trajectories, scores StereoMIS or
