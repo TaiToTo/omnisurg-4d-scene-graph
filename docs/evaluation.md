@@ -217,6 +217,22 @@ the normal rules.
 [`evalkit/objects.py`](../evalkit/objects.py) computes the numbers on this
 scene.
 
+#### Component objects
+
+`evalkit/tools/component_scores` scores every condition on a second kind of
+object as well, as reference values that decide no claim:
+
+- a GT object is one 8-connected piece of one class's scored pixels;
+- a predicted object is one region's scored pixels;
+- each is kept only at a minimum size, the same on both sides: 0, 100, 300
+  or 400 pixels at the evaluation resolution, each size reported.
+
+The pairing, the hits and `inst_BF` are the evaluator's. A component object
+is a piece the frame shows, not a thing: a liver cut in two by an
+instrument is two objects, and two touching instruments are one. The pilot
+evaluator's objects were component objects of 300 pixels, in its own
+domains.
+
 ### Naming the regions: the class map
 
 The pipeline gives regions without classes, so `mIoU` and `boundary_F` need a
@@ -548,7 +564,8 @@ components and predicted regions under 300 px. With whole-class objects, a
 sliver joins its class's region instead of becoming an object, so a cut would
 only decide whether a small class counts at all, and nothing in the data sets
 that size. Pilot mode keeps the cut, as `PILOT_MIN_CC_PX`, and nothing else
-uses it.
+uses it. The component objects are scored at four sizes
+instead ("Component objects").
 
 ### Fail closed
 
