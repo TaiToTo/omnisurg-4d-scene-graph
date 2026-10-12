@@ -12,7 +12,7 @@ no check is recorded.
 | area | ported | checked |
 |---|---|---|
 | evaluator, `evalkit/` | class tables, metrics, entry point, pilot mode | in pilot mode, every key shared with the pilot evaluator equal on 23 conditions × 315 clips, at `eval_code_sha` `a5d7ea46…` |
-| score tools, `evalkit/tools/` | every tool in the layout of `AGENTS.md` but `track_metrics` | `paired_table`, `arms_paired`, `claims_table`, `leave_one_video_out`, `print_status_tables`, `kmerge`: the workbench's values on the same inputs |
+| score tools, `evalkit/tools/` | every tool in the layout of `AGENTS.md` but `track_metrics` | `paired_table`, `arms_paired`, `claims_table`, `leave_one_video_out`, `print_status_tables`, `kmerge`: the workbench's values on the same inputs. `d4d_front_behind`: the workbench's eight front/behind outputs, every field of the 487 sides, the totals and the intervals, scored again from its stored depth and seeds. `d4d_front_behind_verdict`, on the workbench's outputs: its four verdicts, every number |
 | camera trajectory scorer, `trajectory_eval/` | `pose_metrics`, the scoring of a clip, `pose_controls`, `scores`, `score_stereomis`, `stereomis_table` | `pose_metrics`: the workbench's values on 1200 random, planar and static trajectories. The scoring of a clip, `pose_controls` and `score_stereomis`: the workbench's 387 StereoMIS rows, every value, scored again from its stored outputs. `stereomis_table`, on those rows: the 24 pairs of the workbench's `summary_20.json`, every field |
 | extraction and crop | ATLAS-120k, CholecSeg8k, LapEx, StereoMIS, the D4D census and population | the CholecSeg8k crop and 13 of the 27 CholecSeg8k clips: the workbench's bytes. LapEx's 735 clips: the workbench's frames and masks, and its manifests apart from `depth_info`. The D4D census: every field it writes equal to the workbench's census on the 271 clips. The D4D population: the same bytes from the ported census as from the workbench's |
 | depth | DA3, Pi3X, point clouds, the population drivers, the D4D depth stage | DA3, point clouds and Pi3X: the workbench's bytes on the GPU machine, on three clips. DA3 also on the 25 LapEx clips whose border the workbench did not fill. The D4D depth stage: the workbench's bytes on the GPU machine, on the six sides of three clips |
@@ -57,7 +57,7 @@ not compared:
   modules they need. Its byte check needs a clip whose tracking labels the
   workbench holds.
 - **The paper's tables**: the claims grid.
-- **D4D**: the front/behind relation and the camera trajectory.
+- **D4D**: the camera trajectory.
 - **LapEx's comparisons**. They wait on "How LapEx is scored".
 - **The conditions seeded from GT masks** (`t12_gtseed`, `t12_paste`). They
   wait on "Conditions seeded from GT".
@@ -303,6 +303,23 @@ Each question says what it blocks and where its answer is written.
   tracking stage does. On the six sides compared, every seed changes.
   Open: which setting the D4D result is measured with. Blocks: the D4D
   result. Answer in: `docs/pipeline.md`, the D4D depth and seed stages.
+- **The D4D verdict and the mark rule.** `d4d_front_behind_verdict`
+  gives `A` only when the intervals over sessions, clips and specimens all
+  exclude zero, from 2,000 resamples of the pooled share. `paired_stats`
+  marks a pair when the interval over videos excludes zero on six videos
+  or more, from 10,000 resamples of the mean difference. D4D has five
+  specimens, so an interval that the mark rule reads for its sign only
+  can turn the verdict to `B`. Open: whether the D4D claim is marked by
+  `paired_stats.mark_of` with sessions as the videos, and with which
+  number of resamples. Blocks: the D4D result. Answer in:
+  `d4d_front_behind_verdict`'s docstring.
+- **The size of a D4D region.** `d4d_front_behind` scores a region of
+  `MIN_NODE_PIX`, 400 pixels, at the endoscope's resolution, 640 × 512.
+  Such a region holds 250 pixels at the depth's resolution, 504 × 406,
+  where the tracking stage drops a seed region under 400 pixels. So the
+  relation scores regions that the tracking stage would not carry. Open:
+  whether the threshold is taken at the depth's resolution. Blocks: the
+  D4D result. Answer in: `d4d_front_behind`'s docstring.
 
 ### StereoMIS
 
