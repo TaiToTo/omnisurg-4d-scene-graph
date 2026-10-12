@@ -88,18 +88,21 @@ population against these rules where the metadata can tell.
 ```bash
 python -m pipeline.extract_atlas120k --atlas-root /path/to/ATLAS --out /path/to/clips \
     --clip-rects atlas120k_meta/crop_rects.json --frame-ratios atlas120k_meta/frame_ratio.json \
-    [--videos <procedure>/<video> ...] [--population atlas120k_meta/clips.txt] [--overwrite]
+    --cuts atlas120k_meta/cuts.csv [--videos <procedure>/<video> ...] \
+    [--population atlas120k_meta/clips.txt] [--overwrite]
 ```
 
 The stage cuts the annotated clips of ATLAS-120k videos from the release,
 the way the paper's 315 clips were cut. `--atlas-root` holds the release's
 `atlas120k/` and the videos' `raw_data/`. For each clip of a video's
 `clip_index.json`, the stage splits the clip into runs of consecutive
-annotated frames, thins each run to one frame every 0.52 s, and writes each
-run that still has 8 frames or more as `<procedure>__<video>__gt_<n>`. A
-clip with two such runs becomes two clips, `s1` and `s2`; none of the 315
-is one. A run with the frames and rectangle of one already written is not
-written again. Into each clip it writes:
+annotated frames and ends a run at each cut of `atlas120k_meta/cuts.csv`
+as well. It thins each run to one frame every 0.52 s, counted from the
+run's first frame, and writes each run that still has 8 frames or more as
+`<procedure>__<video>__gt_<n>`. A clip with two such runs becomes two
+clips, `s1` and `s2`. A cut is a scene change of the mp4, so every clip of
+the video is split at it, whichever clip it is listed for. A run with the
+frames and rectangle of one already written is not written again. Into each clip it writes:
 
 - `input_images/`: the release's JPEGs, cropped to the clip's confirmed
   rectangle (`atlas120k_meta/crop_rects.json`) and resized to a long side
@@ -122,6 +125,8 @@ The stage refuses:
 - a kept clip with no confirmed rectangle, or for which the release holds
   no JPEGs;
 - a frame or a mask whose size is not the mp4's;
+- a cut listed for a clip that does not fall between two of its frames, or
+  for a clip that has no frame to check it against;
 - a mask with an id or a colour the class table lacks;
 - a frame it cannot read or write;
 - a video that already has output, unless `--overwrite` is given, which
