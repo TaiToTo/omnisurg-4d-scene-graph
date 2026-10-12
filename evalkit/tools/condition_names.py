@@ -33,8 +33,10 @@ RULES = {"centre": "both_ways_from_centre", "forward": "forward_from_first", "pe
 # The settings off their defaults, in the order a name lists them: `keepring`, the edge ring along the image border
 # and around invalid depth kept; `instrument-text`, instruments added to the seed by SAM 3's text prompts. The
 # defaults are the settings every named condition shares, and a name leaves them out: the edge ring masked, no
-# instruments added, the tracker's input `rgb` under a seed not from GT, the edges drawn at gain 1.0 on normals
-# not smoothed, and seed regions of 400 pixels or more.
+# instruments added, the tracker's input `rgb` under a seed not from GT, seed regions of 400 pixels or more, and,
+# in an input with edges, the edges drawn at gain 1.0, on normals not smoothed in `normal-edge`. The gain and the
+# smoothing change no other input, so a record of 0.85 with smoothing, the tracking stage's own default, is no
+# setting off the default there.
 SETTINGS = ("keepring", "instrument-text")
 
 TABLE = Path(__file__).with_name("condition_names.tsv")
@@ -95,6 +97,9 @@ def parse(name: str) -> Parts:
     pps = int(words.pop(0)[3:]) if grid else None
     seed = words.pop(0) if words and SEED.fullmatch(words[0]) else None
     rule = words.pop(0) if words else None
+    # A grid or a merge that the patterns refused would otherwise be reported as a rule.
+    if rule is not None and rule.startswith(("pps", "kmerge")):
+        raise ValueError(f"{name!r}: {rule!r} is no grid and no seed; pps and kmerge take a whole number from 1")
     if rule not in RULES:
         raise ValueError(f"{name!r}: {rule!r} is no propagation rule; one of {tuple(RULES)}")
     if (seed is None) != (rule == "perframe"):
@@ -173,7 +178,7 @@ def name_of(dataset: str, workbench: str, table: Mapping[tuple[str, str], Row] |
     """
     row = (read_table() if table is None else table).get((dataset, workbench))
     if row is None:
-        raise ValueError(f"{workbench!r} is no workbench condition of {dataset} in {TABLE.name}")
+        raise ValueError(f"{workbench!r} is no workbench condition of {dataset} in the table")
     if not row.name:
         raise ValueError(f"{dataset} {workbench}: its records show no name: {row.unresolved}")
     return row.name
