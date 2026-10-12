@@ -38,6 +38,15 @@ def test_a_clip_averages_over_its_frames_and_a_condition_over_its_clips(tmp_path
     assert summary["tool_sha"] == tool_sha(region_counts.__file__)
 
 
+def test_the_hash_is_taken_before_any_clip_is_counted(tmp_path, monkeypatch):
+    C.write_labels(tmp_path, "VID01_a", "c", {0: labels("0011223344")})
+    calls = []
+    monkeypatch.setattr(region_counts, "tool_sha", lambda *paths: calls.append("tool") or {})
+    monkeypatch.setattr(region_counts, "count_clip", lambda *a: calls.append("clip") or count_clip(*a))
+    assert count_condition(["VID01_a"], tmp_path, "c")["tool_sha"] == {}
+    assert calls == ["tool", "clip"]
+
+
 def test_a_clip_without_predictions_is_refused(tmp_path):
     (tmp_path / "VID01_a" / "c").mkdir(parents=True)
     with pytest.raises(FileNotFoundError, match="no prediction"):

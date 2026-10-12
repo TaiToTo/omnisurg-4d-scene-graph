@@ -59,8 +59,10 @@ def count_clip(tracks_root: str | Path, tag: str, clip: str) -> dict:
 
 def count_condition(clips: Sequence[str], tracks_root: str | Path, tag: str) -> dict:
     """Count every clip of a condition, and return its JSON as a dict."""
+    # The hash before any clip is counted, so that a source file edited during the run cannot relabel the values.
+    tool = tool_sha(__file__)
     rows = [count_clip(tracks_root, tag, clip) for clip in clips]
-    return {"tool_sha": tool_sha(__file__), "track_dir_name": tag, "clips": list(clips),
+    return {"tool_sha": tool, "track_dir_name": tag, "clips": list(clips),
             "regions_per_frame": float(np.mean([r["regions_per_frame"] for r in rows])), "per_clip": rows}
 
 
