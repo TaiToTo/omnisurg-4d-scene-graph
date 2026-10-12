@@ -10,7 +10,7 @@ descriptions, with no interval and no mark. Every condition must hold the
 same clips, and a condition's JSONs must name one label directory.
 
 Usage:
-    python -m evalkit.tools.region_curves --scores-dir <dir> --key F1_50/geometric \
+    python -m evalkit.tools.region_curves --scores-dir <dir> --key F1_50/geometric \\
         [--min-px 300] [--rule centre] [--seed sam] [--depth da3] [--out curves.json]
 """
 from __future__ import annotations
