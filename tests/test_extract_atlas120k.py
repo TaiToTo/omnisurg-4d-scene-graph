@@ -20,6 +20,7 @@ from PIL import Image
 from evalkit.classes import load_table
 from pipeline.extract_atlas120k import (check_cuts_inside, check_population, extract_video, main, split_at_cuts,
                                         stride_for)
+from pipeline.point_clouds import read_manifest
 from surgical_core.atlas120k.clip_rects import load_clip_rects
 from surgical_core.atlas120k.cuts import COLUMNS
 from surgical_core.atlas120k.frame_ratio import FrameRatios
@@ -156,6 +157,8 @@ def test_frames_and_masks_are_cut_to_the_confirmed_rectangle(release):
     man = json.loads((clip / "frame_manifest.json").read_text())
     assert man["crop"] == dict(zip("xywh", RECT)) and man["out_size"] == [w, h]
     assert all(f["has_gt"] and f["is_anchor"] for f in man["frames"])
+    # The point cloud and Pi3X stages refuse a manifest whose `n_frames` is not its number of frames.
+    assert man["n_frames"] == 6 and read_manifest(clip, 6) == man
 
 
 def test_a_frame_is_resized_to_the_long_side(release):

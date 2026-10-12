@@ -440,7 +440,8 @@ def write_clip(clip_dir: Path, run: KeptRun, digits: int, long_side: int, table:
     """Write one clip's frames, masks and manifest. Every frame of the clip has ground truth and is an anchor.
 
     `meta` holds the manifest's keys before `crop`; its `out_size` is filled in here. The keys and their order
-    are the workbench's, so that a clip extracted here equals one extracted there, byte for byte.
+    are the workbench's, so that a clip extracted here equals one extracted there, byte for byte, but for the
+    last, `n_frames`. The point cloud and Pi3X stages read it; the workbench's point cloud stage writes it.
     """
     size = target_size(run.rect[2], run.rect[3], long_side)
     (clip_dir / "input_images").mkdir(parents=True)
@@ -452,7 +453,7 @@ def write_clip(clip_dir: Path, run: KeptRun, digits: int, long_side: int, table:
                    table)
     manifest = dict(meta, out_size=list(size), crop=dict(zip("xywh", run.rect)), crop_source="confirmed",
                     frames=[{"seq_idx": seq, "native_frame": f, "has_gt": True, "is_anchor": True}
-                            for seq, f in enumerate(run.picked)])
+                            for seq, f in enumerate(run.picked)], n_frames=len(run.picked))
     with open(clip_dir / "frame_manifest.json", "w") as fh:
         json.dump(manifest, fh, indent=2)
 

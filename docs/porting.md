@@ -201,6 +201,9 @@ only:
   length `duration_sec`, where the workbench wrote `span_sec`. A row writes
   `n_tracked` for `n_frames`. `span_mm` keeps one meaning, a trajectory's
   RMS radius.
+- **The ATLAS-120k manifest key `n_frames`.** The extraction writes it, as
+  the other extractions do, since the point cloud and Pi3X stages read it.
+  In the workbench, the point cloud stage writes it.
 - **The D4D population.** The workbench's rule also left out 45 sides as
   `tissue_moving`, from the tissue's motion at the clip's end nearest the
   scan. The rule here keeps them: 532 sides where the workbench kept 487.
