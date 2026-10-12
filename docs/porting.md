@@ -320,6 +320,14 @@ Each question says what it blocks and where its answer is written.
   relation scores regions that the tracking stage would not carry. Open:
   whether the threshold is taken at the depth's resolution. Blocks: the
   D4D result. Answer in: `d4d_front_behind`'s docstring.
+- **A pair the floor ties on.** `d4d_front_behind` leaves out a pair
+  whose answers tie, and `area` ties when two regions hold the same number
+  of pixels. So `area` can leave out a pair that `mono` keeps, and
+  `d4d_front_behind_verdict` then refuses the two outputs. On the 532
+  sides, with the edge ring masked, this happens on one side: 17,955 pairs
+  against 17,956. Open: whether the verdict compares the pairs both
+  outputs hold, or `area` decides a tie. Blocks: the D4D result with the
+  edge ring masked. Answer in: `d4d_front_behind_verdict`'s docstring.
 
 ### StereoMIS
 
