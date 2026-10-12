@@ -102,6 +102,16 @@ not compared:
    score JSONs take these names, and `paired_table`, `claims_table` and
    `arms_paired` read their tags from the table. Until then the tools read
    the workbench's names.
+4. **How the regions are compared.** Decided on 2026-10-12:
+   - Every condition is scored on whole-class objects by the evaluator,
+     and on component objects at 0, 100, 300 and 400 px by
+     `component_scores`.
+   - The paper describes how each measure moves across these settings,
+     not which condition wins. Open: how the questions and primary
+     metrics of `docs/evaluation.md` change.
+   - Inputs are compared at a matched number of regions by sweeping the
+     segmenter's points per side. Merging regions is not used for it,
+     since the merge adds a rule of its own.
 
 ## Remaining steps
 
