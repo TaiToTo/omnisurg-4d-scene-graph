@@ -18,7 +18,7 @@ import numpy as np
 import pytest
 
 from evalkit.tools import arms_paired as AP
-from evalkit.tools.paired_stats import MARK_RULE, boot_ci, video_of
+from evalkit.tools.paired_stats import MARK_RULE, boot_ci, sign_only_note, video_of
 from evalkit.tools.scores import PILOT_EVAL_CODE_SHA, metric_key
 
 pytest.importorskip("scipy", reason="the Wilcoxon test needs the `tools` extra")
@@ -133,6 +133,19 @@ def test_a_key_left_undefined_on_some_clips_is_taken_on_the_clips_both_define():
     assert row["ci95_video"] == boot_ci(d, np.array([video_of(c) for c in both]))
     note = f"   [{len(both)}/{len(CLIPS)} clips, {row['n_videos']}/{len(VIDEOS)} videos]"
     assert AP.format_row(base, cond, row, len(CLIPS), len(VIDEOS)).endswith(note)
+
+
+def test_a_key_defined_on_five_videos_is_read_for_its_sign_only():
+    # On all six videos `rgb_edge_pf` gains with a star; without the last video its interval stays above zero.
+    summaries = table_of_pilot_scores()
+    for s in summaries.values():
+        for r in s["per_clip"]:
+            if video_of(r["clip"]) == VIDEOS[-1]:
+                r["inst_F1_50"] = None
+    base, cond, row = AP.compare_pairs(summaries, PAIRS[:1], "inst_F1_50")["rows"][0]
+    assert row["n_videos"] == 5 and row["ci95_video"][0] > 0 and row["mark"] == ""
+    assert AP.format_row(base, cond, row, len(CLIPS), len(VIDEOS)).endswith(
+        f"   [15/18 clips, 5/6 videos]   [{sign_only_note(5)}]")
 
 
 def test_a_key_defined_on_one_video_has_no_interval_and_no_mark():

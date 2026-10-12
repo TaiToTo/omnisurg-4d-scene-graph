@@ -20,6 +20,8 @@ REPO = Path(__file__).resolve().parent.parent
 VIDEOS = ("adrenalectomy__16GPCUPkXYQ", "appendectomy__41RKDh3INiU", "gastric_surgery__4FHGGFZsPzw",
           "lar___7H7G-4sevQ", "rectopexy__IJfgUvxoTkM", "hemicolectomy__5YDMlxTl0k8", "nephrectomy__abc123")
 LOSER = VIDEOS[-1]
+# Seven videos of two clips each: leaving one out leaves the six a mark needs.
+SEVEN = "aabbccddeeffgg"
 
 
 def pilot_pair(videos: tuple[str, ...] = VIDEOS) -> tuple[dict, dict]:
@@ -49,9 +51,9 @@ def pilot_pair(videos: tuple[str, ...] = VIDEOS) -> tuple[dict, dict]:
 
 
 def evaluator_scores(tag: str, shift: float, seed: int, rule: str = "both_ways_from_centre") -> dict:
-    """An evaluator-layout score JSON on 4 videos, 2 clips each, every metric in the `all` view."""
+    """An evaluator-layout score JSON on 7 videos, 2 clips each, every metric in the `all` view."""
     rnd = random.Random(seed)
-    clips = [f"{v}__gt_{i:04d}" for v in VIDEOS[:4] for i in (1, 2)]
+    clips = [f"{v}__gt_{i:04d}" for v in VIDEOS for i in (1, 2)]
     keys = [metric_key(m, "all") for m in FRAME_METRICS] + list(CLIP_METRICS)
     rows = [{"clip": c, **{k: round(rnd.gauss(0.5 + shift, 0.05), 4) for k in keys}} for c in clips]
     return dict(tag=tag, eval_code_sha="a" * 64, dataset="atlas", pilot=False, class_set="original",
@@ -101,10 +103,10 @@ def test_the_video_that_hides_a_star_is_named_and_the_interval_narrows():
 
 
 def test_a_star_that_one_video_holds_is_lost_without_it_though_the_interval_narrows():
-    # Video `a` gains 0.3 and the five others about zero: the star rests on `a` alone. Its interval
+    # Video `a` gains 0.3 and the six others about zero: the star rests on `a` alone. Its interval
     # narrows without `a`, so a narrower interval does not say that the video only made the spread.
-    d = np.array([0.3, 0.3, 0.028, 0.008, 0.018, 0.0, 0.021, 0.019, 0.004, -0.028, 0.024, 0.021])
-    vids = np.array(list("aabbccddeeff"))
+    d = np.array([0.3, 0.3, 0.028, 0.008, 0.018, 0.0, 0.021, 0.019, 0.004, -0.028, 0.024, 0.021, 0.006, -0.002])
+    vids = np.array(list("aabbccddeeffgg"))
     r = LV.leave_each_out(d, vids, +1)
     assert (r["mark"], r["n_flips"], r["flips"]) == ("★", 1, ["a"])
     a = r["per_video"][0]
@@ -114,8 +116,8 @@ def test_a_star_that_one_video_holds_is_lost_without_it_though_the_interval_narr
 
 def test_a_star_that_every_video_holds_names_no_video():
     # A flip is a change of mark, not a mark: every subset keeps the star here.
-    d = np.array([0.05, 0.04, 0.06, 0.05, 0.03, 0.05, 0.04, 0.06])
-    vids = np.array(["a", "a", "b", "b", "c", "c", "d", "d"])
+    d = np.array([0.05, 0.04, 0.06, 0.05, 0.03, 0.05, 0.04, 0.06, 0.05, 0.04, 0.06, 0.05, 0.03, 0.05])
+    vids = np.array(list(SEVEN))
     r = LV.leave_each_out(d, vids, +1)
     assert r["mark"] == "★" and all(p["mark_wo"] == "★" for p in r["per_video"])
     assert (r["n_flips"], r["flips"]) == (0, [])
@@ -129,33 +131,33 @@ def test_a_key_where_less_is_better_is_marked_in_its_direction():
     r = metrics_of(base, cond, ["underseg_error"])["underseg_error"]
     loser = next(p for p in r["per_video"] if p["video"] == LOSER)
     assert loser["delta_wo"] < 0 and loser["mark_wo"] == "★"
-    d = np.array([-0.05, -0.04, -0.06, -0.05, -0.03, -0.05, -0.04, -0.05])
-    vids = np.array(["a", "a", "b", "b", "c", "c", "d", "d"])
+    d = np.array([-0.05, -0.04, -0.06, -0.05, -0.03, -0.05, -0.04, -0.05, -0.06, -0.05, -0.03, -0.05, -0.04, -0.06])
+    vids = np.array(list(SEVEN))
     assert LV.leave_each_out(d, vids, -1)["mark"] == "★" and LV.leave_each_out(d, vids, +1)["mark"] == "✗"
 
 
 def test_the_delta_and_interval_stay_as_cond_minus_base_whatever_the_direction():
-    d = np.array([-0.05, -0.04, -0.06, -0.05, -0.03, -0.05, -0.04, -0.05])
-    vids = np.array(["a", "a", "b", "b", "c", "c", "d", "d"])
+    d = np.array([-0.05, -0.04, -0.06, -0.05, -0.03, -0.05, -0.04, -0.05, -0.06, -0.05, -0.03, -0.05, -0.04, -0.06])
+    vids = np.array(list(SEVEN))
     up, down = LV.leave_each_out(d, vids, +1), LV.leave_each_out(d, vids, -1)
     assert (up["delta"], up["ci95_video"]) == (down["delta"], down["ci95_video"])
     assert up["delta"] < 0 and (up["sign"], down["sign"]) == (1, -1)
 
 
-@pytest.mark.parametrize("vids", [list("aabbcccc"), list("aaaabbbb"), list("aaaaaaaa")])
-def test_a_key_on_three_videos_or_fewer_is_refused_since_no_video_can_be_left_out(vids):
-    # Leaving none out and printing that no video changes the mark would claim a check that never ran.
-    d = np.array([0.05, 0.06, 0.04, 0.05, 0.03, 0.04, 0.05, 0.06])
-    with pytest.raises(ValueError, match=f"from {len(set(vids))} video.s.: leaving one out would leave fewer than 3"):
+@pytest.mark.parametrize("vids", [list("aabbccddeeffff"), list("aaaabbbbccccdd"), list("aaaaaaaaaaaaaa")])
+def test_a_key_on_six_videos_or_fewer_is_refused_since_no_subset_could_be_marked(vids):
+    # Every subset would rest on fewer than six videos, so its mark would be none, and every video would read as
+    # one whose removal changes the mark.
+    d = np.full(len(vids), 0.05)
+    with pytest.raises(ValueError, match=f"from {len(set(vids))} video.s.: leaving one out would leave fewer than 6"):
         LV.leave_each_out(d, np.array(vids), +1)
 
 
 def test_every_video_is_left_out_once():
-    d = np.array([0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08])
-    four = np.array(["a", "a", "b", "b", "c", "c", "d", "d"])
-    rows = LV.leave_each_out(d, four, +1)["per_video"]
-    assert [p["video"] for p in rows] == ["a", "b", "c", "d"]
-    assert all(p["n_videos_wo"] == 3 and p["n_clips"] == 2 for p in rows)
+    d = np.arange(1, 15) / 100
+    rows = LV.leave_each_out(d, np.array(list(SEVEN)), +1)["per_video"]
+    assert [p["video"] for p in rows] == list("abcdefg")
+    assert all(p["n_videos_wo"] == 6 and p["n_clips"] == 2 for p in rows)
 
 
 def test_a_reference_value_is_refused():
@@ -214,7 +216,7 @@ def test_a_key_in_no_row_is_refused():
 
 
 def test_the_ratio_of_widths_is_none_when_the_whole_interval_has_no_width():
-    r = LV.leave_each_out(np.full(8, 0.05), np.array(list("aabbccdd")), +1)
+    r = LV.leave_each_out(np.full(14, 0.05), np.array(list(SEVEN)), +1)
     assert r["ci95_video"] == [0.05, 0.05] and all(p["ci_width_ratio"] is None for p in r["per_video"])
 
 
@@ -236,30 +238,14 @@ def test_the_marks_are_computed_on_the_clips_the_check_compared(monkeypatch):
     # One population: the one `check_comparable` returns, not one taken from the rows again.
     real = LV.check_comparable
 
-    def four_videos(*args, **kwargs):
+    def first_clips(*args, **kwargs):
         chk = real(*args, **kwargs)
-        return {**chk, "clips": chk["clips"][:8]}
+        return {**chk, "clips": [c for c in chk["clips"] if c.endswith("_0001")]}
 
-    monkeypatch.setattr(LV, "check_comparable", four_videos)
+    monkeypatch.setattr(LV, "check_comparable", first_clips)
     base, cond = pilot_pair()
     r = metrics_of(base, cond, ["inst_F1_50"])["inst_F1_50"]
-    assert (r["n_clips"], r["n_videos"]) == (8, 4)
-
-
-@pytest.mark.parametrize("n, said", [(3, "on 3 videos the interval is the range of the video means"),
-                                     (4, "an interval on 4 videos is thin"), (5, None)])
-def test_the_note_says_when_an_interval_is_the_range_of_the_means_or_thin(n, said):
-    assert (said in LV._note(n)) if said else LV._note(n) == ""
-
-
-def test_three_video_intervals_are_the_range_of_the_video_means():
-    # What the note on three videos says, shown on the bootstrap itself.
-    rng = np.random.default_rng(0)
-    for _ in range(20):
-        vids = np.array([v for v, n in zip("abc", rng.integers(1, 5, size=3)) for _ in range(n)])
-        d = rng.normal(0.02, 0.05, size=len(vids))
-        means = [d[vids == v].mean() for v in "abc"]
-        assert np.allclose(PS.boot_ci(d, vids), (min(means), max(means)))
+    assert (r["n_clips"], r["n_videos"]) == (7, 7)
 
 
 # ---------------------------------------------------------------- the command
@@ -287,7 +273,8 @@ def test_the_command_writes_the_marks_and_names_the_video(tmp_path):
     assert "spread" not in run.stdout and "carried" not in run.stdout
     assert "<-" not in run.stdout
     got = json.loads(out.read_text(encoding="utf-8"))
-    assert list(got) == ["mark_rule", "n_boot", "seed", "seed_scheme", "min_videos_after_drop", "pairs"]
+    assert list(got) == ["mark_rule", "n_boot", "seed", "seed_scheme", "min_videos_for_mark", "pairs"]
+    assert got["min_videos_for_mark"] == PS.MIN_VIDEOS_FOR_MARK
     assert (got["mark_rule"], got["seed_scheme"]) == (PS.MARK_RULE, PS.SEED_SCHEME)
     assert (got["n_boot"], got["seed"]) == (PS.N_BOOT, PS.SEED)
     # A pilot JSON's pair records its evaluator as an evaluator JSON's does.
@@ -305,15 +292,12 @@ def test_the_command_records_the_rule_of_evaluator_jsons(tmp_path):
     assert got["pairs"]["base:cond"]["eval_code"] == "a" * 16
 
 
-def test_the_printout_notes_a_thin_interval_and_a_range_of_three_means(tmp_path):
-    # On four videos the whole interval is thin, and without the loser the three left give the range of their means.
-    base, cond = pilot_pair(VIDEOS[:3] + (LOSER,))
+def test_the_command_refuses_a_pair_on_six_videos_with_a_message(tmp_path):
+    base, cond = pilot_pair(VIDEOS[:5] + (LOSER,))
     _write(tmp_path, base=base, cond=cond)
     run = _run(tmp_path, "--pairs", "base:cond", "--keys", "inst_F1_50")
-    assert run.returncode == 0, run.stderr
-    assert "(8 clips / 4 videos)  <- an interval on 4 videos is thin" in run.stdout
-    row = next(line for line in run.stdout.splitlines() if f"without {LOSER}" in line)
-    assert row.endswith("<- on 3 videos the interval is the range of the video means")
+    assert run.returncode != 0 and "Traceback" not in run.stderr
+    assert "inst_F1_50: the clips come from 6 video(s): leaving one out would leave fewer than 6" in run.stderr
 
 
 def test_out_takes_a_bare_file_name(tmp_path):

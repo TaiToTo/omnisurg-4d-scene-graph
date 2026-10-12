@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from evalkit.tools import print_status_tables as PST
+from evalkit.tools.paired_stats import sign_only_note
 
 REPO = Path(__file__).resolve().parent.parent
 
@@ -18,7 +19,7 @@ def cell(delta: float, ci: list[float]) -> dict:
     return {"delta": delta, "ci95_video": list(ci)}
 
 
-def input_track() -> dict:
+def input_track(n_videos: int = 6) -> dict:
     """An input-track JSON: every arm the table prints, `full` up, `labeled` down, the rest across zero."""
     keys = [k for k, _ in PST.INPUT_TRACK_KEYS]
     cis = {"full": UP, "labeled": DOWN}
@@ -31,7 +32,7 @@ def input_track() -> dict:
     matched = {f"in_{i}_k{k}": {**{key: cell(-0.02, cis.get(key, ACROSS)) for key in keys}, "n_reached": 8.0,
                                 "n_clamped": 3, "k_target": k, "broken": False, "by_procedure": procedures}
                for i in PST.INPUTS for k in PST.KS}
-    return dict(dataset="atlas97", mode="input_track", stride=1, n_clips=4, n_videos=3, n_frames=40,
+    return dict(dataset="atlas97", mode="input_track", stride=1, n_clips=12, n_videos=n_videos, n_frames=40,
                 eval_code_sha="1f8a813a" + "0" * 56, base_name="rgb", arms=arms, pairs=pairs, matched=matched)
 
 
@@ -54,13 +55,20 @@ def test_a_mark_is_mark_of_on_the_stored_interval():
     row = next(line for line in lines if line.startswith("in_edge_k0 "))
     assert row == ("in_edge_k0         6.0/ 6.0 +0.0100 ★ [+0.0100,+0.0200] +0.0100 ✗ [-0.0200,-0.0100]"
                    + " +0.0100   [-0.0100,+0.0200]" * 3)
+    assert not any("sign only" in line for line in lines)
+
+
+def test_an_analysis_on_five_videos_marks_nothing_and_says_so():
+    lines = PST.input_track_lines(input_track(n_videos=5))
+    assert not any("★" in line or "✗" in line for line in lines[2:])
+    assert lines[2] == f"every interval is on 5 videos, {sign_only_note(5)}"
 
 
 def test_a_mark_reads_the_interval_in_the_key_s_direction(monkeypatch):
     # Every key the input-track table prints is one where higher is better, so the
     # direction is planted: an interval below zero is a star where lower is better.
     monkeypatch.setitem(PST.PILOT_KEY_OF, "planted", "underseg_error")
-    assert PST.mark_text(DOWN, "planted") == "★" and PST.mark_text(UP, "planted") == "✗"
+    assert PST.mark_text(DOWN, "planted", 6) == "★" and PST.mark_text(UP, "planted", 6) == "✗"
 
 
 def test_the_identity_table_carries_no_mark():

@@ -798,7 +798,9 @@ python -m trajectory_eval.tools.stereomis_table controls.json methods.json [--ou
 
 The table prints each condition's scores, and each condition's paired
 difference from `floor_static` on `ate_rel`, with its interval over
-sequences and its mark. The JSON of `--out` records `trajectory_code_sha`.
+sequences and its mark. The mark counts each sequence as one video, so a
+pair on fewer than six sequences is read for its sign only. The JSON of
+`--out` records `trajectory_code_sha`.
 
 The table refuses:
 
