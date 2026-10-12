@@ -1,11 +1,10 @@
-"""Test the D4D census on a clip, session details and a motion record made up for the test.
+"""Test the D4D census on a clip and session details made up for the test.
 
 The made-up clip has three frames, 32 × 32 pixels, so four blocks of 16 × 16. Each refusal has a test that
 plants its fault:
 
 - session details with a flag other than `Y` or `N`, a session named twice, and a line that is not a session;
-- a clip whose session the details do not list;
-- a motion record that lacks a clip, holds one twice, or holds a clip the dataset does not.
+- a clip whose session the details do not list.
 """
 
 import json
@@ -80,58 +79,35 @@ def test_a_block_counts_when_mostly_free_of_instruments_and_is_covered_by_five_p
 
 def test_a_side_takes_the_frame_nearest_its_scan_and_leaves_out_the_instrument(tmp_path, monkeypatch):
     monkeypatch.setattr(d4d, "read_scan", lambda path: POINTS)
-    rec = census.measure_clip((make_clip(tmp_path), True, {"intervals": [[0.0, 0.5]]}))
+    rec = census.measure_clip((make_clip(tmp_path), True))
     assert rec == {"key": "specimen_1/s_a/Clip_1", "moved_camera": True,
                    # The scan 5 s before the first frame meets the instrument in block (1, 0).
-                   "start": {"present": True, "frame_index": 0, "frame_minus_gt_s": 5.0, "gt_blk_frac": 2 / 3,
-                             "active": True},
-                   "end": {"present": True, "frame_index": 2, "frame_minus_gt_s": -2.0, "gt_blk_frac": 0.75,
-                           "active": False}}
-
-
-@pytest.mark.parametrize("intervals, start, end", [
-    ([[0.0, 0.5]], True, False),
-    ([[0.5, 1.0]], False, True),
-    ([[0.2, 0.8]], False, False),
-])
-def test_a_side_is_active_when_the_clips_nearest_end_lies_in_a_stretch_of_motion(tmp_path, intervals, start, end):
-    rec = census.measure_clip((make_clip(tmp_path, params=None), False, {"intervals": intervals}))
-    assert (rec["start"]["active"], rec["end"]["active"]) == (start, end)
+                   "start": {"present": True, "frame_minus_gt_s": 5.0, "gt_blk_frac": 2 / 3},
+                   "end": {"present": True, "frame_minus_gt_s": -2.0, "gt_blk_frac": 0.75}}
 
 
 @pytest.mark.parametrize("clip_fields", [{"scans": {}}, {"params": None}])
 def test_a_side_without_a_scan_or_a_calibration_is_not_present(tmp_path, clip_fields):
-    rec = census.measure_clip((make_clip(tmp_path, **clip_fields), False, {"intervals": []}))
-    assert rec["start"] == rec["end"] == {"present": False, "active": False}
+    rec = census.measure_clip((make_clip(tmp_path, **clip_fields), False))
+    assert rec["start"] == rec["end"] == {"present": False}
 
 
 def test_a_side_without_a_pose_is_not_present(tmp_path, monkeypatch):
     monkeypatch.setattr(d4d, "read_scan", lambda path: POINTS)
     c = make_clip(tmp_path)
     del c.poses["end"]
-    rec = census.measure_clip((c, False, {"intervals": []}))
-    assert rec["start"]["present"] and rec["end"] == {"present": False, "active": False}
+    rec = census.measure_clip((c, False))
+    assert rec["start"]["present"] and rec["end"] == {"present": False}
 
 
-def test_each_clip_is_paired_with_its_session_and_its_motion_record(tmp_path):
+def test_each_clip_is_paired_with_its_sessions_moved_camera(tmp_path):
     c = make_clip(tmp_path)
-    motion = [{"clip": "specimen_1/s_a/Clip_1", "intervals": []}]
-    assert census.tasks([c], {"specimen_1/s_a": True}, motion) == [(c, True, motion[0])]
+    assert census.tasks([c], {"specimen_1/s_a": True, "specimen_1/s_b": False}) == [(c, True)]
 
 
 def test_a_clip_whose_session_is_not_listed_is_refused(tmp_path):
     with pytest.raises(ValueError, match="does not list 1 sessions, the first being specimen_1/s_a"):
-        census.tasks([make_clip(tmp_path)], {"specimen_1/s_b": True}, [{"clip": "specimen_1/s_a/Clip_1"}])
-
-
-@pytest.mark.parametrize("motion", [
-    [],
-    [{"clip": "specimen_1/s_a/Clip_1"}, {"clip": "specimen_1/s_a/Clip_1"}],
-    [{"clip": "specimen_1/s_a/Clip_1"}, {"clip": "specimen_1/s_a/Clip_2"}],
-])
-def test_a_motion_record_that_does_not_hold_each_clip_once_is_refused(tmp_path, motion):
-    with pytest.raises(ValueError, match="does not hold each of the 1 clips once"):
-        census.tasks([make_clip(tmp_path)], {"specimen_1/s_a": False}, motion)
+        census.tasks([make_clip(tmp_path)], {"specimen_1/s_b": True})
 
 
 def test_main_writes_the_census_of_every_clip(tmp_path, monkeypatch):
@@ -140,11 +116,9 @@ def test_main_writes_the_census_of_every_clip(tmp_path, monkeypatch):
     for path in c.pointclouds.values():
         trimesh.PointCloud(POINTS).export(path)
     root = write_details(tmp_path, ["specimen_1/s_a,Y"])
-    (tmp_path / "motion.json").write_text(json.dumps([{"clip": "specimen_1/s_a/Clip_1", "intervals": [[0.5, 1.0]]}]))
     monkeypatch.setattr(d4d, "clips", lambda root: [c])
-    census.main(["--root", root, "--motion", str(tmp_path / "motion.json"), "--out", str(tmp_path / "census.json"),
-                 "--jobs", "1"])
-    [rec] = json.loads((tmp_path / "census.json").read_text())
-    assert rec["moved_camera"] is True
-    assert (rec["start"]["gt_blk_frac"], rec["end"]["gt_blk_frac"]) == (2 / 3, 0.75)
-    assert (rec["start"]["active"], rec["end"]["active"]) == (False, True)
+    census.main(["--root", root, "--out", str(tmp_path / "census.json"), "--jobs", "1"])
+    assert json.loads((tmp_path / "census.json").read_text()) == [
+        {"key": "specimen_1/s_a/Clip_1", "moved_camera": True,
+         "start": {"present": True, "frame_minus_gt_s": 5.0, "gt_blk_frac": 2 / 3},
+         "end": {"present": True, "frame_minus_gt_s": -2.0, "gt_blk_frac": 0.75}}]

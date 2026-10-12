@@ -63,9 +63,9 @@ DA3-LARGE and 5.1 GB for Pi3X. Both are licensed CC BY-NC 4.0, for
 non-commercial use only, unlike this repository's code. `docs/pipeline.md`
 describes a clip and the files each stage writes.
 
-The D4D steps read the dataset through D4D's own loader, which pip cannot
+The D4D census reads the dataset through D4D's own loader, which pip cannot
 install. Clone the loader at the commit that `surgical_core.d4d` checks, and
-put the clone on `PYTHONPATH`. The steps refuse to run without the loader,
+put the clone on `PYTHONPATH`. The census refuses to run without the loader,
 or with files other than that commit's.
 
 ```bash

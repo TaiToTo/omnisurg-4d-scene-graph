@@ -1,19 +1,17 @@
 """Measure the inputs of every D4D side, the census that `pipeline.select_d4d_population` selects from.
 
 `d4d_meta/README.md` defines a side and the fields. For each side with a scan, a pose and the endoscope's
-calibration, the step projects the scan into the endoscope's view and finds the frame nearest to the scan.
-It reads `moved_camera` from the dataset's `info/session_details.txt`, and `active` from the record that
-`pipeline.d4d_tissue_motion` writes. It refuses a session that the details do not list once as `Y` or `N`,
-a clip that the motion record does not hold once, and a side it cannot measure.
+calibration, the step projects the scan into the endoscope's view and leaves out the instruments of the
+frame nearest to the scan. It reads `moved_camera` from the dataset's `info/session_details.txt`. It
+refuses a session that the details do not list once as `Y` or `N`, a clip without frames or whose
+instrument masks are not named by its frames' times, and a side it cannot measure.
 
 Usage:
-    python -m pipeline.d4d_census --root /path/to/D4D/extracted --motion /path/to/tissue_motion.json \\
-        --out /path/to/census.json [--jobs 8]
+    python -m pipeline.d4d_census --root /path/to/D4D/extracted --out /path/to/census.json [--jobs 8]
 """
 
 import argparse
 import json
-from collections import Counter
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
@@ -59,13 +57,8 @@ def block_cover(hits: np.ndarray, free: np.ndarray) -> float:
     return float((per_block[counted] >= BLOCK_MIN_HITS).mean()) if counted.any() else 0.0
 
 
-def active_at(record: dict, t: float) -> bool:
-    """Return whether time `t`, in seconds after the clip's first frame, lies in a stretch of the tissue's motion."""
-    return any(a <= t <= b for a, b in record["intervals"])
-
-
 def measure_side(clip, side: str, times: np.ndarray, masks: list[Path]) -> dict:
-    """Return the census's fields of one side, all but `active`.
+    """Return the census's fields of one side.
 
     A side without a scan, a pose or the endoscope's calibration is not present.
     """
@@ -75,51 +68,40 @@ def measure_side(clip, side: str, times: np.ndarray, masks: list[Path]) -> dict:
     hits = d4d.pixel_hits(d4d.read_scan(scan), pose, params)
     index, gap = d4d.nearest_frame(times, d4d.name_time(scan))
     free = ~d4d.instrument_mask(masks[index], (int(params["width"]), int(params["height"])))
-    return {"present": True, "frame_index": index, "frame_minus_gt_s": gap, "gt_blk_frac": block_cover(hits, free)}
+    return {"present": True, "frame_minus_gt_s": gap, "gt_blk_frac": block_cover(hits, free)}
 
 
 def measure_clip(task: tuple) -> dict:
-    """Return one clip's census record, from `(clip, moved_camera, motion record)`."""
-    clip, moved, motion = task
+    """Return one clip's census record, from `(clip, moved_camera)`."""
+    clip, moved = task
     times = d4d.frame_times(clip)
     masks = d4d.frame_files(clip, "left_images_rect_masks", ".png")
-    rec = {"key": d4d.clip_key(clip), "moved_camera": moved}
-    # A side takes the tissue's motion at the clip's end nearest its scan, since no frame shows the tissue at the
-    # scan; `d4d_meta/README.md`, "The tissue's motion at a scan", says why.
-    for side, t in zip(d4d.SIDES, (0.0, float(times[-1] - times[0]))):
-        rec[side] = measure_side(clip, side, times, masks) | {"active": active_at(motion, t)}
-    return rec
+    return {"key": d4d.clip_key(clip), "moved_camera": moved} | {
+        side: measure_side(clip, side, times, masks) for side in d4d.SIDES}
 
 
-def tasks(clips: list, moved: dict[str, bool], motion: list[dict]) -> list[tuple]:
-    """Pair each clip with its session's `moved_camera` and its motion record.
+def tasks(clips: list, moved: dict[str, bool]) -> list[tuple]:
+    """Pair each clip with its session's `moved_camera`.
 
     Raises:
-        ValueError: a clip's session is not in `moved`, or the motion record does not hold each clip once.
+        ValueError: a clip's session is not in `moved`.
     """
-    keys = [d4d.clip_key(c) for c in clips]
-    missing = sorted({k.rsplit("/", 1)[0] for k in keys} - set(moved))
+    sessions = [d4d.clip_key(c).rsplit("/", 1)[0] for c in clips]
+    missing = sorted(set(sessions) - set(moved))
     if missing:
         raise ValueError(f"session_details.txt does not list {len(missing)} sessions, the first being {missing[0]}")
-    counts = Counter(r["clip"] for r in motion)
-    if counts != Counter(keys):
-        odd = sorted(k for k in set(counts) | set(keys) if counts[k] != 1 or k not in keys)
-        raise ValueError(f"the motion record does not hold each of the {len(keys)} clips once: {odd[:3]}")
-    by_key = {r["clip"]: r for r in motion}
-    return [(c, moved[k.rsplit("/", 1)[0]], by_key[k]) for c, k in zip(clips, keys)]
+    return [(c, moved[s]) for c, s in zip(clips, sessions)]
 
 
 def main(argv: list[str] | None = None) -> None:
     """Measure every side of the dataset and write the census, in the loader's order, as JSON."""
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--root", required=True, help="the dataset's root, which holds the specimen_* directories")
-    ap.add_argument("--motion", required=True, help="the record pipeline.d4d_tissue_motion writes")
     ap.add_argument("--out", required=True, help="the JSON file to write")
     ap.add_argument("--jobs", type=int, default=8, help="the clips measured at once")
     args = ap.parse_args(argv)
 
-    work = tasks(d4d.clips(args.root), read_moved_camera(args.root),
-                 json.loads(Path(args.motion).read_text(encoding="utf-8")))
+    work = tasks(d4d.clips(args.root), read_moved_camera(args.root))
     with ProcessPoolExecutor(max_workers=args.jobs) as ex:
         census = list(ex.map(measure_clip, work))
 

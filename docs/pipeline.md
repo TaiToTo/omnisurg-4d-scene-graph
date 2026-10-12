@@ -313,27 +313,19 @@ The stage needs the `stereomis` extra and FFmpeg.
 ## The D4D population
 
 ```bash
-python -m pipeline.d4d_tissue_motion --root /path/to/D4D/extracted --out /path/to/tissue_motion.json
-python -m pipeline.d4d_census --root /path/to/D4D/extracted --motion /path/to/tissue_motion.json \
-    --out /path/to/census.json
+python -m pipeline.d4d_census --root /path/to/D4D/extracted --out /path/to/census.json
 python -m pipeline.select_d4d_population --census /path/to/census.json \
     --clips d4d_meta/census_clips.txt --out d4d_meta
 ```
 
-The D4D measurements score sides, not clips. Three steps select the sides:
-
-- `d4d_tissue_motion` finds when the tissue moves in each clip, from the
-  clip's stereo depth;
-- `d4d_census` measures each side's inputs, the census;
-- `select_d4d_population` keeps the sides that pass the rule in
-  `d4d_meta/README.md`.
-
-The first two read D4D through its loader, which the README says how to
-get. Each module's docstring says what it refuses. The last step writes
+The D4D measurements score sides, not clips. The first step measures each
+side's inputs, the census. It reads D4D through its loader, which the README
+says how to get, and its docstring says what it refuses. The second step
+selects the sides by the rule in `d4d_meta/README.md`. It writes
 `population.json`, which lists the kept sides and counts the sides left out
 for each reason, and `clips.txt`, which lists the clips with a kept side.
 
-The last step refuses, before it writes anything:
+The second step refuses, before it writes anything:
 
 - a list of clips that is empty, holds a clip twice, or holds a line that is
   not `<specimen>/<session>/<clip>`;
@@ -342,7 +334,7 @@ The last step refuses, before it writes anything:
 - a side that carries an `error`, which the census wrote when it failed to
   measure the side;
 - a field the rule reads that is missing or holds a value of the wrong kind,
-  such as a side with a point cloud and no `active`, or a `NaN`.
+  such as a `NaN`.
 
 ## The depth stage
 
