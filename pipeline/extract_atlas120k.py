@@ -1,16 +1,15 @@
 """Extract the annotated clips of ATLAS-120k videos into the clip directories the pipeline reads.
 
 Each clip of a video's `clip_index.json` is split into runs of consecutive
-annotated frames, and each run is split again at every cut of `--cuts` that
-falls inside it. Each run is thinned to one frame every `--step-sec`
-seconds. A run left with at least `--min-frames` frames is written as
-`<procedure>__<video>__gt_<n>`, holding `input_images/`, `seg_masks/` and
-`frame_manifest.json`. The frames are the release's JPEGs, cut to the clip's
-confirmed rectangle and resized to `--long-side`; the masks hold the class id
-of each pixel. A run with the frames and rectangle of one already written is
-not written again. Each video gets `<procedure>__<video>__extract_report.json`,
-which says what became of every clip of its index. With `--population`, the
-clips to be written must be the population's clips of those videos.
+annotated frames, ended also at every cut of `--cuts`, and each run is
+thinned to one frame every `--step-sec` seconds. A run left with at least
+`--min-frames` frames is written as `<procedure>__<video>__gt_<n>`: the
+release's JPEGs cut to the clip's confirmed rectangle and resized to
+`--long-side`, the class id of each pixel, and `frame_manifest.json`. A run
+with the frames and rectangle of one already written is not written again.
+`<procedure>__<video>__extract_report.json` says what became of every clip
+of a video's index. With `--population`, the clips to be written must be the
+population's clips of those videos.
 
 Usage:
     python -m pipeline.extract_atlas120k --atlas-root /path/to/ATLAS --out /path/to/clips \\

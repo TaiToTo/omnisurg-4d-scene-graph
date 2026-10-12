@@ -1,16 +1,14 @@
 """Read the cuts judged inside the ATLAS-120k clips, `atlas120k_meta/cuts.csv`.
 
-A cut is a scene change inside a video's mp4. The table lists every
-candidate that was judged, one row each, and `load_cuts` returns the rows
-judged a cut: per clip, the mp4 frames after which its cuts fall. The frame
-after each, `cut_after`, starts the new scene. The README of
-`atlas120k_meta/` says how the candidates were found and judged.
-`load_cuts` refuses a table it cannot read for certain: other columns, a
-judgement other than `yes` or `no`, a cut whose two frames are missing or
-not adjacent, a row that is not a cut yet names a cut's frames, a cut
-listed twice, and a clip name that is not a clip's. Whether each cut falls
-inside its clip is checked where the clip's frames are read, by the
-extraction stage.
+A cut is a scene change inside a video's mp4. The table lists every judged
+candidate, one row each, and `load_cuts` returns the rows judged a cut: per
+clip, the mp4 frames after which its cuts fall; the frame after each,
+`cut_after`, starts the new scene. `load_cuts` refuses a table it cannot
+read for certain: other columns, a judgement other than `yes` or `no`, a
+cut whose two frames are missing or not adjacent, a row that is not a cut
+yet names a cut's frames, a cut listed twice, and a clip name that is not a
+clip's. The extraction stage checks that each cut falls inside its clip,
+where the clip's frames are read.
 """
 
 import csv
