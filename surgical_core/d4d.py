@@ -1,4 +1,4 @@
-"""Read D4D through its upstream loader: clips, times, instrument masks and scans.
+"""Read D4D: clips, times, instrument masks and scans through its upstream loader, and the tracker's poses.
 
 `clips` imports `d4d.loader` from a clone of its repository at `LOADER_COMMIT`, which the README says to
 put on `PYTHONPATH`. It refuses a missing `d4d`, and one whose files differ from that commit's. A clip's frames,
@@ -6,16 +6,26 @@ stereo depth maps and instrument masks are files named by their time, `<sec>_<ns
 `frame_files` returns a clip's files of one kind and refuses them unless their names are the frames' names.
 `instrument_mask` resizes a mask stored at another size with the nearest neighbour, then dilates it.
 `pixel_hits` counts a scan's points that fall in each pixel of the endoscope's view.
+`tracker_poses` interpolates the camera's pose from a session's optical tracker log, which the loader does
+not read. It marks a pose interpolated across a gap in the log as not tracked.
 """
 
 import hashlib
 import importlib.util
+import json
 from pathlib import Path
 
 import cv2
 import numpy as np
 
 SIDES = ("start", "end")
+
+# The prefixes of the files in a session's `tf/` that hold the camera's pose in the optical tracker's frame,
+# `<prefix>_<time>.json`. Sessions spell the prefix one of two ways, and some hold files of both.
+TRACKER_PREFIXES = ("polaris_to_camera_optical", "polaris_spectra_to_camera_optical")
+# The longest gap in a tracker log, in seconds, that a pose is interpolated across. The tracker loses the
+# camera while its marker is hidden, for up to about a second.
+TRACKER_MAX_GAP_S = 0.25
 
 LOADER_REPOSITORY = "https://github.com/reubendocea/d4d"
 LOADER_COMMIT = "efe12d265a289b0b102307e64f9910a6985835a3"
@@ -102,6 +112,76 @@ def nearest_frame(times: np.ndarray, t: float) -> tuple[int, float]:
     """Return the index of the frame nearest to time `t`, and that frame's time less `t`, in seconds."""
     i = int(np.argmin(np.abs(times - t)))
     return i, float(times[i] - t)
+
+
+def tracker_log(session_dir: str) -> tuple[np.ndarray, np.ndarray, str] | None:
+    """Return the times and files of the camera's poses in a session's tracker log, in time order, and their prefix.
+
+    A file's name holds its time, so no file is opened. When a session holds files of both prefixes, the prefix
+    with more files is taken, and on a tie the first of `TRACKER_PREFIXES`. A session without any returns None.
+    """
+    files, prefix = [], None
+    for p in TRACKER_PREFIXES:
+        found = [str(f) for f in (Path(session_dir) / "tf").glob(f"{p}_*.json")]
+        if len(found) > len(files):
+            files, prefix = found, p
+    if not files:
+        return None
+    times = np.array([float(Path(f).name[len(prefix) + 1:-len(".json")]) for f in files])
+    order = np.argsort(times)
+    return times[order], np.array(files)[order], prefix
+
+
+def read_tracker_poses(files: np.ndarray) -> np.ndarray:
+    """Return the (N, 4, 4) camera-to-tracker poses that tracker files hold, translations in metres."""
+    from scipy.spatial.transform import Rotation
+
+    quat, trans = [], []
+    for f in files:
+        with open(f) as fh:
+            t = json.load(fh)["transform"]
+        r = t["rotation"]
+        quat.append([r["x"], r["y"], r["z"], r["w"]])
+        trans.append([t["translation"][a] for a in "xyz"])
+    T = np.tile(np.eye(4), (len(files), 1, 1))
+    T[:, :3, :3] = Rotation.from_quat(np.asarray(quat)).as_matrix()
+    T[:, :3, 3] = np.asarray(trans)
+    return T
+
+
+def tracker_poses(times: np.ndarray, files: np.ndarray, want: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Return the camera-to-tracker pose at each time of `want`, in metres, and whether the tracker saw it.
+
+    Rotations are interpolated by Slerp and translations linearly, between the two poses of the log around
+    each time. A time between two poses more than `TRACKER_MAX_GAP_S` apart is not tracked.
+
+    Args:
+        times: the times of the log's poses, increasing, as `tracker_log` returns them.
+        files: the files of the log's poses.
+        want: the times to interpolate the pose at.
+
+    Raises:
+        ValueError: a time of `want` is outside the log, where the pose would be extrapolated.
+    """
+    from scipy.spatial.transform import Rotation, Slerp
+
+    want = np.asarray(want, dtype=float)
+    if want.min() < times[0] or want.max() > times[-1]:
+        raise ValueError(f"the times {want.min():.3f} to {want.max():.3f} s are not inside the tracker log's "
+                         f"{times[0]:.3f} to {times[-1]:.3f} s")
+    # Read only the poses around each wanted time; a session logs thousands.
+    j = np.searchsorted(times, want)
+    keep = np.unique(np.clip(np.concatenate([j - 1, j, j + 1]), 0, len(times) - 1))
+    ts, T = times[keep], read_tracker_poses(files[keep])
+
+    # Interpolate each pose, and mark the times between two poses too far apart.
+    j = np.clip(np.searchsorted(ts, want), 1, len(ts) - 1)
+    tracked = (ts[j] - ts[j - 1]) <= TRACKER_MAX_GAP_S
+    out = np.tile(np.eye(4), (len(want), 1, 1))
+    out[:, :3, :3] = Slerp(ts, Rotation.from_matrix(T[:, :3, :3]))(want).as_matrix()
+    for a in range(3):
+        out[:, a, 3] = np.interp(want, ts, T[:, a, 3])
+    return out, tracked
 
 
 def frame_files(clip, folder: str, suffix: str) -> list[Path]:

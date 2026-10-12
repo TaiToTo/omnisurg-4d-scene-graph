@@ -359,8 +359,8 @@ longest side (`--process-res`). It writes into the clip:
 
 The stage refuses:
 
-- a clip without `crop_info.json`, unless it is an ATLAS-120k, a StereoMIS
-  or a LapEx clip: a CholecSeg8k clip before the crop stage;
+- a clip without `crop_info.json`, unless it is an ATLAS-120k, a StereoMIS,
+  a D4D or a LapEx clip: a CholecSeg8k clip before the crop stage;
 - a clip that already holds the stage's output. `--overwrite` replaces the
   stage's own files and leaves every other file.
 
@@ -813,3 +813,46 @@ The table refuses:
 - a condition scored on other clips than the base;
 - a clip whose sequence, stratum or `span_mm` differs between conditions;
 - a pair whose clips come from fewer than two sequences.
+
+## The D4D camera trajectory scores
+
+```bash
+python -m trajectory_eval.tools.score_d4d census --root /path/to/D4D/extracted --clips d4d_meta/clips.txt \
+    --out census.json
+python -m trajectory_eval.tools.score_d4d prepare --root /path/to/D4D/extracted --census census.json \
+    --out /path/to/clips
+python -m trajectory_eval.tools.score_d4d score --root /path/to/D4D/extracted --census census.json \
+    --clip-root /path/to/clips --methods da3 pi3x --out rows.json
+```
+
+The truth is the camera's pose that D4D's optical tracker logs, under each
+session's `tf/`. The command reads the clips through D4D's loader, as the
+census of the D4D population does. It runs in three steps:
+
+- `census` measures how far the tracker's camera moves in each clip of the
+  population. The later steps take the clips whose `span_mm` is at least
+  1 mm: 12 of the 271 clips.
+- `prepare` writes each of these clips with 112 frames spread over the
+  whole clip. The depth stages then write their bundles into the clips.
+- `score` scores the static floor, the line floor and each method, one row
+  per clip and condition. A frame whose pose falls in a gap of the log
+  longer than 0.25 s is not tracked, and is left out of every trajectory.
+  The rows add `n_tracked` and `tracked_frac`.
+
+`score` leaves out a clip, and prints why, when:
+
+- the tracker sees fewer than 30 of its frames, or fewer than 60 %;
+- between two tracked frames, the truth moves faster than 300 mm/s or
+  turns faster than 300 degrees/s;
+- the tracked frames' `span_mm` is below 1 mm.
+
+The command refuses:
+
+- a population file that lists no clip or a clip twice, or a clip the
+  dataset does not hold;
+- a method named twice;
+- with `prepare`, a clip that exists under `--out`, before anything is
+  written, and an image it cannot read or write;
+- with `score`, before anything is scored: a clip without a method's bundle
+  or its manifest, or whose manifest names another clip or other frames;
+- with `score`, a clip whose session has no tracker log.
