@@ -47,10 +47,10 @@ def test_a_pair_that_leaves_a_named_part_alone_is_refused():
 
 
 def test_a_compared_condition_the_plan_does_not_make_and_the_table_does_not_name_is_refused():
-    # CholecSeg8k's workbench conditions hold no Pi3X arm.
-    plan = plan_with(compare=[comparison([("normal_da3_pps8_perframe", "normal_pi3x_pps8_perframe")], ["depth"],
+    # The plan makes no grid of 6, and CholecSeg8k's workbench conditions hold no Pi3X arm.
+    plan = plan_with(compare=[comparison([("normal_da3_pps6_perframe", "normal_pi3x_pps6_perframe")], ["depth"],
                                          datasets=["cholecseg8k"])])
-    with pytest.raises(ValueError, match="cholecseg8k: normal_pi3x_pps8_perframe is neither made"):
+    with pytest.raises(ValueError, match="cholecseg8k: normal_pi3x_pps6_perframe is neither made"):
         check_plan(plan, TABLE)
 
 
@@ -62,11 +62,27 @@ def test_an_unknown_dataset_or_part_is_refused():
     assert "['propagation'] are no parts of a name" in str(e.value)
 
 
-def test_a_group_names_each_input_at_each_grid_and_the_depth_model_only_where_it_is_read():
+def test_a_group_names_each_input_at_each_grid_and_each_depth_model_only_where_depth_is_read():
+    # Per grid and rule: rgb once, the four inputs that read depth on DA3 and on Pi3X.
     names = conditions(COMMITTED, "atlas120k")
-    assert len(names) == 5 * 6 and "rgb_pps2_sam_centre" in names and "depth_da3_pps48_sam_centre" in names
-    cholec = conditions(COMMITTED, "cholecseg8k")
-    assert len(cholec) == 5 * 6 + 5 and "rgb-edge_da3_pps24_perframe" in cholec and "rgb_pps24_perframe" in cholec
+    assert len(names) == 9 * (6 + 1 + 1) and names == conditions(COMMITTED, "cholecseg8k")
+    assert {"rgb_pps2_sam_forward", "depth_pi3x_pps48_sam_forward", "rgb-edge_da3_pps24_perframe",
+            "normal_pi3x_pps24_sam_centre"} <= set(names)
+    assert not any(n.startswith("rgb_da3") or n.startswith("rgb_pi3x") for n in names)
+
+
+def test_a_stage_names_only_its_own_groups():
+    by_stage = {s: conditions(COMMITTED, "cholecseg8k", s) for s in (1, 2, 3)}
+    assert [len(by_stage[s]) for s in (1, 2, 3)] == [9 * 4, 9 * 3, 9]
+    assert sorted(sum(by_stage.values(), [])) == sorted(conditions(COMMITTED, "cholecseg8k"))
+    assert all("_pps2_" in n for n in by_stage[3])
+
+
+@pytest.mark.parametrize("stage", [0, "1", True, None])
+def test_a_group_without_a_whole_stage_is_refused(stage):
+    group = {**copy.deepcopy(COMMITTED["make"][0]), "stage": stage}
+    with pytest.raises(ValueError, match="is not a whole number from 1"):
+        conditions(plan_with(make=[group]), "atlas120k")
 
 
 def test_a_condition_made_twice_is_refused():
@@ -152,7 +168,7 @@ def write_record(tracks_root, clip, name, record):
 
 
 def test_status_counts_made_and_missing_clips_and_names_a_clip_made_as_another_condition(tmp_path):
-    good, drifted = "rgb_pps2_sam_centre", "normal-edge_da3_pps2_sam_centre"
+    good, drifted = "rgb_pps4_sam_forward", "normal-edge_da3_pps4_sam_forward"
     write_record(tmp_path, "VID01_a", good, record_of(good))
     write_record(tmp_path, "VID01_a", drifted, record_of(drifted, seed_edge_gain=0.85))
     report = status(COMMITTED, "atlas120k", ["VID01_a", "VID02_b"], tmp_path)
@@ -166,33 +182,39 @@ def run(tmp_path, *argv):
 
 
 def test_commands_print_only_the_conditions_still_to_make(tmp_path, capsys):
-    made = "rgb_pps2_sam_centre"
+    made = "rgb_pps4_sam_forward"
     write_record(tmp_path, "VID01_a", made, record_of(made))
     run(tmp_path, "commands", "--input-dir", "/clips", "--sam-ckpt", "sam.pth", "--gpus", "0", "1")
     lines = capsys.readouterr().out.splitlines()
-    assert len(lines) == 29 and not any(f"--tag {made} " in line for line in lines)
-    assert lines[0] == command("rgb_pps4_sam_centre", "/clips", str(tmp_path / "clips.txt"), str(tmp_path),
+    assert len(lines) == 72 - 1 and not any(f"--tag {made} " in line for line in lines)
+    assert lines[0] == command("rgb_pps24_sam_forward", "/clips", str(tmp_path / "clips.txt"), str(tmp_path),
                                "sam.pth", [0, 1])
 
 
+def test_commands_print_a_stage_alone(tmp_path, capsys):
+    run(tmp_path, "commands", "--input-dir", "/clips", "--sam-ckpt", "sam.pth", "--gpus", "0", "--stage", "3")
+    lines = capsys.readouterr().out.splitlines()
+    assert len(lines) == 9 and all("--points-per-side 2 " in line and "forward_from_first" in line for line in lines)
+
+
 def test_commands_refuse_labels_made_as_another_condition(tmp_path):
-    drifted = "normal-edge_da3_pps2_sam_centre"
+    drifted = "normal-edge_da3_pps4_sam_forward"
     write_record(tmp_path, "VID01_a", drifted, record_of(drifted, seed_edge_gain=0.85))
     with pytest.raises(SystemExit, match=f"{drifted}: VID01_a: no name"):
         run(tmp_path, "commands", "--input-dir", "/clips", "--sam-ckpt", "sam.pth", "--gpus", "0")
 
 
 def test_commands_print_every_condition_with_all(tmp_path, capsys):
-    made = "rgb_pps2_sam_centre"
+    made = "rgb_pps4_sam_forward"
     write_record(tmp_path, "VID01_a", made, record_of(made))
     run(tmp_path, "commands", "--input-dir", "/clips", "--sam-ckpt", "sam.pth", "--gpus", "0", "--all")
-    assert len(capsys.readouterr().out.splitlines()) == 30
+    assert len(capsys.readouterr().out.splitlines()) == 72
 
 
 def test_status_prints_each_conditions_counts(tmp_path, capsys):
-    made = "rgb_pps2_sam_centre"
+    made = "rgb_pps4_sam_forward"
     write_record(tmp_path, "VID01_a", made, record_of(made))
     run(tmp_path, "status")
     lines = capsys.readouterr().out.splitlines()
-    assert len(lines) == 30 and lines[0].split() == [made, "1", "made,", "0", "missing"]
-    assert lines[1].split() == ["rgb_pps4_sam_centre", "0", "made,", "1", "missing"]
+    assert len(lines) == 72 and lines[0].split() == [made, "1", "made,", "0", "missing"]
+    assert lines[1].split() == ["rgb_pps24_sam_forward", "0", "made,", "1", "missing"]

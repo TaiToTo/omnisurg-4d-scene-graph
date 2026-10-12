@@ -113,8 +113,11 @@ not compared:
      segmenter's points per side. Merging regions is not used for it,
      since the merge adds a rule of its own.
    - `pipeline/experiment_plan.json` lists the conditions made for it on
-     the GPU machine: each input at the grids 2, 4, 8, 12, 24 and 48,
-     tracked from the centre, on both datasets.
+     the GPU machine, on both datasets. Each input that reads depth is made
+     on DA3 and on Pi3X. Tracking forward from the first frame is the
+     default rule, swept over the grids 2, 4, 8, 12, 24 and 48 in three
+     stages; the grid 2 comes last. Tracking from the centre and
+     segmenting each frame alone are made at the grid 24.
 
 ## Remaining steps
 

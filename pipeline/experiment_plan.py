@@ -1,8 +1,8 @@
 """Read the experiment plan: the conditions to make on the GPU machine, and the pairs of conditions to compare.
 
 `experiment_plan.json` lists each group of conditions to make by the parts
-of their names (`evalkit.tools.condition_names`), and each comparison as
-pairs of names with the parts the pairs vary. `check` refuses a pair that
+of their names (`evalkit.tools.condition_names`) and the stage it is made
+in, and each comparison as pairs of names with the parts the pairs vary. `check` refuses a pair that
 varies another part, and a compared condition that the plan does not make
 and the table of workbench names does not hold. `status` reads every clip's
 record of each condition to make, and names the condition the record
@@ -11,9 +11,10 @@ shows, which must be the plan's name. `commands` prints the
 
 Usage:
     python -m pipeline.experiment_plan check
-    python -m pipeline.experiment_plan status --dataset atlas120k --clips atlas120k_meta/clips.txt --tracks-root <dir>
+    python -m pipeline.experiment_plan status --dataset atlas120k --clips atlas120k_meta/clips.txt --tracks-root <dir> \\
+        [--stage 1]
     python -m pipeline.experiment_plan commands --dataset atlas120k --clips atlas120k_meta/clips.txt \\
-        --input-dir <dir of clips> --tracks-root <dir> --sam-ckpt sam_vit_h_4b8939.pth --gpus 0 1 2 3 [--all]
+        --input-dir <dir of clips> --tracks-root <dir> --sam-ckpt sam_vit_h_4b8939.pth --gpus 0 1 2 3 [--stage 1] [--all]
 """
 from __future__ import annotations
 
@@ -40,23 +41,33 @@ DEPTH_SOURCE = {"da3": "da3", "pi3x": "pi3"}
 TRACK_BASE, SEED_MIN_AREA, EDGE_GAIN = "rgb", 400, 1.0
 
 
-def conditions(plan: Mapping, dataset: str) -> list[str]:
+def conditions(plan: Mapping, dataset: str, stage: int | None = None) -> list[str]:
     """Return the names of the conditions the plan makes for `dataset`, group by group, in the plan's order.
 
+    An input that reads depth is made on each depth model of its group; another input once.
+
+    Args:
+        stage: Only the groups of this stage; every group when None.
+
     Raises:
-        ValueError: A group's parts make no name (`condition_names.parse`), or a name comes twice.
+        ValueError: A group's stage is not a whole number from 1, its parts make no name
+            (`condition_names.parse`), or a name comes twice.
     """
-    names = []
+    names, every = [], []
     for group in plan["make"]:
+        if isinstance(group["stage"], bool) or not isinstance(group["stage"], int) or group["stage"] < 1:
+            raise ValueError(f"{group['what']!r}: the stage {group['stage']!r} is not a whole number from 1")
         if dataset not in group["datasets"]:
             continue
         for inp in group["inputs"]:
-            for pps in group["points_per_side"]:
-                depth = group["depth"] if inp in READS_DEPTH else None
-                name = Parts(inp, depth, pps, group["seed"], group["rule"]).name()
-                parse(name)
-                names.append(name)
-    twice = sorted({n for n in names if names.count(n) > 1})
+            for depth in (group["depths"] if inp in READS_DEPTH else [None]):
+                for pps in group["points_per_side"]:
+                    name = Parts(inp, depth, pps, group["seed"], group["rule"]).name()
+                    parse(name)
+                    every.append(name)
+                    if stage is None or group["stage"] == stage:
+                        names.append(name)
+    twice = sorted({n for n in every if every.count(n) > 1})
     if twice:
         raise ValueError(f"{dataset}: the plan makes {twice} more than once")
     return names
@@ -155,14 +166,15 @@ def name_of_record(record: Mapping) -> str:
     return parse(Parts(inp, depth, seed_input["points_per_side"], seed, rule, tuple(settings)).name()).name()
 
 
-def status(plan: Mapping, dataset: str, clips: Sequence[str], tracks_root: str | Path) -> dict[str, dict]:
-    """Return, for each condition the plan makes for `dataset`, the clips made, missing, and made as another one.
+def status(plan: Mapping, dataset: str, clips: Sequence[str], tracks_root: str | Path,
+           stage: int | None = None) -> dict[str, dict]:
+    """Return, for each condition the plan makes for `dataset` in `stage`, the clips made, missing, and made as another one.
 
     A clip is made when its label directory holds a `seed_info.json` that shows the plan's name. It is made as
     another condition when its record shows another name, or none.
     """
     out = {}
-    for name in conditions(plan, dataset):
+    for name in conditions(plan, dataset, stage):
         made, missing, other = [], [], {}
         for clip in clips:
             path = Path(tracks_root) / clip / label_dir(name) / SEED_INFO
@@ -199,6 +211,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     common.add_argument("--dataset", required=True, choices=DATASETS)
     common.add_argument("--clips", required=True, help="the population: one clip name per line")
     common.add_argument("--tracks-root", required=True, help="one directory per clip, one per condition inside")
+    common.add_argument("--stage", type=int, default=None, help="only the conditions of this stage")
     sub.add_parser("status", parents=[common], help="count the clips each condition is made on")
     cmd = sub.add_parser("commands", parents=[common], help="print the command of each condition still to make")
     cmd.add_argument("--input-dir", required=True, help="the directory that holds the clips")
@@ -214,7 +227,7 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     # What is made, per condition; a clip made as another condition stops both reports.
     clips = read_population(args.clips)
-    report = status(plan, args.dataset, clips, args.tracks_root)
+    report = status(plan, args.dataset, clips, args.tracks_root, args.stage)
     wrong = {name: r["other"] for name, r in report.items() if r["other"]}
     if wrong:
         raise SystemExit("labels under a planned name show another condition:\n" + "\n".join(

@@ -655,8 +655,9 @@ python -m pipeline.experiment_plan commands --dataset atlas120k --clips atlas120
 ```
 
 `pipeline/experiment_plan.json` lists the conditions to make, by the parts
-of their names (`evalkit/tools/condition_names.py`), and the pairs of
-conditions to compare, with the parts each pair varies.
+of their names (`evalkit/tools/condition_names.py`) and the stage each is
+made in, and the pairs of conditions to compare, with the parts each pair
+varies. `--stage` limits `status` and `commands` to one stage.
 
 - `check` refuses a pair that varies other parts than the ones it names,
   and a compared condition that the plan does not make and
