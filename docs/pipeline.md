@@ -644,6 +644,36 @@ The command refuses:
 - after the run: labels that are missing, incomplete or of other settings,
   and a process that exited non-zero.
 
+## The experiment plan
+
+```bash
+python -m pipeline.experiment_plan check
+python -m pipeline.experiment_plan status --dataset atlas120k --clips atlas120k_meta/clips.txt \
+    --tracks-root /path/to/tracks
+python -m pipeline.experiment_plan commands --dataset atlas120k --clips atlas120k_meta/clips.txt \
+    --input-dir /path/to/clips --tracks-root /path/to/tracks --sam-ckpt sam_vit_h_4b8939.pth --gpus 0 1 2 3
+```
+
+`pipeline/experiment_plan.json` lists the conditions to make, by the parts
+of their names (`evalkit/tools/condition_names.py`) and the stage each is
+made in, and the pairs of conditions to compare, with the parts each pair
+varies. `--stage` limits `status` and `commands` to one stage.
+
+- `check` refuses a pair that varies other parts than the ones it names,
+  and a compared condition that the plan does not make and
+  `condition_names.tsv` does not name for the dataset.
+- `status` counts, per planned condition, the clips whose `seed_info.json`
+  shows the condition's name, and the clips still missing.
+- `commands` prints the `condition_population` command of each condition
+  still to make. It gives every setting the name says, and the edges at
+  gain 1.0 on normals not smoothed, which differ from the tracking stage's
+  own defaults.
+- A condition's labels go to `track_rgb_<name>`.
+
+`status` and `commands` refuse labels under a planned name whose record
+shows another name, or none, such as a tracking run without the name's
+edge options.
+
 ## The granularity conditions
 
 The granularity result tracks seeds merged to K regions. These three commands
