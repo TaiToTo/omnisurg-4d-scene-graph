@@ -210,6 +210,12 @@ def test_a_kept_clip_without_jpegs_is_refused(release):
         extract_video(**release)
 
 
+def test_a_frame_opencv_cannot_write_is_refused(release, monkeypatch):
+    monkeypatch.setattr("pipeline.extract_atlas120k.cv2.imwrite", lambda path, img: False)
+    with pytest.raises(RuntimeError, match="cannot write .*input_images"):
+        extract_video(**release)
+
+
 def test_a_short_clip_without_jpegs_is_still_recorded(release):
     for p in (_source(release, "clip_0005") / "images").iterdir():
         p.unlink()
@@ -250,9 +256,9 @@ def test_clips_off_the_population_are_refused():
     names = [f"{PROC}__{VID}__gt_0001", f"{PROC}__{VID}__gt_0003s1"]
     population = names + ["other__vid__gt_0001"]
     check_population(names, population, PROC, VID)
-    with pytest.raises(ValueError, match="not written"):
+    with pytest.raises(ValueError, match=r"in the population, not to be written: \['proc__vid__gt_0003s1'\]"):
         check_population(names[:1], population, PROC, VID)
-    with pytest.raises(ValueError, match="not in the population"):
+    with pytest.raises(ValueError, match=r"to be written, not in the population: \['proc__vid__gt_0004'\]"):
         check_population(names + [f"{PROC}__{VID}__gt_0004"], population, PROC, VID)
 
 
@@ -285,6 +291,21 @@ def test_the_command_fails_a_video_whose_clips_are_not_the_populations(release, 
     with pytest.raises(SystemExit, match=rf"1 of 1 video\(s\) failed: {PROC}/{VID}"):
         run_main(monkeypatch, release, "--videos", f"{PROC}/{VID}", "--population", str(population))
     assert "failed: ValueError" in capsys.readouterr().out
+    assert list(release["out"].iterdir()) == []
     population.write_text("\n".join(WRITTEN + WRITTEN[:1]) + "\n")
     with pytest.raises(ValueError, match="more than once"):
         run_main(monkeypatch, release, "--population", str(population))
+
+
+def test_a_population_mismatch_keeps_the_earlier_output(release, monkeypatch):
+    # The depth stage's file stands for any output a later stage wrote into a clip.
+    extract_video(**release)
+    out = release["out"]
+    (_clip(out, "0001") / "depth_raw").mkdir()
+    (_clip(out, "0001") / "depth_raw" / "depth_000000.npy").write_bytes(b"written by the depth stage")
+    before = {p.relative_to(out): p.read_bytes() if p.is_file() else None for p in out.rglob("*")}
+    population = out.parent / "clips.txt"
+    population.write_text("\n".join(WRITTEN[:2]) + "\n")
+    with pytest.raises(SystemExit, match=rf"1 of 1 video\(s\) failed: {PROC}/{VID}"):
+        run_main(monkeypatch, release, "--videos", f"{PROC}/{VID}", "--overwrite", "--population", str(population))
+    assert {p.relative_to(out): p.read_bytes() if p.is_file() else None for p in out.rglob("*")} == before

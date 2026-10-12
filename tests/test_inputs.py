@@ -134,6 +134,16 @@ def test_a_prediction_that_is_not_an_integer_map_is_refused(tmp_path):
         read(tmp_path)
 
 
+@pytest.mark.parametrize("big", [2 ** 32 + 2, -(2 ** 31) - 1])
+def test_a_region_id_outside_int32_is_refused(tmp_path, big):
+    clip_with_labels(tmp_path)
+    label = np.load(tmp_path / "tracks" / "c" / TAG / "label_0000.npy").astype(np.int64)
+    label[label == label.max()] = big
+    np.save(tmp_path / "tracks" / "c" / TAG / "label_0000.npy", label)
+    with pytest.raises(ValueError, match="outside int32"):
+        read(tmp_path)
+
+
 def test_a_condition_without_a_directory_for_the_clip_is_refused(tmp_path):
     clip_with_labels(tmp_path)
     with pytest.raises(FileNotFoundError, match="no prediction directory"):

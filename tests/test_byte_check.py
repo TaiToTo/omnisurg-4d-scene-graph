@@ -530,15 +530,31 @@ M = "frame_manifest.json"
     # The runtime appears again under another key; stripping the top one and forgiving the file would guess.
     ('{\n  "runtime_sec": 1.71,\n  "inner": {"runtime_sec": 1}\n}',
      '{\n  "runtime_sec": 2.04,\n  "inner": {"runtime_sec": 1}\n}'),
+    # A final newline added, with no runtime in the file.
+    ('{"value": 1}\n', '{"value": 1}'),
+    # A final newline added to a file that also holds the runtime.
+    ('{\n  "runtime_sec": 1.71,\n  "n_frames": 14\n}\n', '{\n  "runtime_sec": 2.04,\n  "n_frames": 14\n}'),
+    # Line endings changed from LF to CRLF.
+    ('{\n  "runtime_sec": 1.71,\n  "n_frames": 14\n}', '{\r\n  "runtime_sec": 2.04,\r\n  "n_frames": 14\r\n}'),
+    # The runtime's line alone ends in CRLF.
+    ('{\n  "runtime_sec": 1.71,\n  "n_frames": 14\n}', '{\n  "runtime_sec": 2.04,\r\n  "n_frames": 14\n}'),
+    # Spaces added after the runtime's comma.
+    ('{\n  "runtime_sec": 1.71,\n  "n_frames": 14\n}', '{\n  "runtime_sec": 2.04,   \n  "n_frames": 14\n}'),
+    # A real field changed on the runtime's line.
+    ('{\n  "runtime_sec": 1.71, "n_frames": 14\n}', '{\n  "runtime_sec": 2.04, "n_frames": 15\n}'),
+    # The runtime is a string, which the stages never write.
+    ('{\n  "runtime_sec": "1.71",\n  "n_frames": 14\n}', '{\n  "runtime_sec": "2.04",\n  "n_frames": 14\n}'),
 ])
 def test_a_manifest_change_beyond_the_runtime_is_a_difference(tmp_path, a, b):
     r = bc.compare(*_pair(tmp_path, a, b, M))
     assert r["n_differ"] == 1 and r["volatile_only"] == []
 
 
-def test_a_manifest_that_differs_in_its_runtime_alone_is_counted_apart(tmp_path):
-    r = bc.compare(*_pair(tmp_path, '{\n  "runtime_sec": 1.71,\n  "n_frames": 15\n}',
-                          '{\n  "runtime_sec": 2.04,\n  "n_frames": 15\n}', M))
+@pytest.mark.parametrize("end", ["\n", "\r\n"])
+@pytest.mark.parametrize("value", ["2.04", "2", "-1", "1e-05", "null"])
+def test_a_manifest_that_differs_in_its_runtime_alone_is_counted_apart(tmp_path, end, value):
+    a = '{\n  "runtime_sec": 1.71,\n  "n_frames": 15\n}\n'.replace("\n", end)
+    r = bc.compare(*_pair(tmp_path, a, a.replace("1.71", value), M))
     assert r["n_differ"] == 0 and r["volatile_only"] == [M]
 
 

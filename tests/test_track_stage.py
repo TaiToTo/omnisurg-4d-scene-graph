@@ -92,7 +92,7 @@ def test_both_ways_seeds_the_middle_frame_and_carries_both_ways(tmp_path):
     assert sorted(p.name for p in lab_dir.glob("label_*.npy")) == [f"label_{i:04d}.npy" for i in range(N)]
     info = json.loads((lab_dir / "seed_info.json").read_text())
     assert (info["seed_frame"], info["bidir"], info["frames"], info["n_seed_regions"]) == (2, True, list(range(N)), 3)
-    assert info["seed_input"]["edge_ring_masked"] is None
+    assert info["seed_input"]["edge_ring_masked"] is info["edge_ring_masked"] is None
     assert (tmp_path / "tracks" / "VID01_s15_80_crop" / "viz" / "montage_track_rgb_t.png").is_file()
 
 
@@ -125,7 +125,26 @@ def test_the_edge_ring_setting_reaches_the_seed_and_the_tracker(tmp_path):
     assert np.array_equal(seg.images[0], sam_input_image("normal_edge", depth[2], K[2], None, rgb, mask_ring=False))
     assert not np.array_equal(seg.images[0], sam_input_image("normal_edge", depth[2], K[2], None, rgb, mask_ring=True))
     assert np.array_equal(trk.frames[2], sam_input_image("rgb_edge", depth[2], K[2], None, rgb, mask_ring=False))
-    assert json.loads((lab_dir / "seed_info.json").read_text())["seed_input"]["edge_ring_masked"] is False
+    info = json.loads((lab_dir / "seed_info.json").read_text())
+    assert (info["seed_input"]["edge_ring_masked"], info["edge_ring_masked"]) == (False, False)
+
+
+@pytest.mark.parametrize("sam_input, track_base, external, ring", [
+    ("rgb", "rgb", False, None),
+    ("normal_edge", "rgb", False, False),
+    ("rgb", "rgb_edge", False, False),
+    # A seed read from outside was built elsewhere, so its input's ring is not this run's to record.
+    ("normal_edge", "rgb", True, None),
+    ("rgb", "normal_edge", True, False),
+])
+def test_the_record_holds_the_ring_of_every_input_the_run_builds_with_edges(tmp_path, sam_input, track_base,
+                                                                            external, ring):
+    clip = _clip(tmp_path)
+    seeds = _seeds(tmp_path, clip, 2, np.zeros((H, W), int)) if external else None
+    lab_dir, _, _ = _run(tmp_path, clip, sam_input=sam_input, track_base=track_base, mask_ring=False,
+                         seed_labels=seeds, segmenter=None if external else StandInSegmenter())
+    info = json.loads((lab_dir / "seed_info.json").read_text())
+    assert info["edge_ring_masked"] is ring and list(info)[-1] == "edge_ring_masked"
 
 
 def test_the_higher_score_is_painted_last_and_a_missing_score_goes_under():
@@ -357,6 +376,14 @@ def test_a_run_that_fails_while_writing_leaves_no_partial_labels(tmp_path, monke
     with pytest.raises(OSError, match="no space"):
         _run(tmp_path, clip, overwrite=True)
     assert sorted(p.name for p in lab_dir.iterdir()) == before
+    assert [p.name for p in (tmp_path / "tracks" / clip.name).iterdir() if "partial" in p.name] == []
+
+
+def test_a_montage_opencv_cannot_write_is_refused(tmp_path, monkeypatch):
+    clip = _clip(tmp_path)
+    monkeypatch.setattr(track.cv2, "imwrite", lambda path, img: False)
+    with pytest.raises(RuntimeError, match="cannot write .*montage_track_rgb_t"):
+        _run(tmp_path, clip)
     assert [p.name for p in (tmp_path / "tracks" / clip.name).iterdir() if "partial" in p.name] == []
 
 

@@ -242,6 +242,13 @@ def test_a_match_on_the_lower_edge_of_the_window_is_refused(tmp_path):
         extract_clip(**roots, clip="VID02_s6_190", count=2)
 
 
+def test_a_number_whose_window_starts_past_the_video_end_is_refused(tmp_path):
+    # The search for number 500 starts at frame 250, past frame 199, the video's last.
+    roots = _grey_source(tmp_path, {500: 10, 506: 15})
+    with pytest.raises(ValueError, match=r"empty search window \[250, 199\]"):
+        extract_clip(**roots, clip="VID02_s6_500", count=2)
+
+
 def test_a_frame_that_cannot_be_decoded_inside_the_window_is_refused(source, faulty_capture):
     # The search for number 60 reads frames 0 to 120. Were frame 100 skipped, the search would go on and the
     # image of number 102 would still match frame 102.
@@ -267,6 +274,16 @@ def test_a_gap_frame_that_cannot_be_decoded_is_refused_and_leaves_nothing(source
     assert list(roots["out"].iterdir()) == []
     monkeypatch.undo()
     extract_clip(**roots, clip="VID01_s6_60", count=10)
+
+
+@pytest.mark.parametrize("fails", ["seg_masks", "input_images"])
+def test_an_image_or_a_mask_opencv_cannot_write_is_refused(source, monkeypatch, fails):
+    roots, _ = source
+    imwrite = cv2.imwrite
+    monkeypatch.setattr(extract_cholecseg8k.cv2, "imwrite", lambda path, img: fails not in path and imwrite(path, img))
+    with pytest.raises(RuntimeError, match=f"cannot write .*{fails}"):
+        extract_clip(**roots, clip="VID01_s6_60", count=10)
+    assert list(roots["out"].iterdir()) == []
 
 
 def test_an_earlier_clip_is_refused_unless_replaced(source):

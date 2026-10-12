@@ -217,6 +217,22 @@ the normal rules.
 [`evalkit/objects.py`](../evalkit/objects.py) computes the numbers on this
 scene.
 
+#### Component objects
+
+`evalkit/tools/component_scores` scores every condition on a second kind of
+object as well, as reference values that decide no claim:
+
+- a GT object is one 8-connected piece of one class's scored pixels;
+- a predicted object is one region's scored pixels;
+- each is kept only at a minimum size, the same on both sides: 0, 100, 300
+  or 400 pixels at the evaluation resolution, each size reported.
+
+The pairing, the hits and `inst_BF` are the evaluator's. A component object
+is a piece the frame shows, not a thing: a liver cut in two by an
+instrument is two objects, and two touching instruments are one. The pilot
+evaluator's objects were component objects of 300 pixels, in its own
+domains.
+
 ### Naming the regions: the class map
 
 The pipeline gives regions without classes, so `mIoU` and `boundary_F` need a
@@ -571,7 +587,8 @@ components and predicted regions under 300 px. With whole-class objects, a
 sliver joins its class's region instead of becoming an object, so a cut would
 only decide whether a small class counts at all, and nothing in the data sets
 that size. Pilot mode keeps the cut, as `PILOT_MIN_CC_PX`, and nothing else
-uses it.
+uses it. The component objects are scored at four sizes
+instead ("Component objects").
 
 ### Fail closed
 
@@ -874,6 +891,11 @@ classes. It is scored as a second class set, `benchmark`, for comparison with
 the benchmark: written to a separate block of the JSON, as reference values
 only, which decide no claim. Resolution, crop and metrics are this
 evaluator's own, so the numbers are not the benchmark's.
+
+`python -m evalkit.tools.check_benchmark_mapping <class_mapping.py>`
+compares the class table's mapping with the one that file defines, id by
+id, and names each id the two map differently. At `e286a584` all 47 ids
+agree.
 
 The paper gives the reason for the 30: categories not represented in all
 subsets were excluded, and semantically similar classes consolidated. In the

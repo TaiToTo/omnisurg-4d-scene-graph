@@ -78,6 +78,18 @@ def read_image(path: Path) -> np.ndarray:
     return img
 
 
+def write_image(path: Path, img: np.ndarray) -> None:
+    """Write an image with OpenCV, and raise when the write fails.
+
+    OpenCV reports a failed write only by returning False.
+
+    Raises:
+        RuntimeError: OpenCV fails to write the image.
+    """
+    if not cv2.imwrite(str(path), img):
+        raise RuntimeError(f"cannot write {path}")
+
+
 def match_native(cap: cv2.VideoCapture, image: np.ndarray, number: int, n_frames: int) -> int:
     """Return the video frame that `image`, CholecSeg8k number `number`, is.
 
@@ -85,14 +97,17 @@ def match_native(cap: cv2.VideoCapture, image: np.ndarray, number: int, n_frames
     is taken.
 
     Raises:
-        ValueError: a frame is not the image's size, the best match is further than `MATCH_TOL`, or the best
-            match is on an edge of the window that is not an end of the video, where the true frame may be
-            outside the window.
+        ValueError: the window starts past the video's last frame, a frame is not the image's size, the best
+            match is further than `MATCH_TOL`, or the best match is on an edge of the window that is not an end
+            of the video, where the true frame may be outside the window.
         RuntimeError: a frame of the window cannot be decoded. The window ends at the video's frame count, so a
             frame that cannot be decoded is a fault, not the end of the video.
     """
     lo = max(0, number - number // SEARCH_BACK_DIVISOR - SEARCH_BACK)
     hi = min(number + SEARCH_AHEAD, n_frames - 1)
+    if lo > hi:
+        raise ValueError(f"CholecSeg8k number {number} has an empty search window [{lo}, {hi}]: the window starts "
+                         f"past frame {n_frames - 1}, the video's last")
     cap.set(cv2.CAP_PROP_POS_FRAMES, lo)
     best, best_i = None, None
     for i in range(lo, hi + 1):
@@ -104,7 +119,7 @@ def match_native(cap: cv2.VideoCapture, image: np.ndarray, number: int, n_frames
         d = float(np.mean(np.abs(frame.astype(np.int16) - image.astype(np.int16))))
         if best is None or d < best:
             best, best_i = d, i
-    if best is None or best > MATCH_TOL:
+    if best > MATCH_TOL:
         raise ValueError(f"CholecSeg8k number {number} matches no video frame in [{lo}, {hi}] "
                          f"(best {best_i}, difference {best:.2f} > {MATCH_TOL})")
     if (best_i == lo and lo > 0) or (best_i == hi and hi < n_frames - 1):
@@ -157,11 +172,11 @@ def extract_clip(seg8k_root: Path, videos_root: Path, out: Path, clip: str, coun
     Raises:
         FileNotFoundError: the video or its CholecSeg8k directory is missing, or a mask has no image.
         ValueError: the clip's name is not `VID<nn>_s<stride>_<start>`, the clip already exists and `overwrite`
-            is false, an annotated image is not the video's size, matches no video frame, or matches one on the
-            edge of its search window, the clip has fewer than two annotated frames, the rate is neither of
-            `RATES`, or the native frames do not rise.
+            is false, an annotated image has an empty search window, is not the video's size, matches no video
+            frame, or matches one on the edge of its search window, the clip has fewer than two annotated frames,
+            the rate is neither of `RATES`, or the native frames do not rise.
         RuntimeError: the video cannot be opened or has no frame count, or an image or a video frame cannot be
-            read.
+            read or written.
     """
     # Find the video and its annotation, and refuse a clip an earlier run left.
     num, stride, start = parse_clip(clip)
@@ -207,7 +222,7 @@ def extract_clip(seg8k_root: Path, videos_root: Path, out: Path, clip: str, coun
             if pairs[s]:
                 endo, mask = pairs[s]
                 image = read_image(endo)
-                cv2.imwrite(str(partial / "seg_masks" / f"{i:06d}_color_mask.png"), read_image(mask))
+                write_image(partial / "seg_masks" / f"{i:06d}_color_mask.png", read_image(mask))
                 source = f"CholecSeg8k ({endo.parent.name})"
             else:
                 cap.set(cv2.CAP_PROP_POS_FRAMES, natives[s])
@@ -215,7 +230,7 @@ def extract_clip(seg8k_root: Path, videos_root: Path, out: Path, clip: str, coun
                 if not ok:
                     raise RuntimeError(f"cannot read frame {natives[s]} of {mp4}")
                 source = "Cholec80 video"
-            cv2.imwrite(str(partial / "input_images" / f"{i:06d}.png"), image)
+            write_image(partial / "input_images" / f"{i:06d}.png", image)
             frames.append({"seq_idx": i, "native_frame": natives[s], "seg_frame": s if pairs[s] else None,
                            "timestamp_sec": round(natives[s] / fps, 2), "source": source,
                            "has_seg_mask": bool(pairs[s]), "is_anchor": bool(pairs[s]), "triplets": []})

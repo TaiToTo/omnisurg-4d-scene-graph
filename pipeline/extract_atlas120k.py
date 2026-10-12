@@ -9,7 +9,7 @@ confirmed rectangle and resized to `--long-side`; the masks hold the class id
 of each pixel. A run with the frames and rectangle of one already written is
 not written again. Each video gets `<procedure>__<video>__extract_report.json`,
 which says what became of every clip of its index. With `--population`, the
-clips written must be the population's clips of those videos.
+clips to be written must be the population's clips of those videos.
 
 Usage:
     python -m pipeline.extract_atlas120k --atlas-root /path/to/ATLAS --out /path/to/clips \\
@@ -157,7 +157,12 @@ def check_size(path: Path, src_size: tuple[int, int]) -> None:
 
 
 def write_frame(dst: Path, jpg: Path, rect: Rect, size: tuple[int, int]) -> None:
-    """Cut a frame to the rectangle, resize it with area averaging and write it as PNG."""
+    """Cut a frame to the rectangle, resize it with area averaging and write it as PNG.
+
+    Raises:
+        RuntimeError: OpenCV fails to read the JPEG or to write the PNG. OpenCV reports a failed write only by
+            returning False.
+    """
     bgr = cv2.imread(str(jpg), cv2.IMREAD_COLOR)
     if bgr is None:
         raise RuntimeError(f"cannot read {jpg}")
@@ -165,7 +170,8 @@ def write_frame(dst: Path, jpg: Path, rect: Rect, size: tuple[int, int]) -> None
     img = bgr[y:y + h, x:x + w]
     if (img.shape[1], img.shape[0]) != size:
         img = cv2.resize(img, size, interpolation=cv2.INTER_AREA)
-    cv2.imwrite(str(dst), img)
+    if not cv2.imwrite(str(dst), img):
+        raise RuntimeError(f"cannot write {dst}")
 
 
 def write_mask(dst: Path, png: Path, rect: Rect, size: tuple[int, int], table: ClassTable) -> None:
@@ -288,18 +294,21 @@ def plan_clips(index: dict, gt_dir: Path, digits: int, stride: int, min_frames: 
 
 def extract_video(atlas_root: Path, procedure: str, video: str, out: Path, rects: dict, ratios: FrameRatios,
                   table: ClassTable, step_sec: float, min_frames: int, long_side: int, step_tol: float,
-                  overwrite: bool = False) -> list[str]:
+                  overwrite: bool = False, population: list[str] | None = None) -> list[str]:
     """Extract one video's clips, write its report and return the names of the clips written.
 
-    Every check below is made before anything is written or removed, apart from one: a mask whose ids or
-    colours the class table lacks is found while it is written.
+    With `population`, the clips to be written must be the population's clips of the video. Every check below
+    is made before anything is written or removed, apart from those made while a clip is written: a mask whose
+    ids or colours the class table lacks, and a frame OpenCV cannot read or write.
 
     Raises:
         FileNotFoundError: the release has no such video or no mp4 of it.
         KeyError: the video's frame ratio was not measured, or a kept clip has no confirmed rectangle.
         ValueError: the video already has output and `overwrite` is false, the step falls more than `step_tol`
-            off `step_sec`, or a frame or mask to be written is not the mp4's size.
-        RuntimeError: a kept clip has no JPEG for its first frame, or the frame ratio fails its check.
+            off `step_sec`, a frame or mask to be written is not the mp4's size, or the clips to be written are
+            not the population's clips of the video.
+        RuntimeError: a kept clip has no JPEG for its first frame, the frame ratio fails its check, or OpenCV fails
+            to read or write a frame.
     """
     # Refuse output an earlier extraction left, unless asked to replace it. A frame left by an extraction that
     # wrote more frames would otherwise stay in the clip.
@@ -326,6 +335,10 @@ def extract_video(atlas_root: Path, procedure: str, video: str, out: Path, rects
 
     # Decide what becomes of every clip of the index, and check the files each kept run needs.
     rows, kept = plan_clips(index, gt_dir, digits, stride, min_frames, rects, src_size, procedure, video)
+
+    # Compare with the population before the removal below, which deletes what later stages wrote into the clips.
+    if population is not None:
+        check_population([run.name for run in kept], population, procedure, video)
 
     # Remove the earlier output, now that every check that needs no pixel has passed.
     for p in held:
@@ -378,18 +391,20 @@ def write_clip(clip_dir: Path, run: KeptRun, digits: int, long_side: int, table:
         json.dump(manifest, fh, indent=2)
 
 
-def check_population(written: list[str], population: list[str], procedure: str, video: str) -> None:
-    """Refuse a video whose clips written are not the population's clips of that video.
+def check_population(names: list[str], population: list[str], procedure: str, video: str) -> None:
+    """Refuse a video whose clips to be written, `names`, are not the population's clips of that video.
 
     Raises:
-        ValueError: a clip of the population was not written, or a clip written is not in the population.
+        ValueError: a clip of the population is not to be written, or a clip to be written is not in the
+            population.
     """
     prefix = f"{procedure}__{video}__"
     want = {c for c in population if c.startswith(prefix)}
-    missing, extra = sorted(want - set(written)), sorted(set(written) - want)
+    missing, extra = sorted(want - set(names)), sorted(set(names) - want)
     if missing or extra:
-        raise ValueError(f"{procedure}/{video}: the clips written are not the population's "
-                         f"(not written: {missing}; not in the population: {extra})")
+        raise ValueError(f"{procedure}/{video}: the clips to be written are not the population's "
+                         f"(in the population, not to be written: {missing}; "
+                         f"to be written, not in the population: {extra})")
 
 
 def main() -> None:
@@ -401,7 +416,7 @@ def main() -> None:
     ap.add_argument("--frame-ratios", required=True, help="The measured frame ratios, frame_ratio.json.")
     ap.add_argument("--videos", nargs="*",
                     help="<procedure>/<video> to extract. Default: every video whose frame ratio was measured.")
-    ap.add_argument("--population", help="A population file; the clips written must be its clips of the videos.")
+    ap.add_argument("--population", help="A population file; the clips to be written must be its clips of the videos.")
     ap.add_argument("--step-sec", type=float, default=0.52, help="Seconds between two frames of a clip.")
     ap.add_argument("--min-frames", type=int, default=8, help="The fewest frames a clip may have once thinned.")
     ap.add_argument("--long-side", type=int, default=854, help="The longer side of a written frame.")
@@ -429,11 +444,9 @@ def main() -> None:
     for procedure, video in videos:
         print(f"{procedure}/{video}")
         try:
-            written = extract_video(Path(args.atlas_root), procedure, video, out, rects, ratios, table,
-                                    args.step_sec, args.min_frames, args.long_side, args.step_tol,
-                                    overwrite=args.overwrite)
-            if population is not None:
-                check_population(written, population, procedure, video)
+            extract_video(Path(args.atlas_root), procedure, video, out, rects, ratios, table, args.step_sec,
+                          args.min_frames, args.long_side, args.step_tol, overwrite=args.overwrite,
+                          population=population)
         except Exception as e:
             print(f"  failed: {type(e).__name__}: {e}")
             failed.append(f"{procedure}/{video}")
