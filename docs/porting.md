@@ -163,7 +163,9 @@ only:
   frames between annotations 1 to 3 s late, and one image could appear
   twice. This affects 14 of the 27 clips. The ported extractor converts
   those frames, and writes the other 13 clips byte for byte. Every
-  CholecSeg8k condition is run again on the 27 clips the port extracts.
+  CholecSeg8k condition is run again on the clips the port extracts, in
+  the population of `cholecseg8k_meta/clips.txt`, whose windows moved so
+  that each seeds on a GT frame (`cholecseg8k_meta/README.md`).
 - **A frame that the ATLAS-120k extraction shrinks.** OpenCV's area resize
   rounds differently from one build to another: about one pixel in ten
   thousand differs by one level. So frames are compared on one machine.
@@ -215,10 +217,13 @@ Each question says what it blocks and where its answer is written.
   workbench's `normal_edge_t12_gtseed` and `rgb_edge_t12_gtseed` records
   hold no edge ring for the tracker's input, so `condition_inventory` and
   `check_provenance` refuse them until the conditions are measured again.
-  Open:
-  which frame a GT seed is placed on under each rule and when the centre
-  frame has no GT, which code places it, and how the evaluator scores it.
-  Blocks: measuring the `t12_*` conditions again. Answer in:
+  Decided on 2026-10-12: the seed stays on `frames[n // 2]` under
+  `both_ways_from_centre` and on frame 0 under `forward_from_first`, for a
+  GT seed and a SAM seed alike, and the population is chosen so that both
+  frames carry GT (`docs/pipeline.md`, "A clip"). CholecSeg8k's windows
+  moved for it (`cholecseg8k_meta/README.md`); ATLAS-120k's clips carry GT
+  on every frame. Open: which code places a GT seed, and how the evaluator
+  scores it. Blocks: measuring the `t12_*` conditions again. Answer in:
   `docs/evaluation.md` and `docs/pipeline.md`.
 - **Cuts inside GT clips.** The workbench searched for scene changes inside
   GT clips at frame pairs whose pixel difference was above 40, and judged
