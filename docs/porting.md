@@ -12,7 +12,7 @@ no check is recorded.
 | area | ported | checked |
 |---|---|---|
 | evaluator, `evalkit/` | class tables, metrics, entry point, pilot mode | in pilot mode, every key shared with the pilot evaluator equal on 23 conditions × 315 clips, at `eval_code_sha` `a5d7ea46…` |
-| score tools, `evalkit/tools/` | every tool in the layout of `AGENTS.md` | `paired_table`, `arms_paired`, `claims_table`, `leave_one_video_out`, `print_status_tables`, `kmerge`: the workbench's values on the same inputs. `track_metrics`: none, since its GT track is new |
+| score tools, `evalkit/tools/` | every tool in the layout of `AGENTS.md` | `paired_table`, `arms_paired`, `claims_table`, `leave_one_video_out`, `print_status_tables`, `kmerge`: the workbench's values on the same inputs. `track_metrics` on component tracks: the values of the workbench's functions on random frames at the four sizes, but where two IoUs tie exactly |
 | camera trajectory scorer, `trajectory_eval/` | `pose_metrics`, the scoring of a clip, `pose_controls`, `scores`, `score_stereomis`, `stereomis_table` | `pose_metrics`: the workbench's values on 1200 random, planar and static trajectories. The scoring of a clip, `pose_controls` and `score_stereomis`: the workbench's 387 StereoMIS rows, every value, scored again from its stored outputs. `stereomis_table`, on those rows: the 24 pairs of the workbench's `summary_20.json`, every field |
 | extraction and crop | ATLAS-120k, CholecSeg8k, LapEx, StereoMIS, the D4D population | the CholecSeg8k crop, 13 of the 27 CholecSeg8k clips and the D4D population: the workbench's bytes. LapEx's 735 clips: the workbench's frames and masks, and its manifests apart from `depth_info` |
 | depth | DA3, Pi3X, point clouds, the population drivers | DA3, point clouds and Pi3X: the workbench's bytes on the GPU machine, on three clips. DA3 also on the 25 LapEx clips whose border the workbench did not fill |
@@ -94,7 +94,7 @@ not compared:
 3. **How the regions are compared.** Decided on 2026-10-12:
    - Every condition is scored on whole-class objects by the evaluator,
      and on component objects at 0, 100, 300 and 400 px by
-     `component_scores`.
+     `component_scores` and `track_metrics`.
    - The paper describes how each measure moves across these settings,
      not which condition wins. Open: how the questions and primary
      metrics of `docs/evaluation.md` change.

@@ -220,7 +220,9 @@ scene.
 #### Component objects
 
 `evalkit/tools/component_scores` scores every condition on a second kind of
-object as well, as reference values that decide no claim:
+object as well, and `evalkit/tools/track_metrics` follows it over time
+("The measures of identity"). Both give reference values that decide no
+claim:
 
 - a GT object is one 8-connected piece of one class's scored pixels;
 - a predicted object is one region's scored pixels;
@@ -525,44 +527,62 @@ evaluator before the evaluator is frozen, and none is.
 
 #### The measures of identity
 
-A *GT track* is one class followed over a clip's GT frames, in one view:
-on each frame, the class's GT object ("Objects"). The datasets carry no ids
-for individual things, and the class is already the evaluator's object, so
-the track adds no second object definition. A class is *present* on a frame
-when the view scores a pixel of it. Frames without GT and excluded frames
-are left out of the sequence. On each frame the pairing of "Objects" pairs
-the classes with the regions, and a hit links a class to a region. Each
-measure is computed per clip and per view, with no minimum object size:
+A *GT track* follows one GT object over a clip's GT frames, in one view.
+Frames without GT and excluded frames are left out of the sequence. The
+datasets carry no ids for individual things, so the tool builds the tracks
+in two ways and reports both:
 
-- **hold** follows each class present on the seed frame, the frame
-  `seed_info.json` names. The region *picked* for a class is the one the
+- on whole-class objects ("Objects"), each class is one track;
+- on component objects ("Component objects"), at each of the four sizes, a
+  piece joins a track of its class when its IoU with the track's last piece
+  is at least 0.3 and the track has gone at most three GT frames without a
+  piece. The pairs are taken greedily, highest IoU first, each piece and
+  each track once. A piece left over starts a track. These are the
+  workbench's values.
+
+A track is *present* on a frame when it has an object there. On each frame
+the pairing of "Objects" pairs the tracks' objects with the predicted
+objects, and a hit links a track to a region. On component tracks a
+predicted object is a region with at least the size's pixels. Each measure
+is computed per clip, per view and per kind of track:
+
+- **hold** follows each track present on the seed frame, the frame
+  `seed_info.json` names. The region *picked* for a track is the one the
   seed frame's pairing hits it with. On every other frame on which the
-  class is present, the class gives one sample: the IoU of the picked
-  region with the class, 0 where the two do not overlap. `hold_mean`
-  averages the picked classes' samples. `hold_all_mean` averages every
-  sample, a class without a picked region giving 0. `picked_share` is the
-  share of the seed frame's classes that have a picked region.
-  `hold_curve` bins the samples of `hold_mean` by their distance in seconds
-  from the seed frame.
-- **IDF1** gives each class one region over the clip, the assignment with
-  the most frames on which the pair is a hit: IDF1 = 2 · those frames /
-  (GT objects + predicted objects, summed over the frames).
-- **ID switches** counts the hits by another region than the class's
+  track is present, the track gives one sample: the IoU of the picked
+  region with the track's object, whatever the region's size, and 0 where
+  the two do not overlap. `hold_mean` averages the picked tracks' samples.
+  `hold_all_mean` averages every sample, a track without a picked region
+  giving 0. `picked_share` is the share of the seed frame's tracks that
+  have a picked region. `hold_curve` bins the samples of `hold_mean` by
+  their distance in seconds from the seed frame.
+- **IDF1** gives each track one region over the clip, and each region one
+  track: the assignment with the most frames on which the pair is a hit.
+  IDF1 = 2 · those frames / (GT objects + predicted objects, summed over
+  the frames).
+- **ID switches** counts the hits by another region than the track's
   previous hit.
-- **fragmentation** counts the frames on which a class is present and not
-  hit, after one on which it was hit.
-- **re-entry**: a gap is a run of frames on which a class is absent,
+- **fragmentation** counts each frame on which a track is present and not
+  hit, when its previous frame with the track was a hit.
+- **re-entry**: a gap is a run of frames on which a track is absent,
   between two on which it is present. `reentry` is the share of the gaps
   hit by one region at both ends, among the gaps whose two ends are hits.
 
-Hold starts on the seed frame. The tool refuses a clip whose seed frame has
-no GT or is excluded, and a `per_frame` condition, which has no seed frame.
+Hold starts on the seed frame. The tool refuses:
+
+- a clip whose seed frame has no GT or is excluded;
+- a `per_frame` condition, which has no seed frame;
+- a condition seeded from GT or from outside the tracking stage, which
+  holds no propagation rule ("Propagation rule");
+- labels without `seed_info.json`, and a condition whose clips hold two
+  rules.
+
 Under `both_ways_from_centre` the samples lie before and after the seed
 frame, and under `forward_from_first` after it only; as with every key, the
 two rules are not compared.
 
-The workbench measured a fault in four of the measures, on GT tracks that
-linked each class's connected components:
+The workbench measured a fault in four of the measures, on component tracks
+of 400 px:
 
 - `hold_mean` and `hold_all_mean` gave one comparison opposite signs;
 - IDF1 rises when regions merge;
