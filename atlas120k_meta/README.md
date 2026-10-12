@@ -15,32 +15,50 @@ one frame every 0.52 s, and keep every run that still has at least 8. A clip
 with two kept runs would give two clips, `s1` and `s2`; none of the 315 is
 one. Of the 494 clips in the index, 167 were too short after thinning (six
 videos lost every clip), 10 have no mask, and 2 are duplicates of another
-clip. Nothing is excluded on a score. Crop rectangles select nothing. A clip
-with a cut in its recording is used whole. `pipeline/extract_atlas120k.py`
-applies the rule.
+clip. The 10 clips without a mask have none in the release either: their
+folders are missing from its file list (checked on 2026-10-12 against the
+release of 2026-06-30). Nothing is excluded on a score. Crop rectangles
+select nothing. A clip with a cut in its recording is used whole.
+`pipeline/extract_atlas120k.py` applies the rule.
 
 A cut is a scene change inside the mp4: the frame before it and the frame
 after it show different scenes, or one of them is an inserted slide.
-`cuts.csv` lists every candidate for a cut inside the 315 clips, with the
-judgement on it:
+`cuts.csv` lists every candidate for a cut inside the 315 clips that was
+judged, with the judgement on it. All frame numbers are the mp4's.
 
 - **The search.** A script compared mp4 frames 5 apart. For each pair it
-  computed `d_pix`, the mean absolute difference of the two frames in grey,
-  scaled to 160 pixels wide (0 to 255).
-- **The candidates.** A candidate is a pair with `d_pix` of at least 40 whose
-  frames overlap the range of a clip of the population: 112 pairs in 51
-  clips. Pairs below 40 were not looked at, so a cut with a smaller
-  difference may be missing.
-- **The judgement.** A person judged every candidate by eye: first from the
-  three frames on each side of it, and then, where those did not decide, from
-  the video played at its own speed around it. For a cut, the person also
-  chose the exact pair of adjacent frames, `cut_before` and `cut_after`; the
-  new scene starts at `cut_after`.
+  computed the mean absolute difference of the two frames in grey, scaled to
+  160 pixels wide (0 to 255). A run of consecutive pairs above 20 that could
+  separate two frames of a clip is a spot: `spot_first` and `spot_last` are
+  its first and last sampled frame, and `d_pix` is the largest difference in
+  it.
+- **The candidates.** Inside each spot, frames were compared one apart with
+  the same measure. The adjacent pair that differs most is the candidate,
+  `boundary_before` and `boundary_after`. Another pair of the spot is a
+  candidate too when it differs at least 1.5 times more than any pair
+  within three frames of it, and by at least 15. The 315 clips hold 1,506
+  candidates.
+- **What was judged.** The 431 candidates whose spot has `d_pix` above 30;
+  only those are listed. The 1,075 with `d_pix` between 20 and 30 were not
+  looked at, so a cut with a smaller difference may be missing.
+- **The judgement.** A person judged each candidate by eye, from the three
+  frames on each side of it and, where those did not decide, from the video
+  played around it. For a cut, the person chose the exact pair of adjacent
+  frames, `cut_before` and `cut_after`; the new scene starts at `cut_after`.
+  An earlier pass had judged the pairs above 40 the same way; where it had
+  judged the same pair of frames, its judgement stands unless the
+  candidate was judged again.
+- **The recheck.** Where the cuts of a clip leave a piece of fewer than 8
+  frames after thinning, the person watched the piece with a few seconds
+  on each side and confirmed or moved the cut at each end. `rechecked` is 1
+  for a candidate so confirmed.
 
-Of the 112 candidates, 33 are cuts. 32 of them fall between two frames of
-their clip, in 23 clips. The other one falls after the last frame of its
-clip, so it splits nothing. These 23 clips are still used whole in this
-population. No measurement of the paper reads the cuts.
+Of the 431 candidates, 69 are cuts, in 39 clips; each falls between two
+frames of its clip. Two clips are known to hold cuts that are not listed:
+`hemicolectomy__5YDMlxTl0k8__gt_0029` and `gt_0055`. The recheck left three
+of their short pieces unconfirmed, because the person saw a further cut in
+them; its position was not recorded. The 39 clips are still used whole in
+this population. No measurement of the paper reads the cuts.
 
 `videos/videos.json` is the inventory of the release's tree: all 100 videos
 and their 502 clips. An earlier extraction wrote it, so its `keep`,
@@ -77,7 +95,7 @@ whose ranges intersect, and checks the population against them.
 | `clips.txt` | the population, one `<procedure>__<video>__gt_<n>` per line | `ipcai2027_experiment/frozen/atlas97_clips.txt` |
 | `depth_manifest.json` | per clip, sha256 of depth and intrinsics, frame count, shape | `ipcai2027_experiment/frozen/atlas97_depth_manifest.json` |
 | `crop_rects.json` | per clip, the rectangle to use (`rect`, in `src_size` pixels) and whether the automatic one was accepted (`verdict`); `rect_used` and `via` are history | `experiment/crop_necessity/verdicts/verdicts_latest.json` |
-| `cuts.csv` | per candidate pair inside the population, its clip, the pair and its `d_pix`, whether it is a cut, and for a cut the adjacent frames it falls between; all frame numbers are the mp4's | `experiment/crop_necessity/cut_review_targets.csv` |
+| `cuts.csv` | per judged candidate inside the population: its clip, its spot and `d_pix`, the pair of adjacent frames judged, whether it is a cut, for a cut the pair it falls between, and whether it was rechecked; all frame numbers are the mp4's | `experiment/crop_necessity/cut_review_spot_targets.csv` |
 | `frame_ratio.json` | per video, the measured ratio between the clip index's frame numbers and the mp4's (1, 2, 3 or 4), with the frame pair it was matched on and their pixel difference; all 97 videos | `outputs/crop_cuts/_align2.json` |
 | `videos/videos.json` | the 100-video tree: per video its mp4, clips, frame counts, why any was dropped | `ipcai2027_experiment/task22_atlas100/out/manifest/videos.json` |
 
@@ -89,10 +107,12 @@ separate fields.
 The files are byte copies of the workbench's, except that an absolute path
 (`atlas_root` in `videos.json`) was removed and the eight `note` fields of
 `crop_rects.json` were translated from Japanese. Nothing reads the notes.
-`cuts.csv` is rewritten from the workbench's table: its columns are renamed,
-the clip-index frame numbers and the clip's range that the table derived
-from the mp4's are left out, and so is its one note, which asks about a
-frame that is not a cut.
+`cuts.csv` is rewritten from the workbench's table: its columns are renamed;
+the candidates that were not judged are left out, and so are the columns
+the table keeps for the workbench (the key of each candidate, its one-frame
+difference, why it became a candidate, where its judgement came from) and
+the notes, which are in Japanese. One note asks about a frame that is not a
+cut; the rest are typing errors.
 The workbench's other files about this tree (the cut marks, the audits of
 the earlier extraction, its clip lists) are not carried for now. No
 measurement of the paper reads them.
