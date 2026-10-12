@@ -113,6 +113,9 @@ not compared:
    - Inputs are compared at a matched number of regions by sweeping the
      segmenter's points per side. Merging regions is not used for it,
      since the merge adds a rule of its own.
+   - `pipeline/experiment_plan.json` lists the conditions made for it on
+     the GPU machine: each input at the grids 2, 4, 8, 12, 24 and 48,
+     tracked from the centre, on both datasets.
 
 ## Remaining steps
 

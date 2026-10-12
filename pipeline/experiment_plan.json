@@ -1,0 +1,45 @@
+{
+ "make": [
+  {
+   "what": "Each input at each grid of the segmenter, tracked from the centre, so that the inputs are compared at a matched number of regions.",
+   "datasets": ["atlas120k", "cholecseg8k"],
+   "inputs": ["rgb", "rgb-edge", "normal", "normal-edge", "depth"],
+   "depth": "da3",
+   "points_per_side": [2, 4, 8, 12, 24, 48],
+   "seed": "sam",
+   "rule": "centre"
+  },
+  {
+   "what": "Each input segmented frame by frame at the grid of 24, the other side of the propagation comparison on CholecSeg8k, whose clips are all made again.",
+   "datasets": ["cholecseg8k"],
+   "inputs": ["rgb", "rgb-edge", "normal", "normal-edge", "depth"],
+   "depth": "da3",
+   "points_per_side": [24],
+   "seed": null,
+   "rule": "perframe"
+  }
+ ],
+ "compare": [
+  {
+   "what": "Tracking from the centre against segmenting each frame alone.",
+   "varies": ["seed", "rule"],
+   "datasets": ["atlas120k", "cholecseg8k"],
+   "pairs": [
+    ["rgb_pps24_perframe", "rgb_pps24_sam_centre"],
+    ["rgb-edge_da3_pps24_perframe", "rgb-edge_da3_pps24_sam_centre"],
+    ["normal_da3_pps24_perframe", "normal_da3_pps24_sam_centre"],
+    ["normal-edge_da3_pps24_perframe", "normal-edge_da3_pps24_sam_centre"],
+    ["depth_da3_pps24_perframe", "depth_da3_pps24_sam_centre"]
+   ]
+  },
+  {
+   "what": "The depth model the normals are drawn from.",
+   "varies": ["depth"],
+   "datasets": ["atlas120k"],
+   "pairs": [
+    ["normal_da3_pps8_perframe", "normal_pi3x_pps8_perframe"],
+    ["normal-edge_da3_pps8_perframe", "normal-edge_pi3x_pps8_perframe"]
+   ]
+  }
+ ]
+}
