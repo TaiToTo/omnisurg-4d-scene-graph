@@ -28,11 +28,6 @@ WINDOW = 30
 SETTINGS = ("frame_index", "window", "process_res")
 
 
-def side_stem(key: str, side: str) -> str:
-    """Return the name of a side's files without their suffix: `<key, / as __>__<side>`."""
-    return f"{key.replace('/', '__')}__{side}"
-
-
 def window(n_frames: int, index: int, size: int) -> tuple[int, int]:
     """Return the first frame and one past the last frame of the window of `size` frames around `index`.
 
@@ -149,7 +144,7 @@ def main(argv: list[str] | None = None) -> None:
     out.mkdir(parents=True, exist_ok=True)
     todo = []
     for key, side in sides:
-        dst = out / f"{side_stem(key, side)}.npz"
+        dst = out / f"{d4d.side_stem(key, side)}.npz"
         if not dst.is_file():
             todo.append((key, side, dst))
             continue
