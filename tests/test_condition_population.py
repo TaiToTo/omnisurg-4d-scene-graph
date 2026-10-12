@@ -281,6 +281,12 @@ def test_a_record_of_other_settings_after_a_clip_ran_stops_the_run(run, monkeypa
     (lambda d: (d / "seed_info.json").write_text(
         json.dumps({k: v for k, v in json.loads((d / "seed_info.json").read_text()).items() if k != "frames"})),
      r"clip0's seed_info.json records other settings than this run passes: frames \(no such key\)"),
+    # A record the stage wrote before it recorded the edge ring.
+    (lambda d: (d / "seed_info.json").write_text(
+        json.dumps({k: v for k, v in json.loads((d / "seed_info.json").read_text()).items()
+                    if k != "edge_ring_masked"})),
+     r"clip0's seed_info.json records other settings than this run passes: edge_ring_masked \(no such key\), "
+     r"not True"),
 ])
 def test_labels_that_do_not_hold_the_condition_are_refused_by_name_before_anything_runs(run, fault, match):
     root, tracks, ckpt = run
