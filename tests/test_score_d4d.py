@@ -68,7 +68,7 @@ def make_clip(root: Path, session: str = "s_a", name: str = "Clip_1", n: int = N
     paths = []
     for i, t in enumerate(times):
         paths.append(str(images / f"{int(t)}_{round((t - int(t)) * 1e9):09d}.png"))
-        cv2.imwrite(paths[-1], np.full((8, 10, 3), i, np.uint8))
+        cv2.imwrite(paths[-1], np.full((8, 10, 3), i % 256, np.uint8))
     if log and not (session_dir / "tf").exists():
         write_log(session_dir, np.arange(times[0] - 1, times[-1] + 1 + LOG_DT / 2, LOG_DT)
                   if log_times is None else log_times)
