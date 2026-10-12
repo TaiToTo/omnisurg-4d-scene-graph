@@ -91,9 +91,10 @@ Homepage = "https://github.com/TaiToTo/omnisurg-4d-scene-graph"
 include = ["surgical_core*", "evalkit*", "trajectory_eval*", "pipeline*", "recon3d_wrapper*", "sam3_wrapper*"]
 
 # The class tables are data the evaluator reads and hashes, so an install
-# without them would score nothing.
+# without them would score nothing. The table of condition names is data the
+# score tools read.
 [tool.setuptools.package-data]
-evalkit = ["class_tables/*.json"]
+evalkit = ["class_tables/*.json", "tools/*.tsv"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

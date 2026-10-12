@@ -201,9 +201,8 @@ def test_an_unknown_id_or_colour_in_a_mask_raises(original):
 
 # Faults planted in a copy of the real table, which the loader has to refuse.
 # The mapping to the benchmark's classes is checked above against the
-# document, and both were typed here; against its source, ATLAS-bench's
-# `datasets/class_mapping.py`, it was checked by hand at commit e286a584, all
-# 47 ids agreeing. A script for that check is an open question of the port.
+# document, and both were typed here; `evalkit.tools.check_benchmark_mapping`
+# compares it with its source, ATLAS-bench's `datasets/class_mapping.py`.
 
 def _plant(tmp_path: Path, edit) -> Path:
     raw = json.loads(Path(load_table("atlas120k").path).read_text(encoding="utf-8"))

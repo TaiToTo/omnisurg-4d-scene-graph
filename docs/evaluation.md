@@ -441,7 +441,12 @@ table then prints:
 
 - ★ when the interval lies wholly on the key's better side of zero;
 - ✗ when it lies wholly on the worse side;
-- neither when it contains zero, or when the key is a reference value.
+- neither when it contains zero, when the key is a reference value, or when
+  the interval rests on fewer than six videos.
+
+An interval on fewer than six videos is read for its sign only, and the
+table says so. `paired_stats.MIN_VIDEOS_FOR_MARK` holds the number and the
+reason.
 
 The p-value is reported too, and never decides. `paired_stats.mark_of` is
 the one code that applies this rule.
@@ -851,6 +856,11 @@ classes. It is scored as a second class set, `benchmark`, for comparison with
 the benchmark: written to a separate block of the JSON, as reference values
 only, which decide no claim. Resolution, crop and metrics are this
 evaluator's own, so the numbers are not the benchmark's.
+
+`python -m evalkit.tools.check_benchmark_mapping <class_mapping.py>`
+compares the class table's mapping with the one that file defines, id by
+id, and names each id the two map differently. At `e286a584` all 47 ids
+agree.
 
 The paper gives the reason for the 30: categories not represented in all
 subsets were excluded, and semantically similar classes consolidated. In the

@@ -52,7 +52,8 @@ Each video also gets `<procedure>__<video>__extract_report.json`, one row
 per clip of its index, saying whether the clip was kept, split, a duplicate,
 too short, or without masks. With no `--videos`, the stage extracts every
 video whose frame ratio was measured. With `--population`, it refuses a
-video whose clips written are not the population's clips of that video.
+video whose clips to be written are not the population's clips of that
+video.
 
 The stage refuses:
 
@@ -66,7 +67,7 @@ The stage refuses:
 - a frame it cannot read or write;
 - a video that already has output, unless `--overwrite` is given, which
   removes the video's clips and report first;
-- clips written that are not the population's.
+- clips to be written that are not the population's.
 
 A refused video is left as it was: the stage writes and removes nothing
 until every check has passed. The checks made while a clip is written are
@@ -414,6 +415,28 @@ to `<input-dir>/_logs/depth_gpu<N>.log`. A driver that is stopped, by
   resolution;
 - a process that exited non-zero; the message names its log.
 
+## The point-cloud stage
+
+```bash
+python -m pipeline.point_clouds --input-dir /path/to/clips [--clips <clip> ...]
+```
+
+The stage writes each frame's point cloud from DA3's bundle, coloured by
+the frame's image, as `pc_vis/frame_NNNN.glb`. It records each cloud's
+centroid and the camera's position and axes on the frame's manifest
+entry, where the viewer bundle stage reads them. A frame with no usable
+depth gets no cloud. The stage refuses:
+
+- a clip without a bundle, a manifest, or an image for a frame of the
+  bundle;
+- a bundle without one depth map, intrinsics and extrinsics per frame, or
+  a manifest whose frames are not the bundle's;
+- a clip with no usable depth in any frame, which would get no cloud at
+  all.
+
+A refused clip is left as it was. The stage runs every clip and exits with
+an error if one failed. It needs the `render` extra.
+
 ## The Pi3X stage
 
 ```bash
@@ -507,7 +530,12 @@ The stage reads the depth stage's bundle, and Pi3X's with
 - `seed_info.json` beside the labels: the seed frame, whether the stage
   carried both ways (`bidir`), the frames labelled and the settings the
   seed was made with. Its `seed_source` is `sam`, or `external` when the
-  seed was read with `--seed-labels`.
+  seed was read with `--seed-labels`. Its `edge_ring_masked` says whether
+  the stage masked the edges' ring in each input it built with burnt-in
+  edges: the seed's, when the stage cut the seed, and the tracker's. The
+  ring is the edges along the image border and around invalid depth,
+  which `--keep-edge-ring` keeps. The key is null when the stage built no
+  input with burnt-in edges.
 - `<tracks-root>/<clip>/viz/montage_track_<track-base>_<tag>.png`: every
   frame's labels, one colour per object.
 
@@ -525,6 +553,12 @@ The stage refuses:
 A clip that fails keeps the labels an earlier run left: the stage replaces
 them only once it has written every file. The stage runs every clip and
 exits with an error if one failed.
+
+The stage does not promise the same labels byte for byte on another
+machine. On the seed frame every object's presence score ties, and
+`np.argsort` orders more than 16 tied objects by numpy's build and the
+CPU, so a label can differ where their masks overlap. Another GPU changes
+the tracker's arithmetic anyway.
 
 `--state-on-cpu` keeps the tracker's frames and the masks it stores for each
 frame in host memory. On the GPU they grow with the clip's length and its
@@ -609,10 +643,11 @@ and the stage's options keep their names and defaults.
 
 The command refuses:
 
-- before any process starts: an input a process would fail on, labels made
-  with other settings, and a tracker's input that burns edges with a seed
-  whose record holds no edge ring ("The edge ring of the tracker's input"
-  in `docs/porting.md`);
+- before any process starts:
+  - an input a process would fail on;
+  - labels made with other settings. Tracked labels whose record lacks
+    `edge_ring_masked` count as such labels. Remove them with their
+    montage to make them again;
 - after a clip: a record of other settings, which stops the run;
 - after the run: labels that are missing, incomplete or of other settings,
   and a process that exited non-zero.
@@ -774,7 +809,9 @@ python -m trajectory_eval.tools.stereomis_table controls.json methods.json [--ou
 
 The table prints each condition's scores, and each condition's paired
 difference from `floor_static` on `ate_rel`, with its interval over
-sequences and its mark. The JSON of `--out` records `trajectory_code_sha`.
+sequences and its mark. The mark counts each sequence as one video, so a
+pair on fewer than six sequences is read for its sign only. The JSON of
+`--out` records `trajectory_code_sha`.
 
 The table refuses:
 

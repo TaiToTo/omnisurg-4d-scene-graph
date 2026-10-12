@@ -5,8 +5,8 @@ beside its labels, in this repository and in the workbench alike. It prints each
 `condition_inventory.condition_key` tells conditions apart by, with its clips, and shows the seed source, the
 segmenter input and the tracker input of each; a record without one of these three holds `(no such key)`.
 It exits non-zero on a clip without a record, a record that cannot be read, a seed source, a tracker input, a
-segmenter input or seed labels other than the ones stated, and records that hold more than one combination. The
-edge ring of the tracker's input is in no record, so it is not compared.
+segmenter input or seed labels other than the ones stated, and records that hold more than one combination. A
+record cannot be read when `condition_inventory.edge_ring_of` cannot tell its edge ring.
 
 Usage:
     python -m evalkit.tools.check_provenance --tracks-root /path/to/tracks --tag op_edge_center \\
@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from evalkit.evaluate import SEED_INFO, read_population
-from evalkit.tools.condition_inventory import condition_key
+from evalkit.tools.condition_inventory import CUT_FROM_SAM_INPUT, condition_key
 
 # The values `seed_source` takes: the segmenter of the tracking stage; seeds made outside the stage
 # (`--seed-labels`); the GT masks of the workbench's `t12_*` conditions and of its controls `t12_paste`,
@@ -30,8 +30,6 @@ from evalkit.tools.condition_inventory import condition_key
 SEED_SOURCES = ("sam", "external", "gt", "per_frame")
 # The settings the report shows for each combination.
 KEYS = ("seed_source", "sam_input", "track_base")
-# The seed sources whose seed the segmenter cut from the `sam_input` image; under the others it is recorded only.
-CUT_FROM_SAM_INPUT = ("sam", "per_frame")
 # How many clips a line of the report names, after their count.
 SHOWN = 5
 
@@ -58,8 +56,8 @@ class Provenance:
         settings: each combination the records hold, the values of `KEYS` followed by
             `condition_key`, with the clips that hold it.
         missing: the clips whose label directory has no `seed_info.json`.
-        unreadable: each clip whose record, or its `seed_input`, is not a JSON object, or whose setting of `KEYS`
-            is neither a string nor null, with why.
+        unreadable: each clip whose record, or its `seed_input`, is not a JSON object, whose setting of `KEYS`
+            is neither a string nor null, or whose edge ring `condition_inventory.edge_ring_of` refuses, with why.
         mismatched: (clip, key, recorded, stated) for each setting other than the one stated.
     """
 
