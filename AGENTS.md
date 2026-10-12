@@ -87,7 +87,7 @@ omnisurg-4d-scene-graph/
 │                      check_benchmark_mapping pilot_check kmerge paired_table
 │                      arms_paired leave_one_video_out claims_table
 │                      print_status_tables condition_names component_scores
-│                      (track_metrics: waits on its GT track)
+│                      track_metrics
 ├── trajectory_eval/   the camera trajectory scorer, hashed into trajectory_code_sha
 │   └── tools/         what makes the controls' trajectories, scores StereoMIS or
 │                      reads the scores, never hashed: pose_controls score_stereomis
