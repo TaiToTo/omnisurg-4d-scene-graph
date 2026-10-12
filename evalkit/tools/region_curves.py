@@ -6,8 +6,9 @@ one key and one kind of object, it reads each condition's score and its
 region count (`region_counts`). Each input's curve is its points ordered by
 regions per frame. The tool reads every curve, linearly between points, at
 each whole number of regions that every input reaches. These are
-descriptions, with no interval and no mark. Every condition must hold the
-same clips, and a condition's JSONs must name one label directory.
+descriptions, with no interval and no mark. The conditions must be
+comparable: one evaluator, dataset, class set and tool, one rule, which is
+the one named, and one set of clips.
 
 Usage:
     python -m evalkit.tools.region_curves --scores-dir <dir> --key F1_50/geometric \\
@@ -24,7 +25,13 @@ import numpy as np
 
 from evalkit.evaluate import write_scores
 from evalkit.tools.condition_names import DEPTH_MODELS, READS_DEPTH, RULES, Parts, parse
-from evalkit.tools.scores import load_scores, ruler
+from evalkit.tools.scores import check_comparable_table, load_scores, ruler
+
+# What every component JSON of one set of curves must share: the evaluator and the objects it scored, the sizes,
+# the rule, and the tool that scored them.
+COMPONENT_FIELDS = ("eval_code_sha", "dataset", "class_set", "views", "min_px", "propagation", "tool_sha")
+# What every region count must share: the tool that counted.
+COUNT_FIELDS = ("tool_sha",)
 
 
 def sweep(scores_dir: str | Path, rule: str, seed: str | None, depth: str) -> dict[str, list[str]]:
@@ -62,34 +69,95 @@ def read_json(scores_dir: Path, name: str, suffix: str) -> dict:
     return summary
 
 
-def point(scores_dir: Path, name: str, key: str, min_px: int | None) -> dict:
-    """Return one condition's regions per frame and its key's mean over the clips that define it.
+def read_condition(scores_dir: Path, name: str, min_px: int | None) -> tuple[dict, dict]:
+    """Read one condition's score, of the evaluator or of the component objects, and its region count.
 
     Raises:
-        ValueError, KeyError, FileNotFoundError: A JSON is missing or refused; the score is not the evaluator's;
-            the component JSON lacks the size; the key is not in a row; or the score and the count hold
-            other clips.
+        ValueError, FileNotFoundError: A JSON is missing or refused; the score is in pilot mode; the component
+            JSON lacks the size; or the score and the count read other label directories.
     """
     regions = read_json(scores_dir, name, ".regions.json")
     if min_px is None:
         summary = read_json(scores_dir, name, ".json")
         if ruler(summary).pilot:
             raise ValueError(f"{name}.json is scored in pilot mode; the curves read the evaluator's scores")
-        values = {r["clip"]: r[key] for r in summary["per_clip"]}
     else:
         summary = read_json(scores_dir, name, ".components.json")
         if min_px not in summary["min_px"]:
             raise ValueError(f"{name}.components.json is scored at {summary['min_px']} px, not {min_px}")
-        values = {r["clip"]: r["by_min_px"][str(min_px)][key] for r in summary["per_clip"]}
     if summary["track_dir_name"] != regions["track_dir_name"]:
         raise ValueError(f"{name}: the score read {summary['track_dir_name']!r} and the region count "
                          f"{regions['track_dir_name']!r}")
+    return summary, regions
+
+
+def point(name: str, summary: Mapping, regions: Mapping, key: str, min_px: int | None) -> dict:
+    """Return one condition's regions per frame and its key's mean over the clips that define it.
+
+    Raises:
+        ValueError, KeyError: The key is not in a row, or the score and the count hold other clips.
+    """
+    if min_px is None:
+        values = {r["clip"]: r[key] for r in summary["per_clip"]}
+    else:
+        values = {r["clip"]: r["by_min_px"][str(min_px)][key] for r in summary["per_clip"]}
     if set(values) != set(regions["clips"]):
         raise ValueError(f"{name}: the score holds other clips than the region count")
     defined = [v for v in values.values() if v is not None]
     return {"condition": name, "points_per_side": parse(name).points_per_side,
             "regions_per_frame": regions["regions_per_frame"], "clips": sorted(values),
             "value": float(np.mean(defined)) if defined else None, "n_clips": len(defined)}
+
+
+def check_alike(what: str, summaries: Mapping[str, Mapping], fields: Sequence[str]) -> None:
+    """Refuse JSONs of one set of curves that differ in a field every one of them must share.
+
+    Raises:
+        ValueError: Two JSONs differ in one of `fields`, or one lacks it. The message names the field and both.
+    """
+    names = list(summaries)
+    first = summaries[names[0]]
+    for field in fields:
+        for name in names:
+            if field not in summaries[name]:
+                raise ValueError(f"{name}: the {what} records no {field}, so it cannot be compared")
+            if summaries[name][field] != first[field]:
+                raise ValueError(f"two {what}s differ in {field}, so they are not one set of curves:\n"
+                                 f"  {names[0]}: {first[field]!r}\n  {name}: {summaries[name][field]!r}")
+
+
+def check_rule(what: str, recorded: str | None, rule: str) -> None:
+    """Refuse a recorded propagation rule other than the one the curves are named by.
+
+    Raises:
+        ValueError: `recorded` is not `RULES[rule]`.
+    """
+    if recorded != RULES[rule]:
+        raise ValueError(f"the {what}s record the propagation {recorded!r}, and the curves of the rule {rule!r} "
+                         f"read {RULES[rule]!r}")
+
+
+def check_conditions(summaries: Mapping[str, Mapping], regions: Mapping[str, Mapping], min_px: int | None,
+                     rule: str) -> str:
+    """Refuse conditions that are not comparable, and return the evaluator's `eval_code_sha` they share.
+
+    The evaluator's scores pass `check_comparable_table`, which refuses two evaluators, datasets, class sets,
+    views, modes, rules or populations. The component scores must share `COMPONENT_FIELDS`, and the region
+    counts `COUNT_FIELDS`. The rule every score records must be the one the curves are named by.
+
+    Raises:
+        ValueError: Two conditions are not comparable, or record another rule than `rule`.
+    """
+    if min_px is None:
+        shared = check_comparable_table(summaries)
+        check_rule("score", shared["propagation"], rule)
+        sha = shared["eval_code"]
+    else:
+        check_alike("component score", summaries, COMPONENT_FIELDS)
+        check_rule("component score", next(iter(summaries.values()))["propagation"], rule)
+        sha = next(iter(summaries.values()))["eval_code_sha"]
+    check_alike("region count", regions, COUNT_FIELDS)
+    return sha
 
 
 def matched(curves: Mapping[str, Sequence[dict]]) -> list[dict]:
@@ -117,15 +185,22 @@ def curves_of(scores_dir: str | Path, key: str, min_px: int | None, rule: str = 
     """Read every point of the conditions that differ in input and grid, and return the curves and the readings.
 
     Raises:
-        ValueError: Two conditions hold other clips, or `sweep`, `point` or `matched` refuses.
+        ValueError: The conditions are not comparable (`check_conditions`), two hold other clips, or `sweep`,
+            `read_condition`, `point` or `matched` refuses.
     """
-    curves = {inp: [point(Path(scores_dir), n, key, min_px) for n in names]
-              for inp, names in sweep(scores_dir, rule, seed, depth).items()}
+    # Every condition's JSONs, then the checks across them, before any point is read.
+    names = sweep(scores_dir, rule, seed, depth)
+    read = {n: read_condition(Path(scores_dir), n, min_px) for inp in names for n in names[inp]}
+    sha = check_conditions({n: s for n, (s, _) in read.items()}, {n: r for n, (_, r) in read.items()}, min_px, rule)
+
+    # One point per condition, one curve per input, and the readings at matched counts.
+    curves = {inp: [point(n, *read[n], key, min_px) for n in names[inp]] for inp in names}
     populations = {tuple(p["clips"]) for points in curves.values() for p in points}
     if len(populations) > 1:
         raise ValueError(f"the conditions hold {len(populations)} different sets of clips; a curve compares one")
     return {"key": key, "objects": "class" if min_px is None else f"components of {min_px} px",
-            "rule": rule, "seed": seed, "depth": depth, "curves": curves, "matched": matched(curves)}
+            "eval_code_sha": sha, "rule": rule, "seed": seed, "depth": depth, "curves": curves,
+            "matched": matched(curves)}
 
 
 def main(argv: Sequence[str] | None = None) -> None:

@@ -23,25 +23,39 @@ POINTS = {
 
 def score(name, values, clips=CLIPS, pilot=False):
     return {"eval_code_sha": "e", "dataset": "atlas120k", "class_set": "original", "views": ["all"], "pilot": pilot,
-            "input_shas": {}, "versions": {}, "propagation": "both_ways_from_centre", "clips": clips,
+            "input_shas": {c: {"gt_masks": "g", "depth": "d", "crop": "c", "frames": "f", "predictions": name}
+                           for c in clips},
+            "versions": {}, "propagation": "both_ways_from_centre", "clips": clips,
             "track_dir_name": f"track_rgb_{name}", "per_clip": [{"clip": c, KEY: v} for c, v in zip(clips, values)]}
 
 
-def write(scores_dir, name, regions, values, clips=CLIPS, **score_changes):
+def components(name, values, clips=CLIPS):
+    return {"eval_code_sha": "e", "dataset": "atlas120k", "class_set": "original", "views": ["all"],
+            "propagation": "both_ways_from_centre", "tool_sha": {"component_scores.py": "t"},
+            "track_dir_name": f"track_rgb_{name}", "min_px": [0, 300],
+            "per_clip": [{"clip": c, "by_min_px": {"0": {KEY: v and v / 4}, "300": {KEY: v and v / 2}}}
+                         for c, v in zip(clips, values)]}
+
+
+def write(scores_dir, name, regions, values, clips=CLIPS, components_changes=None, count_changes=None,
+          **score_changes):
     (scores_dir / f"{name}.regions.json").write_text(json.dumps(
-        {"track_dir_name": f"track_rgb_{name}", "clips": clips, "regions_per_frame": regions}))
+        {"tool_sha": {"region_counts.py": "r"}, "track_dir_name": f"track_rgb_{name}", "clips": clips,
+         "regions_per_frame": regions, **(count_changes or {})}))
     (scores_dir / f"{name}.json").write_text(json.dumps({**score(name, values, clips), **score_changes}))
     (scores_dir / f"{name}.components.json").write_text(json.dumps(
-        {"track_dir_name": f"track_rgb_{name}", "min_px": [0, 300],
-         "per_clip": [{"clip": c, "by_min_px": {"0": {KEY: v and v / 4}, "300": {KEY: v and v / 2}}}
-                      for c, v in zip(clips, values)]}))
+        {**components(name, values, clips), **(components_changes or {})}))
+
+
+def write_all(scores_dir, **changes):
+    for name, (regions, values) in POINTS.items():
+        write(scores_dir, name, regions, values, **changes)
+    return scores_dir
 
 
 @pytest.fixture
 def scores(tmp_path):
-    for name, (regions, values) in POINTS.items():
-        write(tmp_path, name, regions, values)
-    return tmp_path
+    return write_all(tmp_path)
 
 
 def test_each_input_is_a_curve_of_its_grids_ordered_by_regions(scores):
@@ -88,8 +102,11 @@ def test_a_file_whose_name_breaks_the_rule_of_names_is_refused(scores):
 
 def test_conditions_on_other_clips_are_refused(scores):
     write(scores, "rgb_pps8_sam_centre", 16.0, (0.35, 0.45), clips=["VID01_a", "VID03_c"])
-    with pytest.raises(ValueError, match="different sets of clips"):
+    # The evaluator's scores are refused by `check_comparable_table`, the component scores by the curves.
+    with pytest.raises(ValueError, match="the clip sets differ"):
         curves_of(scores, KEY, None)
+    with pytest.raises(ValueError, match="different sets of clips"):
+        curves_of(scores, KEY, 300)
 
 
 def test_a_score_of_other_labels_than_the_count_is_refused(scores):
@@ -99,10 +116,54 @@ def test_a_score_of_other_labels_than_the_count_is_refused(scores):
 
 
 def test_a_score_and_a_count_on_other_clips_are_refused(scores):
-    (scores / "rgb_pps8_sam_centre.regions.json").write_text(json.dumps(
-        {"track_dir_name": "track_rgb_rgb_pps8_sam_centre", "clips": ["VID01_a"], "regions_per_frame": 16.0}))
+    write(scores, "rgb_pps8_sam_centre", 16.0, (0.35, 0.45), count_changes={"clips": ["VID01_a"]})
     with pytest.raises(ValueError, match="other clips than the region count"):
         curves_of(scores, KEY, None)
+
+
+def test_a_score_of_another_evaluator_is_refused(scores):
+    write(scores, "rgb_pps8_sam_centre", 16.0, (0.35, 0.45), eval_code_sha="f")
+    with pytest.raises(ValueError, match="different evaluators"):
+        curves_of(scores, KEY, None)
+    write(scores, "rgb_pps8_sam_centre", 16.0, (0.35, 0.45), components_changes={"eval_code_sha": "f"})
+    with pytest.raises(ValueError, match="differ in eval_code_sha"):
+        curves_of(scores, KEY, 300)
+
+
+def test_a_score_of_another_rule_than_the_curves_is_refused(scores, tmp_path):
+    # One condition under another rule, among the evaluator's scores and among the component scores.
+    write(scores, "rgb_pps8_sam_centre", 16.0, (0.35, 0.45), propagation="forward_from_first")
+    with pytest.raises(ValueError, match="different rules"):
+        curves_of(scores, KEY, None)
+    write(scores, "rgb_pps8_sam_centre", 16.0, (0.35, 0.45), components_changes={"propagation": "forward_from_first"})
+    with pytest.raises(ValueError, match="differ in propagation"):
+        curves_of(scores, KEY, 300)
+    # Every condition under one rule that is not the one the curves are named by.
+    (tmp_path / "forward").mkdir()
+    write_all(tmp_path / "forward", propagation="forward_from_first",
+              components_changes={"propagation": "forward_from_first"})
+    for min_px in (None, 300):
+        with pytest.raises(ValueError, match="record the propagation 'forward_from_first', and the curves of the rule 'centre'"):
+            curves_of(tmp_path / "forward", KEY, min_px)
+
+
+def test_scores_of_another_tool_or_without_its_hash_are_refused(scores):
+    write(scores, "rgb_pps8_sam_centre", 16.0, (0.35, 0.45), count_changes={"tool_sha": {"region_counts.py": "s"}})
+    with pytest.raises(ValueError, match="two region counts differ in tool_sha"):
+        curves_of(scores, KEY, None)
+    write(scores, "rgb_pps8_sam_centre", 16.0, (0.35, 0.45), components_changes={"tool_sha": {"component_scores.py": "u"}})
+    with pytest.raises(ValueError, match="two component scores differ in tool_sha"):
+        curves_of(scores, KEY, 300)
+    summary = components("rgb_pps8_sam_centre", (0.35, 0.45))
+    del summary["class_set"]
+    (scores / "rgb_pps8_sam_centre.components.json").write_text(json.dumps(summary))
+    with pytest.raises(ValueError, match="records no class_set"):
+        curves_of(scores, KEY, 300)
+
+
+def test_the_curves_record_the_evaluator_they_read(scores):
+    assert curves_of(scores, KEY, None)["eval_code_sha"] == "e"
+    assert curves_of(scores, KEY, 300)["eval_code_sha"] == "e"
 
 
 def test_a_clip_without_the_key_is_left_out_of_the_mean(scores):
