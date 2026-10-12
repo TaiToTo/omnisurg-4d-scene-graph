@@ -132,11 +132,14 @@ def edge_ring_of(record: Mapping) -> bool | None:
     setting, so the seed's setting stands for the tracker's input too.
 
     Raises:
-        ValueError: the record cannot tell the setting: an input whose mode `burns_edges` does not know, or an input
-            that burns edges without a setting recorded for it. Also a setting other than true, false or null, a
-            setting for an input the run did not build with edges, and a setting that contradicts
+        ValueError: the record cannot tell the setting: no `seed_source`, an input whose mode `burns_edges` does not
+            know, or an input that burns edges without a setting recorded for it. Also a setting other than true,
+            false or null, a setting for an input the run did not build with edges, and a setting that contradicts
             `seed_input.edge_ring_masked`.
     """
+    if "seed_source" not in record:
+        raise ValueError("the record holds no seed_source, so whether its run cut a seed from an input that burns "
+                         "edges cannot be told")
     si = record.get("seed_input") or {}
     seed_ring = si.get("edge_ring_masked")
     # Find the inputs of the run that burn edges.

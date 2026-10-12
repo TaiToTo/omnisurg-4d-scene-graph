@@ -317,6 +317,7 @@ def test_the_edge_ring_is_read_from_the_record_or_from_its_seed_s_input(r, ring)
     (ring_record("sam", "normal_edge", "rgb"), "sam_input normal_edge burns edges"),
     (ring_record("sam", "rgb_edge_shade", "rgb"), "sam_input 'rgb_edge_shade' is no input this tool knows"),
     ({"seed_source": "gt"}, "track_base None is no input this tool knows"),
+    ({"sam_input": "rgb", "track_base": "rgb"}, "the record holds no seed_source"),
     (ring_record("sam", "normal_edge", "rgb", "yes"), "seed_input.edge_ring_masked is 'yes'"),
     (ring_record("sam", "normal_edge", "rgb", True, edge_ring_masked=1), "edge_ring_masked is 1"),
     (ring_record("sam", "rgb", "rgb", None, edge_ring_masked=True), "edge_ring_masked is True, but no input of"),

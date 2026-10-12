@@ -198,7 +198,7 @@ def test_a_record_without_a_setting_holds_no_such_key_in_its_place(tmp_path):
     # Without `seed_source` the record cannot say whether its run cut the seed whose edge ring it records.
     write(tmp_path, "track_rgb_t", {"clip0": {k: v for k, v in TRACKED.items() if k != "seed_source"}})
     prov = read_provenance(tmp_path, "track_rgb_t", ["clip0"], "sam", "rgb", sam_input="normal_edge")
-    assert "the run cut no seed from an input that burns edges: seed_source None" in prov.problems()[0]
+    assert "cannot be read: clip0 (the record holds no seed_source" in prov.problems()[0]
 
 
 def test_a_record_holding_null_differs_from_one_without_the_key(tmp_path):
