@@ -15,8 +15,8 @@ no check is recorded.
 | score tools, `evalkit/tools/` | every tool in the layout of `AGENTS.md` but `track_metrics` | `paired_table`, `arms_paired`, `claims_table`, `leave_one_video_out`, `print_status_tables`, `kmerge`: the workbench's values on the same inputs |
 | camera trajectory scorer, `trajectory_eval/` | `pose_metrics`, the scoring of a clip, `pose_controls`, `scores`, `score_stereomis`, `stereomis_table` | `pose_metrics`: the workbench's values on 1200 random, planar and static trajectories. The scoring of a clip, `pose_controls` and `score_stereomis`: the workbench's 387 StereoMIS rows, every value, scored again from its stored outputs. `stereomis_table`, on those rows: the 24 pairs of the workbench's `summary_20.json`, every field |
 | extraction and crop | ATLAS-120k, CholecSeg8k, LapEx, StereoMIS, the D4D census and population | the CholecSeg8k crop and 13 of the 27 CholecSeg8k clips: the workbench's bytes. LapEx's 735 clips: the workbench's frames and masks, and its manifests apart from `depth_info`. The D4D census: every field it writes equal to the workbench's census on the 271 clips. The D4D population: the same bytes from the ported census as from the workbench's |
-| depth | DA3, Pi3X, point clouds, the population drivers | DA3, point clouds and Pi3X: the workbench's bytes on the GPU machine, on three clips. DA3 also on the 25 LapEx clips whose border the workbench did not fill |
-| segmentation and tracking | `track`, `per_frame`, `condition_population` | `track` and `per_frame`: the workbench's bytes on the GPU machine, on three clips. `condition_population`: the workbench's commands, for 43 conditions. The 40 segmenter inputs that `tests/test_render_outputs_are_pinned.py` pins: the workbench's, rendered with each case's ring setting |
+| depth | DA3, Pi3X, point clouds, the population drivers, the D4D depth stage | DA3, point clouds and Pi3X: the workbench's bytes on the GPU machine, on three clips. DA3 also on the 25 LapEx clips whose border the workbench did not fill. The D4D depth stage: the workbench's bytes on the GPU machine, on the six sides of three clips |
+| segmentation and tracking | `track`, `per_frame`, `condition_population`, the D4D seed stage | `track` and `per_frame`: the workbench's bytes on the GPU machine, on three clips. The D4D seed stage, with `--keep-edge-ring`: the workbench's bytes on the six sides the D4D depth stage was compared on. `condition_population`: the workbench's commands, for 43 conditions. The 40 segmenter inputs that `tests/test_render_outputs_are_pinned.py` pins: the workbench's, rendered with each case's ring setting |
 | viewer | `viewer/`, `pipeline/viewer_bundle` | — (new: the workbench's demo read other files) |
 
 The three depth stages were compared on
@@ -28,6 +28,13 @@ case before the comparison. The depth stage wrote its point clouds. The
 point-cloud stage read the bundle that the workbench's depth stage had
 stored on that machine. Both sides ran DA3 at commit `41736238` and `pi3`
 at commit `9fa3ddb3`.
+
+The D4D depth and seed stages were compared on both sides of
+`specimen_1/2025_03_06-16_49_40/Clip_1`,
+`specimen_1/2025_03_06-17_39_51/Clip_2`, a clip of 21 frames, and
+`specimen_3/2025_05_08-14_24_24/Clip_1`. The workbench's files were made
+before its seed stage wrote a record, so the seeds' records were not
+compared.
 
 The tracking and per-frame stages were compared at the settings of
 `op_edge_center` (under both propagation rules), `rgb_center18`,
@@ -50,8 +57,7 @@ not compared:
   modules they need. Its byte check needs a clip whose tracking labels the
   workbench holds.
 - **The paper's tables**: the claims grid.
-- **D4D**: depth, seeds, the front/behind relation and the camera
-  trajectory.
+- **D4D**: the front/behind relation and the camera trajectory.
 - **LapEx's comparisons**. They wait on "How LapEx is scored".
 - **The conditions seeded from GT masks** (`t12_gtseed`, `t12_paste`). They
   wait on "Conditions seeded from GT".
@@ -288,6 +294,15 @@ Each question says what it blocks and where its answer is written.
   as having none. Open: whether such a mask moves out of `seg_masks/` or
   takes a name of its own. Blocks: porting the step that writes them.
   Answer in: `docs/pipeline.md`.
+
+### D4D
+
+- **The edge ring of the D4D seeds.** The workbench's front/behind scores
+  read seeds cut with the edge ring kept. `pipeline.d4d_seed` writes their
+  bytes with `--keep-edge-ring` only; by default it masks the ring, as the
+  tracking stage does. On the six sides compared, every seed changes.
+  Open: which setting the D4D result is measured with. Blocks: the D4D
+  result. Answer in: `docs/pipeline.md`, the D4D depth and seed stages.
 
 ### StereoMIS
 
