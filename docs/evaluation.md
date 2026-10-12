@@ -572,6 +572,8 @@ is computed per clip, per view and per kind of track:
 - **re-entry**: a gap is a run of frames on which a track is absent,
   between two on which it is present. `reentry` is the share of the gaps
   hit by one region at both ends, among the gaps whose two ends are hits.
+  A whole-class track's gap has any length. A component track's gap has
+  at most three frames, since the linking rule waits no longer.
 
 Hold starts on the seed frame. The tool refuses:
 
