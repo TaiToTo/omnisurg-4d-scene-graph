@@ -380,13 +380,16 @@ def measure_condition(dataset: str, class_set: str | None, clips: Sequence[str],
     table = load_table(dataset, class_set)
     check_table(table)
     seeds, rule = seed_frames(tracks_root, tag, clips)
+    # Both hashes before any clip is measured: a source file edited during a long run would otherwise label the
+    # values of the code in memory with the hash of the code on disk.
+    tool, sha = tool_sha(__file__, component_scores.__file__), eval_code_sha()
     rows, shas = [], {}
     for clip in clips:
         inputs = read_clip(data_root, tracks_root, tag, clip, table)
         rows.append(measure_clip(inputs, table, seeds[clip], frame_times(str(data_root), clip), min_px))
         shas[clip] = dict(inputs.shas)
     return {
-        "tool_sha": tool_sha(__file__, component_scores.__file__), "eval_code_sha": eval_code_sha(),
+        "tool_sha": tool, "eval_code_sha": sha,
         "dataset": table.dataset, "class_set": table.class_set, "views": list(VIEWS), "min_px": list(min_px),
         "track_dir_name": tag, "clips": list(clips), "propagation": rule, "input_shas": shas,
         "versions": versions(), "per_clip": rows,

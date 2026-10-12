@@ -14,7 +14,7 @@ import pytest
 
 import clip_dirs as C
 from evalkit.classes import VIEWS
-from evalkit.inputs import DEPTH_FILE
+from evalkit.inputs import DEPTH_FILE, read_clip
 from evalkit.objects import gt_objects
 from evalkit.scored import scored_pixels
 from evalkit.tools import component_scores, track_metrics
@@ -361,6 +361,19 @@ def test_the_json_records_the_hashes_of_the_tool_and_of_component_scores(tmp_pat
     summary = measure(tmp_path)
     assert summary["tool_sha"] == tool_sha(track_metrics.__file__, component_scores.__file__)
     assert summary["min_px"] == [0, 4] and set(summary["per_clip"][0]["by_min_px"]) == {"0", "4"}
+
+
+def test_the_hashes_are_taken_before_any_clip_is_measured(tmp_path, monkeypatch):
+    needs_scipy()
+    # A source file edited during a run must not relabel the values of the code in memory.
+    write_hold_scene(tmp_path)
+    calls = []
+    monkeypatch.setattr(track_metrics, "eval_code_sha", lambda: calls.append("eval") or "e")
+    monkeypatch.setattr(track_metrics, "tool_sha", lambda *paths: calls.append("tool") or {})
+    monkeypatch.setattr(track_metrics, "read_clip", lambda *a: calls.append("clip") or read_clip(*a))
+    summary = measure(tmp_path)
+    assert calls.index("clip") > max(calls.index("eval"), calls.index("tool"))
+    assert (summary["eval_code_sha"], summary["tool_sha"]) == ("e", {})
 
 
 def test_the_score_tools_refuse_its_json_as_a_score(tmp_path):
