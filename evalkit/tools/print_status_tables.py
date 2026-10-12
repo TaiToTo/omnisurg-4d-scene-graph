@@ -96,7 +96,7 @@ def input_track_lines(d: dict) -> list[str]:
              f"stride {d['stride']} / {d['n_clips']} clips / {d['n_videos']} videos / {d['n_frames']} frames / "
              f"eval_code_sha {d['eval_code_sha'][:8]} / base {base}",
              f"Δ = arm − {base}, both merged to the same K. Mark: {MARK_RULE}"]
-    # Every interval resamples the analysis's videos, so one line says when all of them give no mark.
+    # The analysis records its videos once, not per interval, so one line says when that count gives no mark.
     if sign_only_note(d["n_videos"]):
         lines.append(f"every interval is on {d['n_videos']} videos, {sign_only_note(d['n_videos'])}")
     lines += ["", f"{'arm':18s}{'regions':>8s} " + " ".join(f"{h:>27s}" for _, h in INPUT_TRACK_KEYS)]

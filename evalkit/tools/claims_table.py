@@ -260,7 +260,7 @@ def format_cell(pair: dict | Unmeasured, key: str) -> str:
     # A population the key shrank is shown against the pair's, never silently.
     if (r["n_clips"], r["n_videos"]) != (pair["n_clips"], pair["n_videos"]):
         size = f"{r['n_clips']}/{pair['n_clips']} clips, {r['n_videos']}/{pair['n_videos']} videos"
-    if ci is not None and sign_only_note(r["n_videos"]):
+    if sign_only_note(r["n_videos"]):
         size += f"; {sign_only_note(r['n_videos'])}"
     mark = mark_of(ci, r["sign"], n_videos=r["n_videos"])
     return f"{format_signed(r['delta_mean'])} {interval} p={p}{mark} ({size})"

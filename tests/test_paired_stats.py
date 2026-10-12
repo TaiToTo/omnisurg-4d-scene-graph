@@ -149,8 +149,10 @@ def test_an_interval_on_five_videos_gives_no_mark_and_on_six_it_does(sign, ci):
     # Below the floor the interval is read for its sign only.
     assert PS.mark_of(ci, sign, n_videos=5) == ""
     assert PS.mark_of(ci, sign, n_videos=6) in ("★", "✗")
-    assert PS.sign_only_note(5) == "read for its sign only: a mark needs 6 videos"
+    assert PS.sign_only_note(5) == PS.sign_only_note(2) == "read for its sign only: a mark needs 6 videos"
     assert PS.sign_only_note(6) == ""
+    # One video gives no interval, so there is nothing to read for its sign.
+    assert PS.sign_only_note(1) == PS.sign_only_note(0) == ""
 
 
 @pytest.mark.parametrize("n_videos", [-1, 6.0, True, np.int64(6), None])

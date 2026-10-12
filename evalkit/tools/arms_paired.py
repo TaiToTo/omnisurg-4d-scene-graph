@@ -143,7 +143,7 @@ def format_row(base: str, cond: str, row: Mapping, n_clips: int, n_videos: int, 
         line += f" {row['mark']}"
     if (row["n_clips"], row["n_videos"]) != (n_clips, n_videos):
         line += f"   [{row['n_clips']}/{n_clips} clips, {row['n_videos']}/{n_videos} videos]"
-    if ci is not None and sign_only_note(row["n_videos"]):
+    if sign_only_note(row["n_videos"]):
         line += f"   [{sign_only_note(row['n_videos'])}]"
     return line
 

@@ -266,7 +266,7 @@ def table_lines(blocks: Sequence, summaries: Mapping[str, Mapping], keys: Sequen
                 notes = []
                 if cell["n_clips"] < len(clips):
                     notes.append(f"{cell['n_clips']}/{len(clips)} clips, {cell['n_videos']}/{n_videos} videos")
-                if cell["mean"] is not None and sign_only_note(cell["n_videos"]):
+                if sign_only_note(cell["n_videos"]):
                     notes.append(sign_only_note(cell["n_videos"]))
                 if notes:
                     lines.append(f"{'':{label_w + 2}s}[{k}: {'; '.join(notes)}]")

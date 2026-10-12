@@ -238,8 +238,8 @@ def boot_ci(d: np.ndarray, groups: np.ndarray | None = None, rng=None,
 # An interval on fewer than `MIN_VIDEOS_FOR_MARK` videos gives no mark and
 # is read for its sign only. On two or three videos the 95 % interval is
 # the range of the video means, so two videos that agree in sign would give
-# a mark. The floors of `paired_table` and `leave_one_video_out` are this
-# number too.
+# a mark. `leave_one_video_out` leaves a video out only while this many
+# videos remain.
 MIN_VIDEOS_FOR_MARK = 6
 MARK_RULE = (f"the video-level bootstrap 95 % CI, on {MIN_VIDEOS_FOR_MARK} videos or more, does not straddle zero "
              "(p is reported, never decisive)")
@@ -283,8 +283,11 @@ def mark_of(ci95_video: tuple[float, float] | list[float] | None, sign: int = +1
 
 
 def sign_only_note(n_videos: int) -> str:
-    """Return what a tool prints beside an interval on `n_videos` videos: "" when the interval can be marked."""
-    if n_videos < MIN_VIDEOS_FOR_MARK:
+    """Return what a tool prints beside the interval on `n_videos` videos: "" when it can be marked or is none.
+
+    An interval needs two videos, so on fewer there is no interval to read.
+    """
+    if 2 <= n_videos < MIN_VIDEOS_FOR_MARK:
         return f"read for its sign only: a mark needs {MIN_VIDEOS_FOR_MARK} videos"
     return ""
 
@@ -446,7 +449,7 @@ def _print_pair(base: str, cond: str, pair: dict, keys: Sequence[str]) -> None:
         print(f"    paired difference: mean {r['delta_mean']:+.4f} / median {r['delta_median']:+.4f}"
               f" / SD {_num(r['delta_sd'], '.4f')} / {moved}")
         video_ci = _interval(r["ci95_video"])
-        if r["ci95_video"] is not None and sign_only_note(r["n_videos"]):
+        if sign_only_note(r["n_videos"]):
             video_ci += f" ({sign_only_note(r['n_videos'])})"
         print(f"    95% CI  clips resampled {_interval(r['ci95_clip'])}   videos resampled {video_ci}"
               f"   Wilcoxon p={r['wilcoxon_p']} (per video p={r['wilcoxon_p_video']})")
