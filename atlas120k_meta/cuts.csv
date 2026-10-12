@@ -272,11 +272,12 @@ hemicolectomy__5YDMlxTl0k8__gt_0024,4030,4035,51.3,4034,4035,yes,4034,4035,0
 hemicolectomy__5YDMlxTl0k8__gt_0026,4515,4525,34.3,4520,4521,yes,4520,4521,1
 hemicolectomy__5YDMlxTl0k8__gt_0028,5115,5120,37.1,5115,5116,no,,,0
 hemicolectomy__5YDMlxTl0k8__gt_0028,5235,5240,37.1,5238,5239,no,,,0
-hemicolectomy__5YDMlxTl0k8__gt_0029,5295,5300,33.3,5297,5298,no,,,0
-hemicolectomy__5YDMlxTl0k8__gt_0029,5330,5335,32.1,5332,5333,yes,5332,5333,0
-hemicolectomy__5YDMlxTl0k8__gt_0029,5455,5460,37.3,5459,5460,yes,5459,5460,0
+hemicolectomy__5YDMlxTl0k8__gt_0029,5295,5300,33.3,5297,5298,yes,5297,5298,1
+hemicolectomy__5YDMlxTl0k8__gt_0029,5330,5335,32.1,5332,5333,yes,5332,5333,1
+hemicolectomy__5YDMlxTl0k8__gt_0029,5455,5460,37.3,5459,5460,yes,5459,5460,1
 hemicolectomy__5YDMlxTl0k8__gt_0029,5475,5480,30.3,5476,5477,no,,,0
-hemicolectomy__5YDMlxTl0k8__gt_0029,5525,5530,31.4,5527,5528,yes,5527,5528,0
+hemicolectomy__5YDMlxTl0k8__gt_0029,5500,5505,25.3,5503,5504,yes,5503,5504,1
+hemicolectomy__5YDMlxTl0k8__gt_0029,5525,5530,31.4,5527,5528,yes,5527,5528,1
 hemicolectomy__5YDMlxTl0k8__gt_0029,5655,5660,38.8,5655,5656,yes,5655,5656,0
 hemicolectomy__5YDMlxTl0k8__gt_0029,5920,5925,46.1,5922,5923,no,,,0
 hemicolectomy__5YDMlxTl0k8__gt_0030,6150,6155,30.9,6150,6151,no,,,0
@@ -298,7 +299,8 @@ hemicolectomy__5YDMlxTl0k8__gt_0051,12255,12260,45.2,12257,12258,yes,12257,12258
 hemicolectomy__5YDMlxTl0k8__gt_0051,12360,12375,33.7,12361,12362,yes,12361,12362,0
 hemicolectomy__5YDMlxTl0k8__gt_0051,12445,12450,32.5,12447,12448,no,,,0
 hemicolectomy__5YDMlxTl0k8__gt_0051,12580,12585,31.1,12581,12582,yes,12581,12582,1
-hemicolectomy__5YDMlxTl0k8__gt_0055,13165,13170,36.9,13165,13166,yes,13165,13166,0
+hemicolectomy__5YDMlxTl0k8__gt_0055,13125,13130,22.0,13125,13126,yes,13125,13126,1
+hemicolectomy__5YDMlxTl0k8__gt_0055,13165,13170,36.9,13165,13166,yes,13165,13166,1
 hemicolectomy__5YDMlxTl0k8__gt_0055,13260,13280,40.7,13262,13263,no,,,0
 hemicolectomy__5YDMlxTl0k8__gt_0055,13290,13295,33.0,13292,13293,yes,13292,13293,1
 hemicolectomy__5YDMlxTl0k8__gt_0058,13795,13800,39.8,13797,13798,yes,13797,13798,1

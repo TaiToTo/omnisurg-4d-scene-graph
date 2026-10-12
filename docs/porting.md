@@ -229,9 +229,9 @@ Each question says what it blocks and where its answer is written.
   thinning; replayed in the workbench, the 315 clips become 339. Open: the
   extraction stage reads `cuts.csv`; the population is extracted again; and
   the clips that replace the 39 get depth, camera poses and every tracking
-  condition. Not resolved, and not blocking: the candidates between 20 and
-  30 were not looked at, and two clips hold cuts that are not listed (both
-  in the README). Blocks: extracting the population again, and the freeze.
+  condition. Not resolved, and not blocking: most candidates between 20
+  and 30 were not looked at, and two of those looked at are cuts (the
+  README says so). Blocks: extracting the population again, and the freeze.
   Answer in: `atlas120k_meta/README.md`.
 
 ### Conditions

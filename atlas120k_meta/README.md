@@ -38,9 +38,10 @@ judged, with the judgement on it. All frame numbers are the mp4's.
   candidate too when it differs at least 1.5 times more than any pair
   within three frames of it, and by at least 15. The 315 clips hold 1,506
   candidates.
-- **What was judged.** The 431 candidates whose spot has `d_pix` above 30;
-  only those are listed. The 1,075 with `d_pix` between 20 and 30 were not
-  looked at, so a cut with a smaller difference may be missing.
+- **What was judged.** The 431 candidates whose spot has `d_pix` above 30,
+  and two below 30 that the recheck found to be cuts; only judged candidates
+  are listed. The other 1,073 with `d_pix` between 20 and 30 were not looked
+  at. Since two cuts turned up among them, more may be missing.
 - **The judgement.** A person judged each candidate by eye, from the three
   frames on each side of it and, where those did not decide, from the video
   played around it. For a cut, the person chose the exact pair of adjacent
@@ -50,15 +51,15 @@ judged, with the judgement on it. All frame numbers are the mp4's.
   candidate was judged again.
 - **The recheck.** Where the cuts of a clip leave a piece of fewer than 8
   frames after thinning, the person watched the piece with a few seconds
-  on each side and confirmed or moved the cut at each end. `rechecked` is 1
-  for a candidate so confirmed.
+  on each side, confirmed or moved the cut at each end, and marked any
+  further cut inside it. `rechecked` is 1 for a candidate so confirmed.
 
-Of the 431 candidates, 69 are cuts, in 39 clips; each falls between two
-frames of its clip. Two clips are known to hold cuts that are not listed:
-`hemicolectomy__5YDMlxTl0k8__gt_0029` and `gt_0055`. The recheck left three
-of their short pieces unconfirmed, because the person saw a further cut in
-them; its position was not recorded. The 39 clips are still used whole in
-this population. No measurement of the paper reads the cuts.
+Of the 433 judged candidates, 72 are cuts, in 39 clips; each falls between
+two frames of its clip. The recheck added three of them, all in
+`hemicolectomy__5YDMlxTl0k8` (`gt_0029` and `gt_0055`). They are small
+changes of scene, and they are listed as cuts like the others: every cut is
+treated the same. The 39 clips are still used whole in this population. No
+measurement of the paper reads the cuts.
 
 `videos/videos.json` is the inventory of the release's tree: all 100 videos
 and their 502 clips. An earlier extraction wrote it, so its `keep`,
