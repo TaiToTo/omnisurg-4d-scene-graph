@@ -16,21 +16,21 @@ cloud and the camera pose that places it in the endoscope's view.
 
 ## The census
 
-The census measures each side's inputs. The rule reads these of its fields:
+The census measures each side's inputs, in these fields:
 
 - `key`, of a clip: `<specimen>/<session>/<clip>`;
-- `moved_camera`, of a clip: whether the endoscope moves during the clip;
+- `moved_camera`, of a clip: whether the endoscope moves during the clip's
+  session, as the dataset's `info/session_details.txt` records it;
 - `present`: whether the side has a point cloud, a camera pose and the
   endoscope's calibration;
 - `gt_blk_frac`: the share of the view's 16 × 16-pixel blocks, among those
   mostly free of instruments, that at least 5 of the side's points fall in;
 - `frame_minus_gt_s`: the time of the frame nearest to the scan, less the
-  time of the scan, in seconds;
-- `active`: whether the tissue moves at the clip's first moment, for
-  `start`, or at its last, for `end`.
+  time of the scan, in seconds.
 
-`present`, `active` and `moved_camera` are true or false. `gt_blk_frac` and
-`frame_minus_gt_s` are finite numbers. The census itself is not here.
+`present` and `moved_camera` are true or false. `gt_blk_frac` and
+`frame_minus_gt_s` are finite numbers. `pipeline.d4d_census` makes the
+census, which is not kept here.
 
 ## The population
 
@@ -39,35 +39,39 @@ otherwise:
 
 - `no_gt`: `present` is false;
 - `gt_not_visible`: `gt_blk_frac` is below 0.20;
-- `tissue_moving`: `active` is true;
 - `gt_stale`: `frame_minus_gt_s` is more than 10 s from zero.
+
+The rule does not judge whether the tissue moved between a scan and its
+clip. D4D takes each scan with the scene static and the endoscope's light
+off (arXiv:2603.02985), so no frame shows the tissue at the scan. D4D's own
+loader pairs each clip with both its scans as they are.
 
 Neither the census nor the rule reads a score. Of the 542 sides of the 271
 clips:
 
 | reason | sides |
 |---|---|
-| kept | 487 |
-| `tissue_moving` | 45 |
+| kept | 532 |
 | `gt_stale` | 8 |
 | `no_gt` | 2 |
 | `gt_not_visible` | 0 |
 
 The least `gt_blk_frac` of a side with a point cloud is 0.246, so the
-coverage threshold leaves out no side. The kept sides belong to 269 clips of
-all 98 sessions and 5 specimens.
+coverage threshold leaves out no side. The kept sides belong to all 271
+clips, 98 sessions and 5 specimens.
 
 ## Files
 
-| file | what it is | from the workbench |
-|---|---|---|
-| `census_clips.txt` | every clip the census measures, one `key` per line, in the order the loader yields them | the keys of `ipcai2027_experiment/out/09/census.json` |
-| `population.json` | the counts above, the thresholds, and under `sides` one entry per kept side: `key`, `side`, `moved_camera`, and `specimen`, the first name of `key` | `ipcai2027_experiment/out/09/population.json` |
-| `clips.txt` | the clips with at least one kept side, one per line, sorted | `ipcai2027_experiment/out/09/pop_all.txt` |
+| file | what it is |
+|---|---|
+| `census_clips.txt` | every clip the census measures, one `key` per line, in the order the loader yields them |
+| `population.json` | the counts above, the thresholds, and under `sides` one entry per kept side: `key`, `side`, `moved_camera`, and `specimen`, the first name of `key` |
+| `clips.txt` | the clips with at least one kept side, one per line, sorted |
 
-## Who reads these
+## What makes and reads these
 
-`pipeline/select_d4d_population.py` writes `population.json` and `clips.txt`
-from the census and `census_clips.txt`; `docs/pipeline.md` says how to run it
-and what it refuses. `tests/test_select_d4d_population.py` pins what must
-hold between the files.
+`pipeline.d4d_census` makes the census from the dataset.
+`pipeline.select_d4d_population` writes `population.json` and `clips.txt`
+from the census and `census_clips.txt`. `docs/pipeline.md` says how to run
+the two steps. `tests/test_select_d4d_population.py` pins what
+must hold between the files.
