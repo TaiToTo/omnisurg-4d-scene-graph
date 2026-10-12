@@ -223,7 +223,8 @@ scene.
 object as well, as reference values that decide no claim:
 
 - a GT object is one 8-connected piece of one class's scored pixels;
-- a predicted object is one region's scored pixels;
+- a predicted object is one region's scored pixels, whole: a region that
+  an instrument cuts in two is one object, as it is for the evaluator;
 - each is kept only at a minimum size, the same on both sides: 0, 100, 300
   or 400 pixels at the evaluation resolution, each size reported.
 

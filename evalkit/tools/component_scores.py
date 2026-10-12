@@ -33,7 +33,8 @@ from evalkit.objects import Objects, instance_scores
 from evalkit.scored import frame_is_excluded, scored_pixels, valid_depth
 
 # The minimum sizes of a component object, in pixels at the evaluation resolution. Fixed before any condition is
-# scored on them: 0 keeps every piece, 300 is the pilot evaluator's size, 400 the workbench's tracking measures'.
+# scored on them: 0 keeps every piece, 300 is the pilot evaluator's size, 400 the workbench's tracking measures'
+# and the tracking stage's smallest seed region, on the same pixel grid.
 MIN_PX = (0, 100, 300, 400)
 
 # The keys a row holds per minimum size, as `measure/view`, in this order.
