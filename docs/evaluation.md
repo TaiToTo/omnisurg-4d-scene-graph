@@ -441,7 +441,12 @@ table then prints:
 
 - ★ when the interval lies wholly on the key's better side of zero;
 - ✗ when it lies wholly on the worse side;
-- neither when it contains zero, or when the key is a reference value.
+- neither when it contains zero, when the key is a reference value, or when
+  the interval rests on fewer than six videos.
+
+An interval on fewer than six videos is read for its sign only, and the
+table says so. `paired_stats.MIN_VIDEOS_FOR_MARK` holds the number and the
+reason.
 
 The p-value is reported too, and never decides. `paired_stats.mark_of` is
 the one code that applies this rule.

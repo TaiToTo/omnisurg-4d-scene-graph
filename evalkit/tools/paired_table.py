@@ -17,7 +17,7 @@ from collections.abc import Mapping, Sequence
 import numpy as np
 
 from evalkit.tools.compare_eval import DIRECTION
-from evalkit.tools.paired_stats import MARK_RULE, boot_ci, mark_of, video_of
+from evalkit.tools.paired_stats import MARK_RULE, boot_ci, mark_of, sign_only_note, video_of
 from evalkit.tools.scores import (
     check_comparable_table,
     defined_clips,
@@ -31,9 +31,6 @@ from evalkit.tools.scores import (
 # The keys the table reports on a pilot JSON, in the workbench's order. F1
 # is never read alone, so the boundary keys and the class map are reported with it.
 PILOT_COLUMNS = ("inst_F1_50", "boundary_F", "boundary_R_raw", "GT_mIoU")
-
-# The fewest clips a cell is computed on, as the workbench's table had it.
-MIN_CLIPS = 5
 
 # What a cell without a value prints.
 NO_VALUE = "—"
@@ -169,9 +166,10 @@ def check_table(tags: Sequence[str], summaries: Mapping[str, Mapping], columns: 
 def cell_of(base: Mapping, cond: Mapping, clips: list[str], key: str, sign: int) -> dict:
     """Compare one key of two conditions: the mean difference, its interval and mark, and the clips' signs.
 
-    `mean`, `ci` and `mark` are None when fewer than `MIN_CLIPS` clips or
-    fewer than two videos define the key: one video has no interval, and
-    the point it would give reads as a mark.
+    `mean`, `ci` and `mark` are None when fewer than two videos define the
+    key: one video has no interval, and the point it would give reads as a
+    mark. On fewer than `paired_stats.MIN_VIDEOS_FOR_MARK` videos the mark
+    is empty.
 
     Args:
         base: The base condition's rows, by clip.
@@ -183,12 +181,12 @@ def cell_of(base: Mapping, cond: Mapping, clips: list[str], key: str, sign: int)
     ks = defined_clips(base, cond, clips, key)
     videos = np.array([video_of(c) for c in ks])
     out = dict(n_clips=len(ks), n_videos=int(len(np.unique(videos))), mean=None, ci=None, mark=None)
-    if out["n_clips"] < MIN_CLIPS or out["n_videos"] < 2:
+    if out["n_videos"] < 2:
         return out
     d = (np.array([cond[c][key] for c in ks], dtype=np.float64)
          - np.array([base[c][key] for c in ks], dtype=np.float64))
     ci = boot_ci(d, videos)
-    out.update(mean=float(d.mean()), ci=ci, mark=mark_of(ci, sign),
+    out.update(mean=float(d.mean()), ci=ci, mark=mark_of(ci, sign, n_videos=out["n_videos"]),
                wins=int((d * sign > 0).sum()), losses=int((d * sign < 0).sum()))
     return out
 
@@ -232,7 +230,7 @@ def table_lines(blocks: Sequence, summaries: Mapping[str, Mapping], keys: Sequen
              f"eval_code_sha {shared['eval_code'][:8]}{rule}",
              f"★ better, ✗ worse, each in its key's direction: {MARK_RULE}",
              f"{SIGN_NOTE} after a mark: as many clips or more moved against the mark as with it",
-             f"{NO_VALUE}: fewer than {MIN_CLIPS} clips or 2 videos define the key",
+             f"{NO_VALUE}: fewer than 2 videos define the key",
              "directions: " + ", ".join(f"{k} {DIRECTION[s]}" for k, s in columns)]
     if not shared["regions"]:
         lines.append("regions: the evaluator records no n_regions_mean, only objects.predicted, per view and summed "
@@ -262,11 +260,16 @@ def table_lines(blocks: Sequence, summaries: Mapping[str, Mapping], keys: Sequen
             if lead["mean"] is not None:
                 lines.append(f"{'':{label_w + 2}s}{columns[0][0]} CI [{lead['ci'][0]:+.4f},{lead['ci'][1]:+.4f}] "
                              f"wins-losses {lead['wins']}-{lead['losses']} / {lead['n_videos']} videos")
-            # A mean over fewer clips than the population is said, never averaged silently.
+            # A mean over fewer clips than the population is said, never averaged silently, and so is a cell
+            # whose interval is read for its sign only.
             for (k, _), cell in zip(columns, cells):
+                notes = []
                 if cell["n_clips"] < len(clips):
-                    lines.append(f"{'':{label_w + 2}s}[{k}: {cell['n_clips']}/{len(clips)} clips, "
-                                 f"{cell['n_videos']}/{n_videos} videos]")
+                    notes.append(f"{cell['n_clips']}/{len(clips)} clips, {cell['n_videos']}/{n_videos} videos")
+                if sign_only_note(cell["n_videos"]):
+                    notes.append(sign_only_note(cell["n_videos"]))
+                if notes:
+                    lines.append(f"{'':{label_w + 2}s}[{k}: {'; '.join(notes)}]")
     return lines
 
 
