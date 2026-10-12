@@ -137,9 +137,9 @@ only:
 
 - **Pi3X's `runtime_sec`.**
 - **The tracking stage's `edge_ring_masked`.** The workbench's
-  `seed_info.json` has no such key. `pipeline.byte_check` therefore
-  reports the file as different, so the check compares the two records
-  with this key removed.
+  `seed_info.json` has no such key, so `pipeline.byte_check` reports the
+  file as different. The reviewer compares the two records by hand with
+  this key removed; the stage writes it last.
 - **CholecSeg8k clips whose frames run out of order.** In videos that
   CholecSeg8k numbers at about 30 fps, the workbench's extractor placed the
   frames between annotations 1 to 3 s late, and one image could appear
@@ -190,7 +190,11 @@ Each question says what it blocks and where its answer is written.
   number of frames, the seed sits one frame before the centre:
   `track_metrics.pick_seed_frame` breaks a tie toward the earlier frame,
   while the tracking stage and `rule_of_seed_info` take `frames[n // 2]`.
-  So on those clips the conditions hold neither propagation rule. Open:
+  So on those clips the conditions hold neither propagation rule. The
+  workbench's `normal_edge_t12_gtseed` and `rgb_edge_t12_gtseed` records
+  hold no edge ring for the tracker's input, so `condition_inventory` and
+  `check_provenance` refuse them until the conditions are measured again.
+  Open:
   which frame a GT seed is placed on under each rule and when the centre
   frame has no GT, which code places it, and how the evaluator scores it.
   Blocks: measuring the `t12_*` conditions again. Answer in:
