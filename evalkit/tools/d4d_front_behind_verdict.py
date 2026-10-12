@@ -23,10 +23,10 @@ UNITS = ("session", "clip", "specimen")
 N_BOOT = 2000
 # The least depth gaps of a pair, in mm, at which the answer's share is given.
 GAP_STEPS = (0.0, 2.0, 5.0, 10.0, 20.0)
-VERDICTS = {"A": "the answer is ahead of the floor in every unit",
+VERDICTS = {"A": "the answer is ahead of the floor, and no interval contains zero",
             "B": "indistinguishable: an interval contains zero",
-            "C": "the answer is behind the floor in every unit",
-            "undecided": "the units' signs differ"}
+            "C": "the answer is behind the floor, and no interval contains zero",
+            "undecided": "the differences over sessions, clips and specimens differ in sign"}
 
 
 def unit_of(rec: dict, unit: str) -> str:
