@@ -9,6 +9,7 @@ mixes the evaluator's JSONs make possible.
 """
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -278,6 +279,73 @@ def test_a_record_written_before_seed_labels_and_one_without_seed_labels_are_one
     assert not any("conditions are mixed" in p for p in problems(tr, ev))
 
 
+def test_the_inputs_that_burn_edges_are_the_ones_the_renderer_burns_them_into():
+    pytest.importorskip("matplotlib")
+    from surgical_core.geometry.render import SAM_INPUT_MODES, uses_geom_edge
+    assert set(CI.EDGE_INPUTS) == {m for m in SAM_INPUT_MODES if uses_geom_edge(m)}
+    assert set(CI.EDGELESS_INPUTS) - {"none"} == {m for m in SAM_INPUT_MODES if not uses_geom_edge(m)}
+
+
+def ring_record(source, sam_input, track_base, seed_ring="absent", **top) -> dict:
+    """A record's keys that bear on the edge ring; `seed_ring` "absent" leaves out `seed_input`, as old records do."""
+    r = {"seed_source": source, "sam_input": sam_input, "track_base": track_base, **top}
+    return r if seed_ring == "absent" else {**r, "seed_input": {"edge_ring_masked": seed_ring}}
+
+
+@pytest.mark.parametrize("r, ring", [
+    (ring_record("sam", "normal_edge", "rgb", True), True),
+    (ring_record("per_frame", "rgb_edge", "rgb", False), False),
+    (ring_record("sam", "rgb", "rgb"), None),
+    # One run builds the seed's input and the tracker's with one setting.
+    (ring_record("sam", "normal_edge", "rgb_edge", True), True),
+    # The workbench's GT controls ran no tracker and record no segmenter input.
+    ({"seed_source": "gt", "track_base": "none"}, None),
+    (ring_record("external", "rgb", "normal_edge", None, edge_ring_masked=False), False),
+    (ring_record("gt", "normal", "rgb_edge", None, edge_ring_masked=True), True),
+    (ring_record("sam", "normal_edge", "rgb", True, edge_ring_masked=True), True),
+])
+def test_the_edge_ring_is_read_from_the_record_or_from_its_seed_s_input(r, ring):
+    assert CI.edge_ring_of(r) is ring
+
+
+@pytest.mark.parametrize("r, why", [
+    # The workbench's `normal_edge_t12_gtseed`: a GT seed records no ring, and the tracker's input burns edges.
+    (ring_record("gt", "normal", "normal_edge", None), "track_base normal_edge burns edges, and the record holds no"),
+    (ring_record("external", "rgb", "rgb_edge", None), "track_base rgb_edge burns edges"),
+    (ring_record("sam", "rgb", "rgb_edge", None), "track_base rgb_edge burns edges"),
+    # The workbench's records from before `seed_input`.
+    (ring_record("sam", "normal_edge", "rgb"), "sam_input normal_edge burns edges"),
+    (ring_record("sam", "rgb_edge_shade", "rgb"), "sam_input 'rgb_edge_shade' is no input this tool knows"),
+    ({"seed_source": "gt"}, "track_base None is no input this tool knows"),
+    ({"sam_input": "rgb", "track_base": "rgb"}, "the record holds no seed_source"),
+    (ring_record("sam", "normal_edge", "rgb", "yes"), "seed_input.edge_ring_masked is 'yes'"),
+    (ring_record("sam", "normal_edge", "rgb", True, edge_ring_masked=1), "edge_ring_masked is 1"),
+    (ring_record("sam", "rgb", "rgb", None, edge_ring_masked=True), "edge_ring_masked is True, but no input of"),
+    (ring_record("sam", "rgb", "rgb_edge", True, edge_ring_masked=True),
+     "seed_input.edge_ring_masked is True, but the run cut no seed from an input that burns edges: seed_source 'sam', "
+     "sam_input 'rgb'"),
+    (ring_record("external", "normal_edge", "rgb", True), "seed_source 'external', sam_input 'normal_edge'"),
+    (ring_record("sam", "normal_edge", "rgb", True, edge_ring_masked=False),
+     "edge_ring_masked is False, but seed_input.edge_ring_masked is True"),
+])
+def test_a_record_whose_edge_ring_cannot_be_told_is_refused(r, why):
+    with pytest.raises(ValueError, match=re.escape(why)):
+        CI.edge_ring_of(r)
+
+
+def test_a_tag_whose_clips_differ_in_the_edge_ring_mixes_conditions(tree):
+    # c1 and c2 record the ring as the per-frame stage does, c3 as the tracking stage does: one setting, one condition.
+    tr, ev = tree
+    edge = {**provenance("normal_edge", 8), "seed_input": {**provenance("normal_edge", 8)["seed_input"],
+                                                            "edge_ring_masked": True}}
+    plant(tr, {"track_rgb_a_edge": [(c, edge, LABELS[c]) for c in ("c1", "c2")]
+               + [("c3", {**edge, "edge_ring_masked": True}, 13)]})
+    assert not any("a_edge" in p for p in problems(tr, ev))
+    plant(tr, {"track_rgb_a_edge": [("c3", {**edge, "edge_ring_masked": False,
+                                            "seed_input": {**edge["seed_input"], "edge_ring_masked": False}}, 13)]})
+    assert any("a_edge: 2 conditions are mixed" in p for p in problems(tr, ev))
+
+
 @pytest.mark.parametrize("record, why", [([8], "a JSON list, not an object"),
                                          ({**provenance("rgb", 8), "seed_input": [8]},
                                           "seed_input is a JSON list, not an object")])
@@ -426,19 +494,21 @@ def test_an_empty_label_root_and_a_fourth_field_are_refused():
 def test_the_matrix_prints_letters_not_marks_and_takes_a_none(tree, capsys):
     tr, ev = tree
     none = provenance("rgb", 8)
-    none["sam_input"] = None
+    none["depth_source"] = None
     plant(tr, {"track_rgb_a_none": [(c, none, LABELS[c]) for c in CLIPS]})
     plant(tr, {"track_rgb_a_prov": [(c, provenance("depth", 16), 0) for c in CLIPS]})
     CI.matrix(str(tr), str(ev), "T")
     out = capsys.readouterr().out
     assert not any(m in out for m in ("○", "×", "△", "★", "✗"))
-    assert f"{CI.SCORED} scored" in out and "None" in out
+    assert f"{CI.SCORED} scored" in out
     # The rows: `rgb` scored at pps 8 and not run at 16, `depth` provenance
-    # only at 16, `None` a row of its own and not a traceback.
-    rows = {l.split()[0]: l.split()[1:] for l in out.splitlines() if l.strip().startswith(("rgb", "None", "depth "))}
-    assert rows["rgb"] == [CI.SCORED, CI.NOT_RUN]
-    assert rows["depth"] == [CI.NOT_RUN, CI.PROVENANCE_ONLY]
-    assert rows["None"] == [CI.LABELS_ONLY, CI.NOT_RUN]
+    # only at 16, and a `None` depth source a table of its own, not a traceback.
+    tables = {t.split()[0]: t for t in out.split("depth = ")[1:]}
+    rows = {src: {l.split()[0]: l.split()[1:] for l in t.splitlines() if l.strip().startswith(("rgb", "depth "))}
+            for src, t in tables.items()}
+    assert rows["da3"]["rgb"] == [CI.SCORED, CI.NOT_RUN]
+    assert rows["da3"]["depth"] == [CI.NOT_RUN, CI.PROVENANCE_ONLY]
+    assert rows["None"]["rgb"] == [CI.LABELS_ONLY, CI.NOT_RUN]
 
 
 def test_the_matrix_keeps_a_condition_whose_points_per_side_is_none(tree, capsys):

@@ -80,10 +80,11 @@ omnisurg-4d-scene-graph/
 ├── surgical_core/     atlas120k clip_time geometry stereomis viewer
 │                      (cholec pointcloud: wait on the export stage)
 ├── evalkit/           the evaluator, hashed into eval_code_sha with its class tables
-│   └── tools/         what reads scores or predictions, never hashed: scores
-│                      paired_stats compare_eval condition_inventory check_provenance
-│                      pilot_check kmerge paired_table arms_paired
-│                      leave_one_video_out claims_table print_status_tables
+│   └── tools/         what reads scores, predictions or the class tables, never
+│                      hashed: scores paired_stats compare_eval condition_inventory
+│                      check_provenance check_benchmark_mapping pilot_check kmerge
+│                      paired_table arms_paired leave_one_video_out claims_table
+│                      print_status_tables
 │                      (track_metrics: waits on its GT track)
 ├── trajectory_eval/   the camera trajectory scorer, hashed into trajectory_code_sha
 │   └── tools/         what makes the controls' trajectories, scores StereoMIS or
