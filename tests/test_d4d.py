@@ -4,7 +4,7 @@ Each refusal has a test that plants its fault:
 
 - no `d4d` on the path, a `d4d` whose loader differs from the pinned commit's, and one that lacks a file;
 - a dataset root that holds no clip;
-- a clip's masks with one missing in the middle, or named by other times than its frames;
+- a clip with no frame, and a clip's masks with one missing in the middle or named by other times than its frames;
 - a mask that is not an image, and a scan with no finite point.
 """
 
@@ -126,6 +126,12 @@ def test_files_with_one_missing_or_named_by_another_time_are_refused(tmp_path, f
         (tmp_path / "masks" / f"{f}.png").write_bytes(b"")
     with pytest.raises(ValueError, match="files in masks/ for 3 frames"):
         d4d.frame_files(clip(tmp_path, ["100_000000000", "100_500000000", "101_000000000"]), "masks", ".png")
+
+
+def test_a_clip_with_no_frame_is_refused_though_it_has_no_file_either(tmp_path):
+    (tmp_path / "masks").mkdir()
+    with pytest.raises(ValueError, match="specimen_1/s_a/Clip_1: no rectified left frame"):
+        d4d.frame_files(clip(tmp_path, []), "masks", ".png")
 
 
 def test_a_mask_is_dilated_by_a_square_of_mask_dilate_pixels(tmp_path):
