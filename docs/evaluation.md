@@ -857,6 +857,11 @@ the benchmark: written to a separate block of the JSON, as reference values
 only, which decide no claim. Resolution, crop and metrics are this
 evaluator's own, so the numbers are not the benchmark's.
 
+`python -m evalkit.tools.check_benchmark_mapping <class_mapping.py>`
+compares the class table's mapping with the one that file defines, id by
+id, and names each id the two map differently. At `e286a584` all 47 ids
+agree.
+
 The paper gives the reason for the 30: categories not represented in all
 subsets were excluded, and semantically similar classes consolidated. In the
 released splits that rule does not single out exactly the six anatomical

@@ -13,7 +13,7 @@ no check is recorded.
 |---|---|---|
 | evaluator, `evalkit/` | class tables, metrics, entry point, pilot mode | in pilot mode, every key shared with the pilot evaluator equal on 23 conditions × 315 clips, at `eval_code_sha` `a5d7ea46…` |
 | score tools, `evalkit/tools/` | every tool in the layout of `AGENTS.md` but `track_metrics` | `paired_table`, `arms_paired`, `claims_table`, `leave_one_video_out`, `print_status_tables`, `kmerge`: the workbench's values on the same inputs |
-| camera trajectory scorer, `trajectory_eval/` | `pose_metrics`, the scoring of a clip, `pose_controls`, `scores`, `score_stereomis` | `pose_metrics`: the workbench's values on 1200 random, planar and static trajectories. The scoring of a clip, `pose_controls` and `score_stereomis`: the workbench's 387 StereoMIS rows, every value, scored again from its stored outputs |
+| camera trajectory scorer, `trajectory_eval/` | `pose_metrics`, the scoring of a clip, `pose_controls`, `scores`, `score_stereomis`, `stereomis_table` | `pose_metrics`: the workbench's values on 1200 random, planar and static trajectories. The scoring of a clip, `pose_controls` and `score_stereomis`: the workbench's 387 StereoMIS rows, every value, scored again from its stored outputs. `stereomis_table`, on those rows: the 24 pairs of the workbench's `summary_20.json`, every field |
 | extraction and crop | ATLAS-120k, CholecSeg8k, LapEx, StereoMIS, the D4D population | the CholecSeg8k crop, 13 of the 27 CholecSeg8k clips and the D4D population: the workbench's bytes. LapEx's 735 clips: the workbench's frames and masks, and its manifests apart from `depth_info` |
 | depth | DA3, Pi3X, point clouds, the population drivers | DA3, point clouds and Pi3X: the workbench's bytes on the GPU machine, on three clips. DA3 also on the 25 LapEx clips whose border the workbench did not fill |
 | segmentation and tracking | `track`, `per_frame`, `condition_population` | `track` and `per_frame`: the workbench's bytes on the GPU machine, on three clips. `condition_population`: the workbench's commands, for 43 conditions. The 40 segmenter inputs that `tests/test_render_outputs_are_pinned.py` pins: the workbench's, rendered with each case's ring setting |
@@ -49,7 +49,7 @@ not compared:
   through time that `pipeline.viewer_bundle` reads, with the `surgical_core`
   modules they need. Its byte check needs a clip whose tracking labels the
   workbench holds.
-- **The paper's tables**: the claims grid and the StereoMIS table.
+- **The paper's tables**: the claims grid.
 - **D4D**: the census, depth, seeds, the front/behind relation and the
   camera trajectory. The reader waits on "How this repository depends on
   D4D's loader".
@@ -143,6 +143,10 @@ A ported stage's output may differ from the workbench's in these places
 only:
 
 - **Pi3X's `runtime_sec`.**
+- **The tracking stage's `edge_ring_masked`.** The workbench's
+  `seed_info.json` has no such key, so `pipeline.byte_check` reports the
+  file as different. The reviewer compares the two records by hand with
+  this key removed; the stage writes it last.
 - **CholecSeg8k clips whose frames run out of order.** In videos that
   CholecSeg8k numbers at about 30 fps, the workbench's extractor placed the
   frames between annotations 1 to 3 s late, and one image could appear
@@ -193,7 +197,11 @@ Each question says what it blocks and where its answer is written.
   number of frames, the seed sits one frame before the centre:
   `track_metrics.pick_seed_frame` breaks a tie toward the earlier frame,
   while the tracking stage and `rule_of_seed_info` take `frames[n // 2]`.
-  So on those clips the conditions hold neither propagation rule. Open:
+  So on those clips the conditions hold neither propagation rule. The
+  workbench's `normal_edge_t12_gtseed` and `rgb_edge_t12_gtseed` records
+  hold no edge ring for the tracker's input, so `condition_inventory` and
+  `check_provenance` refuse them until the conditions are measured again.
+  Open:
   which frame a GT seed is placed on under each rule and when the centre
   frame has no GT, which code places it, and how the evaluator scores it.
   Blocks: measuring the `t12_*` conditions again. Answer in:
@@ -210,15 +218,6 @@ Each question says what it blocks and where its answer is written.
 
 ### Conditions
 
-- **The edge ring of the tracker's input.** The tracking stage builds the
-  seed's input and the tracker's input with one ring setting.
-  `seed_info.json` records the setting once, as
-  `seed_input.edge_ring_masked`, for the seed's input only. When the seed
-  came from GT or from outside the stage, or the seed's input burns no
-  edges, the record holds no setting, even when the tracker's input burns
-  edges. So `check_provenance` and `condition_inventory` cannot compare it.
-  Open: where the record holds the tracker's setting. Answer in:
-  `docs/pipeline.md`, the tracking stage.
 - **Depth made by two versions of the depth stage.** On the development
   machine, 7 of the 9 CholecSeg8k clips carry depth from a branch of the
   workbench's depth stage that never reached its `main`: their bundle holds
@@ -228,13 +227,6 @@ Each question says what it blocks and where its answer is written.
   Open: which version made the depth each scored ATLAS-120k condition
   read, and where it was the branch, whether that depth is made again.
   Answer in: `docs/pipeline.md`, the depth stage.
-- **The order of tied presence scores.** The tracking stage paints a
-  frame's objects in the order of their presence scores, through
-  `np.argsort`. On the prompted frame all of them tie, and above 16 tied
-  objects their order depends on numpy's build and the CPU. Where tied
-  masks overlap, a label can then differ between machines. Open: keep the
-  sort, or sort stably and list the change among the byte equality
-  exceptions. Answer in: `docs/pipeline.md`, the tracking stage.
 
 ### Tools and tables
 
@@ -271,11 +263,6 @@ Each question says what it blocks and where its answer is written.
   take their names at the re-score"). Open: which
   pairs the paper reports with the tool. Answer in: `arms_paired`'s
   docstring.
-- **The benchmark mapping against its source.** The ATLAS-120k mapping to
-  the benchmark's 30 classes was checked by hand against ATLAS-bench's
-  `datasets/class_mapping.py` at commit e286a584, and all 47 ids agree.
-  Open: whether a script that takes that file's path repeats the check.
-  Answer in: `docs/evaluation.md`, the benchmark's 30 classes.
 
 ### Pipeline
 
@@ -287,11 +274,6 @@ Each question says what it blocks and where its answer is written.
   as having none. Open: whether such a mask moves out of `seg_masks/` or
   takes a name of its own. Blocks: porting the step that writes them.
   Answer in: `docs/pipeline.md`.
-- **A clip with no usable depth in any frame.** The point-cloud stage skips
-  a frame with no usable depth, as the workbench does. A clip with no
-  usable depth in any frame gets no cloud and a count of 0, and the run
-  exits 0. No real clip has done this. Open: whether the stage refuses
-  such a clip. Answer in: `docs/pipeline.md`, the point-cloud stage.
 
 ### StereoMIS
 

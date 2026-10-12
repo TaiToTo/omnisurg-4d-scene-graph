@@ -139,7 +139,7 @@ def _check_covered(package_dir: Path) -> None:
 
 
 def _import_targets(module: Path) -> list[str]:
-    """The absolute module paths the import statements of `module` reach, plus `__import__` where it is named.
+    """Return the absolute module paths the import statements of `module` reach, plus `__import__` where it is named.
 
     `from X import a, b` reaches `X`, except when `X` is this package or a
     relative `.`: then it reaches `X.a` and `X.b`, since those are modules.
@@ -201,10 +201,10 @@ def _check_imports(package_dir: Path) -> None:
 
 
 def hashed_files(package_dir: Path = PACKAGE_DIR) -> list[Path]:
-    """The files `eval_code_sha` covers, in the order they are hashed.
+    """Return the files `eval_code_sha` covers, in the order they are hashed.
 
     The modules by name, then the class tables as `table_paths` lists them.
-    Checks the package and its imports first, so a module on no list raises
+    It checks the package and its imports first, so a module on no list raises
     here rather than being left out; a copy of the package elsewhere is
     checked the same way.
     """
@@ -228,12 +228,12 @@ def _sha_of(paths: list[Path], relative_to: Path) -> str:
 
 
 def eval_code_sha(package_dir: Path = PACKAGE_DIR) -> str:
-    """The sha256 hex digest of the evaluator: its modules and class tables."""
+    """Return the sha256 hex digest of the evaluator's modules and class tables."""
     package_dir = Path(package_dir).resolve()
     return _sha_of(hashed_files(package_dir), package_dir)
 
 
 def eval_code_files(package_dir: Path = PACKAGE_DIR) -> list[str]:
-    """The hashed files, package-relative, in the order hashed; written beside the sha so a reader can see what it covered."""
+    """Return the hashed files, package-relative, in the order hashed."""
     package_dir = Path(package_dir).resolve()
     return [p.relative_to(package_dir).as_posix() for p in hashed_files(package_dir)]
