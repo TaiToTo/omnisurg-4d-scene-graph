@@ -97,7 +97,9 @@ not compared:
 3. **The conditions take their names at the re-score.**
    `evalkit/tools/condition_names.tsv` maps each workbench condition that
    the paper's tables read to its name here, or says why its records show
-   none. With the re-score, and not before, the label directories and the
+   none. The `t5_*` rows name the rule their records show, which the
+   evaluator scores only once it accepts a seed made outside the tracking
+   stage. With the re-score, and not before, the label directories and the
    score JSONs take these names, and `paired_table`, `claims_table` and
    `arms_paired` read their tags from the table. Until then the tools read
    the workbench's names.
