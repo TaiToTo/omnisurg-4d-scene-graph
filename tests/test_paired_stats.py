@@ -114,40 +114,80 @@ def test_wilcoxon_per_video_is_undefined_below_six_videos():
 # ---------------------------------------------------------------- the mark
 
 
+ENOUGH = PS.MIN_VIDEOS_FOR_MARK
+
+
 def test_mark_of_reads_the_video_interval_alone():
-    assert PS.mark_of([0.01, 0.05]) == "★"
-    assert PS.mark_of([-0.05, -0.01]) == "✗"
-    assert PS.mark_of([-0.01, 0.05]) == ""
-    assert PS.mark_of([0.0, 0.05]) == "" and PS.mark_of([-0.05, 0.0]) == ""
-    assert PS.mark_of(None) == "" and PS.mark_of([None, 0.05]) == ""
+    assert PS.mark_of([0.01, 0.05], n_videos=ENOUGH) == "★"
+    assert PS.mark_of([-0.05, -0.01], n_videos=ENOUGH) == "✗"
+    assert PS.mark_of([-0.01, 0.05], n_videos=ENOUGH) == ""
+    assert PS.mark_of([0.0, 0.05], n_videos=ENOUGH) == "" and PS.mark_of([-0.05, 0.0], n_videos=ENOUGH) == ""
+    assert PS.mark_of(None, n_videos=ENOUGH) == "" and PS.mark_of([None, 0.05], n_videos=ENOUGH) == ""
 
 
-def test_mark_of_takes_the_interval_and_the_direction_and_no_p_value():
-    assert list(inspect.signature(PS.mark_of).parameters) == ["ci95_video", "sign"]
+def test_mark_of_takes_the_interval_the_direction_and_the_videos_and_no_p_value():
+    assert list(inspect.signature(PS.mark_of).parameters) == ["ci95_video", "sign", "n_videos"]
+
+
+def test_the_fewest_videos_for_a_mark_is_six_and_the_rule_says_so():
+    assert PS.MIN_VIDEOS_FOR_MARK == 6
+    assert "on 6 videos or more" in PS.MARK_RULE
+
+
+def test_three_video_intervals_are_the_range_of_the_video_means():
+    # Why a mark needs more videos than an interval does, shown on the bootstrap itself.
+    rng = np.random.default_rng(0)
+    for _ in range(20):
+        vids = np.array([v for v, n in zip("abc", rng.integers(1, 5, size=3)) for _ in range(n)])
+        d = rng.normal(0.02, 0.05, size=len(vids))
+        means = [d[vids == v].mean() for v in "abc"]
+        assert np.allclose(PS.boot_ci(d, vids), (min(means), max(means)))
+
+
+@pytest.mark.parametrize("sign, ci", [(+1, [0.01, 0.05]), (+1, [-0.05, -0.01]), (-1, [0.01, 0.05])])
+def test_an_interval_on_five_videos_gives_no_mark_and_on_six_it_does(sign, ci):
+    # Below the floor the interval is read for its sign only.
+    assert PS.mark_of(ci, sign, n_videos=5) == ""
+    assert PS.mark_of(ci, sign, n_videos=6) in ("★", "✗")
+    assert PS.sign_only_note(5) == PS.sign_only_note(2) == "read for its sign only: a mark needs 6 videos"
+    assert PS.sign_only_note(6) == ""
+    # One video gives no interval, so there is nothing to read for its sign.
+    assert PS.sign_only_note(1) == PS.sign_only_note(0) == ""
+
+
+@pytest.mark.parametrize("n_videos", [-1, 6.0, True, np.int64(6), None])
+def test_mark_of_refuses_a_count_of_videos_that_is_not_an_int_of_zero_or_more(n_videos):
+    with pytest.raises(ValueError, match="n_videos is"):
+        PS.mark_of([0.01, 0.05], n_videos=n_videos)
 
 
 def test_mark_of_reads_the_interval_in_the_metric_s_direction():
     # `VI_split` falls when a method improves; `time_IoU` is a reference
     # value and is never marked, whichever way it moved.
-    assert PS.mark_of([0.01, 0.05], sign=-1) == "✗" and PS.mark_of([-0.05, -0.01], sign=-1) == "★"
-    assert PS.mark_of([-0.01, 0.05], sign=-1) == ""
-    assert PS.mark_of([0.01, 0.05], sign=0) == "" and PS.mark_of([-0.05, -0.01], sign=0) == ""
+    assert (PS.mark_of([0.01, 0.05], sign=-1, n_videos=ENOUGH) == "✗"
+            and PS.mark_of([-0.05, -0.01], sign=-1, n_videos=ENOUGH) == "★")
+    assert PS.mark_of([-0.01, 0.05], sign=-1, n_videos=ENOUGH) == ""
+    assert (PS.mark_of([0.01, 0.05], sign=0, n_videos=ENOUGH) == ""
+            and PS.mark_of([-0.05, -0.01], sign=0, n_videos=ENOUGH) == "")
     with pytest.raises(ValueError, match="sign is"):
-        PS.mark_of([0.01, 0.05], sign=2)
+        PS.mark_of([0.01, 0.05], sign=2, n_videos=ENOUGH)
     with pytest.raises(ValueError, match="sign is"):
-        PS.mark_of([0.01, 0.05], sign=None)
+        PS.mark_of([0.01, 0.05], sign=None, n_videos=ENOUGH)
 
 
 @pytest.mark.parametrize("sign", [True, False, 1.0, -1.0, np.int64(1)])
 def test_mark_of_refuses_a_sign_that_only_equals_an_int(sign):
     """`True == 1` and `1.0 == 1`, so a membership test alone lets a flag or a float through."""
     with pytest.raises(ValueError, match="sign is"):
-        PS.mark_of([0.01, 0.05], sign=sign)
+        PS.mark_of([0.01, 0.05], sign=sign, n_videos=ENOUGH)
 
 
 def test_is_star_matches_mark_of():
-    assert PS.is_star([0.01, 0.05]) and not PS.is_star([-0.05, -0.01]) and not PS.is_star([-0.01, 0.05])
-    assert PS.is_star([-0.05, -0.01], sign=-1) and not PS.is_star([0.01, 0.05], sign=-1)
+    assert (PS.is_star([0.01, 0.05], n_videos=ENOUGH) and not PS.is_star([-0.05, -0.01], n_videos=ENOUGH)
+            and not PS.is_star([-0.01, 0.05], n_videos=ENOUGH))
+    assert PS.is_star([-0.05, -0.01], sign=-1, n_videos=ENOUGH)
+    assert not PS.is_star([0.01, 0.05], sign=-1, n_videos=ENOUGH)
+    assert not PS.is_star([0.01, 0.05], n_videos=ENOUGH - 1)
 
 
 def test_every_pilot_key_has_a_direction_from_the_one_table():
@@ -287,7 +327,7 @@ def test_one_video_has_no_video_interval_and_so_no_mark():
     res = PS.compare_pair(pilot_scores("base", 0.0, 5), pilot_scores("cond", 0.03, 6), drop=VIDEOS[1:])
     assert (res["n_clips"], res["n_videos"]) == (2, 1)
     for key, r in res["metrics"].items():
-        assert r["ci95_video"] is None and PS.mark_of(r["ci95_video"], r["sign"]) == "", key
+        assert r["ci95_video"] is None and PS.mark_of(r["ci95_video"], r["sign"], n_videos=r["n_videos"]) == "", key
         # Two clips still give a clip interval and SDs; they are reference only.
         assert (r["ci95_clip"] is not None and r["delta_sd"] is not None) == (r["n_clips"] == 2), key
 
@@ -346,7 +386,7 @@ def test_an_interval_end_near_zero_keeps_its_star_or_cross(monkeypatch, ci, writ
     monkeypatch.setattr(PS, "boot_ci", lambda d, groups, **kw: ci)
     a, b = pilot_scores("base", 0.0, 5), pilot_scores("cond", 0.03, 6)
     r = PS.compare_pair(a, b, keys=["inst_F1_50"])["metrics"]["inst_F1_50"]
-    assert r["ci95_video"] == written and PS.mark_of(r["ci95_video"], r["sign"]) == mark
+    assert r["ci95_video"] == written and PS.mark_of(r["ci95_video"], r["sign"], n_videos=r["n_videos"]) == mark
 
 
 def test_a_key_defined_on_no_common_clip_is_left_out_not_zeroed():
@@ -380,6 +420,18 @@ def test_the_command_prints_a_shrunken_population_with_its_videos(tmp_path):
     assert "(2 clips / 1 videos)" in run.stdout and "videos resampled none" in run.stdout
     run = _run(tmp_path, "--pairs", "base:cond")
     assert "SQ   [10/14 clips, 6/7 videos]" in run.stdout
+
+
+def test_the_command_says_when_an_interval_rests_on_too_few_videos_for_a_mark(tmp_path):
+    for tag, shift, seed in (("base", 0.0, 5), ("cond", 0.03, 6)):
+        (tmp_path / f"{tag}.json").write_text(json.dumps(pilot_scores(tag, shift, seed)))
+    note = f"({PS.sign_only_note(5)})"
+    run = _run(tmp_path, "--pairs", "base:cond", "--drop-video", ",".join(VIDEOS[:2]))
+    assert run.returncode == 0, run.stderr
+    assert "(10 clips / 5 videos)" in run.stdout and run.stdout.count(note) == len(PS.PILOT_KEYS)
+    # Every key of the whole population rests on six videos or more, `SQ`'s on 6 of the 7.
+    run = _run(tmp_path, "--pairs", "base:cond")
+    assert "SQ   [10/14 clips, 6/7 videos]" in run.stdout and note not in run.stdout
 
 
 def test_the_command_refuses_a_run_whose_pairs_hold_two_rules(tmp_path):

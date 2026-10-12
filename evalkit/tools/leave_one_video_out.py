@@ -5,10 +5,11 @@ video-level bootstrap interval of `cond - base` in the key's direction and
 gives a mark: a star, a cross or none. A video whose removal changes the mark
 is named. The mark then depends on that one video, not on the population.
 
-It computes no p-value. A subset has fewer videos, so its interval is read
-for its sign only. Leaving a video out moves the mean and changes the width
-of the interval, and either can change the mark. Each row records both, and
-the printout names no cause.
+It computes no p-value. A video is left out only while
+`paired_stats.MIN_VIDEOS_FOR_MARK` videos remain, the fewest a mark rests
+on. Leaving a video out moves the mean and changes the width of the
+interval, and either can change the mark. Each row records both, and the
+printout names no cause.
 
 Usage:
     python -m evalkit.tools.leave_one_video_out --eval-dir /path/to/scores \\
@@ -25,6 +26,7 @@ import numpy as np
 
 from evalkit.tools.paired_stats import (
     MARK_RULE,
+    MIN_VIDEOS_FOR_MARK,
     N_BOOT,
     SEED,
     SEED_SCHEME,
@@ -36,14 +38,6 @@ from evalkit.tools.paired_stats import (
     video_of,
 )
 from evalkit.tools.scores import check_comparable, check_one_rule, defined_clips, rows_of, sign_of_key
-
-# A video is left out only while this many videos remain, so a key on this many videos or fewer is refused.
-MIN_VIDEOS_AFTER_DROP = 3
-# A resample that draws one video three times has a chance of 1 in 27, above 2.5 %, so on three videos the
-# interval runs from the lowest video mean to the highest. The printout says so on such a row.
-RANGE_VIDEOS = 3
-# An interval on fewer videos than this is printed as thin.
-THIN_VIDEOS = 5
 
 
 def _ci(ci: Sequence[float]) -> str:
@@ -87,19 +81,20 @@ def leave_each_out(d: np.ndarray, vids: np.ndarray, sign: int) -> dict:
 
     Raises:
         ValueError: `sign` is not +1 or -1, or the clips come from no more
-            than `MIN_VIDEOS_AFTER_DROP` videos, where no video can be left
-            out.
+            than `MIN_VIDEOS_FOR_MARK` videos. Leaving a video out would then
+            leave too few videos for a mark, and every video would read as
+            one that changes it.
     """
     if sign not in (1, -1):
         raise ValueError(f"sign is +1 or -1, not {sign!r}: a reference value is never marked")
     d = np.asarray(d, dtype=np.float64)
     vids = np.asarray(vids)
     videos = sorted(set(vids.tolist()))
-    if len(videos) <= MIN_VIDEOS_AFTER_DROP:
+    if len(videos) <= MIN_VIDEOS_FOR_MARK:
         raise ValueError(f"the clips come from {len(videos)} video(s): leaving one out would leave fewer than "
-                         f"{MIN_VIDEOS_AFTER_DROP}, so no video can be left out and none can be named")
+                         f"{MIN_VIDEOS_FOR_MARK}, too few for a mark, so no video can be named")
     full_ci = list(boot_ci(d, vids))
-    full = mark_of(full_ci, sign)
+    full = mark_of(full_ci, sign, n_videos=len(videos))
     per = []
     for v in videos:
         m = vids != v
@@ -110,7 +105,7 @@ def leave_each_out(d: np.ndarray, vids: np.ndarray, sign: int) -> dict:
             own_delta=round_keeping_sign(d[~m].mean()), delta_wo=round_keeping_sign(d[m].mean()),
             ci95_wo=[round_keeping_sign(x) for x in ci],
             ci_width_ratio=None if width_ratio is None else round_keeping_sign(width_ratio),
-            mark_wo=mark_of(ci, sign)))
+            mark_wo=mark_of(ci, sign, n_videos=len(videos) - 1)))
     flips = [p["video"] for p in per if p["mark_wo"] != full]
     return dict(n_clips=int(len(d)), n_videos=len(videos),
                 # `delta` is `cond - base` and `mark` is read in the key's
@@ -161,19 +156,10 @@ def leave_each_out_of_pair(ja: dict, jb: dict, keys: Sequence[str]) -> dict:
     return dict(eval_code=chk["eval_code"], metrics=res)
 
 
-def _note(n_videos: int) -> str:
-    """Say when an interval on this many videos is the range of the video means, or thin."""
-    if n_videos <= RANGE_VIDEOS:
-        return f"  <- on {n_videos} videos the interval is the range of the video means"
-    if n_videos < THIN_VIDEOS:
-        return f"  <- an interval on {n_videos} videos is thin"
-    return ""
-
-
 def _print_key(k: str, r: dict) -> None:
     lower = " (lower is better)" if r["sign"] < 0 else ""
     print(f"  {k}{lower}  Δ={format_signed(r['delta'])} {_ci(r['ci95_video'])} {r['mark'] or 'no mark'}"
-          f" ({r['n_clips']} clips / {r['n_videos']} videos){_note(r['n_videos'])}")
+          f" ({r['n_clips']} clips / {r['n_videos']} videos)")
     if not r["n_flips"]:
         print("    no single video left out changes the mark")
         return
@@ -186,8 +172,7 @@ def _print_key(k: str, r: dict) -> None:
         width = "" if w is None else f", the interval {w:.2f} times as wide"
         print(f"      without {p['video']} ({p['n_clips']} clips, its own Δ={format_signed(p['own_delta'])}):"
               f" Δ={format_signed(p['delta_wo'])} {_ci(p['ci95_wo'])} {p['mark_wo'] or 'no mark'}"
-              f" ({p['n_videos_wo']} videos, the mean moved {format_signed(p['delta_wo'] - r['delta'])}{width})"
-              f"{_note(p['n_videos_wo'])}")
+              f" ({p['n_videos_wo']} videos, the mean moved {format_signed(p['delta_wo'] - r['delta'])}{width})")
 
 
 def main() -> None:
@@ -224,7 +209,7 @@ def main() -> None:
 
     # The marks of each pair, printed as they come.
     out = {"mark_rule": MARK_RULE, "n_boot": N_BOOT, "seed": SEED, "seed_scheme": SEED_SCHEME,
-           "min_videos_after_drop": MIN_VIDEOS_AFTER_DROP}
+           "min_videos_for_mark": MIN_VIDEOS_FOR_MARK}
     # A pilot JSON records no rule, so none is written.
     if rule is not None:
         out["propagation"] = rule

@@ -91,7 +91,16 @@ not compared:
      this repository's code. Open: whether the paper reports them.
    - **`track_metrics`.** It is run on the paper's conditions. Open: how
      the paper reports its measures.
-3. **How the regions are compared.** Decided on 2026-10-12:
+3. **The conditions take their names at the re-score.**
+   `evalkit/tools/condition_names.tsv` maps each workbench condition that
+   the paper's tables read to its name here, or says why its records show
+   none. The `t5_*` rows name the rule their records show, which the
+   evaluator scores only once it accepts a seed made outside the tracking
+   stage. With the re-score, and not before, the label directories and the
+   score JSONs take these names, and `paired_table`, `claims_table` and
+   `arms_paired` read their tags from the table. Until then the tools read
+   the workbench's names.
+4. **How the regions are compared.** Decided on 2026-10-12:
    - Every condition is scored on whole-class objects by the evaluator,
      and on component objects at 0, 100, 300 and 400 px by
      `component_scores` and `track_metrics`.
@@ -220,13 +229,6 @@ Each question says what it blocks and where its answer is written.
 
 ### Conditions
 
-- **Condition names.** A workbench name says which task made a condition
-  (`t12_*`, `t5_*`), not what it is. A condition also has two names: its
-  score's tag and its prediction directory, which the score records as
-  `track_dir_name`. Open: how a name says the input, the seed's source and
-  the propagation rule; where the one table that maps workbench names to
-  names here lives; and whether the tools read their tags and their pairs
-  from it. Blocks: naming new conditions. Answer in: that table.
 - **Depth made by two versions of the depth stage.** On the development
   machine, 7 of the 9 CholecSeg8k clips carry depth from a branch of the
   workbench's depth stage that never reached its `main`: their bundle holds
@@ -239,14 +241,6 @@ Each question says what it blocks and where its answer is written.
 
 ### Tools and tables
 
-- **The fewest videos for an interval.** `paired_stats.boot_ci` refuses a
-  population of one video. On two or three videos the 95 % interval is the
-  range of the video means, so two videos that agree in sign give a mark.
-  Open: whether the interval needs more videos, and how many.
-  The floors of `paired_table` (five clips per cell) and of
-  `leave_one_video_out` are decided with it. Until then, a subset's
-  interval is read for its sign only. Answer in: `paired_stats`, beside
-  `MARK_RULE`.
 - **The paired table on the evaluator's scores.** `paired_table` prints the
   pilot's table only. The six `t5_*` rows wait on "Seeds made outside the
   tracking stage". A table holds one propagation rule, so it is printed
@@ -266,7 +260,8 @@ Each question says what it blocks and where its answer is written.
 - **The pairs `arms_paired` reports.** The workbench compared 21 pairs of
   inputs by default. Two of them compare inputs the paper's conditions
   ran: `rgb_edge` with `rgb`, and `normal_edge` with `normal`. The port
-  carries no list, because the tags wait on "Condition names". Open: which
+  carries no list, because its tags change at the re-score ("The conditions
+  take their names at the re-score"). Open: which
   pairs the paper reports with the tool. Answer in: `arms_paired`'s
   docstring.
 

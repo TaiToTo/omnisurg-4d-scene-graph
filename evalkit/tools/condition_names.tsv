@@ -1,0 +1,100 @@
+dataset	workbench	name	unresolved	record
+atlas120k	depth_center18	depth_da3_pps24_sam_centre		seed_info.json, run log
+atlas120k	ff_depth_center18	depth_da3_pps24_sam_forward		seed_info.json
+atlas120k	ff_op_edge_center	normal-edge_da3_pps24_sam_forward		seed_info.json
+atlas120k	ff_op_normal_center	normal_da3_pps24_sam_forward		seed_info.json
+atlas120k	ff_rgb_center18	rgb_pps24_sam_forward		seed_info.json
+atlas120k	ff_rgbedge_center18	rgb-edge_da3_pps24_sam_forward		seed_info.json
+atlas120k	op_depth_perframe_pps24	depth_da3_pps24_perframe		seed_info.json
+atlas120k	op_depth_perframe_pps4	depth_da3_pps4_perframe		seed_info.json
+atlas120k	op_depth_perframe_pps8	depth_da3_pps8_perframe		seed_info.json
+atlas120k	op_edge		the seed frame was chosen by its share of instrument pixels and is off the centre on 298 of the 315 clips: neither propagation rule	seed_info.json
+atlas120k	op_edge_center	normal-edge_da3_pps24_sam_centre		seed_info.json, run log
+atlas120k	op_edge_perframe	normal-edge_da3_pps24_perframe		seed_info.json
+atlas120k	op_edge_perframe_pps4	normal-edge_da3_pps4_perframe		seed_info.json
+atlas120k	op_edge_pf_pps8	normal-edge_da3_pps8_perframe		seed_info.json
+atlas120k	op_edge_pf_pps8_pi3x	normal-edge_pi3x_pps8_perframe		seed_info.json
+atlas120k	op_normal		the seed frame was chosen by its share of instrument pixels and is off the centre on 298 of the 315 clips: neither propagation rule	seed_info.json
+atlas120k	op_normal_center	normal_da3_pps24_sam_centre		seed_info.json, run log
+atlas120k	op_normal_perframe_pps24	normal_da3_pps24_perframe		seed_info.json
+atlas120k	op_normal_perframe_pps4	normal_da3_pps4_perframe		seed_info.json
+atlas120k	op_normal_pf_pps8	normal_da3_pps8_perframe		seed_info.json
+atlas120k	op_normal_pf_pps8_pi3x	normal_pi3x_pps8_perframe		seed_info.json
+atlas120k	op_rgb_perframe_pps12	rgb_pps12_perframe		seed_info.json
+atlas120k	op_rgb_perframe_pps24	rgb_pps24_perframe		seed_info.json
+atlas120k	op_rgb_perframe_pps4	rgb_pps4_perframe		seed_info.json
+atlas120k	op_rgb_perframe_pps8	rgb_pps8_perframe		seed_info.json
+atlas120k	op_rgbedge_perframe	rgb-edge_da3_pps24_perframe		seed_info.json
+atlas120k	op_rgbedge_perframe_pps4	rgb-edge_da3_pps4_perframe		seed_info.json
+atlas120k	op_rgbedge_perframe_pps8	rgb-edge_da3_pps8_perframe		seed_info.json
+atlas120k	rgb_center18	rgb_pps24_sam_centre		seed_info.json
+atlas120k	rgbedge_center18	rgb-edge_da3_pps24_sam_centre		seed_info.json, run log
+atlas120k	t12_depth		the GT seed sits one frame before the centre on the 151 clips of even length, carried both ways: neither propagation rule	seed_info.json
+atlas120k	t12_gtseed		the GT seed sits one frame before the centre on the 151 clips of even length, carried both ways: neither propagation rule	seed_info.json
+atlas120k	t12_normal		the GT seed sits one frame before the centre on the 151 clips of even length, carried both ways: neither propagation rule	seed_info.json
+atlas120k	t12_normal_edge		the GT seed sits one frame before the centre on the 151 clips of even length, carried both ways: neither propagation rule	seed_info.json
+atlas120k	t12_paste		the GT seed is pasted on every frame: no propagation rule	seed_info.json
+atlas120k	t12_rgb		the GT seed sits one frame before the centre on the 151 clips of even length, carried both ways: neither propagation rule	seed_info.json
+atlas120k	t12_rgbedge		the GT seed sits one frame before the centre on the 151 clips of even length, carried both ways: neither propagation rule	seed_info.json
+atlas120k	t5_floor	rgb_pps24_unmerged_centre		seed_info.json, seed manifest
+atlas120k	t5_k10	rgb_pps24_kmerge10_centre		seed_info.json, seed manifest
+atlas120k	t5_k12	rgb_pps24_kmerge12_centre		seed_info.json, seed manifest
+atlas120k	t5_k6	rgb_pps24_kmerge6_centre		seed_info.json, seed manifest
+atlas120k	t5_k8	rgb_pps24_kmerge8_centre		seed_info.json, seed manifest
+atlas120k	t5_kgt	rgb_pps24_kmerge-gt_centre		seed_info.json, seed manifest
+cholecseg8k	ch_cons_edge_center		made by the workbench's consensus tracker, which the tracking stage does not port	run log
+cholecseg8k	ch_depth_center	depth_da3_pps24_sam_centre		run log
+cholecseg8k	ch_depth_perframe_pps24	depth_da3_pps24_perframe		run log
+cholecseg8k	ch_depth_perframe_pps32	depth_da3_pps32_perframe		run log
+cholecseg8k	ch_depth_pps12	depth_da3_pps12_sam_centre		run log
+cholecseg8k	ch_depth_pps16	depth_da3_pps16_sam_centre		run log
+cholecseg8k	ch_depth_pps32	depth_da3_pps32_sam_centre		run log
+cholecseg8k	ch_depth_pps4	depth_da3_pps4_sam_centre		run log
+cholecseg8k	ch_depth_pps48	depth_da3_pps48_sam_centre		run log
+cholecseg8k	ch_depth_pps6	depth_da3_pps6_sam_centre		run log
+cholecseg8k	ch_depth_pps8	depth_da3_pps8_sam_centre		run log
+cholecseg8k	ch_edge_center	normal-edge_da3_pps24_sam_centre_keepring		run log
+cholecseg8k	ch_edge_center_inst	normal-edge_da3_pps24_sam_centre_keepring_instrument-text		run log
+cholecseg8k	ch_edge_center_noring	normal-edge_da3_pps24_sam_centre		seed_info.json, run log
+cholecseg8k	ch_edge_perframe	normal-edge_da3_pps24_perframe_keepring		run log
+cholecseg8k	ch_edge_perframe_pps32	normal-edge_da3_pps32_perframe_keepring		run log
+cholecseg8k	ch_edge_pps12	normal-edge_da3_pps12_sam_centre_keepring		run log
+cholecseg8k	ch_edge_pps16	normal-edge_da3_pps16_sam_centre_keepring		run log
+cholecseg8k	ch_edge_pps32	normal-edge_da3_pps32_sam_centre_keepring		run log
+cholecseg8k	ch_edge_pps4	normal-edge_da3_pps4_sam_centre_keepring		run log
+cholecseg8k	ch_edge_pps48	normal-edge_da3_pps48_sam_centre_keepring		run log
+cholecseg8k	ch_edge_pps6	normal-edge_da3_pps6_sam_centre_keepring		run log
+cholecseg8k	ch_edge_pps8	normal-edge_da3_pps8_sam_centre_keepring		run log
+cholecseg8k	ch_normal		the seed frame was chosen by its share of instrument pixels and is off the centre on 11 of the 27 clips: neither propagation rule	run log
+cholecseg8k	ch_normal_center	normal_da3_pps24_sam_centre		run log
+cholecseg8k	ch_normal_perframe_pps16	normal_da3_pps16_perframe		run log
+cholecseg8k	ch_normal_perframe_pps24	normal_da3_pps24_perframe		run log
+cholecseg8k	ch_normal_pps12	normal_da3_pps12_sam_centre		run log
+cholecseg8k	ch_normal_pps16	normal_da3_pps16_sam_centre		run log
+cholecseg8k	ch_normal_pps32	normal_da3_pps32_sam_centre		run log
+cholecseg8k	ch_normal_pps4	normal_da3_pps4_sam_centre		run log
+cholecseg8k	ch_normal_pps48	normal_da3_pps48_sam_centre		run log
+cholecseg8k	ch_normal_pps6	normal_da3_pps6_sam_centre		run log
+cholecseg8k	ch_normal_pps8	normal_da3_pps8_sam_centre		run log
+cholecseg8k	ch_rgb_center	rgb_pps24_sam_centre		run log
+cholecseg8k	ch_rgb_perframe_pps24	rgb_pps24_perframe		run log
+cholecseg8k	ch_rgb_perframe_pps8	rgb_pps8_perframe		run log
+cholecseg8k	ch_rgb_pps12	rgb_pps12_sam_centre		run log
+cholecseg8k	ch_rgb_pps16	rgb_pps16_sam_centre		run log
+cholecseg8k	ch_rgb_pps32	rgb_pps32_sam_centre		run log
+cholecseg8k	ch_rgb_pps4	rgb_pps4_sam_centre		run log
+cholecseg8k	ch_rgb_pps48	rgb_pps48_sam_centre		run log
+cholecseg8k	ch_rgb_pps5	rgb_pps5_sam_centre		run log
+cholecseg8k	ch_rgb_pps6	rgb_pps6_sam_centre		run log
+cholecseg8k	ch_rgb_pps8	rgb_pps8_sam_centre		run log
+cholecseg8k	ff_ch_depth_center	depth_da3_pps24_sam_forward		seed_info.json
+cholecseg8k	ff_ch_edge_center	normal-edge_da3_pps24_sam_forward_keepring		seed_info.json
+cholecseg8k	ff_ch_edge_center_noring	normal-edge_da3_pps24_sam_forward		seed_info.json
+cholecseg8k	ff_ch_normal_center	normal_da3_pps24_sam_forward		seed_info.json
+cholecseg8k	ff_ch_rgb_center	rgb_pps24_sam_forward		seed_info.json
+cholecseg8k	t5_floor	rgb_pps24_unmerged_centre		seed_info.json, seed manifest
+cholecseg8k	t5_k10	rgb_pps24_kmerge10_centre		seed_info.json, seed manifest
+cholecseg8k	t5_k12	rgb_pps24_kmerge12_centre		seed_info.json, seed manifest
+cholecseg8k	t5_k6	rgb_pps24_kmerge6_centre		seed_info.json, seed manifest
+cholecseg8k	t5_k8	rgb_pps24_kmerge8_centre		seed_info.json, seed manifest
+cholecseg8k	t5_kgt	rgb_pps24_kmerge-gt_centre		seed_info.json, seed manifest

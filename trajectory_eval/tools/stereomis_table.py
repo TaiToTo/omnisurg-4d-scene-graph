@@ -5,7 +5,8 @@ scorer. Each condition must hold the base's clips, with the same sequence,
 stratum and `span_mm` for each clip. A pair is the paired difference
 `cond - base` on `ate_rel`, where less is better. Its interval is the
 bootstrap of `paired_stats.boot_ci` over sequences, since the clips of one
-sequence are not independent. `paired_stats.mark_of` gives its mark, and the
+sequence are not independent. `paired_stats.mark_of` gives its mark, and
+counts each sequence as one video, since each is its own recording. The
 clip-level Wilcoxon p is printed beside it. The tables and the pairs are
 printed over all clips, then within each stratum. A last table gives each
 sequence's mean difference from the base.
@@ -21,7 +22,17 @@ from pathlib import Path
 
 import numpy as np
 
-from evalkit.tools.paired_stats import N_BOOT, SEED, SEED_SCHEME, boot_ci, format_signed, mark_of, round_keeping_sign
+from evalkit.tools.paired_stats import (
+    MARK_RULE,
+    N_BOOT,
+    SEED,
+    SEED_SCHEME,
+    boot_ci,
+    format_signed,
+    mark_of,
+    round_keeping_sign,
+    sign_only_note,
+)
 from trajectory_eval.tools.scores import HASH_KEY, read_rows
 
 # The key that decides the result. Less is better.
@@ -90,6 +101,7 @@ def compare(rows: list[dict], base: str, cond: str, stratum: str = "") -> dict:
     clips = sorted(a)
     d = np.array([b[c][KEY] - a[c][KEY] for c in clips])
     seqs = np.array([a[c]["seq"] for c in clips])
+    n_seq = len(set(seqs))
     try:
         lo, hi = boot_ci(d, seqs)
     except ValueError as e:
@@ -97,13 +109,14 @@ def compare(rows: list[dict], base: str, cond: str, stratum: str = "") -> dict:
     w = stats.wilcoxon(d) if np.any(d != 0) else None
     # The mark is read from the interval as written, so an end near zero keeps its sign.
     ci = [round_keeping_sign(lo), round_keeping_sign(hi)]
-    mark = mark_of(ci, SIGN)
+    mark = mark_of(ci, SIGN, n_videos=n_seq)
     p = None if w is None else round(float(w.pvalue), 5)
     better, worse = int((d * SIGN > 0).sum()), int((d * SIGN < 0).sum())
     print(f"  {mark or ' '} {cond} - {base}: delta {d.mean():+.4f}  median {np.median(d):+.4f}  "
           f"95%CI(seq) [{format_signed(ci[0])}, {format_signed(ci[1])}]  better-worse {better}-{worse}  "
-          f"n={len(clips)} / {len(set(seqs))} seqs  p={'-' if p is None else p}")
-    return dict(base=base, cond=cond, key=KEY, stratum=stratum, n=len(clips), n_seq=len(set(seqs)),
+          f"n={len(clips)} / {n_seq} seqs  p={'-' if p is None else p}"
+          + (f"  [{sign_only_note(n_seq)}]" if sign_only_note(n_seq) else ""))
+    return dict(base=base, cond=cond, key=KEY, stratum=stratum, n=len(clips), n_seq=n_seq,
                 delta=round(float(d.mean()), 4), median=round(float(np.median(d)), 4), ci95_seq=ci,
                 better=better, worse=worse, wilcoxon_p=p, mark=mark)
 
@@ -137,7 +150,8 @@ def summarize(rows: list[dict], base: str) -> dict:
            "seed_scheme": SEED_SCHEME, "pairs": []}
     others = sorted({r["cond"] for r in rows} - {base})
     table(rows)
-    print(f"\n===== pairs with {base} (negative is better; ★ better, ✗ worse: the 95% CI does not straddle 0) =====")
+    print(f"\n===== pairs with {base} (negative is better; ★ better, ✗ worse, each sequence one video: "
+          f"{MARK_RULE}) =====")
     out["pairs"] += [compare(rows, base, c) for c in others]
     for st in sorted({r["stratum"] for r in rows}):
         table(rows, stratum=st)
