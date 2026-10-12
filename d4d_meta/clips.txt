@@ -28,6 +28,7 @@ specimen_1/2025_03_06-17_39_51/Clip_1
 specimen_1/2025_03_06-17_39_51/Clip_2
 specimen_1/2025_03_06-17_39_51/Clip_3
 specimen_1/2025_03_06-17_39_51/Clip_4
+specimen_1/2025_03_06-17_39_51/Clip_5
 specimen_1/2025_03_06-17_43_05/Clip_1
 specimen_1/2025_03_06-17_46_07/Clip_1
 specimen_1/2025_03_06-17_46_07/Clip_2
@@ -196,6 +197,7 @@ specimen_4/2025_06_05-15_43_10/Clip_2
 specimen_4/2025_06_05-15_43_10/Clip_3
 specimen_4/2025_06_05-15_45_18/Clip_1
 specimen_4/2025_06_05-15_45_18/Clip_2
+specimen_4/2025_06_05-15_45_18/Clip_3
 specimen_4/2025_06_05-15_47_04/Clip_1
 specimen_4/2025_06_05-15_47_04/Clip_2
 specimen_4/2025_06_05-15_47_04/Clip_3

@@ -7,8 +7,8 @@ counts the sides of each reason, and `clips.txt`, which lists the clips with a k
 - a list of clips that is empty, holds a clip twice, or holds a line that is not `<specimen>/<session>/<clip>`;
 - a census that does not hold each clip of `--clips` once and in its order, such as a census cut short;
 - a side that carries an `error`, which the census recorded when it failed to measure the side;
-- a field the rule reads that is missing or holds a value of the wrong kind, such as a side with a point
-  cloud and no `active`, whose tissue motion is unknown, or a `NaN`, which no threshold leaves out.
+- a field the rule reads that is missing or holds a value of the wrong kind, such as a `NaN`, which no
+  threshold leaves out.
 
 Usage:
     python -m pipeline.select_d4d_population --census /path/to/census.json \\
@@ -26,8 +26,6 @@ KEEP = "keep"
 # The least `gt_blk_frac` a kept side may have. It leaves out no side of the census; `d4d_meta/README.md`
 # gives the least.
 MIN_GT_BLOCK_FRAC = 0.20
-# A side whose tissue moved is left out. Its point cloud holds one shape, and the frames hold another.
-EXCLUDE_ACTIVE = True
 # The longest time allowed between a side's scan and the frame nearest to it, in seconds.
 MAX_GT_FRAME_GAP_S = 10.0
 
@@ -85,10 +83,6 @@ def check_census(census: list[dict], clips: list[str]) -> None:
             check_bool(s, "present", where)
             if not s["present"]:
                 continue
-            if "active" not in s:
-                raise ValueError(f"{where}: the side has a point cloud and no `active`, so whether the tissue "
-                                 "moved is unknown")
-            check_bool(s, "active", where)
             for name in ("gt_blk_frac", "frame_minus_gt_s"):
                 check_finite(s, name, where)
 
@@ -128,8 +122,6 @@ def classify(side: dict) -> str:
         return "no_gt"
     if side["gt_blk_frac"] < MIN_GT_BLOCK_FRAC:
         return "gt_not_visible"
-    if EXCLUDE_ACTIVE and side["active"]:
-        return "tissue_moving"
     if abs(side["frame_minus_gt_s"]) > MAX_GT_FRAME_GAP_S:
         return "gt_stale"
     return KEEP
@@ -159,8 +151,7 @@ def select(census: list[dict]) -> dict:
         "n_clips_static": len(static),
         "n_sessions_kept": len({"/".join(k["key"].split("/")[:2]) for k in kept}),
         "n_specimens_kept": len({k["specimen"] for k in kept}),
-        "thresholds": {"min_gt_block_frac": MIN_GT_BLOCK_FRAC, "exclude_active": EXCLUDE_ACTIVE,
-                       "max_gt_frame_gap_s": MAX_GT_FRAME_GAP_S},
+        "thresholds": {"min_gt_block_frac": MIN_GT_BLOCK_FRAC, "max_gt_frame_gap_s": MAX_GT_FRAME_GAP_S},
         "sides": kept,
     }
 

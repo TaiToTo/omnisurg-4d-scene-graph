@@ -313,16 +313,19 @@ The stage needs the `stereomis` extra and FFmpeg.
 ## The D4D population
 
 ```bash
+python -m pipeline.d4d_census --root /path/to/D4D/extracted --out /path/to/census.json
 python -m pipeline.select_d4d_population --census /path/to/census.json \
     --clips d4d_meta/census_clips.txt --out d4d_meta
 ```
 
-The D4D measurements score sides, not clips. The step selects the sides by
-the rule in `d4d_meta/README.md`, from a census of their inputs. It writes
+The D4D measurements score sides, not clips. The first step measures each
+side's inputs, the census. It reads D4D through its loader, which the README
+says how to get, and its docstring says what it refuses. The second step
+selects the sides by the rule in `d4d_meta/README.md`. It writes
 `population.json`, which lists the kept sides and counts the sides left out
 for each reason, and `clips.txt`, which lists the clips with a kept side.
 
-The step refuses, before it writes anything:
+The second step refuses, before it writes anything:
 
 - a list of clips that is empty, holds a clip twice, or holds a line that is
   not `<specimen>/<session>/<clip>`;
@@ -331,7 +334,7 @@ The step refuses, before it writes anything:
 - a side that carries an `error`, which the census wrote when it failed to
   measure the side;
 - a field the rule reads that is missing or holds a value of the wrong kind,
-  such as a side with a point cloud and no `active`, or a `NaN`.
+  such as a `NaN`.
 
 ## The depth stage
 

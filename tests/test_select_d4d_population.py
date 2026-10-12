@@ -5,7 +5,7 @@ sessions, and no `specimen`, which the step reads from the key. Each refusal has
 
 - an empty list of clips, a list that holds a clip twice, and a line that is not three names;
 - a census cut short or lacking one clip, a clip the list does not hold, a clip held twice, and clips out of order;
-- a side that carries an `error`, and a side with a point cloud and no `active`;
+- a side that carries an `error`;
 - a field the rule reads that is missing or holds a value of the wrong kind, and a `NaN` in the file.
 
 The files in `d4d_meta/` are checked against one another, against the rule's thresholds, and for
@@ -29,7 +29,7 @@ PRIVATE = re.compile(r"/(home|var/autofs|mnt|Users)/|[぀-ヿ一-鿿！-｠]|[\w
 
 def side(**kw) -> dict:
     """Return a census side that the rule keeps, with the fields in `kw` replaced."""
-    return {"present": True, "gt_blk_frac": 0.5, "frame_minus_gt_s": 4.4, "active": False} | kw
+    return {"present": True, "gt_blk_frac": 0.5, "frame_minus_gt_s": 4.4} | kw
 
 
 def clip(key: str, start: dict, end: dict, moved: bool = False) -> dict:
@@ -40,7 +40,7 @@ def census() -> list[dict]:
     """Return four clips: every reason of the rule, and kept sides of both cameras, two specimens and three sessions."""
     return [
         clip("specimen_1/s_a/Clip_1", side(), side(frame_minus_gt_s=-4.3)),
-        clip("specimen_1/s_a/Clip_2", side(active=True), {"present": False, "active": False}, moved=True),
+        clip("specimen_1/s_a/Clip_2", side(), {"present": False}, moved=True),
         clip("specimen_1/s_b/Clip_1", side(gt_blk_frac=0.1), side(frame_minus_gt_s=12.0), moved=True),
         clip("specimen_2/s_c/Clip_1", side(frame_minus_gt_s=-10.5), side(), moved=True),
     ]
@@ -59,9 +59,8 @@ def write_inputs(tmp_path, c: list[dict], clips: list[str]) -> list[str]:
 
 
 @pytest.mark.parametrize("fields, reason", [
-    ({"present": False, "gt_blk_frac": 0.0, "active": True}, "no_gt"),
-    ({"gt_blk_frac": 0.1, "active": True, "frame_minus_gt_s": 30.0}, "gt_not_visible"),
-    ({"active": True, "frame_minus_gt_s": 30.0}, "tissue_moving"),
+    ({"present": False, "gt_blk_frac": 0.0}, "no_gt"),
+    ({"gt_blk_frac": 0.1, "frame_minus_gt_s": 30.0}, "gt_not_visible"),
     ({"frame_minus_gt_s": -10.5}, "gt_stale"),
     ({"gt_blk_frac": MIN_GT_BLOCK_FRAC, "frame_minus_gt_s": -MAX_GT_FRAME_GAP_S}, "keep"),
 ])
@@ -75,17 +74,18 @@ def test_the_population_lists_the_kept_sides_and_counts_each_reason():
     assert list(population) == ["n_clips_total", "n_sides_total", "exclusions", "n_sides_kept", "n_clips_kept",
                                 "n_clips_moved", "n_clips_static", "n_sessions_kept", "n_specimens_kept",
                                 "thresholds", "sides"]
-    assert list(population["exclusions"].items()) == [("keep", 3), ("tissue_moving", 1), ("no_gt", 1),
-                                                       ("gt_not_visible", 1), ("gt_stale", 2)]
+    assert list(population["exclusions"].items()) == [("keep", 4), ("no_gt", 1), ("gt_not_visible", 1),
+                                                       ("gt_stale", 2)]
     assert population == {
         "n_clips_total": 4, "n_sides_total": 8,
         "exclusions": population["exclusions"],
-        "n_sides_kept": 3, "n_clips_kept": 2, "n_clips_moved": 1, "n_clips_static": 1,
+        "n_sides_kept": 4, "n_clips_kept": 3, "n_clips_moved": 2, "n_clips_static": 1,
         "n_sessions_kept": 2, "n_specimens_kept": 2,
-        "thresholds": {"min_gt_block_frac": 0.2, "exclude_active": True, "max_gt_frame_gap_s": 10.0},
+        "thresholds": {"min_gt_block_frac": 0.2, "max_gt_frame_gap_s": 10.0},
         "sides": [
             {"key": "specimen_1/s_a/Clip_1", "side": "start", "moved_camera": False, "specimen": "specimen_1"},
             {"key": "specimen_1/s_a/Clip_1", "side": "end", "moved_camera": False, "specimen": "specimen_1"},
+            {"key": "specimen_1/s_a/Clip_2", "side": "start", "moved_camera": True, "specimen": "specimen_1"},
             {"key": "specimen_2/s_c/Clip_1", "side": "end", "moved_camera": True, "specimen": "specimen_2"},
         ],
     }
@@ -96,7 +96,7 @@ def test_main_writes_the_population_and_the_clips_with_a_kept_side(tmp_path):
     main(write_inputs(tmp_path, c, keys(c)))
     out = tmp_path / "out"
     assert (out / "population.json").read_text() == json.dumps(select(c), indent=1)
-    assert (out / "clips.txt").read_text() == "specimen_1/s_a/Clip_1\nspecimen_2/s_c/Clip_1\n"
+    assert (out / "clips.txt").read_text() == "specimen_1/s_a/Clip_1\nspecimen_1/s_a/Clip_2\nspecimen_2/s_c/Clip_1\n"
 
 
 def test_a_census_cut_short_is_refused(tmp_path):
@@ -150,21 +150,10 @@ def test_a_side_that_carries_an_error_is_refused():
         check_census(c, keys(c))
 
 
-def test_a_side_with_a_point_cloud_and_no_active_is_refused():
-    # The census left `active` out when it found no record of the tissue's motion, and the rule kept such a side.
-    c = census()
-    del c[3]["end"]["active"]
-    assert classify(side()) == "keep"
-    with pytest.raises(ValueError, match="specimen_2/s_c/Clip_1 end: the side has a point cloud and no `active`"):
-        check_census(c, keys(c))
-
-
 @pytest.mark.parametrize("fields, message", [
     # Without `present`, the rule would count the side as `no_gt`; with the string "false", as one with a point cloud.
     ({"present": MISSING}, r"no `present`"),
     ({"present": "false"}, r"`present` is 'false', not true or false"),
-    ({"active": None}, r"`active` is None, not true or false"),
-    ({"active": 1}, r"`active` is 1, not true or false"),
     ({"gt_blk_frac": MISSING}, r"no `gt_blk_frac`"),
     ({"gt_blk_frac": float("nan")}, r"`gt_blk_frac` is nan, not a finite number"),
     ({"gt_blk_frac": "0.1"}, r"`gt_blk_frac` is '0.1', not a finite number"),
