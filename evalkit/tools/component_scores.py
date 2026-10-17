@@ -33,7 +33,8 @@ from evalkit.objects import Objects, instance_scores
 from evalkit.scored import frame_is_excluded, scored_pixels, valid_depth
 
 # The minimum sizes of a component object, in pixels at the evaluation resolution. Fixed before any condition is
-# scored on them: 0 keeps every piece, 300 is the pilot evaluator's size, 400 the workbench's tracking measures'.
+# scored on them: 0 keeps every piece, 300 is the pilot evaluator's size, 400 the workbench's tracking measures'
+# and the tracking stage's smallest seed region, on the same pixel grid.
 MIN_PX = (0, 100, 300, 400)
 
 # The keys a row holds per minimum size, as `measure/view`, in this order.
@@ -164,13 +165,16 @@ def measure_condition(dataset: str, class_set: str | None, clips: Sequence[str],
     table = load_table(dataset, class_set)
     check_table(table)
     rule = condition_rule(tracks_root, tag, clips, propagation)
+    # Both hashes before any clip is scored: a source file edited during a long run would otherwise label the
+    # values of the code in memory with the hash of the code on disk.
+    tool, sha = tool_sha(__file__), eval_code_sha()
     rows, shas = [], {}
     for clip in clips:
         inputs = read_clip(data_root, tracks_root, tag, clip, table)
         rows.append(measure_clip(inputs, table, min_px))
         shas[clip] = dict(inputs.shas)
     return {
-        "tool_sha": tool_sha(__file__), "eval_code_sha": eval_code_sha(), "dataset": table.dataset,
+        "tool_sha": tool, "eval_code_sha": sha, "dataset": table.dataset,
         "class_set": table.class_set, "views": list(VIEWS), "min_px": list(min_px), "track_dir_name": tag,
         "clips": list(clips), "propagation": rule, "input_shas": shas, "versions": versions(), "per_clip": rows,
     }

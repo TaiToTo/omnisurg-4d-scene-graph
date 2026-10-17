@@ -14,7 +14,7 @@ no check is recorded.
 | evaluator, `evalkit/` | class tables, metrics, entry point, pilot mode | in pilot mode, every key shared with the pilot evaluator equal on 23 conditions × 315 clips, at `eval_code_sha` `a5d7ea46…` |
 | score tools, `evalkit/tools/` | every tool in the layout of `AGENTS.md` | `paired_table`, `arms_paired`, `claims_table`, `leave_one_video_out`, `print_status_tables`, `kmerge`: the workbench's values on the same inputs. `track_metrics` on component tracks: the values of the workbench's functions on random frames at the four sizes, but where two IoUs tie exactly |
 | camera trajectory scorer, `trajectory_eval/` | `pose_metrics`, the scoring of a clip, `pose_controls`, `scores`, `score_stereomis`, `stereomis_table` | `pose_metrics`: the workbench's values on 1200 random, planar and static trajectories. The scoring of a clip, `pose_controls` and `score_stereomis`: the workbench's 387 StereoMIS rows, every value, scored again from its stored outputs. `stereomis_table`, on those rows: the 24 pairs of the workbench's `summary_20.json`, every field |
-| extraction and crop | ATLAS-120k, CholecSeg8k, LapEx, StereoMIS, the D4D population | the CholecSeg8k crop, 13 of the 27 CholecSeg8k clips and the D4D population: the workbench's bytes. LapEx's 735 clips: the workbench's frames and masks, and its manifests apart from `depth_info` |
+| extraction and crop | ATLAS-120k, CholecSeg8k, LapEx, StereoMIS, the D4D census and population | the CholecSeg8k crop and 13 of the 27 CholecSeg8k clips: the workbench's bytes. LapEx's 735 clips: the workbench's frames and masks, and its manifests apart from `depth_info`. The D4D census: every field it writes equal to the workbench's census on the 271 clips. The D4D population: the same bytes from the ported census as from the workbench's |
 | depth | DA3, Pi3X, point clouds, the population drivers | DA3, point clouds and Pi3X: the workbench's bytes on the GPU machine, on three clips. DA3 also on the 25 LapEx clips whose border the workbench did not fill |
 | segmentation and tracking | `track`, `per_frame`, `condition_population` | `track` and `per_frame`: the workbench's bytes on the GPU machine, on three clips. `condition_population`: the workbench's commands, for 43 conditions. The 40 segmenter inputs that `tests/test_render_outputs_are_pinned.py` pins: the workbench's, rendered with each case's ring setting |
 | viewer | `viewer/`, `pipeline/viewer_bundle` | — (new: the workbench's demo read other files) |
@@ -47,9 +47,8 @@ not compared:
   modules they need. Its byte check needs a clip whose tracking labels the
   workbench holds.
 - **The paper's tables**: the claims grid.
-- **D4D**: the census, depth, seeds, the front/behind relation and the
-  camera trajectory. The reader waits on "How this repository depends on
-  D4D's loader".
+- **D4D**: depth, seeds, the front/behind relation and the camera
+  trajectory.
 - **LapEx's comparisons**. They wait on "How LapEx is scored".
 - **The conditions seeded from GT masks** (`t12_gtseed`, `t12_paste`). They
   wait on "Conditions seeded from GT".
@@ -167,6 +166,9 @@ only:
   thousand differs by one level. So frames are compared on one machine.
 - **The ATLAS-120k manifest key `pixel_source`.** The workbench's extractor
   gained it after the GPU machine's clips were extracted.
+- **The D4D population.** The workbench's rule also left out 45 sides as
+  `tissue_moving`, from the tissue's motion at the clip's end nearest the
+  scan. The rule here keeps them: 532 sides where the workbench kept 487.
 - **LapEx's depth.** On 710 of the 735 clips, the workbench filled what it
   took for the endoscope's border and set the depth there to 0. The
   evaluator refuses a frame with depth 0. The depth stage takes the frames
@@ -310,33 +312,6 @@ Each question says what it blocks and where its answer is written.
   `--max-points`, which changes no score. Open: whether the masked
   condition is measured with the port as it is, and whether it is reported;
   and whether `P1__clip_0001`'s Pi3X output is made again. Blocks: the StereoMIS result.
-
-### D4D
-
-- **How this repository depends on D4D's loader.** The workbench imports
-  `d4d.loader` from a clone of https://github.com/reubendocea/d4d at commit
-  `efe12d26`. pip cannot install it: the project's find rule includes only
-  `d4d_surgical*`, while the package is `d4d/`. The repository has no
-  licence file, though its `pyproject.toml` declares MIT. Open: upstream
-  fixes both and an extra pins the commit; a fork carries the fix; or the
-  README says to put the clone on `PYTHONPATH`. Blocks: the census and the
-  D4D reader. Answer in: `pyproject.toml` and the README.
-- **Two inputs of the census whose code no repository holds.** The census
-  reads `moved_camera` from `clip_table.json`, and `active` from
-  `tissue_motion.json`. Scripts in the dataset's directory wrote both
-  files. `detect_tissue_motion.py` passes `cv2.INTER_NEAREST` as
-  `cv2.resize`'s third positional argument, `dst`, so in 11 of the 271
-  clips it resized the instrument masks bilinearly. Whether that changes
-  any `tissue_moving` side is not measured. Open: whether the two
-  scripts are ported or their files kept as data, and whether the motion
-  record is made again. Answer in: `d4d_meta/README.md`.
-- **The tissue's motion when a side was scanned.** The motion record
-  covers the clip only, so `active` is taken at the clip's first moment for
-  `start` and its last for `end`. The scans lie outside the clip, at the
-  median 4.4 s before and 4.3 s after it. The record also stops before a
-  clip's last frame, so no `end` side is `active`. Open: keep this
-  stand-in, written down, or measure the motion up to each scan. Blocks:
-  reporting the D4D numbers. Answer in: `d4d_meta/README.md`.
 
 ### LapEx
 
