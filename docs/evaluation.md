@@ -546,15 +546,15 @@ in two ways and reports both:
 
 - on whole-class objects ("Objects"), each class is one track;
 - on component objects ("Component objects"), at each of the four sizes, a
-  piece joins a track of its class when its IoU with the track's last piece
-  is at least 0.3 and the track has gone at most three GT frames without a
-  piece. The pairs are taken greedily, highest IoU first, each piece and
-  each track once. A piece left over starts a track. These are the
-  workbench's values.
+  piece is linked to a track of its class when its IoU with the track's
+  last piece is at least 0.3 and the track has gone at most three GT frames
+  without a piece. The pairs are taken greedily, highest IoU first, each
+  piece and each track once. A piece left over starts a track. These are
+  the workbench's values.
 
 A track is *present* on a frame when it has an object there. On each frame
 the pairing of "Objects" pairs the tracks' objects with the predicted
-objects, and a hit links a track to a region. On component tracks a
+objects, and a hit pairs a track with a region. On component tracks a
 predicted object is a region with at least the size's pixels. Each measure
 is computed per clip, per view and per kind of track:
 
@@ -588,8 +588,8 @@ Hold starts on the seed frame. The tool refuses:
 - a `per_frame` condition, which has no seed frame;
 - a condition seeded from GT or from outside the tracking stage, which
   holds no propagation rule ("Propagation rule");
-- labels without `seed_info.json`, and a condition whose clips hold two
-  rules.
+- labels without `seed_info.json`;
+- a condition whose clips hold two rules.
 
 Under `both_ways_from_centre` the samples lie before and after the seed
 frame, and under `forward_from_first` after it only; as with every key, the

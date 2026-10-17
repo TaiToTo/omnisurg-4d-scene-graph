@@ -1,13 +1,12 @@
 """Measure how a condition keeps a region on each GT track over time: hold, IDF1, ID switches, fragmentation, re-entry.
 
-A GT track follows one GT object over a clip's GT frames, in one view. The
-tool builds the tracks in two ways: a class's whole region, and component
-objects at each size of `MIN_PX`, linked from frame to frame. It reads the
-clip and pairs the objects with the evaluator's own modules.
+The tool builds the GT tracks in two ways: a class's whole region, and
+component objects at each size of `MIN_PX`, linked from frame to frame. It
+reads the clip and pairs the objects with the evaluator's own modules.
 `docs/evaluation.md` defines the tracks and the measures ("The measures of
 identity"). They are reference values and decide no claim. The tool refuses
-a condition without a seed frame on a scored GT frame. The JSON records the
-tool's hash beside `eval_code_sha`.
+a condition without a seed frame on a scored GT frame. The JSON records
+`eval_code_sha` and the hashes of this file and of `component_scores`.
 
 Usage:
     python -m evalkit.tools.track_metrics --dataset atlas120k --clips atlas120k_meta/clips.txt \\
@@ -17,6 +16,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -41,7 +41,8 @@ from surgical_core.clip_time import frame_times
 # A bin holds the samples above the edge before it, up to its own edge.
 HOLD_BINS_SEC = (0.5, 1.0, 2.0, 4.0, 8.0, float("inf"))
 
-# A piece joins a track of its class when its IoU with the track's last piece is at least this. The workbench's value.
+# A piece is linked to a track of its class when its IoU with the track's last piece is at least this. The
+# workbench's value.
 LINK_IOU = 0.3
 # A track takes a piece again after at most this many GT frames without one. The workbench's value.
 BRIDGE = 3
@@ -314,7 +315,7 @@ def measure_clip(inputs: ClipInputs, table: ClassTable, seed: int, times: np.nda
         raise ValueError(f"{inputs.clip}: the seed frame {seed} is {why}; hold starts on a scored GT frame")
     start = kept.index(seed)
 
-    row: dict = {"clip": inputs.clip, "seed_frame": seed, "n_gt_frames": len(kept),
+    row: dict = {"clip": inputs.clip, "seed_frame": seed, "n_scored_frames": len(kept),
                  "n_excluded_frames": len(gt) - len(kept), "hold_curve": {}, "counts": {},
                  "by_min_px": {str(m): {"hold_curve": {}, "counts": {}} for m in min_px}}
     for view in VIEWS:
@@ -337,6 +338,11 @@ def measure_clip(inputs: ClipInputs, table: ClassTable, seed: int, times: np.nda
             keyed, block["hold_curve"][view], block["counts"][view] = view_measures(frames, start, view)
             block.update(keyed)
     return row
+
+
+def times_sha(times: np.ndarray) -> str:
+    """Return the sha256 of the frame times as float64 seconds, by index."""
+    return hashlib.sha256(np.ascontiguousarray(times, dtype=np.float64).tobytes()).hexdigest()
 
 
 def seed_frames(tracks_root: str | Path, tag: str, clips: Sequence[str]) -> tuple[dict[str, int], str]:
@@ -370,8 +376,9 @@ def measure_condition(dataset: str, class_set: str | None, clips: Sequence[str],
     """Measure one condition on every clip, and return its JSON as a dict.
 
     The JSON records what the evaluator records with a score: `eval_code_sha`, whose modules read the clips
-    and pair the objects, the input hashes and the propagation rule. It also records the hashes of this file and
-    of `component_scores`. It lacks `pilot`, so the score tools refuse it as a score.
+    and pair the objects, the input hashes and the propagation rule. Under `input_shas` it adds each clip's
+    frame times as `times`, which the hold curve bins by. It also records the hashes of this file and of
+    `component_scores`. It lacks `pilot`, so the score tools refuse it as a score.
 
     Raises:
         ValueError, KeyError, FileNotFoundError, RuntimeError: The condition's seeds hold no usable rule
@@ -386,8 +393,9 @@ def measure_condition(dataset: str, class_set: str | None, clips: Sequence[str],
     rows, shas = [], {}
     for clip in clips:
         inputs = read_clip(data_root, tracks_root, tag, clip, table)
-        rows.append(measure_clip(inputs, table, seeds[clip], frame_times(str(data_root), clip), min_px))
-        shas[clip] = dict(inputs.shas)
+        times = frame_times(str(data_root), clip)
+        rows.append(measure_clip(inputs, table, seeds[clip], times, min_px))
+        shas[clip] = {**inputs.shas, "times": times_sha(times)}
     return {
         "tool_sha": tool, "eval_code_sha": sha,
         "dataset": table.dataset, "class_set": table.class_set, "views": list(VIEWS), "min_px": list(min_px),

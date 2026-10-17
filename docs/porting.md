@@ -52,6 +52,9 @@ not compared:
 - **LapEx's comparisons**. They wait on "How LapEx is scored".
 - **The conditions seeded from GT masks** (`t12_gtseed`, `t12_paste`). They
   wait on "Conditions seeded from GT".
+- **The identity table from `track_metrics`.** `print_status_tables
+  --identity` reads the JSON the workbench's `summarize_track12` wrote;
+  nothing builds the table from the JSON `track_metrics` writes.
 - **Two comparisons of the granularity result**: the geometry inputs
   against `rgb` at a matched number of regions, and merges that never join
   two regions across a geometric boundary.
@@ -102,7 +105,7 @@ not compared:
 4. **How the regions are compared.** Decided on 2026-10-12:
    - Every condition is scored on whole-class objects by the evaluator,
      and on component objects at 0, 100, 300 and 400 px by
-     `component_scores` and `track_metrics`.
+     `component_scores`. `track_metrics` measures both kinds of track.
    - The paper describes how each measure moves across these settings,
      not which condition wins. Open: how the questions and primary
      metrics of `docs/evaluation.md` change.

@@ -76,7 +76,7 @@ def test_a_frame_pairs_classes_and_regions_as_the_evaluator_does():
     assert dict(f.ious) == pytest.approx({(LIVER, 0): 1.0, (GALLBLADDER, 1): 0.6, (GALLBLADDER, 2): 0.4})
 
 
-def test_a_view_removes_the_classes_it_leaves_out_and_the_regions_on_them_only():
+def test_a_view_removes_its_left_out_classes_and_their_regions_only():
     pairs = [("LLLLLTTTTT", "0000011111")]
     assert class_frames(pairs)[0].tracks == (LIVER, GRASPER)
     geometric = class_frames(pairs, view="geometric")[0]
@@ -97,6 +97,8 @@ def test_a_track_absent_on_the_seed_frame_gives_no_sample():
     frames = class_frames([("LLLLLLLLLL", "0000000000"), ("LLLLLTTTTT", "0000011111"), ("LLLLLTTTTT", "0000011111")])
     h = hold(frames, seed=0)
     assert (h["hold_all_mean"], h["n_hold_all_samples"], h["n_seed_tracks"]) == (1.0, 2, 1)
+    # The share is over the seed frame's tracks, not the clip's.
+    assert h["picked_share"] == 1.0
 
 
 def test_the_hold_curve_bins_the_picked_samples_by_seconds_from_the_seed():
@@ -123,7 +125,7 @@ def test_hold_is_not_defined_when_the_seed_frame_has_no_class_in_the_view():
     assert (h["hold_mean"], h["hold_all_mean"], h["picked_share"]) == (None, None, None)
 
 
-def test_id_switches_and_fragmentations_walk_each_track_over_the_frames_it_is_present_on():
+def test_switches_and_fragmentations_walk_each_track_where_it_is_present():
     needs_scipy()
     frames = class_frames([
         ("LLLLLGGGGG", "0000012345"),  # L-0; G's regions are 0.2 each, no hit, and none before: nothing
@@ -142,12 +144,23 @@ def test_id_switches_and_fragmentations_walk_each_track_over_the_frames_it_is_pr
     assert ident["IDF1"] == pytest.approx(18 / 38)
 
 
-def test_idf1_takes_the_best_region_for_each_track_over_the_clip_not_the_first_best():
+def test_idf1_gives_each_track_its_best_region_over_the_clip_not_the_first():
     needs_scipy()
     # A-0 together on 3 frames, A-1 on 2, B-0 on 2. Greedy takes A-0 and leaves B nothing: 3. The best is 4.
     a, b = 1, 2
     frames = [FrameTracks(0.0, (a,), {a: 0}, 1, {})] * 3 + [FrameTracks(0.0, (a, b), {a: 1, b: 0}, 2, {})] * 2
     assert id_true_positives(frames) == 4
+
+
+def test_a_hit_after_a_miss_by_another_region_is_a_switch():
+    needs_scipy()
+    frames = class_frames([
+        ("LLLLLLLLLL", "0000000000"),  # L-0
+        ("LLLLLLLLLL", "0123456789"),  # L's regions are 0.1 each, no hit: a fragmentation
+        ("LLLLLLLLLL", "1111111111"),  # L-1: another region than the last hit, a switch
+    ])
+    ident = identity(frames)
+    assert (ident["ID_switches"], ident["fragmentations"]) == (1, 1)
 
 
 def test_idf1_is_not_defined_without_a_gt_object():
@@ -168,9 +181,19 @@ def test_reentry_compares_the_regions_on_either_side_of_a_gap():
     assert reentry(frames) == {"reentry": 0.5, "n_gaps": 2, "n_gaps_recovered": 1, "n_gaps_unmatched": 1}
 
 
-def test_a_piece_joins_the_track_whose_last_piece_it_overlaps():
+def test_a_piece_is_linked_to_the_track_whose_last_piece_it_overlaps():
     # Liver 0-3 then 2-5: IoU 2/6. The gallbladder's 6-9 overlaps its 4-9 at 4/6; its new piece 0-1 starts a track.
     assert link_pieces(pieces_of(["LLLLGGGGGG", "GGLLLLGGGG"])) == [(0, 1), (0, 2, 1)]
+
+
+def test_a_track_is_compared_by_its_last_piece_not_its_first():
+    # The liver drifts 0-3, 2-5, 4-7: IoU 2/6 with the piece before, 0 with the first.
+    assert link_pieces(pieces_of(["LLLLGGGGGG", "GGLLLLGGGG", "GGGGLLLLGG"])) == [(0, 1), (0, 2, 1), (0, 2, 1)]
+
+
+def test_a_piece_at_the_link_iou_exactly_is_linked():
+    # Liver 0-9 then 0-2: IoU 3/10, the threshold itself.
+    assert link_pieces(pieces_of(["LLLLLLLLLL", "LLLGGGGGGG"])) == [(0,), (0, 1)]
 
 
 def test_a_piece_below_the_link_iou_starts_a_track():
@@ -193,6 +216,13 @@ def test_pieces_of_two_classes_never_share_a_track():
 def test_the_piece_with_the_higher_iou_takes_the_track():
     # Liver 0-5, then pieces 0-1 (IoU 2/6) and 3-6 (IoU 3/7): the second keeps the track, the first starts one.
     assert link_pieces(pieces_of(["LLLLLLGGGG", "LLGLLLLGGG"])) == [(0, 1), (2, 0, 3, 1)]
+
+
+def test_equal_ious_keep_the_order_of_the_pieces_then_of_the_tracks():
+    # Liver 0-5, then pieces 0-1 and 4-5 at IoU 2/6 each: the first piece keeps the track.
+    assert link_pieces(pieces_of(["LLLLLLGGGG", "LLGGLLGGGG"])) == [(0, 1), (0, 2, 3, 1)]
+    # Liver 0-2 and 7-9, then 0-9 at IoU 3/10 with each: the earlier track takes it.
+    assert link_pieces(pieces_of(["LLLGGGGLLL", "LLLLLLLLLL"])) == [(0, 1, 2), (0,)]
 
 
 # What the tracker records for the hold scene: a seed on the centre of five frames, carried both ways.
@@ -222,7 +252,7 @@ def test_a_clip_on_disk_gives_the_hand_derived_values_in_every_view(tmp_path):
     summary = measure(tmp_path)
     assert summary["propagation"] == "both_ways_from_centre" and summary["views"] == list(VIEWS)
     row = summary["per_clip"][0]
-    assert (row["seed_frame"], row["n_gt_frames"], row["n_excluded_frames"]) == (2, 5, 0)
+    assert (row["seed_frame"], row["n_scored_frames"], row["n_excluded_frames"]) == (2, 5, 0)
     for view in VIEWS:  # liver and gallbladder are tissue, so every view scores the same pixels
         assert row[f"hold_mean/{view}"] == pytest.approx(0.7)
         assert row[f"hold_all_mean/{view}"] == pytest.approx(0.4)
@@ -294,7 +324,7 @@ def test_a_frame_without_gt_and_an_excluded_frame_leave_no_gap(tmp_path):
     regions = {k: region_map(r) for k, r in enumerate(("0000011111", "0000011111", "0000011111", "2222211111"))}
     write_atlas_clip(tmp_path, gt, [0, 2, 3], regions, FORWARD)
     row = measure(tmp_path, dataset="atlas120k")["per_clip"][0]
-    assert (row["n_gt_frames"], row["n_excluded_frames"]) == (2, 1)
+    assert (row["n_scored_frames"], row["n_excluded_frames"]) == (2, 1)
     # Frames 0 and 3 are consecutive GT frames: the liver's move from 0 to 2 is a switch, and no gap.
     assert row["ID_switches/all"] == 1
     assert (row["counts"]["all"]["n_gaps"], row["counts"]["all"]["n_gaps_unmatched"]) == (0, 0)
@@ -361,6 +391,18 @@ def test_the_json_records_the_hashes_of_the_tool_and_of_component_scores(tmp_pat
     summary = measure(tmp_path)
     assert summary["tool_sha"] == tool_sha(track_metrics.__file__, component_scores.__file__)
     assert summary["min_px"] == [0, 4] and set(summary["per_clip"][0]["by_min_px"]) == {"0", "4"}
+
+
+def test_the_json_records_each_clips_input_hashes_and_its_frame_times(tmp_path):
+    needs_scipy()
+    write_hold_scene(tmp_path)
+    shas = measure(tmp_path)["input_shas"]["VID01_a"]
+    inputs = read_clip(tmp_path / "data", tmp_path / "tracks", "c", "VID01_a", C.TABLE)
+    assert {k: shas[k] for k in inputs.shas} == dict(inputs.shas)
+    # The same frames at other times: the hold curve bins by seconds, so the times are hashed too.
+    write_scene(tmp_path / "later", HOLD_SCENE, BOTH_WAYS, times=[2 * t for t in HOLD_TIMES])
+    later = measure(tmp_path / "later")["input_shas"]["VID01_a"]
+    assert {k: later[k] for k in inputs.shas} == dict(inputs.shas) and later["times"] != shas["times"]
 
 
 def test_the_hashes_are_taken_before_any_clip_is_measured(tmp_path, monkeypatch):
