@@ -451,6 +451,27 @@ def test_the_command_refuses_a_run_whose_pairs_hold_two_rules(tmp_path):
     assert j["pairs"]["pf:both"]["propagation"] == "both_ways_from_centre"
 
 
+def test_the_command_takes_a_run_whose_pairs_differ_in_the_rule_alone(tmp_path):
+    # Each input's two rules make a pair; a third input under one rule alone would mix the table.
+    for tag, name, rule in (("fwd", "rgb_pps24_sam_forward", "forward_from_first"),
+                            ("ctr", "rgb_pps24_sam_centre", "both_ways_from_centre"),
+                            ("n_fwd", "normal_da3_pps24_sam_forward", "forward_from_first"),
+                            ("n_ctr", "normal_da3_pps24_sam_centre", "both_ways_from_centre"),
+                            ("d_fwd", "depth_da3_pps24_sam_forward", "forward_from_first")):
+        j = evaluator_scores(tag, 0.0, 5)
+        j["propagation"], j["track_dir_name"] = rule, f"track_rgb_{name}"
+        (tmp_path / f"{tag}.json").write_text(json.dumps(j))
+    out = tmp_path / "paired.json"
+    run = _run(tmp_path, "--pairs", "fwd:ctr,n_fwd:n_ctr", "--out", str(out))
+    assert run.returncode == 0, run.stderr
+    j = json.loads(out.read_text())
+    assert j["propagation"] == "both_ways_from_centre and forward_from_first"
+    assert j["pairs"]["fwd:ctr"]["propagation"] == "both_ways_from_centre and forward_from_first"
+    run = _run(tmp_path, "--pairs", "fwd:ctr,n_fwd:d_fwd", "--out", str(out))
+    assert run.returncode != 0 and "Traceback" not in run.stderr
+    assert "['d_fwd', 'n_fwd'] lack the condition that differs from them in the rule alone" in run.stderr
+
+
 def test_the_command_writes_no_rule_on_pilot_jsons(tmp_path):
     for tag, shift, seed in (("base", 0.0, 5), ("cond", 0.03, 6)):
         (tmp_path / f"{tag}.json").write_text(json.dumps(pilot_scores(tag, shift, seed)))

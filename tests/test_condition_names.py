@@ -65,6 +65,49 @@ def test_a_name_that_breaks_the_rule_is_refused(name, said):
         CN.parse(name)
 
 
+@pytest.mark.parametrize("dir_name, parts", [
+    ("track_rgb_rgb_pps24_sam_centre", CN.Parts("rgb", None, 24, "sam", "centre")),
+    ("track_rgb_edge_rgb-edge_da3_pps24_sam_forward", CN.Parts("rgb-edge", "da3", 24, "sam", "forward")),
+    ("track_normal_edge_normal-edge_da3_gt_centre", CN.Parts("normal-edge", "da3", None, "gt", "centre")),
+])
+def test_a_label_directory_names_its_condition(dir_name, parts):
+    assert CN.parse_label_dir(dir_name) == parts
+
+
+@pytest.mark.parametrize("dir_name, said", [
+    ("rgb_pps24_sam_centre", "no label directory"),
+    ("track_rgb_edge_da3_pps24_sam_forward", "'da3' is no input"),
+    ("track_rgb_", "no label directory"),
+])
+def test_a_directory_that_names_no_condition_is_refused(dir_name, said):
+    with pytest.raises(ValueError, match=said):
+        CN.parse_label_dir(dir_name)
+
+
+@pytest.mark.parametrize("a, b", [
+    ("rgb_pps24_sam_forward", "normal_da3_pps24_sam_forward"),
+    ("rgb_pps24_sam_forward", "normal_da3_pps24_perframe"),
+    ("rgb_pps24_perframe", "normal_da3_pps24_sam_centre"),
+    ("rgb_pps24_sam_forward", "rgb_pps24_sam_centre"),
+    ("normal-edge_da3_pps24_sam_centre_keepring", "normal-edge_da3_pps24_sam_forward_keepring"),
+])
+def test_two_rules_pass_with_a_per_frame_condition_or_on_the_rule_alone(a, b):
+    CN.check_rules(CN.parse(a), CN.parse(b))
+    CN.check_rules(CN.parse(b), CN.parse(a))
+
+
+@pytest.mark.parametrize("a, b, differ", [
+    ("rgb_pps24_sam_forward", "normal_da3_pps24_sam_centre", "['input', 'depth']"),
+    ("rgb_pps24_sam_forward", "rgb_pps8_sam_centre", "['points_per_side']"),
+    ("rgb_pps24_sam_forward", "rgb_pps24_kmerge8_centre", "['seed']"),
+    ("rgb-edge_da3_pps24_sam_forward", "rgb-edge_da3_pps24_sam_centre_keepring", "['settings']"),
+])
+def test_two_rules_on_conditions_that_differ_in_another_part_are_refused(a, b, differ):
+    with pytest.raises(ValueError, match="in the rule alone") as e:
+        CN.check_rules(CN.parse(a), CN.parse(b))
+    assert f"differ in {differ} too" in str(e.value)
+
+
 def test_the_rules_are_the_ones_a_score_records():
     assert set(CN.RULES.values()) == set(PROPAGATION_RULES)
 

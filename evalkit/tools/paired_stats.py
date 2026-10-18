@@ -38,7 +38,7 @@ import numpy as np
 
 from evalkit.tools.scores import (
     check_comparable,
-    check_one_rule,
+    check_table_rules,
     defined_clips,
     is_pilot_json,
     load_scores,
@@ -474,11 +474,11 @@ def main() -> None:
     except (ValueError, OSError) as e:
         raise SystemExit(f"--pairs: {e}") from e
 
-    # One rule for the whole run, because all its pairs go into one JSON.
-    # Checking each pair misses a mix: a per_frame condition paired once
-    # with each rule passes both checks.
+    # One rule for the whole run, or two rules in their pairs, because all
+    # its pairs go into one JSON. Checking each pair misses a mix: a
+    # per_frame condition paired once with each rule passes both checks.
     try:
-        rule = check_one_rule(loaded)
+        rule = check_table_rules(loaded)
     except ValueError as e:
         raise SystemExit(f"--pairs: {e}") from e
 

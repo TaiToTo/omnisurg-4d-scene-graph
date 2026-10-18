@@ -594,7 +594,7 @@ Hold starts on the seed frame. The tool refuses:
 
 Under `both_ways_from_centre` the samples lie before and after the seed
 frame, and under `forward_from_first` after it only; as with every key, the
-two rules are not compared.
+two rules are compared only between conditions that differ in the rule alone.
 
 The workbench measured a fault in four of the measures, on component tracks
 of 400 px:
@@ -698,7 +698,8 @@ Two scores are comparable only when all of these requirements hold:
 - they read the same GT masks, depth maps, crop rectangle and frame order:
   both record a hash of each of these in `input_shas`, and every hash but
   the predictions' is equal;
-- they share a propagation rule, or one of them is `per_frame`.
+- they share a propagation rule, or one of them is `per_frame`, or they
+  differ in the rule alone.
 
 Pilot JSONs record no input hashes and no propagation rule, so between two
 of them only the ruler and the clips are compared.
@@ -706,17 +707,24 @@ of them only the ruler and the clips are compared.
 The same `eval_code_sha` is not enough on its own. Pilot mode and the
 normal mode share it, and so do the views.
 
-Conditions under two different propagation rules are never compared. The
-difference between the rules would look like a difference between the
-methods. A `per_frame` condition is the exception: it may be compared with
-a condition of either rule. The paper compares tracking with per-frame
-segmentation. So one table holds one rule, plus any `per_frame` conditions.
+Conditions under two different propagation rules are compared only when
+they differ in the rule alone: their names (`condition_names`, read from the
+`track_dir_name` each score records) are equal in every other part. In any
+other pair, the difference between the rules would look like a difference
+between the methods. A `per_frame` condition is the exception: it may be
+compared with a condition of either rule. The paper compares tracking with
+per-frame segmentation, and the two rules with each other. So one table
+holds one rule, or two rules where every condition has, in the table, the
+condition that differs from it in the rule alone; `per_frame` conditions
+may go in either. A pair or a table of two rules records both as
+`propagation`, joined by ` and `.
 
 The tools enforce this:
 
 - `compare_eval` refuses a pair that is not comparable.
 - `paired_stats` refuses such a pair too, and a table that holds two rules
-  other than `per_frame`.
+  other than `per_frame` where a condition lacks the one that differs from
+  it in the rule alone.
 - `paired_table` and `arms_paired` refuse a table that holds two
   conditions that are not comparable.
 - `claims_table` refuses a column in which any two score JSONs are not
