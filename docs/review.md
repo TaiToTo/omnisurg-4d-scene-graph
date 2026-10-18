@@ -13,7 +13,7 @@ which test refuses a breach.
 |---|---|
 | no `TODO`, `FIXME`, `XXX`, `HACK` in a tracked file, the planning documents and this page excepted | `tests/test_no_todo_in_code.py` |
 | a module's header is at most `HEADER_LINES` lines, and a listed long module is not added after the fact | `tests/test_module_headers_are_short.py` |
-| no mark (`★`, `✗`) printed without borrowing `paired_stats.mark_of`, none decided by a p-value | `tests/test_paired_stats.py` |
+| no mark (`★`, `✗`) printed without borrowing `paired_stats.mark_of`, none decided by a p-value | `tests/test_mark_rule.py` |
 | no personal address in the history or in a tracked file | `tests/test_no_personal_email.py` |
 
 A rule without a test in this table is checked by the reviewer.

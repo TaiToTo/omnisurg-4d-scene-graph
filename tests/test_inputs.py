@@ -52,15 +52,47 @@ def test_without_timestamps_the_frames_are_ordered_by_their_number(tmp_path):
     assert read(tmp_path).order == (1, 3, 0, 2)
 
 
-def test_each_fingerprint_moves_with_its_own_input_only(tmp_path):
-    clip_with_labels(tmp_path)
+def another_gt_mask(tmp_path):
+    big = np.kron(C.two_organs(cut=3), np.ones((2, 2), dtype=np.int32))
+    Image.fromarray(C.colour_mask(big)).save(tmp_path / "data" / "c" / MASK_DIR / f"000002{C.MASK_SUFFIX['cholecseg8k']}")
+
+
+def another_depth(tmp_path):
+    np.savez(tmp_path / "data" / "c" / DEPTH_FILE, depth=np.full((4, 20, 30), 2.0, dtype=np.float32))
+
+
+def another_crop(tmp_path):
+    path = tmp_path / "data" / "c" / MANIFEST
+    m = json.loads(path.read_text())
+    m["crop_info"]["x0"] += 1
+    path.write_text(json.dumps(m))
+
+
+def another_time_order(tmp_path):
+    path = tmp_path / "data" / "c" / MANIFEST
+    m = json.loads(path.read_text())
+    m["frames"][1]["timestamp_sec"], m["frames"][2]["timestamp_sec"] = (
+        m["frames"][2]["timestamp_sec"], m["frames"][1]["timestamp_sec"])
+    path.write_text(json.dumps(m))
+
+
+def another_prediction_on_a_frame_without_gt(tmp_path):
+    np.save(tmp_path / "tracks" / "c" / TAG / "label_0001.npy", np.zeros((40, 60), dtype=np.int16))
+
+
+@pytest.mark.parametrize("name, plant", [
+    ("gt_masks", another_gt_mask), ("depth", another_depth), ("crop", another_crop),
+    ("frames", another_time_order), ("predictions", another_prediction_on_a_frame_without_gt),
+])
+def test_each_fingerprint_moves_with_its_own_input_only(tmp_path, name, plant):
+    clip_with_labels(tmp_path, gt_frames=[0, 2, 3])
     before = dict(read(tmp_path).shas)
     assert set(before) == {"gt_masks", "depth", "crop", "frames", "predictions"}
     with np.load(tmp_path / "data" / "c" / DEPTH_FILE) as z:
         assert before["depth"] == hashlib.sha256(z["depth"].astype(np.float32).tobytes()).hexdigest()
-    np.save(tmp_path / "tracks" / "c" / TAG / "label_0001.npy", np.zeros((40, 60), dtype=np.int16))
+    plant(tmp_path)
     after = dict(read(tmp_path).shas)
-    assert {k for k in before if before[k] != after[k]} == {"predictions"}
+    assert {k for k in before if before[k] != after[k]} == {name}
 
 
 def test_the_depth_fingerprint_is_the_depth_manifest_s():

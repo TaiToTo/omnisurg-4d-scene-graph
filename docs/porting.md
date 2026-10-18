@@ -122,8 +122,9 @@ not compared:
 ## Remaining steps
 
 1. **Re-score.** Score every condition's predictions with the evaluator.
-   `condition_inventory` must then report no condition missing and no two
-   that are not comparable. After any change to a hashed file, the
+   `condition_inventory` must then report no problem. Its header lists the
+   problems it checks, a score on fewer clips than its labels among them.
+   After any change to a hashed file, the
    check against the pilot evaluator runs again before anything is
    re-scored.
 2. **Port what is not ported yet.**

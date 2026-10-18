@@ -152,6 +152,15 @@ def test_the_command_lists_only_the_clips_where_the_primary_metric_is_defined(tm
     assert a["per_clip"][0]["clip"] not in r.stdout
 
 
+def test_the_command_takes_scores_without_a_sha_only_when_told(tmp_path):
+    a, b = pilot_scores("base", 0.0, 5), pilot_scores("cond", 0.03, 6)
+    del a["eval_code_sha"], b["eval_code_sha"]
+    r = run(tmp_path, a, b)
+    assert r.returncode != 0 and "pass --allow-legacy-code knowingly" in r.stderr
+    r = run(tmp_path, a, b, "--allow-legacy-code")
+    assert r.returncode == 0 and "eval_code=legacy-unverified" in r.stdout
+
+
 def test_an_evaluator_json_without_the_geometric_view_has_no_default_key():
     with pytest.raises(ValueError, match="no geometric view"):
         CE.primary_key(evaluator_scores(views=("all",)))
