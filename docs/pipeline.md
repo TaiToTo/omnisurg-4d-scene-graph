@@ -10,32 +10,30 @@ the earlier stages wrote into the clip.
 
 ## Contents
 
-![The pipeline in five bands, in the order they run: 1, one extraction stage per dataset writes a clip's input_images, seg_masks and frame_manifest.json, and D4D's census selects its sides; 2, DA3 and Pi3X write depth, camera poses and point clouds, which trajectory_eval scores on StereoMIS; 3, the tracking and per-frame stages write a label map per frame and seed_info.json, which evalkit.evaluate scores against seg_masks; 4, the export stage writes the regions, the scene graphs per frame and through time, and the hierarchy into pc_vis; 5, the viewer bundle stage writes the static files the web page reads.](figures/pipeline_map.png)
+The stages, in the order they run. A stage writes into the clip, unless the
+path names another directory; [A clip](#a-clip) says what a clip holds.
 
-[A clip](#a-clip) says what the stages read and write. The stages, in the
-order they run:
+| step | stage | runs as | writes |
+|---|---|---|---|
+| 1 · extract the clips | [ATLAS-120k](#the-atlas-120k-extraction-stage) | `pipeline.extract_atlas120k` | `input_images/`, `seg_masks/`, `frame_manifest.json` |
+| | [CholecSeg8k](#the-cholecseg8k-extraction-stage) | `pipeline.extract_cholecseg8k` | the same |
+| | [CholecSeg8k's crop](#the-cholecseg8k-crop-stage) | `pipeline.crop_cholecseg8k` | a cropped copy, `<clip>_crop/`, with `crop_info.json` |
+| | [LapEx](#the-lapex-extraction-stage) | `pipeline.extract_lapex` | the same, one frame per clip |
+| | [StereoMIS](#the-stereomis-extraction-stage) | `pipeline.extract_stereomis` | `input_images/`, `frame_manifest.json`; no GT masks |
+| | [the D4D population](#the-d4d-population) | `pipeline.d4d_census`, then `pipeline.select_d4d_population` | the census; `d4d_meta/population.json` and `clips.txt` |
+| 2 · depth and camera poses | [DA3](#the-depth-stage) | `pipeline.depth` | `exports/mini_npz/results.npz`, `depth_raw/`, `depth_vis/`, `pc_vis/frame_NNNN.glb` |
+| | [the point clouds](#the-point-cloud-stage) | `pipeline.point_clouds` | `pc_vis/frame_NNNN.glb` |
+| | [Pi3X](#the-pi3x-stage) | `pipeline.pi3x` | DA3's names, with `__pi3x` |
+| 3 · regions | [tracking](#the-tracking-stage): one frame segmented, its regions followed | `pipeline.track` | `<tracks-root>/<clip>/track_<base>_<tag>/`: `label_NNNN.npy`, `seed_info.json` |
+| | [per-frame](#the-per-frame-segmentation-stage): every frame segmented on its own | `pipeline.per_frame` | `<tracks-root>/<clip>/track_rgb_<tag>/`: the same files |
+| 4 · the conditions | [one condition on every clip](#a-condition-on-every-clip-of-a-population) | `pipeline.condition_population` | the stage's files, for every clip |
+| | [the experiment plan](#the-experiment-plan) | `pipeline.experiment_plan` | nothing: it checks the plan and prints commands |
+| | [the granularity conditions](#the-granularity-conditions) | `pipeline.per_frame`, `evalkit.tools.kmerge`, `pipeline.track` | conditions merged to K regions |
+| 5 · the viewer | [the viewer bundle](#the-viewer-bundle-stage) | `pipeline.viewer_bundle` | `<out>/catalog.json`, `<out>/<clip>/` |
 
-1. Extract the clips from a dataset's release:
-   [ATLAS-120k](#the-atlas-120k-extraction-stage),
-   [CholecSeg8k](#the-cholecseg8k-extraction-stage) and
-   [its crop](#the-cholecseg8k-crop-stage),
-   [LapEx](#the-lapex-extraction-stage) and
-   [StereoMIS](#the-stereomis-extraction-stage).
-   [The D4D population](#the-d4d-population) selects D4D's sides instead.
-2. Estimate depth and camera poses: [DA3](#the-depth-stage), with
-   [its point clouds](#the-point-cloud-stage), and
-   [Pi3X](#the-pi3x-stage).
-3. Segment the frames into regions: [the tracking stage](#the-tracking-stage)
-   segments one frame and follows its regions through the clip, and
-   [the per-frame stage](#the-per-frame-segmentation-stage) segments every
-   frame on its own.
-4. Make the conditions that the paper compares:
-   [one condition on every clip](#a-condition-on-every-clip-of-a-population),
-   [the experiment plan](#the-experiment-plan) and
-   [the granularity conditions](#the-granularity-conditions).
-5. Write the viewer's files: [the viewer bundle stage](#the-viewer-bundle-stage).
-
-The evaluator scores the regions of step 3 (`docs/evaluation.md`).
+The viewer bundle stage reads the scene graphs that the export stage writes
+into `pc_vis/`. The evaluator scores the labels of step 3 against
+`seg_masks/` (`docs/evaluation.md`).
 [The StereoMIS camera trajectory scores](#the-stereomis-camera-trajectory-scores)
 score the camera poses of step 2.
 
