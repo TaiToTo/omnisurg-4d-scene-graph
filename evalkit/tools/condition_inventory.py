@@ -2,12 +2,14 @@
 
 Reads the provenance the pipeline writes beside each clip's labels
 (`seed_info.json`) and the score JSONs, prints a table per root, and
-exits non-zero on a problem: a tag whose clips were made under more than
-one condition; a condition missing clips or labels the others have; a
-score whose labels are gone, two scores on one label directory, or a
-score on other clips than its labels hold; with `--require-scored`
-labels nobody scored; and scores in one directory that
-`scores.check_comparable` would not compare with one another. Terms as in `docs/evaluation.md`.
+exits non-zero on any of these problems:
+- a tag whose clips were made under more than one condition, or whose provenance is missing or unreadable;
+- a condition missing clips or labels the others have;
+- a score whose label directory is gone, or that scored other clips than that directory holds;
+- two scores in one score directory that name one label directory;
+- scores in one score directory that `scores.check_comparable` would not compare with one another;
+- with `--require-scored`, a label directory nobody scored.
+Terms as in `docs/evaluation.md`.
 
 Usage:
     python -m evalkit.tools.condition_inventory \\
@@ -486,9 +488,10 @@ def inventory(roots: Sequence[tuple[str, str, str]], require_scored: bool = Fals
         check_root_exists(tr, ev)
 
     # The scores of every root, read once: a score can name labels under another root.
+    # Each is kept by its path: two score directories can each hold a JSON of one name.
     evals = {ev: read_evals(ev) for _, ev, _ in roots if ev}
-    all_evals = {k: e["dir"] for evs in evals.values() for k, e in evs.items()}
-    scored_dirs = set(all_evals.values())
+    scores = [(os.path.join(ev, f"{t}.json"), e) for ev, evs in evals.items() for t, e in sorted(evs.items())]
+    scored_dirs = {e["dir"] for _, e in scores}
 
     # Each root's table and problems, its label counts per clip and tag, and
     # the clips with a label under each tag.
@@ -508,29 +511,31 @@ def inventory(roots: Sequence[tuple[str, str, str]], require_scored: bool = Fals
                 cover[clip][f"{title}/{t}"] = n
 
     # Scores whose labels are gone, matched by directory name across roots.
-    orphan = sorted(t for t, d in all_evals.items() if d not in seen_tags)
+    orphan = [p for p, e in scores if e["dir"] not in seen_tags]
     if orphan:
         problems.append(f"{len(orphan)} scores have no labels: {orphan}")
-    # Two scores on one label directory: one of them is stale or misnamed,
-    # and a set of scored directories would count the labels as scored once.
+    # Two scores in one score directory that name one label directory: one of them is stale or misnamed.
+    # Two score directories may each score one label directory, as a second class set or pilot mode does.
     by_dir = collections.defaultdict(list)
-    for t, d in sorted(all_evals.items()):
-        by_dir[d].append(t)
-    for d, tags in sorted(by_dir.items()):
-        if len(tags) > 1:
-            problems.append(f"{len(tags)} scores name the labels {d}: {tags}; a label directory is scored once")
-    # A score on other clips than its labels hold: a re-score that stopped
-    # half-way, or one run on a stale population, reads as complete otherwise.
-    for evs in evals.values():
+    for ev, evs in evals.items():
         for t, e in sorted(evs.items()):
-            if e["dir"] not in label_clips:
-                continue
-            scored, held = set(clips_of(e["summary"])), label_clips[e["dir"]]
-            if scored != held:
-                missing, extra = sorted(held - scored), sorted(scored - held)
-                problems.append(f"{t}: scored {len(scored)} clips where the labels {e['dir']} hold {len(held)}"
-                                f"{' (unscored ' + str(missing) + ')' if missing else ''}"
-                                f"{' (without labels ' + str(extra) + ')' if extra else ''}")
+            by_dir[(ev, e["dir"])].append(t)
+    for (ev, d), tags in sorted(by_dir.items()):
+        if len(tags) > 1:
+            problems.append(f"{ev}: {len(tags)} scores name the label directory {d}: {tags}; "
+                            "one score directory holds one score per label directory")
+    # A score on other clips than its label directory holds: a re-score that
+    # stopped half-way, or one run on a stale population, reads as complete otherwise.
+    for p, e in scores:
+        if e["dir"] not in label_clips:
+            continue
+        scored, held = set(clips_of(e["summary"])), label_clips[e["dir"]]
+        if scored != held:
+            missing, extra = sorted(held - scored), sorted(scored - held)
+            problems.append(f"{p}: scored {len(scored)} clips where the label directory {e['dir']} holds labels "
+                            f"on {len(held)}"
+                            f"{' (unscored ' + str(missing) + ')' if missing else ''}"
+                            f"{' (without labels ' + str(extra) + ')' if extra else ''}")
     # Labels nobody scored.
     unscored = sorted(t for t in seen_tags if t not in scored_dirs and t != VIZ_DIR)
     if unscored:
@@ -580,7 +585,7 @@ def main() -> None:
         for p in problems:
             print(f"  - {p}")
         sys.exit(1)
-    print("no problem: no mixed condition, no missing clip, every score comparable with the others")
+    print("no problem: none of the problems --help lists was found")
 
 
 if __name__ == "__main__":

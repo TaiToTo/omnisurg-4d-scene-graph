@@ -4,7 +4,7 @@ A star is decided by `paired_stats.mark_of` and nothing else: never by a
 p-value, never by a truth value that has dropped the direction, and never
 printed by a module that does not borrow `mark_of`. Each scan is shown to
 catch a planted fault, and to let the allowed forms through. The scans need
-no library beyond the standard one, so they run in every CI job.
+no library beyond the standard one, so they run without the extras too.
 """
 import ast
 import subprocess
