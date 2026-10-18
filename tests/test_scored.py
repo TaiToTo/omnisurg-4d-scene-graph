@@ -33,8 +33,8 @@ def atlas():
 
 # CholecSeg8k: 0 Black Background (ignored), 1 Abdominal Wall (backdrop),
 # 2 Liver (tissue), 5 Grasper (tool), 7 Blood (appearance), 8 Cystic Duct
-# (expert), 13 the region line (ignored). Each ten columns; 30 of liver.
-CHOLEC = [0, 1, 2, 2, 2, 5, 7, 8, 13, 2]
+# (expert). Each ten columns; 30 of liver, 20 of the black surround.
+CHOLEC = [0, 1, 2, 2, 2, 5, 7, 8, 0, 2]
 
 
 def test_the_all_view_scores_every_class_that_is_not_ignored(cholec):
@@ -68,6 +68,14 @@ def test_in_pilot_mode_invalid_depth_is_counted_first_and_the_counts_sum_to_the_
     assert s.counts == PixelCounts(invalid_depth=3000, ignored=600, background=0, left_out=1200, scored=1200)
     assert s.counts.total == H * W
     assert not s.mask[:30].any()
+
+
+@pytest.mark.parametrize("pilot", [False, True])
+def test_a_filled_class_the_reader_did_not_fill_is_refused(cholec, pilot):
+    # 13 is the region line, which `evalkit.fill` fills before a frame is scored; no view would say where
+    # its pixels went.
+    with pytest.raises(ValueError, match=r"mask id \[13\] is of a filled class"):
+        scored_pixels(columns(CHOLEC[:8] + [13, 2]), cholec, "all", ALL, pilot=pilot)
 
 
 def test_in_normal_mode_a_pixel_without_valid_depth_refuses_the_frame(cholec):

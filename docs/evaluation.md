@@ -108,7 +108,7 @@ found in the code. A module's docstring says what it returns.
   table the same way for both datasets: the table gives every id a mask can
   hold its colour. CholecSeg8k's masks store colours. ATLAS-120k's store its
   47 original ids, as palette images read by their index, and in 34 clips as
-  colours.
+  colours. The pixels of a `filled` class are then filled ("Class types").
 - **Prediction.** One region id per pixel, from tracking, with no class; −1
   means no region. The evaluator never reads a class from the pipeline. Each
   condition gives one prediction per clip.
@@ -270,7 +270,8 @@ the end:
 
 | type | meaning | scored |
 |---|---|---|
-| `ignored` | outside the field of view, or not a class at all | never: removed from the GT and the prediction alike |
+| `ignored` | outside the field of view | never: removed from the GT and the prediction alike |
+| `filled` | not a class: a line or gap the annotation leaves between two regions | never as itself: each pixel takes the class of the nearest region before any view is taken, and is counted |
 | `background` | inside the view, labelled as nothing: unlabelled anatomy, and in ATLAS-120k's benchmark classes the ids the 30-class mapping drops | never: removed like `ignored`, so a region lying on it is neither an object nor a false positive (see the views below) |
 | `excluded` | a marker that takes the whole frame out of evaluation | the frame is skipped, and counted |
 | `tool` | an instrument, or another object that is not anatomy (ATLAS-120k's catheters and non-anatomical structures) | in the `all` view only |
@@ -282,12 +283,20 @@ the end:
 `expert` and `backdrop` came out of looking at every ATLAS-120k class in the
 masks: many classes were neither shape nor colour, but one of these two.
 
+The fill gives each pixel of a `filled` class the id of the nearest pixel of
+another class. Nearness counts steps between 4-neighbours, and of several
+ids equally near, the pixel takes the smallest. The fill runs on the mask
+as stored, before it is resized, where CholecSeg8k's line is 1 px wide. A
+row of the score counts the filled pixels at the depth map's shape, per
+frame and in all, as `filled_pixels`. Pilot mode does not fill: it reads
+CholecSeg8k's line as background, as the pilot evaluator did.
+
 ### Views
 
 Every metric but `time_IoU` is computed over each of three views, the same
 way:
 
-- `all`: every class that is not `ignored`, `background` or `excluded`
+- `all`: every class that is not `ignored`, `background`, `excluded` or `filled`
 - `tissue`: the same, without `tool`
 - `geometric`: `tissue` classes only
 
@@ -326,6 +335,12 @@ geometric view scores; 6 % of frames have one, and the median spot is 24 px. In 
 6 of 21,093 frames have one, holding 0.008 % of the `appearance` pixels.
 Removing and filling differ on almost no pixel, so nothing is counted for
 the difference.
+
+A `filled` class is filled, not removed, because it is no class at all: a
+line or gap the annotation leaves between two classes, most of whose pixels
+lie within 2 px of one. Removed, it would take with it the GT boundary it
+lies on, since an edge against a removed pixel is no boundary
+("Boundaries").
 
 #### Background
 
@@ -644,8 +659,8 @@ instead ("Component objects").
 - The CholecSeg8k table maps (0, 50, 128) to Hepatic Vein. The dataset's
   watershed codes settle it (`docs/pilot_evaluator.md`, "What the pilot
   evaluator's handling changes, measured on the GT").
-- (255, 255, 255), the line CholecSeg8k draws between regions, and
-  CholecSeg8k's Black Background are `ignored`.
+- CholecSeg8k's Black Background is `ignored`. (255, 255, 255), the line
+  CholecSeg8k draws between regions, is `filled`.
 - `Excluded frames` is checked on ATLAS-120k's original ids, before they are
   mapped to the 30 classes, which would turn it into background. In a mask
   stored as colours it cannot be seen: its colour in the dataset's palette is
@@ -654,15 +669,16 @@ instead ("Component objects").
   refused. The marker occurs in no palette mask of the release, and no colour
   mask is background alone.
 - Nothing is dropped without a count: skipped frames, ignored, background and
-  invalid pixels, the pixels each view removes, and the frames a metric is not
-  defined on are counted in the JSON. A removed pixel is counted once, by the
-  first reason that removes it, in this order: invalid depth, then `ignored`,
-  then `background`, then a class the view leaves out. So a frame's counts
-  are disjoint and sum to its pixels. Invalid depth is counted in pilot mode
-  only, since normal mode refuses a frame with invalid depth. In pilot mode,
-  a black corner without depth counts as invalid depth, not as ignored. The
-  order is a convention: another one would change the counts and no score,
-  but the JSON is read against this one.
+  invalid pixels, the pixels each view removes, the filled pixels, and the
+  frames a metric is not defined on are counted in the JSON. A removed pixel
+  is counted once, by the first reason that removes it, in this order:
+  invalid depth, then `ignored`, then `background`, then a class the view
+  leaves out. So a frame's counts are disjoint and sum to its pixels.
+  Invalid depth is counted in pilot mode only, since normal mode refuses a
+  frame with invalid depth. In pilot mode, a black corner without depth
+  counts as invalid depth, not as ignored. The order is a convention:
+  another one would change the counts and no score, but the JSON is read
+  against this one.
 
 ### Recorded with every score
 
@@ -688,9 +704,10 @@ A score JSON holds those fields, `clips` (the population, in its order),
 and one row per clip under `per_clip`. A row holds the clip's name, every
 key (`metric/view`, then `time_IoU`), and the counts behind them: `n_frames`,
 the frames each key's mean covers, by key; the scored and excluded frames;
-`pixels`, where each view's pixels went; and `objects`, the GT objects,
-predicted objects, hits and hits that entered `inst_BF`, per view. Its
-`frames` keeps every GT frame's values, by frame number, in time order.
+`filled_pixels`, the GT pixels the fill gave a class; `pixels`, where each
+view's pixels went; and `objects`, the GT objects, predicted objects, hits
+and hits that entered `inst_BF`, per view. Its `frames` keeps every GT
+frame's values and `filled_pixels`, by frame number, in time order.
 
 Two scores are comparable only when all of these requirements hold:
 
@@ -823,13 +840,19 @@ Every class was looked at in the masks, as for ATLAS-120k:
 | 10 | Gallbladder | (255, 160, 165) | tissue |
 | 11 | Hepatic Vein | (0, 50, 128) | expert |
 | 12 | Liver Ligament | (111, 74, 0) | tissue |
-| 13 | Region line | (255, 255, 255) | ignored: the line drawn between regions. Not a class of the dataset; the table gives it an id so that a GT id map can hold it, and nothing scores it |
+| 13 | Region line | (255, 255, 255) | filled: the 1 px line drawn between regions. Not a class of the dataset; the table gives it an id so that a GT id map can hold it, and the fill gives each of its pixels the nearest region's class |
 
 Cystic Duct is `expert`, as ATLAS-120k's Cystic duct is: the class ends where
 the anatomical stretch ends. Only ATLAS-120k's benchmark, which merges the
 ducts into Bile/lymph duct, types them `tissue`. Hepatic Vein is `expert` because telling it from other
 vessels takes anatomical knowledge. Neither moves much: Cystic Duct occurs in 3
 of the 17 videos, Hepatic Vein in 1.
+
+Most of the Region line is the image's outer pixel, which the crop removes.
+In the 27 clips of `cholecseg8k_meta/`, what is left lies on 131 of the 522
+GT frames, most of it in video43 and video52. Ignored, the line took the GT boundary
+there with it; filled, it gives 180,715 pixels a class at the depth map's
+shape.
 
 ### ATLAS-120k: ids, classes and colours
 
