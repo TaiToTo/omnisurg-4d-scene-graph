@@ -11,8 +11,8 @@ it, and the evaluator computes no other measure over time
 Unlike the other metrics it is one number per clip: the IoUs of every
 (id, frame pair) are pooled over all tracked frames, with or without GT, and
 averaged. The frames come in time order, which the caller settles from the
-timestamps: in 11 of the 27 CholecSeg8k clips the frame numbers do not
-follow time.
+timestamps: in 11 of the pilot's 27 CholecSeg8k clips the frame numbers do
+not follow time.
 
 Pilot mode orders the frames exactly as the pilot evaluator did, by
 `sorted()` of the `label_*.npy` file names. That sorts the names as text,

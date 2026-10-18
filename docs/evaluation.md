@@ -133,8 +133,9 @@ found in the code. A module's docstring says what it returns.
   input size: the longest side scaled to 504 px, then each side rounded to the
   nearest multiple of 14.
 - **Time.** Frames are ordered by their timestamps, not by their file names: in
-  11 of the 27 CholecSeg8k clips the frame numbers do not follow time. A
-  dataset that gives no timestamps, ATLAS-120k, is ordered by frame number.
+  11 of the pilot's 27 CholecSeg8k clips the frame numbers do not follow
+  time. A dataset that gives no timestamps, ATLAS-120k, is ordered by frame
+  number.
   A clip in which two frames share a time, or only some frames have one, is
   refused, since the order of its frames is unknown.
 - **Clips and videos.** Which clips enter a measurement is data, kept in
@@ -226,7 +227,9 @@ scene.
 #### Component objects
 
 `evalkit/tools/component_scores` scores every condition on a second kind of
-object as well, as reference values that decide no claim:
+object as well, and `evalkit/tools/track_metrics` follows it over time
+("The measures of identity"). Both give reference values that decide no
+claim:
 
 - a GT object is one 8-connected piece of one class's scored pixels;
 - a predicted object is one region's scored pixels, whole: a region that
@@ -529,37 +532,80 @@ GT, and the workbench measured three faults in it:
 
 `temporal_f1`, built to close the second fault, keeps the first.
 
-The measures of identity against the GT come from the workbench's
-`track_metrics`: hold (whether the region picked on the seed frame still
-covers the same GT thing on the GT frames seconds before or after it), IDF1,
-ID switches, fragmentation and re-entry. The evaluator computes none of
-them. Each needs a GT track, and the datasets carry no ids for individual
-things, so a GT track would be a second object definition, in addition to
-the whole-class object used above. The workbench also measured a fault in
-four of them, and the fifth depends on how the GT track is linked:
+A tool outside the evaluator, `evalkit/tools/track_metrics`, computes the
+measures of identity against the GT: hold, IDF1, ID switches, fragmentation
+and re-entry. They are reported as reference values, in a table without ★
+or ✗. A measure that is to decide a claim would have to be computed by the
+evaluator before the evaluator is frozen, and none is.
 
-- two of hold's pre-registered denominators gave one comparison opposite
-  signs: `hold_mean` averages over the GT tracks the condition picked a
-  region for on the seed frame, and `hold_all_mean` over every GT track
-  present on that frame, counting a track without a region as 0;
+#### The measures of identity
+
+A *GT track* follows one GT object over a clip's GT frames, in one view.
+Frames without GT and excluded frames are left out of the sequence. The
+datasets carry no ids for individual things, so the tool builds the tracks
+in two ways and reports both:
+
+- on whole-class objects ("Objects"), each class is one track;
+- on component objects ("Component objects"), at each of the four sizes, a
+  piece is linked to a track of its class when its IoU with the track's
+  last piece is at least 0.3 and the track has gone at most three GT frames
+  without a piece. The pairs are taken greedily, highest IoU first, each
+  piece and each track once. A piece left over starts a track. These are
+  the workbench's values.
+
+A track is *present* on a frame when it has an object there. On each frame
+the pairing of "Objects" pairs the tracks' objects with the predicted
+objects, and a hit pairs a track with a region. On component tracks a
+predicted object is a region with at least the size's pixels. Each measure
+is computed per clip, per view and per kind of track:
+
+- **hold** follows each track present on the seed frame, the frame
+  `seed_info.json` names. The region *picked* for a track is the one the
+  seed frame's pairing hits it with. On every other frame on which the
+  track is present, the track gives one sample: the IoU of the picked
+  region with the track's object, whatever the region's size, and 0 where
+  the two do not overlap. `hold_mean` averages the picked tracks' samples.
+  `hold_all_mean` averages every sample, a track without a picked region
+  giving 0. `picked_share` is the share of the seed frame's tracks that
+  have a picked region. `hold_curve` bins the samples of `hold_mean` by
+  their distance in seconds from the seed frame.
+- **IDF1** gives each track one region over the clip, and each region one
+  track: the assignment with the most frames on which the pair is a hit.
+  IDF1 = 2 · those frames / (GT objects + predicted objects, summed over
+  the frames).
+- **ID switches** counts the hits by another region than the track's
+  previous hit.
+- **fragmentation** counts each frame on which a track is present and not
+  hit, when its previous frame with the track was a hit.
+- **re-entry**: a gap is a run of frames on which a track is absent,
+  between two on which it is present. `reentry` is the share of the gaps
+  hit by one region at both ends, among the gaps whose two ends are hits.
+  A whole-class track's gap has any length. A component track's gap has
+  at most three frames, since the linking rule waits no longer.
+
+Hold starts on the seed frame. The tool refuses:
+
+- a clip whose seed frame has no GT or is excluded;
+- a `per_frame` condition, which has no seed frame;
+- a condition seeded from GT or from outside the tracking stage, which
+  holds no propagation rule ("Propagation rule");
+- labels without `seed_info.json`;
+- a condition whose clips hold two rules.
+
+Under `both_ways_from_centre` the samples lie before and after the seed
+frame, and under `forward_from_first` after it only; as with every key, the
+two rules are not compared.
+
+The workbench measured a fault in four of the measures, on component tracks
+of 400 px:
+
+- `hold_mean` and `hold_all_mean` gave one comparison opposite signs;
 - IDF1 rises when regions merge;
 - ID switches cannot tell a tracker from a floor that never moves: one mask
   pasted on every frame scores close to zero;
-- re-entry counts a gap of at most three observations in a GT track, not a
-  return to the field of view, and it leaves out every gap whose two ends
-  are not both matched: about a third of the gaps for a tracker in the
-  workbench, and nine in ten for the pasted floor, which then scored 1.0 on
-  the rest;
-- fragmentation changes with how the GT track is linked, so its value is a
-  property of the track definition as much as of the condition.
-
-So a tool outside the evaluator, `evalkit/tools/track_metrics`, is to compute
-the measures of identity, and they are reported as reference values, in a
-table without ★ or ✗. The tool is not ported yet (`docs/porting.md`,
-"Not ported yet"). The tool's GT track is an open question
-(`docs/porting.md`, "The GT track of `track_metrics`"). A measure that is to
-decide a claim would have to be computed by the evaluator before the
-evaluator is frozen, and none is.
+- re-entry leaves out every gap whose two ends are not both hits: about a
+  third of the gaps for a tracker, and nine in ten for the pasted floor,
+  which then scored 1.0 on the rest.
 
 ## Thresholds, refusals and provenance
 
