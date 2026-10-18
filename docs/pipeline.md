@@ -8,6 +8,35 @@ through time, and export what the viewer reads. Each stage is a module of
 `pipeline` and runs as `python -m pipeline.<stage>`. Each stage reads what
 the earlier stages wrote into the clip.
 
+## Contents
+
+[A clip](#a-clip) says what the stages read and write. The stages, in the
+order they run:
+
+1. Extract the clips from a dataset's release:
+   [ATLAS-120k](#the-atlas-120k-extraction-stage),
+   [CholecSeg8k](#the-cholecseg8k-extraction-stage) and
+   [its crop](#the-cholecseg8k-crop-stage),
+   [LapEx](#the-lapex-extraction-stage) and
+   [StereoMIS](#the-stereomis-extraction-stage).
+   [The D4D population](#the-d4d-population) selects D4D's sides instead.
+2. Estimate depth and camera poses: [DA3](#the-depth-stage), with
+   [its point clouds](#the-point-cloud-stage), and
+   [Pi3X](#the-pi3x-stage).
+3. Segment the frames into regions: [the tracking stage](#the-tracking-stage)
+   segments one frame and follows its regions through the clip, and
+   [the per-frame stage](#the-per-frame-segmentation-stage) segments every
+   frame on its own.
+4. Make the conditions that the paper compares:
+   [one condition on every clip](#a-condition-on-every-clip-of-a-population),
+   [the experiment plan](#the-experiment-plan) and
+   [the granularity conditions](#the-granularity-conditions).
+5. Write the viewer's files: [the viewer bundle stage](#the-viewer-bundle-stage).
+
+The evaluator scores the regions of step 3 (`docs/evaluation.md`).
+[The StereoMIS camera trajectory scores](#the-stereomis-camera-trajectory-scores)
+score the camera poses of step 2.
+
 ## A clip
 
 A clip is a directory with these files:
@@ -535,6 +564,9 @@ the seed:
 
 - `both_ways_from_centre` seeds the middle frame and carries both ways.
 - `forward_from_first` seeds frame 0 and carries forwards.
+
+The evaluator refuses a condition tracked with `--seed-labels`
+("Propagation rule" in `docs/evaluation.md`).
 
 The stage reads the depth stage's bundle, and Pi3X's with
 `--depth-source pi3`. It reads no GT. It writes, for each clip:
