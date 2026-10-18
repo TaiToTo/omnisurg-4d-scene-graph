@@ -384,7 +384,11 @@ The stage refuses:
 - a clip without `crop_info.json`, unless it is an ATLAS-120k, a StereoMIS
   or a LapEx clip: a CholecSeg8k clip before the crop stage;
 - a clip that already holds the stage's output. `--overwrite` replaces the
-  stage's own files and leaves every other file.
+  stage's own files and leaves every other file;
+- an image OpenCV cannot read, unless `--no-glb` is given.
+
+The earlier output is removed only after the model has run and every image
+is read, so a run that fails before it writes leaves the clip as it was.
 
 `python -m pipeline.depth --help` lists the options.
 
@@ -794,8 +798,8 @@ The stage refuses:
 - a frame without its cloud, a cloud that is not a GLB of one float32 point
   list, or a cloud without one point per pixel;
 - an unknown track, a track named twice, a track of another dataset's
-  classes, a track without regions, or a scene graph on a frame without
-  regions;
+  classes, a track without regions, a scene graph on a frame without
+  regions, or regions or a scene graph on a frame the clip does not have;
 - regions off DA3's grid, a label that is not an integer or of no listed
   class, a class without an integer id above 0, a string name and a colour
   of three numbers, a stage other than `anchor` or `propagated`, or an

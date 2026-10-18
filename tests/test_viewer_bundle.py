@@ -287,6 +287,15 @@ def test_a_track_covers_only_the_frames_it_has_files_for(tmp_path):
     assert sorted(p.name for p in (tmp_path / "out" / CLIP / "regions" / "sam3d").iterdir()) == ["0000.json", "0002.json"]
 
 
+@pytest.mark.parametrize("kind", ["seg_frame", "graph_frame"])
+def test_an_overlay_on_a_frame_the_clip_does_not_have_is_refused(tmp_path, kind):
+    # Overlays numbered from 1 would otherwise be published one frame late.
+    clip = make_clip(tmp_path / "in")
+    body = seg(two_regions(W, H)) if kind == "seg_frame" else graph()
+    (clip / "pc_vis" / f"{kind}_0003__sam3d.json").write_text(json.dumps(body))
+    _fails(tmp_path, r"sam3d has regions or a scene graph on frames \[3\], which the clip of 3 frames does not have")
+
+
 def test_a_hierarchy_with_a_track_left_out_is_not_copied(tmp_path):
     clip = make_clip(tmp_path / "in", tracks=("cholecseg8k", "sam3d"))
     (clip / "pc_vis" / "hierarchy_frame_0000.json").write_text(

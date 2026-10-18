@@ -17,6 +17,7 @@ Usage:
 
 import argparse
 import json
+import re
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
@@ -420,14 +421,23 @@ def track_record(clip_dir: Path, track: str, n: int, dataset: str) -> dict:
     """Describe one track of a clip for `clip.json`: its words and the frames it has files for.
 
     Raises:
-        ValueError: the track is unknown, belongs to another dataset, has no regions on any frame, or has a
-            scene graph on a frame without regions.
+        ValueError: the track is unknown, belongs to another dataset, has no regions on any frame, has a
+            scene graph on a frame without regions, or has regions or a scene graph on a frame the clip does
+            not have.
     """
     if track not in TRACKS:
         raise ValueError(f"unknown track {track!r}; one of {', '.join(TRACKS)}")
     words = TRACKS[track]
     if words.dataset is not None and words.dataset != dataset:
         raise ValueError(f"{clip_dir.name}: track {track} labels {words.dataset} classes, but the clip is {dataset}")
+    # An overlay on a frame the clip does not have is refused: overlays numbered from 1 would otherwise be
+    # published one frame late, and nothing else would say so.
+    name = re.compile(rf"(?:seg|graph)_frame_(\d+)__{re.escape(track)}\.json")
+    off = sorted({int(m.group(1)) for p in (clip_dir / "pc_vis").iterdir()
+                  if (m := name.fullmatch(p.name)) and not 0 <= int(m.group(1)) < n})
+    if off:
+        raise ValueError(f"{clip_dir.name}: {track} has regions or a scene graph on frames {off}, "
+                         f"which the clip of {n} frames does not have")
     region_frames = [i for i in range(n) if _overlay(clip_dir, "seg_frame", i, track).is_file()]
     graph_frames = [i for i in range(n) if _overlay(clip_dir, "graph_frame", i, track).is_file()]
     if not region_frames:
