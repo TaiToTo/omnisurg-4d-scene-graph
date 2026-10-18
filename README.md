@@ -43,6 +43,8 @@ results, not the scene graphs:
 
 ### Make the scene graphs
 
+![A clip, its depth and camera poses from recon3d_wrapper, its regions through time from sam3_wrapper, and a scene graph per frame; pipeline runs the steps, and surgical_core holds the code they share](docs/figures/folders_make.png)
+
 [`docs/pipeline.md`](docs/pipeline.md) says how to run each stage.
 
 | folder | what it holds |
@@ -53,6 +55,8 @@ results, not the scene graphs:
 | [`surgical_core/`](surgical_core/) | code the stages and the tools share: dataset readers, geometry, the viewer's data model; the evaluator uses none of it |
 
 ### Score the results
+
+![evalkit compares the regions with masks drawn by hand and writes a score file with eval_code_sha, which evalkit/tools compare; trajectory_eval compares the camera's path with the true path and writes a score with trajectory_code_sha, which its tools turn into the StereoMIS table](docs/figures/folders_score.png)
 
 [`evalkit/README.md`](evalkit/README.md) says how the regions are scored;
 [the last section of `docs/pipeline.md`](docs/pipeline.md#the-stereomis-camera-trajectory-scores)
@@ -70,6 +74,8 @@ when their hashes match. The tools are not part of either hash.
 
 ### Describe the datasets
 
+![A dataset's video with the clips measured marked on it, kept as clips.txt, and a frame with its crop rectangle, kept as crop_rects.json; the folder holds no video, frame or point cloud](docs/figures/folders_datasets.png)
+
 Each folder's README says how its files were made. None holds the data
 itself: no video, frame or point cloud.
 
@@ -80,6 +86,8 @@ itself: no video, frame or point cloud.
 | [`d4d_meta/`](d4d_meta/) | D4D: the clips the census measures, and the sides the measurements score |
 
 ### Show and explain
+
+![The viewer, a web page that steps through a clip's clouds, regions and scene graphs; and docs, with evaluation.md, pipeline.md and review.md](docs/figures/folders_show.png)
 
 | folder | what it holds |
 |---|---|
