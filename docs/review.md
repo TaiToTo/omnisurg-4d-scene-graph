@@ -96,9 +96,12 @@ afterwards not a byte of them changes.
   bottom; one line per block, saying what it produces and from what. The
   reason for a choice inside a block is a comment of its own. A function
   short enough to read whole needs none.
-- **A question or a rule is called by what it says**, that is, named by
-  what it asks or states, never by its place in a list ("the second
-  question"): a place means something only to whoever has the list open.
+- **A question, a rule or a section is called by what it says.** Name a
+  question or a rule by what it asks or states, and a section by its title
+  (`docs/pipeline.md`, "The viewer bundle stage"). Never name one by its
+  place ("the second question", "the last section"). A place means
+  something only to whoever has the page open, and it moves when an item
+  is added.
 - **A comment gives the reason, not a reference.** Never a section number, a
   ticket, an audit letter or a task id (`see §2.3`, `audit B7`, `task22`):
   they point at documents this repository does not have, and the reader is
