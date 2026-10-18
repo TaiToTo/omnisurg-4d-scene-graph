@@ -1,4 +1,4 @@
-"""The mark rule of `AGENTS.md`, held over every tracked Python file.
+"""Hold the mark rule of `AGENTS.md` over every tracked Python file.
 
 A star is decided by `paired_stats.mark_of` and nothing else: never by a
 p-value, never by a truth value that has dropped the direction, and never
