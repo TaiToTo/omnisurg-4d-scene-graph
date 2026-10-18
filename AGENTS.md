@@ -102,6 +102,8 @@ omnisurg-4d-scene-graph/
 ├── docs/              evaluation.md, pilot_evaluator.md, pipeline.md, porting.md,
 │                      review.md
 ├── tests/
+├── .claude/           settings.json and hooks/: what Claude Code refuses before a
+│                      command runs
 └── .github/workflows/ci.yml
 ```
 
@@ -160,5 +162,10 @@ against.
 - **A function of several steps names each step**, one line per block.
 - **A comment gives the reason, not a reference.** Never a section number,
   a ticket or a task id.
+- **A commit carries the GitHub no-reply address**, the repository's own
+  `user.email`. Never pass a personal address to git, not even one the
+  tool environment supplies. `.claude/hooks/refuse_personal_email.py`
+  refuses such a command before it runs, and
+  `tests/test_no_personal_email.py` refuses the history otherwise.
 - Google-style docstrings; imports at module top; code and docs in English.
 - Never vendor upstream model code — depend on it.

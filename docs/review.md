@@ -20,7 +20,9 @@ A rule without a test in this table is checked by the reviewer.
 
 In a new clone, set the repository-local `user.email` to the GitHub no-reply
 address before the first commit. A development machine's global config may
-hold a personal one.
+hold a personal one. Under Claude Code, `.claude/hooks/refuse_personal_email.py`
+refuses a git command that names a personal address or sets an identity
+before the command runs; the test and the hook read one rule, the hook's.
 
 ## A module's header
 
