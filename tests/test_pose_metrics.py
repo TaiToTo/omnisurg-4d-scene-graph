@@ -98,6 +98,16 @@ def test_rpe_rotation_of_a_camera_turning_by_a_fixed_angle_a_frame():
     assert abs(q["rpe_rot_deg"] - 5 * theta) < 1e-9
 
 
+def test_rpe_pairs_each_frame_with_the_one_dt_later_whatever_the_rounding_of_the_times():
+    # At 60 fps, `t + 1.0` falls above the frame 60 steps on for some frames and below it for others.
+    for start in range(0, 286, 5):
+        times = (start + np.arange(300)) / 60.0
+        c = np.stack([times, np.zeros(300), np.zeros(300)], 1)
+        R = np.tile(np.eye(3), (300, 1, 1))
+        q = rpe(c, R, c, R, times, 1.0, dt=1.0)
+        assert q["n_pairs"] == 240, start
+
+
 def test_rpe_with_fewer_than_3_pairs_is_nan():
     # Only frames 0 and 1 have a frame 23.7 s after them.
     gt_R = np.tile(np.eye(3), (N, 1, 1))

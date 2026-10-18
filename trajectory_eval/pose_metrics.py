@@ -12,6 +12,11 @@ of order, and values that are not finite.
 import numpy as np
 
 
+# How far short of `dt` the second frame of an RPE pair may fall, in seconds: well under any frame
+# interval, and well over the rounding of a time in seconds.
+PAIR_TOL_S = 1e-6
+
+
 def centers_from_world_to_cam(E: np.ndarray) -> np.ndarray:
     """Return the (N, 3) camera centres of (N, 3, 4) or (N, 4, 4) world-to-camera extrinsics.
 
@@ -118,7 +123,9 @@ def rpe(est_c: np.ndarray, est_R: np.ndarray, gt_c: np.ndarray, gt_R: np.ndarray
     """Return the error of the relative poses `dt` seconds apart, a local measure of the trajectory.
 
     ATE follows one large failure; RPE does not. The translations take the one scale `ate`'s fit found.
-    Frame `i` is paired with the first frame at least `dt` seconds after it.
+    Frame `i` is paired with the first frame at least `dt` seconds after it, less `PAIR_TOL_S`. Without the
+    tolerance the rounding of the times decides a pair: at 60 fps, `t + 1.0` lands above the frame 60 steps
+    on for some frames and below it for others, and those frames are paired 61 steps on.
 
     Args:
         est_c: (N, 3) estimated camera centres.
@@ -145,7 +152,7 @@ def rpe(est_c: np.ndarray, est_R: np.ndarray, gt_c: np.ndarray, gt_R: np.ndarray
         _finite(name, arr)
     if np.any(np.diff(times) < 0):
         raise ValueError("times decrease somewhere; the pairs are found by searching them in order")
-    j = np.searchsorted(times, times + dt)
+    j = np.searchsorted(times, times + dt - PAIR_TOL_S)
     i = np.arange(n)
     ok = j < n
     i, j = i[ok], j[ok]
