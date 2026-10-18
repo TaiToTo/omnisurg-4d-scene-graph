@@ -203,3 +203,9 @@ def test_f1_is_undefined_without_a_gt_object_and_sq_without_a_hit():
     s = instance_scores(gt_objects(two_classes(), ALL), predicted_objects(far, ALL))
     assert (s.f1_50, s.sq, s.n_hits) == (0.0, None, 0)
     assert s.pairs == (Pair(0.4, 2, 1),) and s.hits == ()
+
+
+def test_a_frame_with_gt_objects_and_no_region_scores_f1_zero_not_undefined():
+    # Left out of the clip mean, such a frame would lift F1_50; it enters as 0.
+    s = instance_scores(gt_objects(two_classes(), ALL), predicted_objects(np.full((H, W), -1, dtype=np.int32), ALL))
+    assert (s.f1_50, s.sq, s.n_gt, s.n_pred, s.pairs) == (0.0, None, 2, 0, ())
