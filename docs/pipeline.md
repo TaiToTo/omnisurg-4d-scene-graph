@@ -10,32 +10,36 @@ the earlier stages wrote into the clip.
 
 ## Contents
 
-The stages, in the order they run. A stage writes into the clip, unless the
-path names another directory; [A clip](#a-clip) says what a clip holds.
+The table lists the stages in the order they run. A stage writes into the
+clip, unless the path names another directory; [A clip](#a-clip) says what
+a clip holds.
 
 | step | stage | runs as | writes |
 |---|---|---|---|
-| 1 · extract the clips | [ATLAS-120k](#the-atlas-120k-extraction-stage) | `pipeline.extract_atlas120k` | `input_images/`, `seg_masks/`, `frame_manifest.json` |
+| 1 · extract the clips | [an ATLAS-120k video OpenCV cannot decode](#a-video-opencv-cannot-decode) | `pipeline.prepare_atlas120k_videos` | `--dst`: a second root for `--atlas-root`, with `video_root.json` |
+| | [ATLAS-120k](#the-atlas-120k-extraction-stage) | `pipeline.extract_atlas120k` | `input_images/`, `seg_masks/`, `frame_manifest.json` |
 | | [CholecSeg8k](#the-cholecseg8k-extraction-stage) | `pipeline.extract_cholecseg8k` | the same |
 | | [CholecSeg8k's crop](#the-cholecseg8k-crop-stage) | `pipeline.crop_cholecseg8k` | a cropped copy, `<clip>_crop/`, with `crop_info.json` |
-| | [LapEx](#the-lapex-extraction-stage) | `pipeline.extract_lapex` | the same, one frame per clip |
+| | [LapEx](#the-lapex-extraction-stage) | `pipeline.extract_lapex` | `input_images/`, `seg_masks/`, `frame_manifest.json`, one frame per clip; `extraction_summary.json` beside the clips |
 | | [StereoMIS](#the-stereomis-extraction-stage) | `pipeline.extract_stereomis` | `input_images/`, `frame_manifest.json`; no GT masks |
 | | [the D4D population](#the-d4d-population) | `pipeline.d4d_census`, then `pipeline.select_d4d_population` | the census; `d4d_meta/population.json` and `clips.txt` |
 | 2 · depth and camera poses | [DA3](#the-depth-stage) | `pipeline.depth` | `exports/mini_npz/results.npz`, `depth_raw/`, `depth_vis/`, `pc_vis/frame_NNNN.glb` |
-| | [the point clouds](#the-point-cloud-stage) | `pipeline.point_clouds` | `pc_vis/frame_NNNN.glb` |
+| | [DA3 on every clip of a population](#every-clip-of-a-population) | `pipeline.depth_population` | DA3's files without the clouds, for every clip |
+| | [the point clouds](#the-point-cloud-stage) | `pipeline.point_clouds` | `pc_vis/frame_NNNN.glb`, and each frame's cloud centroid and camera in `frame_manifest.json` |
 | | [Pi3X](#the-pi3x-stage) | `pipeline.pi3x` | DA3's names, with `__pi3x` |
+| | [both models on every StereoMIS clip](#every-stereomis-clip-with-both-models) | `pipeline.depth_stereomis` | DA3's and Pi3X's files, for every usable clip |
 | 3 · regions | [tracking](#the-tracking-stage): one frame segmented, its regions followed | `pipeline.track` | `<tracks-root>/<clip>/track_<base>_<tag>/`: `label_NNNN.npy`, `seed_info.json` |
 | | [per-frame](#the-per-frame-segmentation-stage): every frame segmented on its own | `pipeline.per_frame` | `<tracks-root>/<clip>/track_rgb_<tag>/`: the same files |
-| 4 · the conditions | [one condition on every clip](#a-condition-on-every-clip-of-a-population) | `pipeline.condition_population` | the stage's files, for every clip |
+| | [one condition on every clip](#a-condition-on-every-clip-of-a-population) | `pipeline.condition_population` | the stage's files, for every clip |
 | | [the experiment plan](#the-experiment-plan) | `pipeline.experiment_plan` | nothing: it checks the plan and prints commands |
 | | [the granularity conditions](#the-granularity-conditions) | `pipeline.per_frame`, `evalkit.tools.kmerge`, `pipeline.track` | conditions merged to K regions |
+| 4 · the scene graphs | the export stage | — ([Status](../README.md#status)) | in `pc_vis/`: each track's regions and scene graph on each frame, and its graph through time; each frame's hierarchy between two tracks |
 | 5 · the viewer | [the viewer bundle](#the-viewer-bundle-stage) | `pipeline.viewer_bundle` | `<out>/catalog.json`, `<out>/<clip>/` |
 
-The viewer bundle stage reads the scene graphs that the export stage writes
-into `pc_vis/`. The evaluator scores the labels of step 3 against
-`seg_masks/` (`docs/evaluation.md`).
-[The StereoMIS camera trajectory scores](#the-stereomis-camera-trajectory-scores)
-score the camera poses of step 2.
+The evaluator scores the labels of step 3 against `seg_masks/`
+(`docs/evaluation.md`). `trajectory_eval.tools.score_stereomis` scores the
+camera poses of step 2
+([The StereoMIS camera trajectory scores](#the-stereomis-camera-trajectory-scores)).
 
 ## A clip
 

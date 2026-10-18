@@ -35,8 +35,7 @@ This repository alone takes a clip as far as tracked regions and their
 scores. The viewer bundle stage reads scene graphs that the workbench's
 export stage wrote. [`docs/porting.md`](docs/porting.md) says what each
 part was checked against, what is left, and the decisions still to carry
-out, such as splitting the ATLAS-120k clips at the cuts in their
-recordings.
+out.
 
 ## Where to start
 
