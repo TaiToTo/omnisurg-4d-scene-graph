@@ -176,6 +176,14 @@ def test_a_gap_lowers_sq_but_not_f1():
     assert s.sq == pytest.approx(2700 / 3000)
 
 
+def test_sq_is_the_mean_over_the_hits_and_not_over_every_pair():
+    # The edge 30 px right: region 0 takes class 1 at IoU 0.625, a hit, and
+    # region 1 is left for class 2 at IoU 0.4, a pair but no hit.
+    s = instance_scores(gt_objects(two_classes(), ALL), predicted_objects(split_at(HALF + 30), ALL))
+    assert s.pairs == (Pair(0.625, 1, 1), Pair(0.4, 2, 2)) and s.n_hits == 1
+    assert s.sq == 0.625
+
+
 def test_a_region_over_removed_pixels_is_neither_an_object_nor_a_false_positive():
     # The top ten rows are unannotated background, removed from the scored
     # pixels, and region 2 lies on them alone.
@@ -206,6 +214,7 @@ def test_f1_is_undefined_without_a_gt_object_and_sq_without_a_hit():
 
 
 def test_a_frame_with_gt_objects_and_no_region_scores_f1_zero_not_undefined():
-    # Left out of the clip mean, such a frame would lift F1_50; it enters as 0.
-    s = instance_scores(gt_objects(two_classes(), ALL), predicted_objects(np.full((H, W), -1, dtype=np.int32), ALL))
+    # Such a frame enters the clip mean as 0; left out, it would lift F1_50.
+    nothing = np.full((H, W), -1, dtype=np.int32)
+    s = instance_scores(gt_objects(two_classes(), ALL), predicted_objects(nothing, ALL))
     assert (s.f1_50, s.sq, s.n_gt, s.n_pred, s.pairs) == (0.0, None, 2, 0, ())

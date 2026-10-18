@@ -35,15 +35,13 @@ def test_a_map_of_one_label_has_no_boundary():
     assert not boundary_pixels(np.ones((H, W), dtype=np.int32)).any()
 
 
-def test_a_pixel_whose_only_other_neighbour_is_diagonal_is_not_a_boundary():
-    # One pixel of class 2 in a field of class 1: it and its four side neighbours are
-    # marked, its four diagonal neighbours are not. Every other scene's edge is
-    # straight, on which four and eight neighbours mark the same pixels.
+def test_a_pixel_whose_only_neighbour_with_another_label_is_diagonal_is_not_a_boundary():
+    # One pixel of class 2 in a field of class 1 marks itself and its four side
+    # neighbours, not its four diagonal ones. The other tests' edges are straight
+    # lines, on which a four-neighbour and an eight-neighbour rule mark the same pixels.
     labels = np.ones((H, W), dtype=np.int32)
     labels[5, 5] = 2
-    b = boundary_pixels(labels)
-    assert int(b.sum()) == 5 and b[5, 5] and b[4, 5] and b[6, 5] and b[5, 4] and b[5, 6]
-    assert not (b[4, 4] or b[4, 6] or b[6, 4] or b[6, 6])
+    assert np.argwhere(boundary_pixels(labels)).tolist() == [[4, 5], [5, 4], [5, 5], [5, 6], [6, 5]]
 
 
 def test_an_edge_against_a_pixel_that_is_not_scored_is_not_a_boundary():
