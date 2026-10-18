@@ -1,23 +1,20 @@
 # omnisurg-4d-scene-graph
 
-This repository builds training-free **4D** (3D + time) scene graphs for
-minimally invasive surgery by composing foundation models. The pipeline
-takes a clip of surgical video and estimates depth and camera poses for
-every frame. It cuts each frame into regions, tracks them through time and
-builds scene graphs from them. A frame's scene graph has one node per
-region, placed in 3D, and edges that name a spatial relation between two
-regions. The evaluator scores the regions, not the scene graphs, against
-the hand-labelled masks of ATLAS-120k and CholecSeg8k. Every score records
-a hash of the evaluator's code, `eval_code_sha`. Two scores are compared
-only when their hashes match. A second scorer scores the camera poses
-against StereoMIS's ground truth. A web page shows a clip's point clouds,
-regions and scene graphs.
+This repository turns a video of minimally invasive surgery into a **4D**
+(3D + time) scene graph. The pipeline cuts each frame into regions, places
+them in 3D and follows them through time. A frame's scene graph lists its
+regions and says where each lies from the others: right, above, in front,
+and so on. No model is trained; the pipeline combines existing ones.
 
 ![From a clip to a 4D scene graph, on a drawn scene: 1, the clip's frames; 2, a depth map and a point cloud per frame, and the camera's path; 3, regions that keep their ids from frame to frame and have no names; 4, a scene graph per frame, a node per region and a word per pair such as right, front or above; 5, the same relations through time, each holding for a run of frames, and the viewer that shows them. Below, what is scored: the camera poses against StereoMIS's ground truth by trajectory_eval, and the regions against the hand-labelled GT masks by evalkit.](docs/figures/scene_graph_overview.png)
 
-The steps on a drawn scene. The words on the edges are an illustration, not
-the pipeline's output. The two scorers score the camera poses and the
-regions, not the scene graphs.
+The figure draws the steps on a made-up scene. Two scorers check the
+results, not the scene graphs:
+
+- `evalkit`, the evaluator, compares the regions with masks drawn by hand,
+  in ATLAS-120k and CholecSeg8k.
+- `trajectory_eval`, the camera trajectory scorer, compares the camera's
+  path with the true path, in StereoMIS.
 
 ## Status
 
