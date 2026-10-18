@@ -2,20 +2,18 @@
  "n_clips_total": 271,
  "n_sides_total": 542,
  "exclusions": {
-  "keep": 487,
-  "tissue_moving": 45,
+  "keep": 532,
   "no_gt": 2,
   "gt_stale": 8
  },
- "n_sides_kept": 487,
- "n_clips_kept": 269,
- "n_clips_moved": 29,
- "n_clips_static": 240,
+ "n_sides_kept": 532,
+ "n_clips_kept": 271,
+ "n_clips_moved": 30,
+ "n_clips_static": 241,
  "n_sessions_kept": 98,
  "n_specimens_kept": 5,
  "thresholds": {
   "min_gt_block_frac": 0.2,
-  "exclude_active": true,
   "max_gt_frame_gap_s": 10.0
  },
  "sides": [
@@ -93,7 +91,19 @@
   },
   {
    "key": "specimen_1/2025_03_06-16_56_00/Clip_4",
+   "side": "start",
+   "moved_camera": false,
+   "specimen": "specimen_1"
+  },
+  {
+   "key": "specimen_1/2025_03_06-16_56_00/Clip_4",
    "side": "end",
+   "moved_camera": false,
+   "specimen": "specimen_1"
+  },
+  {
+   "key": "specimen_1/2025_03_06-16_56_00/Clip_5",
+   "side": "start",
    "moved_camera": false,
    "specimen": "specimen_1"
   },
@@ -124,6 +134,12 @@
   {
    "key": "specimen_1/2025_03_06-17_04_37/Clip_1",
    "side": "end",
+   "moved_camera": false,
+   "specimen": "specimen_1"
+  },
+  {
+   "key": "specimen_1/2025_03_06-17_04_37/Clip_2",
+   "side": "start",
    "moved_camera": false,
    "specimen": "specimen_1"
   },
@@ -291,6 +307,12 @@
   },
   {
    "key": "specimen_1/2025_03_06-17_38_21/Clip_4",
+   "side": "start",
+   "moved_camera": false,
+   "specimen": "specimen_1"
+  },
+  {
+   "key": "specimen_1/2025_03_06-17_38_21/Clip_4",
    "side": "end",
    "moved_camera": false,
    "specimen": "specimen_1"
@@ -345,7 +367,19 @@
   },
   {
    "key": "specimen_1/2025_03_06-17_39_51/Clip_4",
+   "side": "start",
+   "moved_camera": false,
+   "specimen": "specimen_1"
+  },
+  {
+   "key": "specimen_1/2025_03_06-17_39_51/Clip_4",
    "side": "end",
+   "moved_camera": false,
+   "specimen": "specimen_1"
+  },
+  {
+   "key": "specimen_1/2025_03_06-17_39_51/Clip_5",
+   "side": "start",
    "moved_camera": false,
    "specimen": "specimen_1"
   },
@@ -447,7 +481,19 @@
   },
   {
    "key": "specimen_1/2025_03_06-17_51_03/Clip_2",
+   "side": "start",
+   "moved_camera": false,
+   "specimen": "specimen_1"
+  },
+  {
+   "key": "specimen_1/2025_03_06-17_51_03/Clip_2",
    "side": "end",
+   "moved_camera": false,
+   "specimen": "specimen_1"
+  },
+  {
+   "key": "specimen_1/2025_03_06-17_51_03/Clip_3",
+   "side": "start",
    "moved_camera": false,
    "specimen": "specimen_1"
   },
@@ -603,6 +649,12 @@
   },
   {
    "key": "specimen_2/2025_04_10-16_14_33/Clip_4",
+   "side": "start",
+   "moved_camera": false,
+   "specimen": "specimen_2"
+  },
+  {
+   "key": "specimen_2/2025_04_10-16_14_33/Clip_4",
    "side": "end",
    "moved_camera": false,
    "specimen": "specimen_2"
@@ -652,6 +704,12 @@
   {
    "key": "specimen_2/2025_04_10-16_19_14/Clip_2",
    "side": "end",
+   "moved_camera": false,
+   "specimen": "specimen_2"
+  },
+  {
+   "key": "specimen_2/2025_04_10-16_19_14/Clip_3",
+   "side": "start",
    "moved_camera": false,
    "specimen": "specimen_2"
   },
@@ -981,6 +1039,12 @@
   },
   {
    "key": "specimen_3/2025_05_08-14_27_51/Clip_5",
+   "side": "start",
+   "moved_camera": false,
+   "specimen": "specimen_3"
+  },
+  {
+   "key": "specimen_3/2025_05_08-14_27_51/Clip_5",
    "side": "end",
    "moved_camera": false,
    "specimen": "specimen_3"
@@ -1138,6 +1202,12 @@
   {
    "key": "specimen_3/2025_05_08-14_39_50/Clip_4",
    "side": "end",
+   "moved_camera": false,
+   "specimen": "specimen_3"
+  },
+  {
+   "key": "specimen_3/2025_05_08-14_39_50/Clip_5",
+   "side": "start",
    "moved_camera": false,
    "specimen": "specimen_3"
   },
@@ -1317,7 +1387,19 @@
   },
   {
    "key": "specimen_3/2025_05_08-14_56_07/Clip_3",
+   "side": "start",
+   "moved_camera": false,
+   "specimen": "specimen_3"
+  },
+  {
+   "key": "specimen_3/2025_05_08-14_56_07/Clip_3",
    "side": "end",
+   "moved_camera": false,
+   "specimen": "specimen_3"
+  },
+  {
+   "key": "specimen_3/2025_05_08-14_56_07/Clip_4",
+   "side": "start",
    "moved_camera": false,
    "specimen": "specimen_3"
   },
@@ -1401,7 +1483,19 @@
   },
   {
    "key": "specimen_4/2025_06_05-14_52_19/Clip_4",
+   "side": "start",
+   "moved_camera": false,
+   "specimen": "specimen_4"
+  },
+  {
+   "key": "specimen_4/2025_06_05-14_52_19/Clip_4",
    "side": "end",
+   "moved_camera": false,
+   "specimen": "specimen_4"
+  },
+  {
+   "key": "specimen_4/2025_06_05-14_52_19/Clip_5",
+   "side": "start",
    "moved_camera": false,
    "specimen": "specimen_4"
   },
@@ -1473,7 +1567,19 @@
   },
   {
    "key": "specimen_4/2025_06_05-15_01_38/Clip_4",
+   "side": "start",
+   "moved_camera": false,
+   "specimen": "specimen_4"
+  },
+  {
+   "key": "specimen_4/2025_06_05-15_01_38/Clip_4",
    "side": "end",
+   "moved_camera": false,
+   "specimen": "specimen_4"
+  },
+  {
+   "key": "specimen_4/2025_06_05-15_01_38/Clip_5",
+   "side": "start",
    "moved_camera": false,
    "specimen": "specimen_4"
   },
@@ -1761,6 +1867,12 @@
   },
   {
    "key": "specimen_4/2025_06_05-15_16_21/Clip_5",
+   "side": "start",
+   "moved_camera": false,
+   "specimen": "specimen_4"
+  },
+  {
+   "key": "specimen_4/2025_06_05-15_16_21/Clip_5",
    "side": "end",
    "moved_camera": false,
    "specimen": "specimen_4"
@@ -1810,6 +1922,12 @@
   {
    "key": "specimen_4/2025_06_05-15_17_56/Clip_4",
    "side": "end",
+   "moved_camera": false,
+   "specimen": "specimen_4"
+  },
+  {
+   "key": "specimen_4/2025_06_05-15_17_56/Clip_5",
+   "side": "start",
    "moved_camera": false,
    "specimen": "specimen_4"
   },
@@ -1869,7 +1987,19 @@
   },
   {
    "key": "specimen_4/2025_06_05-15_25_49/Clip_2",
+   "side": "start",
+   "moved_camera": false,
+   "specimen": "specimen_4"
+  },
+  {
+   "key": "specimen_4/2025_06_05-15_25_49/Clip_2",
    "side": "end",
+   "moved_camera": false,
+   "specimen": "specimen_4"
+  },
+  {
+   "key": "specimen_4/2025_06_05-15_25_49/Clip_3",
+   "side": "start",
    "moved_camera": false,
    "specimen": "specimen_4"
   },
@@ -1888,6 +2018,12 @@
   {
    "key": "specimen_4/2025_06_05-15_25_49/Clip_4",
    "side": "end",
+   "moved_camera": false,
+   "specimen": "specimen_4"
+  },
+  {
+   "key": "specimen_4/2025_06_05-15_25_49/Clip_5",
+   "side": "start",
    "moved_camera": false,
    "specimen": "specimen_4"
   },
@@ -1923,6 +2059,12 @@
   },
   {
    "key": "specimen_4/2025_06_05-15_30_18/Clip_2",
+   "side": "start",
+   "moved_camera": false,
+   "specimen": "specimen_4"
+  },
+  {
+   "key": "specimen_4/2025_06_05-15_30_18/Clip_2",
    "side": "end",
    "moved_camera": false,
    "specimen": "specimen_4"
@@ -1936,6 +2078,12 @@
   {
    "key": "specimen_4/2025_06_05-15_30_18/Clip_3",
    "side": "end",
+   "moved_camera": false,
+   "specimen": "specimen_4"
+  },
+  {
+   "key": "specimen_4/2025_06_05-15_30_18/Clip_4",
+   "side": "start",
    "moved_camera": false,
    "specimen": "specimen_4"
   },
@@ -1990,6 +2138,12 @@
   {
    "key": "specimen_4/2025_06_05-15_31_40/Clip_4",
    "side": "end",
+   "moved_camera": false,
+   "specimen": "specimen_4"
+  },
+  {
+   "key": "specimen_4/2025_06_05-15_31_40/Clip_5",
+   "side": "start",
    "moved_camera": false,
    "specimen": "specimen_4"
   },
@@ -2061,6 +2215,12 @@
   },
   {
    "key": "specimen_4/2025_06_05-15_35_57/Clip_5",
+   "side": "start",
+   "moved_camera": false,
+   "specimen": "specimen_4"
+  },
+  {
+   "key": "specimen_4/2025_06_05-15_35_57/Clip_5",
    "side": "end",
    "moved_camera": false,
    "specimen": "specimen_4"
@@ -2110,6 +2270,12 @@
   {
    "key": "specimen_4/2025_06_05-15_37_33/Clip_4",
    "side": "end",
+   "moved_camera": false,
+   "specimen": "specimen_4"
+  },
+  {
+   "key": "specimen_4/2025_06_05-15_37_33/Clip_5",
+   "side": "start",
    "moved_camera": false,
    "specimen": "specimen_4"
   },
@@ -2175,6 +2341,12 @@
   },
   {
    "key": "specimen_4/2025_06_05-15_45_18/Clip_1",
+   "side": "start",
+   "moved_camera": true,
+   "specimen": "specimen_4"
+  },
+  {
+   "key": "specimen_4/2025_06_05-15_45_18/Clip_1",
    "side": "end",
    "moved_camera": true,
    "specimen": "specimen_4"
@@ -2188,6 +2360,12 @@
   {
    "key": "specimen_4/2025_06_05-15_45_18/Clip_2",
    "side": "end",
+   "moved_camera": true,
+   "specimen": "specimen_4"
+  },
+  {
+   "key": "specimen_4/2025_06_05-15_45_18/Clip_3",
+   "side": "start",
    "moved_camera": true,
    "specimen": "specimen_4"
   },
@@ -2278,6 +2456,12 @@
   {
    "key": "specimen_4/2025_06_05-15_51_47/Clip_2",
    "side": "end",
+   "moved_camera": true,
+   "specimen": "specimen_4"
+  },
+  {
+   "key": "specimen_4/2025_06_05-15_51_47/Clip_3",
+   "side": "start",
    "moved_camera": true,
    "specimen": "specimen_4"
   },
@@ -2463,6 +2647,12 @@
   },
   {
    "key": "specimen_5/2025_09_09-15_37_52/Clip_2",
+   "side": "start",
+   "moved_camera": false,
+   "specimen": "specimen_5"
+  },
+  {
+   "key": "specimen_5/2025_09_09-15_37_52/Clip_2",
    "side": "end",
    "moved_camera": false,
    "specimen": "specimen_5"
@@ -2476,6 +2666,12 @@
   {
    "key": "specimen_5/2025_09_09-15_37_52/Clip_3",
    "side": "end",
+   "moved_camera": false,
+   "specimen": "specimen_5"
+  },
+  {
+   "key": "specimen_5/2025_09_09-15_37_52/Clip_4",
+   "side": "start",
    "moved_camera": false,
    "specimen": "specimen_5"
   },
@@ -2523,6 +2719,12 @@
   },
   {
    "key": "specimen_5/2025_09_09-15_40_48/Clip_2",
+   "side": "start",
+   "moved_camera": false,
+   "specimen": "specimen_5"
+  },
+  {
+   "key": "specimen_5/2025_09_09-15_40_48/Clip_2",
    "side": "end",
    "moved_camera": false,
    "specimen": "specimen_5"
@@ -2548,6 +2750,12 @@
   {
    "key": "specimen_5/2025_09_09-15_40_48/Clip_4",
    "side": "end",
+   "moved_camera": false,
+   "specimen": "specimen_5"
+  },
+  {
+   "key": "specimen_5/2025_09_09-15_40_48/Clip_5",
+   "side": "start",
    "moved_camera": false,
    "specimen": "specimen_5"
   },
@@ -2607,6 +2815,12 @@
   },
   {
    "key": "specimen_5/2025_09_09-15_44_02/Clip_4",
+   "side": "start",
+   "moved_camera": false,
+   "specimen": "specimen_5"
+  },
+  {
+   "key": "specimen_5/2025_09_09-15_44_02/Clip_4",
    "side": "end",
    "moved_camera": false,
    "specimen": "specimen_5"
@@ -2620,6 +2834,12 @@
   {
    "key": "specimen_5/2025_09_09-15_44_02/Clip_5",
    "side": "end",
+   "moved_camera": false,
+   "specimen": "specimen_5"
+  },
+  {
+   "key": "specimen_5/2025_09_09-15_44_02/Clip_6",
+   "side": "start",
    "moved_camera": false,
    "specimen": "specimen_5"
   },
@@ -2655,13 +2875,31 @@
   },
   {
    "key": "specimen_5/2025_09_09-15_48_02/Clip_3",
+   "side": "start",
+   "moved_camera": false,
+   "specimen": "specimen_5"
+  },
+  {
+   "key": "specimen_5/2025_09_09-15_48_02/Clip_3",
    "side": "end",
    "moved_camera": false,
    "specimen": "specimen_5"
   },
   {
    "key": "specimen_5/2025_09_09-15_48_02/Clip_4",
+   "side": "start",
+   "moved_camera": false,
+   "specimen": "specimen_5"
+  },
+  {
+   "key": "specimen_5/2025_09_09-15_48_02/Clip_4",
    "side": "end",
+   "moved_camera": false,
+   "specimen": "specimen_5"
+  },
+  {
+   "key": "specimen_5/2025_09_09-15_48_02/Clip_5",
+   "side": "start",
    "moved_camera": false,
    "specimen": "specimen_5"
   },
@@ -2704,6 +2942,12 @@
   {
    "key": "specimen_5/2025_09_09-15_51_52/Clip_2",
    "side": "end",
+   "moved_camera": false,
+   "specimen": "specimen_5"
+  },
+  {
+   "key": "specimen_5/2025_09_09-15_51_52/Clip_3",
+   "side": "start",
    "moved_camera": false,
    "specimen": "specimen_5"
   },
@@ -2787,7 +3031,19 @@
   },
   {
    "key": "specimen_5/2025_09_09-15_55_15/Clip_3",
+   "side": "start",
+   "moved_camera": false,
+   "specimen": "specimen_5"
+  },
+  {
+   "key": "specimen_5/2025_09_09-15_55_15/Clip_3",
    "side": "end",
+   "moved_camera": false,
+   "specimen": "specimen_5"
+  },
+  {
+   "key": "specimen_5/2025_09_09-15_55_15/Clip_4",
+   "side": "start",
    "moved_camera": false,
    "specimen": "specimen_5"
   },
@@ -2847,7 +3103,19 @@
   },
   {
    "key": "specimen_5/2025_09_09-15_58_44/Clip_4",
+   "side": "start",
+   "moved_camera": false,
+   "specimen": "specimen_5"
+  },
+  {
+   "key": "specimen_5/2025_09_09-15_58_44/Clip_4",
    "side": "end",
+   "moved_camera": false,
+   "specimen": "specimen_5"
+  },
+  {
+   "key": "specimen_5/2025_09_09-15_58_44/Clip_5",
+   "side": "start",
    "moved_camera": false,
    "specimen": "specimen_5"
   },

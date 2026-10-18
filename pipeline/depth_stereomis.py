@@ -16,7 +16,6 @@ Usage:
 """
 
 import argparse
-import signal
 import sys
 import zipfile
 from pathlib import Path
@@ -152,8 +151,7 @@ def run_stereomis(root: Path, clips: list[str], gpus: list[int]) -> None:
 
 
 def main() -> None:
-    for s in population.STOP_SIGNALS:
-        signal.signal(s, population.stop)
+    population.install_stop_handlers()
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--clips", required=True, help="The clip list, stereomis_meta/clips.json.")
     ap.add_argument("--input-dir", required=True, help="The directory that holds the clips.")

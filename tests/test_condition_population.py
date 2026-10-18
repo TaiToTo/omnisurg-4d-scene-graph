@@ -27,6 +27,7 @@ pytest.importorskip("matplotlib")
 import pipeline.condition_population as driver  # noqa: E402
 from pipeline.condition_population import (build_parser, check_population, expected_record, main,  # noqa: E402
                                            run_population, stage_args)
+from pipeline.depth_population import STOP_SIGNALS, stop  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[1]
 H, W, N = 12, 16, 5
@@ -281,6 +282,12 @@ def test_a_record_of_other_settings_after_a_clip_ran_stops_the_run(run, monkeypa
     (lambda d: (d / "seed_info.json").write_text(
         json.dumps({k: v for k, v in json.loads((d / "seed_info.json").read_text()).items() if k != "frames"})),
      r"clip0's seed_info.json records other settings than this run passes: frames \(no such key\)"),
+    # A record the stage wrote before it recorded the edge ring.
+    (lambda d: (d / "seed_info.json").write_text(
+        json.dumps({k: v for k, v in json.loads((d / "seed_info.json").read_text()).items()
+                    if k != "edge_ring_masked"})),
+     r"clip0's seed_info.json records other settings than this run passes: edge_ring_masked \(no such key\), "
+     r"not True"),
 ])
 def test_labels_that_do_not_hold_the_condition_are_refused_by_name_before_anything_runs(run, fault, match):
     root, tracks, ckpt = run
@@ -319,12 +326,6 @@ def test_a_clip_that_fails_is_reported_with_its_log_and_the_others_run(run):
     ("per_frame", PER_FRAME + ["--depth-source", "pi3", "--sam-ckpt", "{ckpt}"], [0],
      r"2 clip\(s\) of the population lack the depth under .*: \['clip0 \(exports/mini_npz/results__pi3x.npz\)', "
      r"'clip1 \(exports/mini_npz/results__pi3x.npz\)'\]"),
-    # The stage records the seed input's ring only, so a tracker's input that burns edges would keep no record of it.
-    ("track", ["--rule", "both_ways_from_centre", "--sam-input", "rgb", "--track-base", "rgb_edge", "--sam-ckpt",
-               "{ckpt}"], [0], r"--track-base rgb_edge burns edges and --sam-input rgb records no edge ring"),
-    # The seed's input would burn edges, so the seed labels alone leave the ring unrecorded.
-    ("track", ["--rule", "both_ways_from_centre", "--sam-input", "normal_edge", "--track-base", "normal_edge",
-               "--seed-labels", "nowhere"], [0], r"--track-base normal_edge burns edges and --seed-labels records no"),
 ])
 def test_a_run_that_cannot_make_the_condition_is_refused_before_anything_runs(run, stage, options, gpus, match):
     root, tracks, ckpt = run
@@ -336,13 +337,26 @@ def test_a_run_that_cannot_make_the_condition_is_refused_before_anything_runs(ru
     assert not (tracks / "_calls").exists()
 
 
-def test_a_tracker_input_that_burns_edges_runs_when_the_seed_s_input_records_the_ring(run):
+@pytest.mark.parametrize("seed, base, ring", [
+    (["--sam-input", "rgb"], "rgb_edge", True),
+    (["--sam-input", "rgb", "--keep-edge-ring"], "rgb_edge", False),
+    (["--sam-input", "normal_edge", "--seed-labels", "{seeds}"], "rgb_edge", True),
+    # The seed was cut elsewhere, so its input's edges are not this run's, and no input of the run burns edges.
+    (["--sam-input", "normal_edge", "--seed-labels", "{seeds}"], "rgb", None),
+])
+def test_the_driver_expects_the_edge_ring_the_tracking_stage_records(run, seed, base, ring):
+    # The seed's own record holds no ring for these seeds, so only the record's `edge_ring_masked` holds the run's.
     root, tracks, ckpt = run
     make_clip(root, "clip0")
-    s = settings("track", "--rule", "both_ways_from_centre", "--sam-input", "normal_edge", "--track-base", "rgb_edge",
-                 "--seed-min-area", "1", sam_ckpt=ckpt)
+    seeds = root.parent / "seeds"
+    (seeds / "clip0").mkdir(parents=True)
+    np.save(seeds / "clip0" / f"label_{N // 2:04d}.npy", np.zeros((H, W), int))
+    external = "--seed-labels" in seed
+    s = settings("track", "--rule", "both_ways_from_centre", "--track-base", base, "--seed-min-area", "1",
+                 *[o.replace("{seeds}", str(seeds)) for o in seed], sam_ckpt=None if external else ckpt)
     run_population("track", s, root, tracks, ["clip0"], [0])
-    assert (tracks / "clip0" / "track_rgb_edge_t" / "seed_info.json").is_file()
+    info = json.loads((tracks / "clip0" / f"track_{base}_t" / "seed_info.json").read_text())
+    assert (info["seed_input"]["edge_ring_masked"], info["edge_ring_masked"]) == (None, ring)
 
 
 def test_a_montage_left_without_its_labels_is_refused_before_anything_runs(run):
@@ -385,12 +399,17 @@ def test_the_gpus_are_named_on_the_command_line():
                                    "--tag", "t", "--sam-ckpt", "x", "--sam-input", "rgb"])
 
 
-def test_a_signal_ignored_under_nohup_stays_ignored(handlers_restored):
-    signal.signal(signal.SIGHUP, signal.SIG_IGN)
+@pytest.mark.parametrize("hup", [signal.SIG_IGN, signal.SIG_DFL], ids=["nohup", "terminal"])
+def test_the_command_stops_on_sighup_unless_nohup_ignores_it(tmp_path, monkeypatch, handlers_restored, hup):
+    signal.signal(signal.SIGHUP, hup)
     signal.signal(signal.SIGTERM, signal.SIG_DFL)
-    driver.install_stop_handlers()
-    assert signal.getsignal(signal.SIGHUP) is signal.SIG_IGN
-    assert signal.getsignal(signal.SIGTERM) is driver.stop
+    monkeypatch.setattr(sys, "argv", ["d", "per_frame", "--input-dir", str(tmp_path / "nowhere"), "--clips", "-",
+                                      "--tracks-root", "-", "--tag", "t", "--sam-ckpt", "x", "--sam-input", "rgb",
+                                      "--gpus", "0"])
+    with pytest.raises(SystemExit, match="no such directory"):
+        main()
+    assert signal.getsignal(signal.SIGHUP) is (signal.SIG_IGN if hup is signal.SIG_IGN else stop)
+    assert signal.getsignal(signal.SIGTERM) is stop
 
 
 def test_a_clip_without_depth_is_refused_before_anything_runs(run):
@@ -402,7 +421,7 @@ def test_a_clip_without_depth_is_refused_before_anything_runs(run):
     assert not (tracks / "_calls").exists()
 
 
-@pytest.mark.parametrize("stop_signal", driver.STOP_SIGNALS)
+@pytest.mark.parametrize("stop_signal", STOP_SIGNALS)
 def test_a_driver_stopped_by_a_signal_stops_its_processes(run, stop_signal):
     # The driver runs as a process of its own, as `kill` finds it, with the stand-in as its stage command.
     root, tracks, ckpt = run
@@ -449,7 +468,7 @@ def test_a_driver_stopped_while_starting_its_processes_stops_the_ones_started(ru
 @pytest.fixture
 def handlers_restored():
     """Put back the signal handlers `main` replaces, so that the test process keeps its own."""
-    old = {s: signal.getsignal(s) for s in driver.STOP_SIGNALS}
+    old = {s: signal.getsignal(s) for s in STOP_SIGNALS}
     yield
     for s, handler in old.items():
         signal.signal(s, handler)

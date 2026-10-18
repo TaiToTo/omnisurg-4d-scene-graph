@@ -27,9 +27,10 @@ pytest.importorskip("scipy", reason="the Wilcoxon test needs the `tools` extra")
 REPO = Path(__file__).resolve().parent.parent
 PILOT_KEY = "inst_F1_50_labeled"
 KEY = metric_key("F1_50", "all")
+# Six videos a column, the fewest a mark rests on.
 VIDEOS = {"atlas120k": ("adrenalectomy__16GPCUPkXYQ", "appendectomy__41RKDh3INiU", "lar___7H7G-4sevQ",
-                        "rectopexy__IJfgUvxoTkM"),
-          "cholecseg8k": ("VID01", "VID12", "VID25", "VID26")}
+                        "rectopexy__IJfgUvxoTkM", "hemicolectomy__5YDMlxTl0k8", "nephrectomy__abc123"),
+          "cholecseg8k": ("VID01", "VID12", "VID25", "VID26", "VID35", "VID37")}
 PILOT_DATASET = {"atlas120k": "atlas", "cholecseg8k": "cholec"}
 
 
@@ -132,7 +133,21 @@ def test_a_cell_is_the_pair_statistics_of_paired_stats_on_the_key(tmp_path):
     r = cells[0]["metrics"][PILOT_KEY]
     assert CT.format_cell(cells[0], PILOT_KEY) == (
         f"{r['delta_mean']:+.4f} [{r['ci95_video'][0]:+.4f}, {r['ci95_video'][1]:+.4f}] "
-        f"p={r['wilcoxon_p']:.5f}★ (8 clips, 4 videos)")
+        f"p={r['wilcoxon_p']:.5f}★ (12 clips, 6 videos)")
+
+
+def test_a_cell_on_five_videos_is_read_for_its_sign_only_and_its_row_is_not_marked(tmp_path):
+    dirs = write_table(tmp_path, {("atlas120k", "t5_k10"): 0.10, ("cholecseg8k", "t5_k10"): 0.10})
+    drop = VIDEOS["atlas120k"][-1]
+    for tag in {t for c in CT.CLAIMS for t in c.pairs["atlas120k"]}:
+        rewrite(dirs, "atlas120k", tag, lambda d: d.update(
+            clips=[c for c in d["clips"] if not c.startswith(drop)],
+            per_clip=[r for r in d["per_clip"] if not r["clip"].startswith(drop)]))
+    rows, _, _ = CT.build(dirs, PILOT_KEY)
+    atlas, cholec = rows[0][1]
+    assert not CT.star_in(atlas, PILOT_KEY) and CT.star_in(cholec, PILOT_KEY)
+    assert CT.format_cell(atlas, PILOT_KEY).endswith(f"(10 clips, 5 videos; {PS.sign_only_note(5)})")
+    assert "★" not in CT.format_cell(atlas, PILOT_KEY)
 
 
 def test_a_row_is_marked_double_star_only_when_both_its_cells_are_marked_star(tmp_path):
@@ -172,7 +187,7 @@ def test_an_interval_that_ends_near_zero_stays_marked_and_shows_its_end(tmp_path
     rows, _, _ = CT.build(write_table(tmp_path), PILOT_KEY)
     assert CT.star_in(rows[0][1][0], PILOT_KEY)
     assert "[+2.00e-05, +0.0151] p=" in CT.format_cell(rows[0][1][0], PILOT_KEY)
-    assert "★ (8 clips" in CT.format_cell(rows[0][1][0], PILOT_KEY)
+    assert "★ (12 clips" in CT.format_cell(rows[0][1][0], PILOT_KEY)
 
 
 def test_a_score_json_without_the_key_is_refused_not_shown_as_not_defined(tmp_path):
@@ -193,7 +208,7 @@ def test_a_shrunken_population_is_shown_against_the_pair_s(tmp_path):
     dirs = write_table(tmp_path)
     rewrite(dirs, "atlas120k", "t5_k10", lambda d: d["per_clip"][0].update({PILOT_KEY: None}))
     rows, _, _ = CT.build(dirs, PILOT_KEY)
-    assert CT.format_cell(rows[0][1][0], PILOT_KEY).endswith("(7/8 clips, 4/4 videos)")
+    assert CT.format_cell(rows[0][1][0], PILOT_KEY).endswith("(11/12 clips, 6/6 videos)")
 
 
 def test_a_key_with_no_direction_is_refused(tmp_path):

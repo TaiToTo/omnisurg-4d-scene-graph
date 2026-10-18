@@ -14,7 +14,7 @@ no check is recorded.
 | evaluator, `evalkit/` | class tables, metrics, entry point, pilot mode | in pilot mode, every key shared with the pilot evaluator equal on 23 conditions × 315 clips, at `eval_code_sha` `a5d7ea46…` |
 | score tools, `evalkit/tools/` | every tool in the layout of `AGENTS.md` but `track_metrics` | `paired_table`, `arms_paired`, `claims_table`, `leave_one_video_out`, `print_status_tables`, `kmerge`: the workbench's values on the same inputs |
 | camera trajectory scorer, `trajectory_eval/` | `pose_metrics`, the scoring of a clip, `pose_controls`, `scores`, `score_stereomis`, `stereomis_table` | `pose_metrics`: the workbench's values on 1200 random, planar and static trajectories. The scoring of a clip, `pose_controls` and `score_stereomis`: the workbench's 387 StereoMIS rows, every value, scored again from its stored outputs, at the workbench's offsets and times. `stereomis_table`, on those rows: the 24 pairs of the workbench's `summary_20.json`, every field |
-| extraction and crop | ATLAS-120k, CholecSeg8k, LapEx, StereoMIS, the D4D population | the CholecSeg8k crop, 13 of the 27 CholecSeg8k clips and the D4D population: the workbench's bytes. LapEx's 735 clips: the workbench's frames and masks, and its manifests apart from `depth_info` |
+| extraction and crop | ATLAS-120k, CholecSeg8k, LapEx, StereoMIS, the D4D census and population | the CholecSeg8k crop and 13 of the 27 CholecSeg8k clips: the workbench's bytes. LapEx's 735 clips: the workbench's frames and masks, and its manifests apart from `depth_info`. The D4D census: every field it writes equal to the workbench's census on the 271 clips. The D4D population: the same bytes from the ported census as from the workbench's |
 | depth | DA3, Pi3X, point clouds, the population drivers | DA3, point clouds and Pi3X: the workbench's bytes on the GPU machine, on three clips. DA3 also on the 25 LapEx clips whose border the workbench did not fill |
 | segmentation and tracking | `track`, `per_frame`, `condition_population` | `track` and `per_frame`: the workbench's bytes on the GPU machine, on three clips. `condition_population`: the workbench's commands, for 43 conditions. The 40 segmenter inputs that `tests/test_render_outputs_are_pinned.py` pins: the workbench's, rendered with each case's ring setting |
 | viewer | `viewer/`, `pipeline/viewer_bundle` | — (new: the workbench's demo read other files) |
@@ -50,9 +50,8 @@ not compared:
   modules they need. Its byte check needs a clip whose tracking labels the
   workbench holds.
 - **The paper's tables**: the claims grid.
-- **D4D**: the census, depth, seeds, the front/behind relation and the
-  camera trajectory. The reader waits on "How this repository depends on
-  D4D's loader".
+- **D4D**: depth, seeds, the front/behind relation and the camera
+  trajectory.
 - **LapEx's comparisons**. They wait on "How LapEx is scored".
 - **The conditions seeded from GT masks** (`t12_gtseed`, `t12_paste`). They
   wait on "Conditions seeded from GT".
@@ -94,6 +93,25 @@ not compared:
      this repository's code. Open: whether the paper reports them.
    - **`track_metrics`.** It is run on the paper's conditions. Open: how
      the paper reports its measures.
+3. **The conditions take their names at the re-score.**
+   `evalkit/tools/condition_names.tsv` maps each workbench condition that
+   the paper's tables read to its name here, or says why its records show
+   none. The `t5_*` rows name the rule their records show, which the
+   evaluator scores only once it accepts a seed made outside the tracking
+   stage. With the re-score, and not before, the label directories and the
+   score JSONs take these names, and `paired_table`, `claims_table` and
+   `arms_paired` read their tags from the table. Until then the tools read
+   the workbench's names.
+4. **How the regions are compared.** Decided on 2026-10-12:
+   - Every condition is scored on whole-class objects by the evaluator,
+     and on component objects at 0, 100, 300 and 400 px by
+     `component_scores`.
+   - The paper describes how each measure moves across these settings,
+     not which condition wins. Open: how the questions and primary
+     metrics of `docs/evaluation.md` change.
+   - Inputs are compared at a matched number of regions by sweeping the
+     segmenter's points per side. Merging regions is not used for it,
+     since the merge adds a rule of its own.
 
 ## Remaining steps
 
@@ -136,6 +154,10 @@ A ported stage's output may differ from the workbench's in these places
 only:
 
 - **Pi3X's `runtime_sec`.**
+- **The tracking stage's `edge_ring_masked`.** The workbench's
+  `seed_info.json` has no such key, so `pipeline.byte_check` reports the
+  file as different. The reviewer compares the two records by hand with
+  this key removed; the stage writes it last.
 - **CholecSeg8k clips whose frames run out of order.** In videos that
   CholecSeg8k numbers at about 30 fps, the workbench's extractor placed the
   frames between annotations 1 to 3 s late, and one image could appear
@@ -147,6 +169,9 @@ only:
   thousand differs by one level. So frames are compared on one machine.
 - **The ATLAS-120k manifest key `pixel_source`.** The workbench's extractor
   gained it after the GPU machine's clips were extracted.
+- **The D4D population.** The workbench's rule also left out 45 sides as
+  `tissue_moving`, from the tissue's motion at the clip's end nearest the
+  scan. The rule here keeps them: 532 sides where the workbench kept 487.
 - **LapEx's depth.** On 710 of the 735 clips, the workbench filled what it
   took for the endoscope's border and set the depth there to 0. The
   evaluator refuses a frame with depth 0. The depth stage takes the frames
@@ -198,7 +223,11 @@ Each question says what it blocks and where its answer is written.
   number of frames, the seed sits one frame before the centre:
   `track_metrics.pick_seed_frame` breaks a tie toward the earlier frame,
   while the tracking stage and `rule_of_seed_info` take `frames[n // 2]`.
-  So on those clips the conditions hold neither propagation rule. Open:
+  So on those clips the conditions hold neither propagation rule. The
+  workbench's `normal_edge_t12_gtseed` and `rgb_edge_t12_gtseed` records
+  hold no edge ring for the tracker's input, so `condition_inventory` and
+  `check_provenance` refuse them until the conditions are measured again.
+  Open:
   which frame a GT seed is placed on under each rule and when the centre
   frame has no GT, which code places it, and how the evaluator scores it.
   Blocks: measuring the `t12_*` conditions again. Answer in:
@@ -215,22 +244,6 @@ Each question says what it blocks and where its answer is written.
 
 ### Conditions
 
-- **Condition names.** A workbench name says which task made a condition
-  (`t12_*`, `t5_*`), not what it is. A condition also has two names: its
-  score's tag and its prediction directory, which the score records as
-  `track_dir_name`. Open: how a name says the input, the seed's source and
-  the propagation rule; where the one table that maps workbench names to
-  names here lives; and whether the tools read their tags and their pairs
-  from it. Blocks: naming new conditions. Answer in: that table.
-- **The edge ring of the tracker's input.** The tracking stage builds the
-  seed's input and the tracker's input with one ring setting.
-  `seed_info.json` records the setting once, as
-  `seed_input.edge_ring_masked`, for the seed's input only. When the seed
-  came from GT or from outside the stage, or the seed's input burns no
-  edges, the record holds no setting, even when the tracker's input burns
-  edges. So `check_provenance` and `condition_inventory` cannot compare it.
-  Open: where the record holds the tracker's setting. Answer in:
-  `docs/pipeline.md`, the tracking stage.
 - **Depth made by two versions of the depth stage.** On the development
   machine, 7 of the 9 CholecSeg8k clips carry depth from a branch of the
   workbench's depth stage that never reached its `main`: their bundle holds
@@ -240,13 +253,6 @@ Each question says what it blocks and where its answer is written.
   Open: which version made the depth each scored ATLAS-120k condition
   read, and where it was the branch, whether that depth is made again.
   Answer in: `docs/pipeline.md`, the depth stage.
-- **The order of tied presence scores.** The tracking stage paints a
-  frame's objects in the order of their presence scores, through
-  `np.argsort`. On the prompted frame all of them tie, and above 16 tied
-  objects their order depends on numpy's build and the CPU. Where tied
-  masks overlap, a label can then differ between machines. Open: keep the
-  sort, or sort stably and list the change among the byte equality
-  exceptions. Answer in: `docs/pipeline.md`, the tracking stage.
 
 ### Tools and tables
 
@@ -260,14 +266,6 @@ Each question says what it blocks and where its answer is written.
   has no GT; which `hold_mean` definition keeps the name; and what hold
   means under `forward_from_first`. Blocks: porting `track_metrics`.
   Answer in: `docs/evaluation.md`.
-- **The fewest videos for an interval.** `paired_stats.boot_ci` refuses a
-  population of one video. On two or three videos the 95 % interval is the
-  range of the video means, so two videos that agree in sign give a mark.
-  Open: whether the interval needs more videos, and how many.
-  The floors of `paired_table` (five clips per cell) and of
-  `leave_one_video_out` are decided with it. Until then, a subset's
-  interval is read for its sign only. Answer in: `paired_stats`, beside
-  `MARK_RULE`.
 - **The paired table on the evaluator's scores.** `paired_table` prints the
   pilot's table only. The six `t5_*` rows wait on "Seeds made outside the
   tracking stage". A table holds one propagation rule, so it is printed
@@ -287,14 +285,10 @@ Each question says what it blocks and where its answer is written.
 - **The pairs `arms_paired` reports.** The workbench compared 21 pairs of
   inputs by default. Two of them compare inputs the paper's conditions
   ran: `rgb_edge` with `rgb`, and `normal_edge` with `normal`. The port
-  carries no list, because the tags wait on "Condition names". Open: which
+  carries no list, because its tags change at the re-score ("The conditions
+  take their names at the re-score"). Open: which
   pairs the paper reports with the tool. Answer in: `arms_paired`'s
   docstring.
-- **The benchmark mapping against its source.** The ATLAS-120k mapping to
-  the benchmark's 30 classes was checked by hand against ATLAS-bench's
-  `datasets/class_mapping.py` at commit e286a584, and all 47 ids agree.
-  Open: whether a script that takes that file's path repeats the check.
-  Answer in: `docs/evaluation.md`, the benchmark's 30 classes.
 
 ### Pipeline
 
@@ -306,38 +300,6 @@ Each question says what it blocks and where its answer is written.
   as having none. Open: whether such a mask moves out of `seg_masks/` or
   takes a name of its own. Blocks: porting the step that writes them.
   Answer in: `docs/pipeline.md`.
-- **A clip with no usable depth in any frame.** The point-cloud stage skips
-  a frame with no usable depth, as the workbench does. A clip with no
-  usable depth in any frame gets no cloud and a count of 0, and the run
-  exits 0. No real clip has done this. Open: whether the stage refuses
-  such a clip. Answer in: `docs/pipeline.md`, the point-cloud stage.
-
-### D4D
-
-- **How this repository depends on D4D's loader.** The workbench imports
-  `d4d.loader` from a clone of https://github.com/reubendocea/d4d at commit
-  `efe12d26`. pip cannot install it: the project's find rule includes only
-  `d4d_surgical*`, while the package is `d4d/`. The repository has no
-  licence file, though its `pyproject.toml` declares MIT. Open: upstream
-  fixes both and an extra pins the commit; a fork carries the fix; or the
-  README says to put the clone on `PYTHONPATH`. Blocks: the census and the
-  D4D reader. Answer in: `pyproject.toml` and the README.
-- **Two inputs of the census whose code no repository holds.** The census
-  reads `moved_camera` from `clip_table.json`, and `active` from
-  `tissue_motion.json`. Scripts in the dataset's directory wrote both
-  files. `detect_tissue_motion.py` passes `cv2.INTER_NEAREST` as
-  `cv2.resize`'s third positional argument, `dst`, so in 11 of the 271
-  clips it resized the instrument masks bilinearly. Whether that changes
-  any `tissue_moving` side is not measured. Open: whether the two
-  scripts are ported or their files kept as data, and whether the motion
-  record is made again. Answer in: `d4d_meta/README.md`.
-- **The tissue's motion when a side was scanned.** The motion record
-  covers the clip only, so `active` is taken at the clip's first moment for
-  `start` and its last for `end`. The scans lie outside the clip, at the
-  median 4.4 s before and 4.3 s after it. The record also stops before a
-  clip's last frame, so no `end` side is `active`. Open: keep this
-  stand-in, written down, or measure the motion up to each scan. Blocks:
-  reporting the D4D numbers. Answer in: `d4d_meta/README.md`.
 
 ### LapEx
 

@@ -1,8 +1,9 @@
 """The StereoMIS table on rows whose differences are known.
 
-Three sequences hold two clips each, one `moving` and one `slow`. `good`
-scores 0.2 below the base on every clip, `bad` 0.1 above it, and `mixed`
-0.1 below on one sequence's clips and 0.1 above on the others'.
+Six sequences, the fewest a mark needs, hold two clips each, one `moving`
+and one `slow`. `good` scores 0.2 below the base on every clip, `bad` 0.1
+above it, and `mixed` 0.1 below on two sequences' clips and 0.1 above on
+the others'.
 """
 
 import json
@@ -14,12 +15,12 @@ import pytest
 pytest.importorskip("scipy")
 
 import trajectory_eval.tools.stereomis_table as T  # noqa: E402
-from evalkit.tools.paired_stats import boot_ci  # noqa: E402
+from evalkit.tools.paired_stats import MARK_RULE, MIN_VIDEOS_FOR_MARK, boot_ci  # noqa: E402
 
 SHA = "c" * 64
-SEQS = ("P1", "P2_0", "P2_1")
+SEQS = ("P1", "P2_0", "P2_1", "P2_2", "P2_3", "P2_4")
 OFFSET = {"floor_static": lambda s: 0.0, "good": lambda s: -0.2, "bad": lambda s: 0.1,
-          "mixed": lambda s: -0.1 if s == "P1" else 0.1}
+          "mixed": lambda s: -0.1 if s in ("P1", "P2_0") else 0.1}
 
 
 def rows_of(conds=tuple(OFFSET)) -> list[dict]:
@@ -38,9 +39,18 @@ def rows_of(conds=tuple(OFFSET)) -> list[dict]:
 def test_a_condition_below_the_base_is_marked_better_and_one_above_worse():
     rows = rows_of()
     good, bad = T.compare(rows, "floor_static", "good"), T.compare(rows, "floor_static", "bad")
-    assert (good["mark"], good["delta"], good["better"], good["worse"]) == ("★", -0.2, 6, 0)
-    assert (bad["mark"], bad["delta"], bad["better"], bad["worse"]) == ("✗", 0.1, 0, 6)
-    assert (good["n"], good["n_seq"], good["key"], good["stratum"]) == (6, 3, "ate_rel", "")
+    assert (good["mark"], good["delta"], good["better"], good["worse"]) == ("★", -0.2, 12, 0)
+    assert (bad["mark"], bad["delta"], bad["better"], bad["worse"]) == ("✗", 0.1, 0, 12)
+    assert (good["n"], good["n_seq"], good["key"], good["stratum"]) == (12, 6, "ate_rel", "")
+
+
+def test_a_pair_on_five_sequences_gets_no_mark_and_says_so_and_one_on_six_does(capsys):
+    assert len(SEQS) == MIN_VIDEOS_FOR_MARK
+    five = [r for r in rows_of() if r["seq"] != SEQS[-1]]
+    assert T.compare(five, "floor_static", "good")["mark"] == ""
+    assert "[read for its sign only: a mark needs 6 videos]" in capsys.readouterr().out
+    assert T.compare(rows_of(), "floor_static", "good")["mark"] == "★"
+    assert "read for its sign only" not in capsys.readouterr().out
 
 
 def test_the_interval_is_the_paired_stats_bootstrap_over_sequences():
@@ -49,10 +59,10 @@ def test_the_interval_is_the_paired_stats_bootstrap_over_sequences():
     by = {(r["clip"], r["cond"]): r["ate_rel"] for r in rows}
     clips = sorted({r["clip"] for r in rows})
     d = np.array([by[c, "mixed"] - by[c, "floor_static"] for c in clips])
-    np.testing.assert_allclose(d, [-0.1, -0.1, 0.1, 0.1, 0.1, 0.1], atol=1e-9)
+    np.testing.assert_allclose(d, [-0.1] * 4 + [0.1] * 8, atol=1e-9)
     lo, hi = boot_ci(d, np.repeat(SEQS, 2))
     assert pair["ci95_seq"] == [round(lo, 4), round(hi, 4)] and pair["delta"] == round(d.mean(), 4)
-    assert pair["mark"] == "" and pair["better"] == 2 and pair["worse"] == 4
+    assert pair["mark"] == "" and pair["better"] == 4 and pair["worse"] == 8
 
 
 def test_an_interval_end_near_zero_keeps_its_sign_its_mark_and_its_printed_digits(capsys):
@@ -65,7 +75,7 @@ def test_an_interval_end_near_zero_keeps_its_sign_its_mark_and_its_printed_digit
 
 def test_a_stratum_pairs_its_own_clips():
     pair = T.compare(rows_of(), "floor_static", "good", stratum="slow")
-    assert (pair["n"], pair["n_seq"], pair["stratum"]) == (3, 3, "slow")
+    assert (pair["n"], pair["n_seq"], pair["stratum"]) == (6, 6, "slow")
 
 
 def test_every_condition_is_paired_with_the_base_overall_and_in_each_stratum(capsys):
@@ -73,7 +83,7 @@ def test_every_condition_is_paired_with_the_base_overall_and_in_each_stratum(cap
     assert [(p["cond"], p["stratum"]) for p in out["pairs"]] == [
         (c, st) for st in ("", "moving", "slow") for c in ("bad", "good", "mixed")]
     printed = capsys.readouterr().out
-    assert "★ good - floor_static: delta -0.2000" in printed
+    assert MARK_RULE in printed and "★ good - floor_static: delta -0.2000" in printed
     assert "P1       2          +0.1000         -0.2000         -0.1000" in printed
 
 

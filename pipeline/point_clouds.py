@@ -2,11 +2,11 @@
 
 The stage reads `exports/mini_npz/results.npz`, which the depth stage wrote,
 and needs no model. It writes `pc_vis/frame_NNNN.glb` for every frame with
-usable depth. Each cloud is centred on its centroid. The stage records that
-centroid, `glb_centroid`, and the camera's position and axes in glTF's
-coordinate system, `camera_*_glb`, on the frame's manifest entry. The
-viewer's world mode reads these keys to place every frame's cloud and camera
-in one scene.
+usable depth, and refuses a clip with no usable depth in any frame. Each
+cloud is centred on its centroid. The stage records that centroid,
+`glb_centroid`, and the camera's position and axes in glTF's coordinate
+system, `camera_*_glb`, on the frame's manifest entry. The viewer's world
+mode reads these keys to place every frame's cloud and camera in one scene.
 
 Usage:
     python -m pipeline.point_clouds --input-dir /path/to/clips [--clips <clip> ...]
@@ -108,12 +108,16 @@ def run_point_clouds(clip_dir: Path) -> int:
 
     Raises:
         FileNotFoundError: no depth bundle, no manifest, or no image for a frame of the bundle.
-        ValueError: a bundle `read_bundle` refuses, a manifest `read_manifest` refuses, or an image that cannot
-            be read.
+        ValueError: a bundle `read_bundle` refuses, a manifest `read_manifest` refuses, an image that cannot
+            be read, or a clip with no usable depth in any frame.
     """
     # Read every input, and refuse the clip before anything is written.
     depth, K_all, E_all = read_bundle(clip_dir)
     n_frames, H, W = depth.shape
+    # A clip without one cloud would leave the viewer nothing to show, and the run would still exit 0.
+    if not valid_depth_mask(depth).any():
+        raise ValueError(f"{clip_dir.name}: no frame of the {n_frames} has usable depth, so no point cloud can be "
+                         "written")
     manifest = read_manifest(clip_dir, n_frames)
     colors = read_colors(clip_dir, n_frames, (W, H))
 
@@ -134,8 +138,7 @@ def run_point_clouds(clip_dir: Path) -> int:
         per_frame[i] = {"glb_centroid": centroid.tolist(), **camera_axes_in_gltf(R, t)}
 
     # Record where each cloud is.
-    if per_frame:
-        write_placements(clip_dir / "frame_manifest.json", manifest, per_frame)
+    write_placements(clip_dir / "frame_manifest.json", manifest, per_frame)
     return len(per_frame)
 
 
