@@ -35,7 +35,7 @@ from evalkit.code_sha import eval_code_sha, hashed_files
 from evalkit.frame import score_frame
 from evalkit.inputs import ClipInputs, read_clip
 from evalkit.keys import FRAME_METRICS, metric_key
-from evalkit.pilot import PILOT_DOMAINS
+from evalkit.pilot import PILOT_DOMAINS, PILOT_INSTRUMENT_IDS
 from evalkit.pilot_clip import score_pilot_clip
 from evalkit.scored import valid_depth
 from evalkit.time_iou import time_iou
@@ -225,14 +225,17 @@ def score_condition(dataset: str, class_set: str | None, clips: Sequence[str],
         pilot: Score by the pilot evaluator's rules.
 
     Raises:
-        ValueError, KeyError, FileNotFoundError: Pilot mode is asked for a class set other than `original`;
-            the condition's propagation rule is unknown (`condition_rule`); or a clip's inputs cannot be read
-            or scored. Nothing is returned for the others.
+        ValueError, KeyError, FileNotFoundError: Pilot mode is asked for a class set other than `original`,
+            or for a dataset the pilot evaluator never scored; the condition's propagation rule is unknown
+            (`condition_rule`); or a clip's inputs cannot be read or scored. Nothing is returned for the
+            others.
     """
     table = load_table(dataset, class_set)
     check_table(table)
     if pilot and table.class_set != "original":
         raise ValueError("pilot mode scores the original ids, as the pilot evaluator did")
+    if pilot and table.dataset not in PILOT_INSTRUMENT_IDS:
+        raise ValueError(f"the pilot evaluator scored no {table.dataset} clip, so pilot mode has nothing to reproduce")
     rule = condition_rule(tracks_root, tag, clips, propagation)
     sha = eval_code_sha()
     rows, shas = [], {}

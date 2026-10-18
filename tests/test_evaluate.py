@@ -252,3 +252,18 @@ def test_the_region_line_is_filled_scored_as_its_neighbours_and_counted(tmp_path
     # The masks are twice the depth's size: the line is 2 px wide there, and one column of 20 px here.
     assert [f["filled_pixels"] for f in row["frames"]] == [20, 20, 20] and row["filled_pixels"] == 60
     assert row["pixels"]["all"]["ignored"] == 0
+
+
+def test_a_lapex_clip_is_scored_whole_with_its_interstitial_space_filled(tmp_path):
+    # One frame, as LapEx's extraction writes it: no crop rectangle, no `is_anchor`, grey-level ids, and a
+    # gap of interstitial space between the liver and the stomach.
+    gt = np.full((20, 30), C.LAPEX_STOMACH, dtype=np.int32)
+    gt[:, :12] = C.LAPEX_LIVER
+    gt[:, 12] = C.LAPEX_GAP
+    C.write_lapex_clip(tmp_path / "data", "01__gt_0040", gt)
+    C.write_labels(tmp_path / "tracks", "01__gt_0040", "c",
+                   {0: np.where(gt == C.LAPEX_GAP, C.LAPEX_LIVER, gt)}, seed_info={"seed_source": "per_frame"})
+    summary = score_condition("lapex", None, ["01__gt_0040"], tmp_path / "data", tmp_path / "tracks", "c")
+    row = summary["per_clip"][0]
+    assert summary["dataset"] == "lapex" and row["F1_50/geometric"] == 1.0 and row["boundary_R_raw/all"] == 1.0
+    assert row["filled_pixels"] == 20

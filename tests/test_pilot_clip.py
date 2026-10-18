@@ -272,3 +272,8 @@ def test_a_pilot_mode_json_says_so_and_scores_the_pilot_s_domains(tmp_path):
 def test_pilot_mode_refuses_a_class_set_other_than_the_original_ids(tmp_path):
     with pytest.raises(ValueError, match="pilot mode scores the original ids"):
         score_condition("atlas120k", "benchmark", ["c"], tmp_path, tmp_path, "t", pilot=True)
+
+
+def test_pilot_mode_refuses_a_dataset_the_pilot_evaluator_never_scored(tmp_path):
+    with pytest.raises(ValueError, match="the pilot evaluator scored no lapex clip"):
+        score_condition("lapex", None, ["c"], tmp_path, tmp_path, "t", pilot=True)

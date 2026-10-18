@@ -3,8 +3,9 @@
 `write_clip` writes one clip from class-id maps: its manifest, its depth
 and its GT masks, the masks `scale` times larger than the depth so that the
 resize is exercised. A CholecSeg8k mask holds colours, an ATLAS-120k mask
-the ids themselves. `write_labels` writes one condition's
-predictions for it.
+the ids themselves. `write_lapex_clip` writes a LapEx clip as its
+extraction does: one frame, grey levels, no crop rectangle and no
+`is_anchor`. `write_labels` writes one condition's predictions for it.
 """
 import json
 from pathlib import Path
@@ -17,6 +18,7 @@ from evalkit.inputs import DEPTH_FILE, GT_FLAG, MANIFEST, MASK_DIR, MASK_SUFFIX
 
 TABLE = load_table("cholecseg8k")
 LIVER, GALLBLADDER, FAT, GRASPER, REGION_LINE = 2, 10, 4, 5, 13
+LAPEX_GAP, LAPEX_LIVER, LAPEX_STOMACH = 11, 200, 218
 
 
 def two_organs(h: int = 20, w: int = 30, cut: int = 15) -> np.ndarray:
@@ -57,6 +59,20 @@ def write_clip(data_root: Path, clip: str, gt: list[np.ndarray], *, gt_frames=No
         big = np.kron(gt[i], np.ones((scale, scale), dtype=np.int32))
         mask = colour_mask(big) if dataset == "cholecseg8k" else big.astype(np.uint8)
         Image.fromarray(mask).save(clip_dir / MASK_DIR / f"{i:06d}{MASK_SUFFIX[dataset]}")
+    return clip_dir
+
+
+def write_lapex_clip(data_root: Path, clip: str, gt: np.ndarray, scale: int = 2) -> Path:
+    """One LapEx clip of one frame, its mask `scale` times larger than the depth."""
+    clip_dir = Path(data_root) / clip
+    (clip_dir / MASK_DIR).mkdir(parents=True)
+    (clip_dir / DEPTH_FILE).parent.mkdir(parents=True)
+    manifest = {"dataset": "lapex", "frames": [{"seq_idx": 0, "native_ms": 40, "native_frame": 1, "has_gt": True}],
+                "n_frames": 1}
+    (clip_dir / MANIFEST).write_text(json.dumps(manifest), encoding="utf-8")
+    np.savez(clip_dir / DEPTH_FILE, depth=np.ones((1, *gt.shape), dtype=np.float32))
+    big = np.kron(gt, np.ones((scale, scale), dtype=np.int32)).astype(np.uint8)
+    Image.fromarray(big).save(clip_dir / MASK_DIR / f"000000{MASK_SUFFIX['lapex']}")
     return clip_dir
 
 

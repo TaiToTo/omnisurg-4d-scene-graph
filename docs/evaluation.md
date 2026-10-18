@@ -6,9 +6,9 @@
 
 The pipeline splits each frame into regions and gives them no class. The
 evaluator compares these regions with the ground-truth (GT) masks of
-ATLAS-120k and CholecSeg8k. A GT object is all pixels of one class in one
-frame, and a predicted object is one region. Every metric but `time_IoU` is
-computed in three views: `all` (every class), `tissue` (without tools) and
+ATLAS-120k, CholecSeg8k and LapEx. A GT object is all pixels of one class in
+one frame, and a predicted object is one region. Every metric but `time_IoU`
+is computed in three views: `all` (every class), `tissue` (without tools) and
 `geometric` (only the tissue that depth and shape can separate). The paper
 asks three questions of the regions and judges two of them each on a
 primary metric of its own. The question about following a region over time,
@@ -105,10 +105,11 @@ found in the code. A module's docstring says what it returns.
 ### Inputs
 
 - **Ground truth.** A label per pixel, read through the dataset's class
-  table the same way for both datasets: the table gives every id a mask can
+  table the same way for every dataset: the table gives every id a mask can
   hold its colour. CholecSeg8k's masks store colours. ATLAS-120k's store its
   47 original ids, as palette images read by their index, and in 34 clips as
-  colours. The pixels of a `filled` class are then filled ("Class types").
+  colours. LapEx's store grey levels, which are the ids. The pixels of a
+  `filled` class are then filled ("Class types").
 - **Prediction.** One region id per pixel, from tracking, with no class; −1
   means no region. The evaluator never reads a class from the pipeline. Each
   condition gives one prediction per clip.
@@ -127,7 +128,8 @@ found in the code. A module's docstring says what it returns.
 - **Crop.** The pipeline cuts each clip to the rectangle around the
   endoscope's circle. The GT mask is cut with the same rectangle before it is
   resized, so that GT and prediction cover the same pixels. The rectangle is an
-  input like the mask, and is recorded and hashed with it.
+  input like the mask, and is recorded and hashed with it. LapEx's clips are
+  used whole: no rectangle cuts them, and the score hashes none in its place.
 - **Resolution.** GT masks are resized with nearest neighbour to the depth
   map's shape, and so is a prediction of another shape. That shape is DA3's
   input size: the longest side scaled to 504 px, then each side rounded to the
@@ -166,19 +168,21 @@ are ordered. For frame 7:
 |---|---|---|
 | frame manifest | `frame_manifest.json`, in the clip | `frames[7]`, whose `seq_idx` is 7 |
 | depth | `exports/mini_npz/results.npz`, in the clip | `depth[7]` |
-| GT mask | `seg_masks/`, in the clip | `000007_color_mask.png` (CholecSeg8k), `000007_class.png` (ATLAS-120k) |
+| GT mask | `seg_masks/`, in the clip | `000007_color_mask.png` (CholecSeg8k), `000007_class.png` (ATLAS-120k, LapEx) |
 | prediction | the condition's directory for the clip, which the tracking stage writes | `label_0007.npy` |
 
 ### Which frames
 
 The frame manifest says which frames are GT frames, and the mask files do
 not. A GT frame has the dataset's GT flag (`has_seg_mask` for CholecSeg8k,
-`has_gt` for ATLAS-120k), `is_anchor` true and no `seg_provenance`. The mask
-files cannot decide: the pipeline also writes the viewer's SAM 3 masks into
-`seg_masks/` under the GT's names, and they are not GT. A clip is refused
-when a mask file has no GT flag, when a GT flag has no mask file, when a
-flagged frame is neither a GT frame nor marked by `seg_provenance`, or when
-a GT frame has no prediction.
+`has_gt` for ATLAS-120k and LapEx), `is_anchor` true and no
+`seg_provenance`. LapEx's extraction writes one GT frame per clip and no
+`is_anchor`, so a LapEx frame needs the flag and no `seg_provenance` only.
+The mask files cannot decide: the pipeline also writes the viewer's SAM 3
+masks into `seg_masks/` under the GT's names, and they are not GT. A clip is
+refused when a mask file has no GT flag, when a GT flag has no mask file,
+when a flagged frame is neither a GT frame nor marked by `seg_provenance`,
+or when a GT frame has no prediction.
 
 ![Ten frames of a clip in four rows: the raw frames, the GT on six of them, a track seeded from the GT and a track seeded unsupervised. The GT frames are shaded through every row, and the predictions are hatched.](figures/frame_roles.png)
 
@@ -660,7 +664,8 @@ instead ("Component objects").
   watershed codes settle it (`docs/pilot_evaluator.md`, "What the pilot
   evaluator's handling changes, measured on the GT").
 - CholecSeg8k's Black Background is `ignored`. (255, 255, 255), the line
-  CholecSeg8k draws between regions, is `filled`.
+  CholecSeg8k draws between regions, is `filled`, as LapEx's interstitial
+  space is.
 - `Excluded frames` is checked on ATLAS-120k's original ids, before they are
   mapped to the 30 classes, which would turn it into background. In a mask
   stored as colours it cannot be seen: its colour in the dataset's palette is
@@ -853,6 +858,34 @@ In the 27 clips of `cholecseg8k_meta/`, what is left lies on 131 of the 522
 GT frames, most of it in video43 and video52. Ignored, the line took the GT boundary
 there with it; filled, it gives 180,715 pixels a class at the depth map's
 shape.
+
+### LapEx
+
+LapEx's release names its classes in `metadata/segmented_entity.csv`, each
+with the grey level its masks store. The extraction writes every level as it
+is but interstitial space, which it moves from 0 to 11 (`docs/pipeline.md`,
+"The LapEx extraction stage"). The table's id is the level the extraction
+writes, and a class's colour is that grey. LapEx labels every pixel, so the
+table holds no `background` and no `ignored` class. No class was looked at
+in the masks for its type. Each anatomical class takes the type the same
+class has in the other tables, and the instruments and the compress, a
+gauze, are tools.
+
+| id | class | the release's level | type |
+|---:|---|---:|---|
+| 11 | interstitial_space | 0 | filled: the gaps between structures, 0.77 % of the pixels; 87 % of them within 2 px of another class, and every one within 26 px |
+| 18 | adipose_tissue | 18 | tissue, as CholecSeg8k's Fat |
+| 36 | diaphragm | 36 | backdrop, as in ATLAS-120k |
+| 109 | abdominal_wall | 109 | backdrop, as in ATLAS-120k and CholecSeg8k |
+| 127 | spleen | 127 | tissue, as in ATLAS-120k |
+| 145 | liver_retractor | 145 | tool |
+| 163 | compress | 163 | tool: a gauze, not anatomy |
+| 182 | flat_grasper | 182 | tool |
+| 200 | liver | 200 | tissue, as in ATLAS-120k and CholecSeg8k |
+| 218 | stomach | 218 | tissue, as in ATLAS-120k |
+| 236 | electrothermal_biforceps | 236 | tool |
+
+The shares were measured on the 735 masks of the release.
 
 ### ATLAS-120k: ids, classes and colours
 
