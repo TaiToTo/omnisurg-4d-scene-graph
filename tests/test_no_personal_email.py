@@ -12,8 +12,8 @@ In CI on a pull request, HEAD is the pull request merged into main. The run
 on the push to main checks the merge commit GitHub makes on merging.
 """
 
+import importlib.util
 import os
-import re
 import subprocess
 from pathlib import Path
 
@@ -21,30 +21,14 @@ import pytest
 
 REPO = Path(__file__).resolve().parent.parent
 
-EMAIL = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
-
-# Only addresses that reach no person are allowed.
-#
-# Match domains whole or as a parent domain, and addresses exactly, never as a
-# substring: `"example.org" in addr` would also let through a real address
-# that merely has the reserved name in the middle of its domain.
-ALLOWED_DOMAINS = (
-    # GitHub's no-reply addresses, one per account.
-    "users.noreply.github.com",
-    # Reserved by RFC 2606, together with every subdomain.
-    "example.org",
-    "example.com",
-    "example.net",
-)
-ALLOWED_ADDRESSES = (
-    # The committer of commits GitHub makes itself.
-    "noreply@github.com",
-    # The co-author trailer of commits made with Claude Code.
-    "noreply@anthropic.com",
-    # The user part of an SSH clone URL, `git@github.com:owner/repo.git`, which
-    # a README is bound to show.
-    "git@github.com",
-)
+# The rule is the hook's: what the hook refuses before a command runs, this
+# test refuses in the history and the tracked files.
+_HOOK = REPO / ".claude" / "hooks" / "refuse_personal_email.py"
+_spec = importlib.util.spec_from_file_location("refuse_personal_email", _HOOK)
+_hook = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_hook)
+EMAIL, ALLOWED_DOMAINS, ALLOWED_ADDRESSES = _hook.EMAIL, _hook.ALLOWED_DOMAINS, _hook.ALLOWED_ADDRESSES
+is_unreachable, personal_emails, mask = _hook.is_unreachable, _hook.personal_emails, _hook.mask
 
 # Files whose bytes are not text. Compressed image data produces strings that
 # look like addresses, so these are not scanned. A PDF is deliberately not
@@ -73,50 +57,6 @@ def _git(*args, cwd=REPO):
     """
     return subprocess.run(["git", *args], cwd=cwd, check=True,
                           capture_output=True).stdout.decode("utf-8")
-
-
-def is_unreachable(addr):
-    """Tell whether an address is known to reach no person.
-
-    Args:
-        addr: One address.
-
-    Returns:
-        True if the allowlist covers it.
-    """
-    addr = addr.lower()
-    if addr in ALLOWED_ADDRESSES:
-        return True
-    domain = addr.rpartition("@")[2]
-    return any(domain == d or domain.endswith("." + d) for d in ALLOWED_DOMAINS)
-
-
-def personal_emails(text):
-    """List the addresses in a text that may reach a person.
-
-    Args:
-        text: The text to scan.
-
-    Returns:
-        The addresses found, sorted and without duplicates.
-    """
-    return sorted({m for m in EMAIL.findall(text) if not is_unreachable(m)})
-
-
-def mask(addr):
-    """Hide the local part of an address, for failure messages.
-
-    CI logs are public once the repository is. A failure that printed the
-    address it found would publish it there.
-
-    Args:
-        addr: One address.
-
-    Returns:
-        The address with all but the first character of its local part hidden.
-    """
-    local, _, domain = addr.partition("@")
-    return f"{local[:1]}…@{domain}"
 
 
 def history(root=REPO):
