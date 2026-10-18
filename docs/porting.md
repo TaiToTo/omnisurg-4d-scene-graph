@@ -112,6 +112,12 @@ not compared:
    - Inputs are compared at a matched number of regions by sweeping the
      segmenter's points per side. Merging regions is not used for it,
      since the merge adds a rule of its own.
+   - `pipeline/experiment_plan.json` lists the conditions made for it on
+     the GPU machine, on both datasets. Each input that reads depth is made
+     on DA3 and on Pi3X. Tracking forward from the first frame is the
+     default rule, swept over the grids 2, 4, 8, 12, 24 and 48 in three
+     stages; the grid 2 comes last. Tracking from the centre and
+     segmenting each frame alone are made at the grid 24.
 
 ## Remaining steps
 
@@ -259,8 +265,8 @@ Each question says what it blocks and where its answer is written.
 
 - **The paired table on the evaluator's scores.** `paired_table` prints the
   pilot's table only. The six `t5_*` rows wait on "Seeds made outside the
-  tracking stage". A table holds one propagation rule, so it is printed
-  once per rule. The evaluator records `objects.predicted` in place of
+  tracking stage". `paired_table` holds one propagation rule per table, so
+  it is printed once per rule. The evaluator records `objects.predicted` in place of
   `n_regions_mean`. Open: which block answers which of the paper's three
   questions ("Primary metrics" in `docs/evaluation.md`), and which rows,
   keys and views each table holds. Answer in: `paired_table`'s docstring.
