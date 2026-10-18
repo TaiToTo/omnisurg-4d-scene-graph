@@ -122,11 +122,10 @@ not compared:
 ## Remaining steps
 
 1. **Re-score.** Score every condition's predictions with the evaluator.
-   `condition_inventory` must then report no problem. Its header lists the
-   problems it checks, a score on fewer clips than its labels among them.
-   After any change to a hashed file, the
-   check against the pilot evaluator runs again before anything is
-   re-scored.
+   `condition_inventory --require-scored` must then report no problem.
+   Its header lists the problems it checks. After any change to a hashed
+   file, the check against the pilot evaluator runs again before anything
+   is re-scored.
 2. **Port what is not ported yet.**
    - A tool prints the workbench's values on the pilot's score JSONs, apart
      from the differences its port lists. A test plants each fault that
