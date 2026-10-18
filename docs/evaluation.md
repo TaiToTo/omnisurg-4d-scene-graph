@@ -133,8 +133,9 @@ found in the code. A module's docstring says what it returns.
   input size: the longest side scaled to 504 px, then each side rounded to the
   nearest multiple of 14.
 - **Time.** Frames are ordered by their timestamps, not by their file names: in
-  11 of the 27 CholecSeg8k clips the frame numbers do not follow time. A
-  dataset that gives no timestamps, ATLAS-120k, is ordered by frame number.
+  11 of the pilot's 27 CholecSeg8k clips the frame numbers do not follow
+  time. A dataset that gives no timestamps, ATLAS-120k, is ordered by frame
+  number.
   A clip in which two frames share a time, or only some frames have one, is
   refused, since the order of its frames is unknown.
 - **Clips and videos.** Which clips enter a measurement is data, kept in

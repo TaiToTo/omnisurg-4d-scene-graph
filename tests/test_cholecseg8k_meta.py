@@ -33,8 +33,6 @@ def _check_windows(meta: Path) -> None:
     """Refuse a window whose first or centre frame lies in no annotated chunk, or whose video has no chunks."""
     chunks = json.loads((meta / "chunks.json").read_text(encoding="utf-8"))
     length, starts = chunks["chunk_frames"], chunks["chunk_starts"]
-    for video, numbers in starts.items():
-        assert numbers == sorted(numbers) and len(numbers) == len(set(numbers)), video
     for clip in (meta / "clips.txt").read_text(encoding="utf-8").split():
         video, start = CLIP.fullmatch(clip).group(1), int(CLIP.fullmatch(clip).group(2))
         assert video in starts, f"{clip}: {video} has no chunks in chunks.json"

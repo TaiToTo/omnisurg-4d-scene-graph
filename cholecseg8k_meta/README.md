@@ -18,13 +18,15 @@ both lie in a chunk, so that each propagation rule seeds on a GT frame
 The windows come from the 27 the pilot scored, which the workbench's
 `run_all17_pipeline.sh` lists. Each of those started on the first frame of
 a chunk, and on 13 of them the centre frame had no GT. Of those 13, 11
-moved to the nearest start that puts GT on both frames, by 15 frame
-numbers on 9 of them and by 81 on `VID12_s15_19900` and `VID25_s15_402`;
-a moved window keeps the frames it shares with the old one. Two were
-dropped: `VID20_s15_3260`, whose video has two chunks and no such window,
-and `VID12_s15_15750`, whose nearest such window shares no frame with it.
-Two windows of one video may overlap in time (`VID01_s15_80` and
-`VID01_s15_240` share 19 of their 30 frames); the unit of independence is
+moved by the smallest multiple of 15 frame numbers that puts GT on both
+frames, so that the moved window keeps the old one's frames: by 15 on 9 of
+them, which keep 29 of their 30 frames, and by 90 on `VID12_s15_19900` and
+`VID25_s15_402`, which keep 24. Two were dropped because no start in their
+chunks puts GT on both frames: `VID20_s15_3260`, whose video has two
+chunks of 160 frames in all, and `VID12_s15_15750`, whose two chunks also
+span 160 frames; a window needs 226 frames from its first to its centre.
+Two windows of one video may overlap in time (`VID27_s15_175` and
+`VID27_s15_415` share 14 of their 30 frames); the unit of independence is
 the video.
 
 `python -m pipeline.extract_cholecseg8k --clips VID<nn>_s15_<start>` writes
@@ -33,7 +35,7 @@ a window; `python -m pipeline.crop_cholecseg8k` writes its `_crop`.
 ## The rectangles
 
 `crop_rects.json` gives each clip the rectangle it is cropped to, in the
-frame's pixels (`src_w` × `src_h`, 854 × 480 for all 17 videos). `y1` and
+frame's pixels (`src_w` × `src_h`, 854 × 480 for all 16 videos). `y1` and
 `x1` are exclusive. Its keys are the clips before the crop, `VID<nn>_s15_<start>`
 without `_crop`. The crop stage writes the clip's rectangle into the clip
 as `crop_info.json`, the layout the depth stage requires.
@@ -49,8 +51,9 @@ whose frames the extraction stage writes differently from the workbench
 keeps its rectangle, and a window that moved keeps the rectangle of the
 window it replaces; the rectangle is not found again on the new frames.
 
-Run on the pilot's 27 clips with the pilot's table, the crop stage writes
-the workbench's cropped images, masks and `crop_info.json`, byte for byte.
+Run on the pilot's 27 clips with the workbench's table of their rectangles,
+the crop stage writes the workbench's cropped images, masks and
+`crop_info.json`, byte for byte.
 
 ## Why not the endoscope's circle
 
@@ -58,8 +61,8 @@ A circle fitted to the cholec80 video gives other rectangles. The
 workbench's `crop_cholec_frames.py --method circle` takes that rectangle
 when it finds the video, and it found none in the run that cropped these
 clips. The circle's rectangles differ from these on all of the pilot's 27
-clips, by up to 59 px. On VID26 and VID43 the circle is larger than the view, and its
-rectangle holds black corners of 2 to 3.6 % of the crop.
+clips, by up to 59 px. On VID26 and VID43 the circle is larger than the
+view, and its rectangle holds black corners of 2 to 3.6 % of the crop.
 
 ## Who reads these
 

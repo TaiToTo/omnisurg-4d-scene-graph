@@ -164,8 +164,9 @@ only:
   twice. This affects 14 of the 27 clips. The ported extractor converts
   those frames, and writes the other 13 clips byte for byte. Every
   CholecSeg8k condition is run again on the clips the port extracts, in
-  the population of `cholecseg8k_meta/clips.txt`, whose windows moved so
-  that each seeds on a GT frame (`cholecseg8k_meta/README.md`).
+  the population of `cholecseg8k_meta/clips.txt`: 25 windows, 11 of
+  which moved so that each seeds on a GT frame
+  (`cholecseg8k_meta/README.md`).
 - **A frame that the ATLAS-120k extraction shrinks.** OpenCV's area resize
   rounds differently from one build to another: about one pixel in ten
   thousand differs by one level. So frames are compared on one machine.
