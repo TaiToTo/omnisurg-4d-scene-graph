@@ -16,7 +16,7 @@ a clip holds.
 
 | step | stage | runs as | writes |
 |---|---|---|---|
-| 1 · extract the clips | [an ATLAS-120k video OpenCV cannot decode](#a-video-opencv-cannot-decode) | `pipeline.prepare_atlas120k_videos` | `--dst`: a second root for `--atlas-root`, with `video_root.json` |
+| 1 · extract the clips | [re-encoding for OpenCV](#a-video-opencv-cannot-decode), only where OpenCV cannot decode an ATLAS-120k video | `pipeline.prepare_atlas120k_videos` | `--dst`: a second root for `--atlas-root`, with `video_root.json` |
 | | [ATLAS-120k](#the-atlas-120k-extraction-stage) | `pipeline.extract_atlas120k` | `input_images/`, `seg_masks/`, `frame_manifest.json` |
 | | [CholecSeg8k](#the-cholecseg8k-extraction-stage) | `pipeline.extract_cholecseg8k` | the same |
 | | [CholecSeg8k's crop](#the-cholecseg8k-crop-stage) | `pipeline.crop_cholecseg8k` | a cropped copy, `<clip>_crop/`, with `crop_info.json` |

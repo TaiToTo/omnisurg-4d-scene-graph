@@ -1,14 +1,15 @@
 # omnisurg-4d-scene-graph
 
-This repository turns a video of minimally invasive surgery into a **4D**
-(3D + time) scene graph. The pipeline cuts each frame into regions, places
-them in 3D and follows them through time. A frame's scene graph lists its
-regions and says where each lies from the others: right, above, in front,
-and so on. No model is trained; the pipeline combines existing ones.
+This repository turns a clip, a stretch of a video of minimally invasive
+surgery, into a **4D** (3D + time) scene graph. The pipeline cuts each
+frame into regions, places them in 3D and follows them through time. A
+frame's scene graph lists its regions and says where each lies from the
+others: right, above, in front, and so on. No model is trained; the
+pipeline combines existing ones.
 
 ## Contents
 
-- [From a video to a scene graph](#from-a-video-to-a-scene-graph): the
+- [From a clip to a scene graph](#from-a-clip-to-a-scene-graph): the
   steps in one figure, and what is scored
 - [Where to start](#where-to-start): which page to read for what
 - [What is where](#what-is-where): the folders, by what they do
@@ -16,7 +17,7 @@ and so on. No model is trained; the pipeline combines existing ones.
 - [Status](#status): what has been moved here so far
 - [License](#license)
 
-## From a video to a scene graph
+## From a clip to a scene graph
 
 ![From a clip to a 4D scene graph, on a drawn scene: 1, the clip's frames; 2, a depth map and a point cloud per frame, and the camera's path; 3, regions that keep their ids from frame to frame and have no names; 4, a scene graph per frame, a node per region and a word per pair such as right, front or above; 5, the same relations through time, each holding for a run of frames, and the viewer that shows them. Below, what is scored: the camera poses against StereoMIS's ground truth by trajectory_eval, and the regions against the hand-labelled GT masks by evalkit.](docs/figures/scene_graph_overview.png)
 
@@ -56,10 +57,10 @@ results, not the scene graphs:
 
 ### Score the results
 
-![evalkit compares the regions with masks drawn by hand and writes a score file with eval_code_sha, which evalkit/tools compare; trajectory_eval compares the camera's path with the true path and writes a score with trajectory_code_sha, which its tools turn into the StereoMIS table](docs/figures/folders_score.png)
+![evalkit compares the regions with masks drawn by hand and writes a score file with eval_code_sha, which evalkit/tools read; trajectory_eval compares the camera's path with the true path and writes a score with trajectory_code_sha, which its tools turn into the StereoMIS table](docs/figures/folders_score.png)
 
-[`evalkit/README.md`](evalkit/README.md) says how the regions are scored;
-[the last section of `docs/pipeline.md`](docs/pipeline.md#the-stereomis-camera-trajectory-scores)
+[`evalkit/README.md`](evalkit/README.md) says how the regions are scored.
+[`docs/pipeline.md`, "The StereoMIS camera trajectory scores"](docs/pipeline.md#the-stereomis-camera-trajectory-scores)
 says how the camera's path is scored.
 
 | folder | what it holds |
@@ -88,6 +89,9 @@ itself: no video, frame or point cloud.
 ### Show and explain
 
 ![The viewer, a web page that steps through a clip's clouds, regions and scene graphs; and docs, with evaluation.md, pipeline.md and review.md](docs/figures/folders_show.png)
+
+[`viewer/README.md`](viewer/README.md) says how to run the page and
+publish it.
 
 | folder | what it holds |
 |---|---|
