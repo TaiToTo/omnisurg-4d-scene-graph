@@ -12,7 +12,7 @@ holding:
 
 Usage:
     python -m pipeline.crop_cholecseg8k --input-dir /path/to/clips --rects cholecseg8k_meta/crop_rects.json \\
-        --clips VID01_s15_80 [VID25_s15_162 ...] [--overwrite]
+        --clips VID01_s15_80 [VID25_s15_177 ...] [--overwrite]
 """
 
 import argparse

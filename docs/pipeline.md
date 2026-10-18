@@ -24,6 +24,28 @@ A clip is a directory with these files:
 - `crop_info.json`, for a CholecSeg8k clip only: the rectangle inside the
   endoscope's view that the frames were cropped to.
 
+A clip of a population the paper measures holds, on ATLAS-120k and on
+CholecSeg8k:
+
+- a GT mask on its first frame and on its centre frame, `frames[n // 2]` of
+  `n`, so that each propagation rule seeds on a GT frame;
+- at least 8 frames, at the dataset's step between frames (0.52 s on
+  ATLAS-120k, 15 CholecSeg8k frame numbers on CholecSeg8k).
+
+Whether a clip with a cut in its recording is used whole is open
+(`docs/porting.md`, "Cuts inside GT clips"). The two ATLAS-120k clips with a
+judged cut are used whole for now (`atlas120k_meta/README.md`); CholecSeg8k's
+windows were not judged, since cholec80 is one continuous recording per
+video.
+
+The unit of independence is the video: the bootstrap that decides a claim
+resamples videos, never clips. Two clips of one video may overlap in time.
+No two ATLAS-120k clips of the population share a frame, which
+`tests/test_atlas120k_meta.py` checks; CholecSeg8k's windows do, where a
+video's annotated chunks lie close (`cholecseg8k_meta/README.md`). Each
+dataset's metadata directory holds its population, and `tests/` checks the
+population against these rules where the metadata can tell.
+
 ## The ATLAS-120k extraction stage
 
 ```bash
@@ -112,7 +134,7 @@ converted pixels, and allows for the compression.
 
 ```bash
 python -m pipeline.extract_cholecseg8k --seg8k-root /path/to/CholecSeg8k --videos-root /path/to/cholec80/videos \
-    --out /path/to/clips --clips VID01_s15_80 [VID25_s15_162 ...] [--count 30] [--overwrite]
+    --out /path/to/clips --clips VID01_s15_80 [VID25_s15_177 ...] [--count 30] [--overwrite]
 ```
 
 The stage extracts the clips named, each `VID<nn>_s<stride>_<start>`:
@@ -160,7 +182,7 @@ the end.
 
 ```bash
 python -m pipeline.crop_cholecseg8k --input-dir /path/to/clips --rects cholecseg8k_meta/crop_rects.json \
-    --clips VID01_s15_80 [VID25_s15_162 ...] [--overwrite]
+    --clips VID01_s15_80 [VID25_s15_177 ...] [--overwrite]
 ```
 
 The stage crops a CholecSeg8k clip to its rectangle in
