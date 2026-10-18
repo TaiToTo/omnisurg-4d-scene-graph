@@ -660,10 +660,12 @@ made in, and the pairs of conditions to compare, with the parts each pair
 varies. `--stage` limits `status` and `commands` to one stage.
 
 - `check` refuses a pair that varies other parts than the ones it names,
-  and a compared condition that the plan does not make and
-  `condition_names.tsv` does not name for the dataset.
+  a pair under two propagation rules that varies more than the rule
+  (`docs/evaluation.md`, "Recorded with every score"), and a compared
+  condition that the plan does not make for the dataset.
 - `status` counts, per planned condition, the clips whose `seed_info.json`
-  shows the condition's name, and the clips still missing.
+  records the settings the name says, every key of them, and the clips
+  still missing.
 - `commands` prints the `condition_population` command of each condition
   still to make. It gives every setting the name says, and the edges at
   gain 1.0 on normals not smoothed, which differ from the tracking stage's
@@ -671,8 +673,10 @@ varies. `--stage` limits `status` and `commands` to one stage.
 - A condition's labels go to `track_rgb_<name>`.
 
 `status` and `commands` refuse labels under a planned name whose record
-shows another name, or none, such as a tracking run without the name's
-edge options.
+cannot be read or records other settings, such as a tracking run without
+the name's edge options. Both refuse a `--stage` of which the plan has no
+group, and a group whose inputs, grids, or depth models under an input
+that reads depth, name nothing.
 
 ## The granularity conditions
 

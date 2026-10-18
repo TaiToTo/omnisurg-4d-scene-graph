@@ -2,11 +2,11 @@
 
 `experiment_plan.json` lists each group of conditions to make by the parts
 of their names (`evalkit.tools.condition_names`) and the stage it is made
-in, and each comparison as pairs of names with the parts the pairs vary. `check` refuses a pair that
-varies another part, and a compared condition that the plan does not make
-and the table of workbench names does not hold. `status` reads every clip's
-record of each condition to make, and names the condition the record
-shows, which must be the plan's name. `commands` prints the
+in, and each comparison as pairs of names with the parts the pairs vary.
+`check` refuses a pair that varies another part, a pair under two rules
+that varies more than the rule, and a compared condition that the plan
+does not make. `status` checks every clip's record of each condition to
+make against the settings the name says. `commands` prints the
 `pipeline.condition_population` command of each condition still to make.
 
 Usage:
@@ -24,11 +24,10 @@ import shlex
 from collections.abc import Mapping, Sequence
 from dataclasses import fields
 from pathlib import Path
-from types import SimpleNamespace
 
-from evalkit.evaluate import SEED_INFO, read_population, rule_of_seed_info
-from evalkit.tools.condition_names import DATASETS, DEPTH_MODELS, EDGE_INPUTS, READS_DEPTH, RULES, Parts, parse, read_table
-from pipeline.condition_population import condition_dir
+from evalkit.evaluate import SEED_INFO, read_population
+from evalkit.tools.condition_names import DATASETS, READS_DEPTH, RULES, Parts, check_rules, parse
+from pipeline.condition_population import check_settings, condition_dir, expected_record, read_record, stage_args
 
 PLAN = Path(__file__).with_name("experiment_plan.json")
 
@@ -39,6 +38,8 @@ DEPTH_SOURCE = {"da3": "da3", "pi3x": "pi3"}
 # The settings every name leaves out, as `condition_names` states them: the tracker's input, the seed regions'
 # fewest pixels, and, in an input with edges, the edges' gain; the normals of `normal-edge` are not smoothed.
 TRACK_BASE, SEED_MIN_AREA, EDGE_GAIN = "rgb", 400, 1.0
+# The lists of a group that name what it makes; each must name something.
+GROUP_LISTS = ("inputs", "depths", "points_per_side")
 
 
 def conditions(plan: Mapping, dataset: str, stage: int | None = None) -> list[str]:
@@ -50,13 +51,19 @@ def conditions(plan: Mapping, dataset: str, stage: int | None = None) -> list[st
         stage: Only the groups of this stage; every group when None.
 
     Raises:
-        ValueError: A group's stage is not a whole number from 1, its parts make no name
-            (`condition_names.parse`), or a name comes twice.
+        ValueError: A group's stage is not a whole number from 1; a group's inputs, grids, or depth models under
+            an input that reads depth, name nothing; its parts make no name (`condition_names.parse`); a name
+            comes twice; or no group is of `stage`.
     """
-    names, every = [], []
+    names, every, stages = [], [], set()
     for group in plan["make"]:
         if isinstance(group["stage"], bool) or not isinstance(group["stage"], int) or group["stage"] < 1:
             raise ValueError(f"{group['what']!r}: the stage {group['stage']!r} is not a whole number from 1")
+        stages.add(group["stage"])
+        reads_depth = any(i in READS_DEPTH for i in group["inputs"])
+        empty = [k for k in GROUP_LISTS if not group[k] and (k != "depths" or reads_depth)]
+        if empty:
+            raise ValueError(f"{group['what']!r}: {empty} name nothing, so the group would make nothing of them")
         if dataset not in group["datasets"]:
             continue
         for inp in group["inputs"]:
@@ -70,23 +77,25 @@ def conditions(plan: Mapping, dataset: str, stage: int | None = None) -> list[st
     twice = sorted({n for n in every if every.count(n) > 1})
     if twice:
         raise ValueError(f"{dataset}: the plan makes {twice} more than once")
+    if stage is not None and stage not in stages:
+        raise ValueError(f"no group is of stage {stage}; the stages are {sorted(stages)}")
     return names
 
 
-def check_plan(plan: Mapping, table: Mapping | None = None) -> None:
+def check_plan(plan: Mapping) -> None:
     """Refuse a plan whose groups name an unknown dataset, or whose comparisons are not controlled.
 
-    A comparison is controlled when each of its pairs varies exactly the parts it names. Each compared condition
-    must be one the plan makes for the dataset, or one `condition_names.tsv` names for it.
+    A comparison is controlled when each of its pairs varies exactly the parts it names, and a pair under two
+    propagation rules varies the rule alone (`condition_names.check_rules`). Each compared condition must be
+    one the plan makes for the dataset.
 
     Raises:
         ValueError: Every fault found, one per line.
     """
-    table = read_table() if table is None else table
-    named = {(dataset, row.name) for (dataset, _), row in table.items() if row.name}
     faults = []
     for group in plan["make"] + plan["compare"]:
-        faults += [f"{group['what']!r}: {d!r} is no dataset of {DATASETS}" for d in group["datasets"] if d not in DATASETS]
+        faults += [f"{group['what']!r}: {d!r} is no dataset of {DATASETS}"
+                   for d in group["datasets"] if d not in DATASETS]
     made = {d: set(conditions(plan, d)) for d in DATASETS}
     for comparison in plan["compare"]:
         unknown = sorted(set(comparison["varies"]) - set(PARTS))
@@ -97,15 +106,21 @@ def check_plan(plan: Mapping, table: Mapping | None = None) -> None:
             if varied != set(comparison["varies"]):
                 faults.append(f"{a} and {b} vary {sorted(varied)}, and the comparison {comparison['what']!r} "
                               f"varies {sorted(comparison['varies'])}")
+            try:
+                check_rules(parse(a), parse(b))
+            except ValueError as e:
+                faults.append(str(e))
             for dataset in comparison["datasets"]:
-                faults += [f"{dataset}: {name} is neither made by the plan nor named in the table"
-                           for name in (a, b) if name not in made.get(dataset, ()) and (dataset, name) not in named]
+                faults += [f"{dataset}: the plan does not make {name}"
+                           for name in (a, b) if name not in made.get(dataset, ())]
     if faults:
         raise ValueError("the plan is not controlled:\n" + "\n".join(faults))
 
 
-def stage_options(name: str) -> tuple[str, list[str]]:
-    """Return the stage that makes the named condition, and every option it takes from the name.
+def settings_of(name: str) -> tuple[str, argparse.Namespace]:
+    """Return the stage that makes the named condition, and its settings as `condition_population` holds them.
+
+    The settings hold every option the name says and every default a name leaves out, and no SAM weights.
 
     Raises:
         ValueError: The name breaks the rule of names; its seed is made outside the segmenting stages (GT, or
@@ -116,89 +131,58 @@ def stage_options(name: str) -> tuple[str, list[str]]:
         raise ValueError(f"{name}: the seed {parts.seed!r} is made outside the stages; the plan makes SAM seeds only")
     if "instrument-text" in parts.settings:
         raise ValueError(f"{name}: instruments added by text prompts are not ported")
-    options = ["--sam-input", parts.input.replace("-", "_"), "--depth-source", DEPTH_SOURCE[parts.depth or "da3"],
-               "--points-per-side", str(parts.points_per_side), "--seed-min-area", str(SEED_MIN_AREA)]
-    options += ["--keep-edge-ring"] if "keepring" in parts.settings else []
+    s = argparse.Namespace(tag=name, sam_input=parts.input.replace("-", "_"),
+                           depth_source=DEPTH_SOURCE[parts.depth or "da3"],
+                           points_per_side=parts.points_per_side, seed_min_area=SEED_MIN_AREA,
+                           keep_edge_ring="keepring" in parts.settings, sam_ckpt=None)
     if parts.rule == "perframe":
-        return "per_frame", options + ["--edge-gain", str(EDGE_GAIN)]
+        s.edge_gain = EDGE_GAIN
+        return "per_frame", s
     # The tracking stage's own default draws the edges at 0.85 on smoothed normals, so the name's are given.
-    return "track", options + ["--rule", RULES[parts.rule], "--track-base", TRACK_BASE,
-                               "--seed-edge-gain", str(EDGE_GAIN), "--seed-no-smooth"]
+    s.rule, s.track_base, s.seed_labels = RULES[parts.rule], TRACK_BASE, None
+    s.seed_edge_gain, s.seed_no_smooth = EDGE_GAIN, True
+    return "track", s
 
 
 def label_dir(name: str) -> str:
     """Return the directory each clip's labels of the named condition go to, as `condition_population` names it."""
-    stage, _ = stage_options(name)
-    return condition_dir(stage, SimpleNamespace(track_base=TRACK_BASE, tag=name))
-
-
-def name_of_record(record: Mapping) -> str:
-    """Return the name a clip's `seed_info.json` shows.
-
-    Raises:
-        ValueError: The record holds no propagation rule (`rule_of_seed_info`), or a setting off the defaults that
-            a name leaves out: the tracker's input, the seed regions' fewest pixels, or, in an input with edges,
-            the edges' gain and, in `normal-edge`, the smoothing.
-    """
-    # The rule and the seed, then the settings no name can say.
-    rule = {v: k for k, v in RULES.items()}[rule_of_seed_info(record)]
-    seed_input, inp = record["seed_input"], record["sam_input"].replace("_", "-")
-    off = []
-    if record.get("track_base", TRACK_BASE) != TRACK_BASE:
-        off.append(f"the tracker's input {record['track_base']!r}")
-    if record["seed_min_area"] != SEED_MIN_AREA:
-        off.append(f"seed regions of {record['seed_min_area']} pixels or more")
-    if inp in EDGE_INPUTS and seed_input["seed_edge_gain"] != EDGE_GAIN:
-        off.append(f"edges at gain {seed_input['seed_edge_gain']}")
-    if inp == "normal-edge" and seed_input["seed_smooth"]:
-        off.append("smoothed normals")
-    if off:
-        raise ValueError(f"the record holds settings no name says: {', '.join(off)}")
-
-    # The parts, joined and parsed back.
-    settings = []
-    if inp in EDGE_INPUTS and seed_input["edge_ring_masked"] is False:
-        settings.append("keepring")
-    if record.get("instrument_seed", "off") != "off":
-        settings.append("instrument-text")
-    depth = {v: k for k, v in DEPTH_SOURCE.items()}[record["depth_source"]] if inp in READS_DEPTH else None
-    seed = None if rule == "perframe" else "sam"
-    return parse(Parts(inp, depth, seed_input["points_per_side"], seed, rule, tuple(settings)).name()).name()
+    return condition_dir(*settings_of(name))
 
 
 def status(plan: Mapping, dataset: str, clips: Sequence[str], tracks_root: str | Path,
            stage: int | None = None) -> dict[str, dict]:
-    """Return, for each condition the plan makes for `dataset` in `stage`, the clips made, missing, and made as another one.
+    """Return, for each condition the plan makes for `dataset` in `stage`, the clips made, missing, and made otherwise.
 
-    A clip is made when its label directory holds a `seed_info.json` that shows the plan's name. It is made as
-    another condition when its record shows another name, or none.
+    A clip is made when its label directory holds a `seed_info.json` that records the settings the name says,
+    every key of them (`condition_population.check_settings`). It is made otherwise when its record cannot be
+    read or records other settings; the message says which.
     """
     out = {}
     for name in conditions(plan, dataset, stage):
+        stage_name, s = settings_of(name)
+        expected = expected_record(stage_name, s)
         made, missing, other = [], [], {}
         for clip in clips:
-            path = Path(tracks_root) / clip / label_dir(name) / SEED_INFO
-            if not path.is_file():
+            lab_dir = Path(tracks_root) / clip / condition_dir(stage_name, s)
+            if not (lab_dir / SEED_INFO).is_file():
                 missing.append(clip)
                 continue
             try:
-                shown = name_of_record(json.loads(path.read_text(encoding="utf-8")))
-            except (ValueError, KeyError) as e:
-                shown = f"no name: {e}"
-            if shown == name:
-                made.append(clip)
-            else:
-                other[clip] = shown
+                check_settings(stage_name, clip, read_record(lab_dir, clip), expected)
+            except ValueError as e:
+                other[clip] = str(e)
+                continue
+            made.append(clip)
         out[name] = {"made": made, "missing": missing, "other": other}
     return out
 
 
 def command(name: str, input_dir: str, clips: str, tracks_root: str, sam_ckpt: str, gpus: Sequence[int]) -> str:
     """Return the `condition_population` command that makes the named condition on every clip."""
-    stage, options = stage_options(name)
+    stage, s = settings_of(name)
+    s.sam_ckpt = sam_ckpt
     argv = ["python", "-m", "pipeline.condition_population", stage, "--input-dir", input_dir, "--clips", clips,
-            "--tracks-root", tracks_root, "--tag", name, *options, "--sam-ckpt", sam_ckpt,
-            "--gpus", *(str(g) for g in gpus)]
+            "--tracks-root", tracks_root, "--tag", name, "--gpus", *(str(g) for g in gpus), *stage_args(stage, s)]
     return shlex.join(argv)
 
 
@@ -206,7 +190,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     """Check the plan, report what is made, or print the commands of what is not."""
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = ap.add_subparsers(dest="action", required=True)
-    sub.add_parser("check", help="refuse comparisons that vary another part, or name an unknown condition")
+    sub.add_parser("check", help="refuse comparisons that vary another part, or name a condition not made")
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--dataset", required=True, choices=DATASETS)
     common.add_argument("--clips", required=True, help="the population: one clip name per line")
@@ -222,16 +206,19 @@ def main(argv: Sequence[str] | None = None) -> None:
     plan = json.loads(PLAN.read_text(encoding="utf-8"))
     check_plan(plan)
     if args.action == "check":
-        print(f"{PLAN.name}: every comparison varies only the parts it names")
+        print(f"{PLAN.name}: every comparison varies only the parts it names, and the plan makes every condition")
         return
 
-    # What is made, per condition; a clip made as another condition stops both reports.
+    # What is made, per condition; a clip made otherwise stops both reports.
     clips = read_population(args.clips)
-    report = status(plan, args.dataset, clips, args.tracks_root, args.stage)
+    try:
+        report = status(plan, args.dataset, clips, args.tracks_root, args.stage)
+    except ValueError as e:
+        raise SystemExit(f"--stage: {e}") from e
     wrong = {name: r["other"] for name, r in report.items() if r["other"]}
     if wrong:
-        raise SystemExit("labels under a planned name show another condition:\n" + "\n".join(
-            f"  {name}: {clip}: {shown}" for name, other in wrong.items() for clip, shown in other.items()))
+        raise SystemExit("labels under a planned name record other settings:\n" + "\n".join(
+            f"  {name}: {said}" for name, other in wrong.items() for said in other.values()))
     if args.action == "status":
         for name, r in report.items():
             print(f"{name:45s} {len(r['made']):4d} made, {len(r['missing']):4d} missing")
