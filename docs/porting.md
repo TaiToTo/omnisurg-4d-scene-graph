@@ -228,15 +228,20 @@ Each question says what it blocks and where its answer is written.
   scores it. Blocks: measuring the `t12_*` conditions again, with the
   evaluator and with `track_metrics`. Answer in:
   `docs/evaluation.md` and `docs/pipeline.md`.
-- **Cuts inside GT clips.** The workbench searched for scene changes inside
-  GT clips at frame pairs whose pixel difference was above 40, and judged
-  40 of those 125 pairs. `cholecystectomy__1ud3syYKD3A__gt_0001` holds six
-  judged cuts, and `cholecystectomy__Bj13QcLRCVc__gt_0001` one undecided
-  candidate. After a cut, a tracking condition's scores measure the scene
-  change, not the input. Open: judge the 85 remaining pairs, then use a
-  clip with a cut whole, exclude it, or split it at the cut. Blocks:
-  extracting the population again, and the freeze. Answer in:
-  `atlas120k_meta/README.md`.
+- **Cuts inside GT clips.** Every candidate whose spot differs by more
+  than 30 inside the population is judged, and 39 clips hold a cut
+  (`atlas120k_meta/cuts.csv`). After a cut, a tracking condition's scores
+  measure the scene change, not the input. Decided on 2026-10-12: split
+  each clip at its cuts. The extraction rule ends a run of consecutive
+  frames at a cut as well, and keeps the runs that still have at least 8
+  frames after thinning; replayed in the workbench, the 315 clips become
+  339. Open: the
+  extraction stage reads `cuts.csv`; the population is extracted again; and
+  the clips that replace the 39 get depth, camera poses and every tracking
+  condition. Not resolved, and not blocking: most candidates between 20
+  and 30 were not judged, and two of those judged are cuts (the
+  README says so). Blocks: extracting the population again, and the freeze.
+  Answer in: `atlas120k_meta/README.md`.
 
 ### Conditions
 
