@@ -157,8 +157,8 @@ against.
 - **A module's header is short**: what the module does, in at most twelve
   lines, then how to run it. No history, no glossary, no defence of choices.
 - **A term is defined once**, in its area's specification or in the one
-  docstring that uses it; a question or a rule is called by what it says,
-  never by its place in a list.
+  docstring that uses it; a question, a rule or a section is called by what
+  it says, never by its place.
 - **A function of several steps names each step**, one line per block.
 - **A comment gives the reason, not a reference.** Never a section number,
   a ticket or a task id.
