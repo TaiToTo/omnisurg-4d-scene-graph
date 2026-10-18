@@ -6,8 +6,8 @@ exits non-zero on any of these problems:
 - a tag whose clips were made under more than one condition, or whose provenance is missing or unreadable;
 - a condition missing clips or labels the others have;
 - a score whose label directory is gone, or that scored other clips than that directory holds;
-- two scores in one score directory that name one label directory;
-- scores in one score directory that `scores.check_comparable` would not compare with one another;
+- two scores in one score root that name one label directory;
+- scores in one score root that `scores.check_comparable` would not compare with one another;
 - with `--require-scored`, a label directory nobody scored.
 Terms as in `docs/evaluation.md`.
 
@@ -100,9 +100,9 @@ def check_root_exists(track_root: str, eval_root: str = "") -> None:
         ValueError: `track_root`, or a non-empty `eval_root`, is not a directory.
     """
     if not os.path.isdir(track_root):
-        raise ValueError(f"the --root label directory does not exist (a typo?): {track_root}")
+        raise ValueError(f"the label root of --root does not exist (a typo?): {track_root}")
     if eval_root and not os.path.isdir(eval_root):
-        raise ValueError(f"the --root score directory does not exist (a typo?): {eval_root}")
+        raise ValueError(f"the score root of --root does not exist (a typo?): {eval_root}")
 
 
 def frames_kind(v) -> str:
@@ -261,7 +261,7 @@ def read_evals(eval_root: str) -> dict:
         except (OSError, ValueError) as e:
             raise ValueError(f"{p}: not a readable JSON: {e}") from e
         if not isinstance(d, dict) or "per_clip" not in d:
-            raise ValueError(f"{p}: not a score JSON (no per_clip); a score directory holds scores only")
+            raise ValueError(f"{p}: not a score JSON (no per_clip); a score root holds scores only")
         ruler(d)
         if not d.get("track_dir_name"):
             raise ValueError(f"{p}: records no track_dir_name, so which labels it scored is unknown "
@@ -481,14 +481,14 @@ def inventory(roots: Sequence[tuple[str, str, str]], require_scored: bool = Fals
 
     Raises:
         ValueError: A label root or a score root does not exist, or a
-            score directory holds something that is not a score JSON.
+            score root holds something that is not a score JSON.
     """
     # The roots, refused before anything is counted when one is missing.
     for tr, ev, _ in roots:
         check_root_exists(tr, ev)
 
     # The scores of every root, read once: a score can name labels under another root.
-    # Each is kept by its path: two score directories can each hold a JSON of one name.
+    # Each is kept by its path: two score roots can each hold a JSON of one name.
     evals = {ev: read_evals(ev) for _, ev, _ in roots if ev}
     scores = [(os.path.join(ev, f"{t}.json"), e) for ev, evs in evals.items() for t, e in sorted(evs.items())]
     scored_dirs = {e["dir"] for _, e in scores}
@@ -514,8 +514,8 @@ def inventory(roots: Sequence[tuple[str, str, str]], require_scored: bool = Fals
     orphan = [p for p, e in scores if e["dir"] not in seen_tags]
     if orphan:
         problems.append(f"{len(orphan)} scores have no labels: {orphan}")
-    # Two scores in one score directory that name one label directory: one of them is stale or misnamed.
-    # Two score directories may each score one label directory, as a second class set or pilot mode does.
+    # Two scores in one score root that name one label directory: one of them is stale or misnamed.
+    # Two score roots may each score one label directory, as a second class set or pilot mode does.
     by_dir = collections.defaultdict(list)
     for ev, evs in evals.items():
         for t, e in sorted(evs.items()):
@@ -523,7 +523,7 @@ def inventory(roots: Sequence[tuple[str, str, str]], require_scored: bool = Fals
     for (ev, d), tags in sorted(by_dir.items()):
         if len(tags) > 1:
             problems.append(f"{ev}: {len(tags)} scores name the label directory {d}: {tags}; "
-                            "one score directory holds one score per label directory")
+                            "one score root holds one score per label directory")
     # A score on other clips than its label directory holds: a re-score that
     # stopped half-way, or one run on a stale population, reads as complete otherwise.
     for p, e in scores:
