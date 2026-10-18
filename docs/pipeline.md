@@ -765,8 +765,18 @@ python -m pipeline.track --input-dir /path/to/clips --tracks-root /path/to/track
   cholecseg8k_meta/clips.txt`.
 - `kmerge` reads a clip as the evaluator does, so it needs the GT masks and
   valid depth at every pixel of every frame.
-- The evaluator refuses a condition tracked with `--seed-labels` ("Propagation
-  rule" in `docs/evaluation.md`). It scores the floor and the per-frame
+- The evaluator reads the seeds of a condition tracked with `--seed-labels`
+  from the same directory, given as `--seeds`. It is told whether the GT
+  made or informed them ("Seeds" in `docs/evaluation.md`):
+
+  ```bash
+  python -m evalkit.evaluate --dataset atlas120k --clips atlas120k_meta/clips.txt --data-root /path/to/clips \
+      --tracks-root /path/to/tracks --tag track_rgb_rgb_k10 --out rgb_k10.json \
+      --seeds '/path/to/tracks/{clip}/track_rgb_rgb_per_frame_k10' --seeds-gt-informed no
+  ```
+
+- Seeds merged to as many regions as the clip has GT objects are
+  GT-informed, so the tools compare them only with other GT-informed
   conditions.
 
 ## The viewer bundle stage
