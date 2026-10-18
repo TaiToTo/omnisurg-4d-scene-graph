@@ -270,7 +270,7 @@ the end:
 
 | type | meaning | scored |
 |---|---|---|
-| `ignored` | outside the field of view, or not a class at all | never: removed from the GT and the prediction alike, like a pixel without valid depth |
+| `ignored` | outside the field of view, or not a class at all | never: removed from the GT and the prediction alike |
 | `background` | inside the view, labelled as nothing: unlabelled anatomy, and in ATLAS-120k's benchmark classes the ids the 30-class mapping drops | never: removed like `ignored`, so a region lying on it is neither an object nor a false positive (see the views below) |
 | `excluded` | a marker that takes the whole frame out of evaluation | the frame is skipped, and counted |
 | `tool` | an instrument, or another object that is not anatomy (ATLAS-120k's catheters and non-anatomical structures) | in the `all` view only |
@@ -658,9 +658,11 @@ instead ("Component objects").
   defined on are counted in the JSON. A removed pixel is counted once, by the
   first reason that removes it, in this order: invalid depth, then `ignored`,
   then `background`, then a class the view leaves out. So a frame's counts
-  are disjoint and sum to its pixels, and a black corner without depth counts
-  as invalid depth, not as ignored. The order is a convention: another one
-  would change the counts and no score, but the JSON is read against this one.
+  are disjoint and sum to its pixels. Invalid depth is counted in pilot mode
+  only, since normal mode refuses a frame with invalid depth. In pilot mode,
+  a black corner without depth counts as invalid depth, not as ignored. The
+  order is a convention: another one would change the counts and no score,
+  but the JSON is read against this one.
 
 ### Recorded with every score
 
