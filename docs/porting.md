@@ -260,8 +260,8 @@ Each question says what it blocks and where its answer is written.
 
 - **The paired table on the evaluator's scores.** `paired_table` prints the
   pilot's table only. The six `t5_*` rows wait on "Seeds made outside the
-  tracking stage". A table holds one propagation rule, so it is printed
-  once per rule. The evaluator records `objects.predicted` in place of
+  tracking stage". `paired_table` holds one propagation rule per table, so
+  it is printed once per rule. The evaluator records `objects.predicted` in place of
   `n_regions_mean`. Open: which block answers which of the paper's three
   questions ("Primary metrics" in `docs/evaluation.md`), and which rows,
   keys and views each table holds. Answer in: `paired_table`'s docstring.

@@ -25,7 +25,7 @@ import os
 import sys
 from collections.abc import Mapping, Sequence
 
-from evalkit.tools.scores import check_comparable, check_one_rule, clips_of, load_scores, ruler
+from evalkit.tools.scores import check_comparable, check_table_rules, clips_of, load_scores, ruler
 
 # The provenance file the pipeline writes beside a clip's labels.
 PROV_NAME = "seed_info.json"
@@ -322,7 +322,7 @@ def describe_group(summaries: Mapping[str, dict]) -> str:
     # The members are comparable with one another, so the first one's ruler
     # and clips stand for the group.
     first = next(iter(summaries.values()))
-    r, rule = ruler(first), check_one_rule(summaries)
+    r, rule = ruler(first), check_table_rules(summaries)
     # A pilot JSON records no rule, so none is printed.
     return (f"sha={str(r.eval_code_sha)[:8]} pilot={r.pilot} class_set={r.class_set} "
             f"views={list(r.views)} dataset={r.dataset} n_clips={len(clips_of(first))}"
