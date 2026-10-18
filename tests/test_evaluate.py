@@ -16,6 +16,7 @@ import pytest
 
 import clip_dirs as C
 from evalkit.classes import VIEWS, load_table
+from evalkit.code_sha import eval_code_sha
 from evalkit.evaluate import check_table, main, read_population, score_condition, write_scores
 from evalkit.keys import CLIP_METRICS, FRAME_METRICS, SIGNS, metric_key
 from evalkit.time_iou import time_iou
@@ -61,6 +62,7 @@ def test_a_perfect_prediction_scores_one_on_every_key_and_the_tools_read_the_jso
         assert set(row["n_frames"]) == {metric_key(m, v) for v in VIEWS for m in FRAME_METRICS}
         assert [f["frame"] for f in row["frames"]] == [100, 115, 130]
         assert sum(row["pixels"]["all"].values()) == 3 * 20 * 30
+    assert summary["eval_code_sha"] == eval_code_sha()
     assert set(summary["input_shas"]) == set(CLIPS)
     assert set(summary["versions"]) == {"python", "numpy", "opencv", "pillow"}
     assert read_evals(str(out.parent))["perfect"]["dir"] == "perfect"

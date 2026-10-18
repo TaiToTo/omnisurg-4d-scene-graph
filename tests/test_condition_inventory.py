@@ -4,8 +4,9 @@ A sound tree of two conditions on three clips, with clip lengths that
 differ (5, 9, 13 labels: a clip's length is its own), is built in a
 temporary directory, and one fault at a time is planted in it: a mixed
 condition, a short one, provenance without labels, labels without
-provenance, scores that cannot be compared, a missing root, and the
-mixes the evaluator's JSONs make possible.
+provenance, scores that cannot be compared, two scores on one label
+directory, a score on other clips than its labels, a missing root, and
+the mixes the evaluator's JSONs make possible.
 """
 import json
 import os
@@ -383,6 +384,30 @@ def test_a_score_whose_labels_are_gone_is_reported(tree):
     tr, ev = tree
     write_score(ev, "ghost", pilot_score("track_rgb_a_ghost"))
     assert any("have no labels" in p and "ghost" in p for p in problems(tr, ev))
+
+
+def test_two_scores_on_one_label_directory_are_reported(tree):
+    tr, ev = tree
+    write_score(ev, "a_rgb_again", pilot_score("track_rgb_a_rgb"))
+    assert any("2 scores name the labels track_rgb_a_rgb: ['a_rgb', 'a_rgb_again']" in p for p in problems(tr, ev))
+
+
+def test_a_score_on_fewer_clips_than_its_labels_is_reported(tree):
+    # The score names every clip it holds, so nothing in it says a clip is missing.
+    tr, ev = tree
+    s = pilot_score("track_rgb_a_rgb")
+    s["clips"], s["per_clip"], s["n_clips"] = CLIPS[:2], s["per_clip"][:2], 2
+    write_score(ev, "a_rgb", s)
+    assert any("a_rgb: scored 2 clips where the labels track_rgb_a_rgb hold 3 (unscored ['c3'])" in p
+               for p in problems(tr, ev))
+
+
+def test_a_score_on_a_clip_its_labels_do_not_hold_is_reported(tree):
+    tr, ev = tree
+    s = evaluator_score("track_rgb_a_rgb", clips=CLIPS + ["c4"])
+    write_score(ev, "a_rgb", s)
+    assert any("a_rgb: scored 4 clips where the labels track_rgb_a_rgb hold 3 (without labels ['c4'])" in p
+               for p in problems(tr, ev))
 
 
 def test_labels_nobody_scored_are_a_problem_only_when_required(tree, capsys):

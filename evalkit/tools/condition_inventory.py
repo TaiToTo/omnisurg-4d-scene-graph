@@ -4,9 +4,10 @@ Reads the provenance the pipeline writes beside each clip's labels
 (`seed_info.json`) and the score JSONs, prints a table per root, and
 exits non-zero on a problem: a tag whose clips were made under more than
 one condition; a condition missing clips or labels the others have; a
-score whose labels are gone, or with `--require-scored` labels nobody
-scored; and scores in one directory that `scores.check_comparable` would
-not compare with one another. Terms as in `docs/evaluation.md`.
+score whose labels are gone, two scores on one label directory, or a
+score on other clips than its labels hold; with `--require-scored`
+labels nobody scored; and scores in one directory that
+`scores.check_comparable` would not compare with one another. Terms as in `docs/evaluation.md`.
 
 Usage:
     python -m evalkit.tools.condition_inventory \\
@@ -489,13 +490,16 @@ def inventory(roots: Sequence[tuple[str, str, str]], require_scored: bool = Fals
     all_evals = {k: e["dir"] for evs in evals.values() for k, e in evs.items()}
     scored_dirs = set(all_evals.values())
 
-    # Each root's table and problems, and its label counts per clip and tag.
+    # Each root's table and problems, its label counts per clip and tag, and
+    # the clips with a label under each tag.
     problems, seen_tags, cover = [], set(), collections.defaultdict(dict)
+    label_clips = collections.defaultdict(set)
     for tr, ev, title in roots:
         probs, labels = report(tr, evals.get(ev, {}), title, scored_dirs)
         problems += probs
         for t, per_clip in labels.items():
             seen_tags.add(t)
+            label_clips[t] |= {clip for clip, n in per_clip.items() if n}
             # A tag with no label at all is already reported by `report`;
             # counting its zeros here would report every clip of it again.
             if not any(per_clip.values()):
@@ -507,6 +511,26 @@ def inventory(roots: Sequence[tuple[str, str, str]], require_scored: bool = Fals
     orphan = sorted(t for t, d in all_evals.items() if d not in seen_tags)
     if orphan:
         problems.append(f"{len(orphan)} scores have no labels: {orphan}")
+    # Two scores on one label directory: one of them is stale or misnamed,
+    # and a set of scored directories would count the labels as scored once.
+    by_dir = collections.defaultdict(list)
+    for t, d in sorted(all_evals.items()):
+        by_dir[d].append(t)
+    for d, tags in sorted(by_dir.items()):
+        if len(tags) > 1:
+            problems.append(f"{len(tags)} scores name the labels {d}: {tags}; a label directory is scored once")
+    # A score on other clips than its labels hold: a re-score that stopped
+    # half-way, or one run on a stale population, reads as complete otherwise.
+    for evs in evals.values():
+        for t, e in sorted(evs.items()):
+            if e["dir"] not in label_clips:
+                continue
+            scored, held = set(clips_of(e["summary"])), label_clips[e["dir"]]
+            if scored != held:
+                missing, extra = sorted(held - scored), sorted(scored - held)
+                problems.append(f"{t}: scored {len(scored)} clips where the labels {e['dir']} hold {len(held)}"
+                                f"{' (unscored ' + str(missing) + ')' if missing else ''}"
+                                f"{' (without labels ' + str(extra) + ')' if extra else ''}")
     # Labels nobody scored.
     unscored = sorted(t for t in seen_tags if t not in scored_dirs and t != VIZ_DIR)
     if unscored:
