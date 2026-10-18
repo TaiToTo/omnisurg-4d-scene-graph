@@ -14,7 +14,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-import cv2
 import numpy as np
 
 # The pilot evaluator's value for its main boundary keys. `docs/evaluation.md`
@@ -85,7 +84,7 @@ def boundary_pixels(labels: np.ndarray, scored: np.ndarray | None = None) -> np.
 
 
 def within_tolerance(boundary: np.ndarray, tol: int = BOUNDARY_TOL_PX) -> np.ndarray:
-    """The pixels within `tol` of a boundary pixel, as a square neighbourhood.
+    """Return the pixels within `tol` of a boundary pixel, in a square neighbourhood.
 
     A square rather than a disk because the pilot evaluator dilated with a
     (2·tol + 1)² box, and both modes share one rule.
@@ -96,15 +95,20 @@ def within_tolerance(boundary: np.ndarray, tol: int = BOUNDARY_TOL_PX) -> np.nda
     if not isinstance(tol, (int, np.integer)) or isinstance(tol, (bool, np.bool_)) or tol < 0:
         raise ValueError(f"the tolerance is a non-negative integer number of pixels, got {tol!r}")
     tol = int(tol)
-    if tol == 0:
-        return boundary.copy()
-    # cv2.dilate with a square kernel of ones. A numpy shift-or over the same
-    # (2*tol + 1)^2 offsets agrees on every mask tried, borders included;
-    # whether a hashed file should depend on a library's behaviour at all,
-    # while OpenCV is unpinned, is decided before the freeze (an open question
-    # of the port), not here.
-    kernel = np.ones((2 * tol + 1, 2 * tol + 1), dtype=np.uint8)
-    return cv2.dilate(boundary.astype(np.uint8), kernel).astype(bool)
+    # A square dilation is a vertical one followed by a horizontal one, each
+    # by `tol` px; a pixel beyond the frame's edge marks nothing. numpy does
+    # it rather than OpenCV, whose version a score records but cannot fix.
+    out = boundary.copy()
+    for axis in (0, 1):
+        done = out.copy()
+        for shift in range(1, min(tol, out.shape[axis]) + 1):
+            ahead = [slice(None), slice(None)]
+            behind = [slice(None), slice(None)]
+            ahead[axis], behind[axis] = slice(shift, None), slice(None, -shift)
+            done[tuple(ahead)] |= out[tuple(behind)]
+            done[tuple(behind)] |= out[tuple(ahead)]
+        out = done
+    return out
 
 
 def boundary_score(

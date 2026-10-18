@@ -193,10 +193,6 @@ Each question says what it blocks and where its answer is written.
 
 ### Before the freeze
 
-- **Boundary dilation.** `evalkit/boundary.py` dilates with `cv2.dilate`.
-  A numpy shift-or agrees on every mask tried, borders included. Should a
-  hashed file depend on OpenCV's behaviour while OpenCV is unpinned?
-  Blocks: the freeze. Answer in: `evalkit/boundary.py`.
 - **CholecSeg8k's Region line.** CholecSeg8k draws a 1 px white line
   between regions, which the class table types `ignored`. 87 % of its
   pixels are the image's outer pixel, which the crop removes. The rest
