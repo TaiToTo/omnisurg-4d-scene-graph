@@ -362,13 +362,17 @@ def test_an_excluded_frame_with_faulty_depth_is_refused(tmp_path):
 @pytest.mark.parametrize("info, why", [
     ({"seed_source": "per_frame", "frames": "all"}, "segmented frame by frame"),
     ({"seed_source": "gt", "seed_frame": 2, "bidir": True, "frames": [0, 1, 2, 3, 4]},
-     "holds no propagation rule: .*not from the tracker's own masks"),
-    ({"seed_source": "external", "seed_frame": 2, "bidir": True, "frames": [0, 1, 2, 3, 4]},
-     "holds no propagation rule: .*not from the tracker's own masks"),
+     "holds no propagation rule: the seed came from 'gt'"),
 ])
 def test_a_condition_without_a_seed_frame_to_hold_from_is_refused(tmp_path, info, why):
     write_hold_scene(tmp_path, seed_info=info)
     with pytest.raises(ValueError, match=why):
+        measure(tmp_path)
+
+
+def test_seeds_made_outside_the_tracking_stage_are_refused_since_the_json_records_no_seed(tmp_path):
+    write_hold_scene(tmp_path, seed_info={**BOTH_WAYS, "seed_source": "external"})
+    with pytest.raises(ValueError, match="made outside the tracking stage"):
         measure(tmp_path)
 
 

@@ -94,10 +94,11 @@ def test_a_view_without_a_class_leaves_the_keys_undefined():
     assert (ours[0]["F1_50"], ours[0]["SQ"], ours[0]["inst_BF"], ours[0]["predicted"]) == (None, None, None, 0)
 
 
-def write_condition(tmp_path, frames, gt_frames=None):
+def write_condition(tmp_path, frames, gt_frames=None, seed_info=None):
     C.write_clip(tmp_path / "data", "VID01_a", [gt_map(g) for g, _ in frames], gt_frames=gt_frames,
                  dataset="atlas120k")
-    C.write_labels(tmp_path / "tracks", "VID01_a", "c", {k: region_map(r) for k, (_, r) in enumerate(frames)})
+    C.write_labels(tmp_path / "tracks", "VID01_a", "c", {k: region_map(r) for k, (_, r) in enumerate(frames)},
+                   seed_info=seed_info)
 
 
 def measure(tmp_path):
@@ -157,6 +158,13 @@ def test_an_excluded_frame_with_faulty_depth_is_refused(tmp_path):
 def test_labels_without_a_rule_are_refused(tmp_path):
     write_condition(tmp_path, [SPILL])
     with pytest.raises(ValueError, match="state the rule"):
+        measure_condition("atlas120k", None, ["VID01_a"], tmp_path / "data", tmp_path / "tracks", "c", None, SIZES)
+
+
+def test_seeds_made_outside_the_tracking_stage_are_refused_since_the_json_records_no_seed(tmp_path):
+    write_condition(tmp_path, [SPILL] * 3,
+                    seed_info={"seed_source": "external", "seed_frame": 1, "bidir": True, "frames": [0, 1, 2]})
+    with pytest.raises(ValueError, match="made outside the tracking stage"):
         measure_condition("atlas120k", None, ["VID01_a"], tmp_path / "data", tmp_path / "tracks", "c", None, SIZES)
 
 

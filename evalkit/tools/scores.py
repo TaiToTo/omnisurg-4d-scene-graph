@@ -4,9 +4,10 @@ Every tool reads scores through this module, so the conditions for
 comparable scores (`docs/evaluation.md`, "Recorded with every score") are
 checked in one place. `check_comparable` refuses a pair unless everything
 that must match does: `eval_code_sha`, dataset, class set, views, mode, the
-clip population, the GT and depth each clip was scored against, and the
-propagation rule, which may differ only between two conditions that differ
-in the rule alone. Library versions are reported instead of refused.
+clip population, the GT and depth each clip was scored against, whether the
+GT informed the seeds, and the propagation rule, which may differ only
+between two conditions that differ in the rule alone. Library versions are
+reported instead of refused.
 
 Two kinds of JSON arrive. The evaluator's carry every field in
 `EVALUATOR_FIELDS`. The pilot evaluator's predate those fields and carry
@@ -39,7 +40,7 @@ PILOT_EVAL_CODE_SHA = "1f8a813a5be31dd204fe4130a1799053411c41166f19821f80ca30d3a
 
 # What the evaluator records with every score beyond what the pilot did.
 # All or none: a JSON with a part of them is refused.
-EVALUATOR_FIELDS = ("class_set", "views", "pilot", "input_shas", "versions", "propagation")
+EVALUATOR_FIELDS = ("class_set", "views", "pilot", "input_shas", "versions", "propagation", "seed")
 
 # The rule of a condition with no tracker; it may be compared with either rule.
 PER_FRAME = "per_frame"
@@ -60,9 +61,10 @@ PILOT_SIGNS: Mapping[str, int] = MappingProxyType({
     "inst_F1_50_labeled": +1, "inst_F1_50_tissue": +1, "inst_F1_50_labeled_tissue": +1,
 })
 
-# The entry of `input_shas` that is the condition's own. Every other entry
+# The entries of `input_shas` that are the condition's own: its predictions,
+# and the files of seeds made outside the tracking stage. Every other entry
 # names an input two comparable scores must have read alike.
-PREDICTION_INPUT = "predictions"
+CONDITION_INPUTS = frozenset({"predictions", "seeds"})
 # The inputs two scores of one clip must both record, and have read alike:
 # every input the evaluator hashes but the predictions.
 REQUIRED_INPUTS = ("gt_masks", "depth", "crop", "frames")
@@ -147,6 +149,22 @@ def propagation_rule_of(summary: Mapping) -> str | None:
     if not isinstance(rule, str) or not rule:
         raise ValueError(f"a score JSON records the propagation rule {rule!r}, which names no rule")
     return rule
+
+
+def gt_informed_of(summary: Mapping) -> bool | None:
+    """Return whether the GT made or informed a JSON's seeds, or None for a pilot JSON, which records no seeds.
+
+    Raises:
+        ValueError: The JSON has some of the evaluator's fields but not
+            all, or its `seed` holds no `gt_informed` that is true or false.
+    """
+    if is_pilot_json(summary):
+        return None
+    seed = summary["seed"]
+    if not isinstance(seed, Mapping) or not isinstance(seed.get("gt_informed"), bool):
+        raise ValueError(f"a score JSON records the seed {seed!r}, which says neither that the GT informed it "
+                         "nor that it did not")
+    return seed["gt_informed"]
 
 
 def name_of_rules(rules: Iterable[str]) -> str:
@@ -366,7 +384,7 @@ def _check_inputs(a: Mapping, b: Mapping, clips: list[str]) -> None:
             if name not in ia or name not in ib:
                 raise ValueError(f"{clip}: a score records no {name} hash, so whether both read the same "
                                  f"{name} cannot be checked")
-        names = (set(ia) | set(ib)) - {PREDICTION_INPUT}
+        names = (set(ia) | set(ib)) - CONDITION_INPUTS
         for name in sorted(names):
             if ia.get(name) != ib.get(name):
                 raise ValueError(
@@ -407,10 +425,10 @@ def check_comparable(
             views or dataset differ; the pilot domains or a compared clip's
             `extra_ignore` differ; the two were propagated under different
             rules, neither of them `per_frame`, and do not differ in the
-            rule alone; a JSON's `clips` and
-            `per_clip` name different clips; the clips differ, no clip is
-            common, or neither JSON holds one; or the two read different
-            inputs.
+            rule alone; the GT informed the seeds of one and not of the
+            other; a JSON's `clips` and `per_clip` name different clips; the
+            clips differ, no clip is common, or neither JSON holds one; or
+            the two read different inputs.
     """
     ra, rb = ruler(a), ruler(b)
     sa, sb = ra.eval_code_sha, rb.eval_code_sha
@@ -483,6 +501,16 @@ def check_comparable(
                 f"  the rules.\n  base: propagation={rule_a!r}\n  cond: propagation={rule_b!r}\n  {e}\n"
                 f"  Compare each with a condition of its own rule, or with a {PER_FRAME!r} one"
             ) from None
+    # Seeds the GT made or informed start from what the GT knows, so a difference
+    # between such a condition and another would include the GT's help.
+    informed_a, informed_b = gt_informed_of(a), gt_informed_of(b)
+    if informed_a != informed_b:
+        raise ValueError(
+            "a condition whose seeds the GT made or informed cannot be compared with one whose seeds\n"
+            "  it did not: the difference between them would include what the GT told the seeds.\n"
+            f"  base: gt_informed={informed_a}\n  cond: gt_informed={informed_b}\n"
+            "  Compare each with a condition whose seeds were made the same way"
+        )
 
     check_rows(a, "base")
     check_rows(b, "cond")

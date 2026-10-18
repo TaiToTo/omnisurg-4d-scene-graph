@@ -263,9 +263,10 @@ def test_an_atlas120k_clip_reads_its_id_masks_and_its_one_tool_class(tmp_path):
 def test_a_pilot_mode_json_says_so_and_scores_the_pilot_s_domains(tmp_path):
     pilot_clip_dir(tmp_path, [f"label_{i:04d}.npy" for i in range(3)])
     summary = score_condition("cholecseg8k", None, ["c"], tmp_path / "data", tmp_path / "tracks", "t",
-                              "both_ways_from_centre", pilot=True)
+                              "both_ways_from_centre", seeds_gt_informed=False, pilot=True)
     assert summary["pilot"] is True and summary["views"] == list(PILOT_DOMAINS)
     assert summary["propagation"] == "both_ways_from_centre"
+    assert summary["seed"] == {"source": None, "gt_informed": False}
     assert summary["per_clip"][0]["F1_50/labeled_tissue"] == 1.0
 
 

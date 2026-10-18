@@ -6,7 +6,9 @@ readers, two conditions on the same inputs must be comparable, and one on
 another GT must not. A run that fails writes nothing. The JSON records the
 condition's propagation rule as every clip's `seed_info.json` gives it. A
 seed that holds no rule, a seed from the GT among them, and a record on some
-clips but not on the others are refused, in pilot mode too.
+clips but not on the others are refused, in pilot mode too. Seeds made
+outside the tracking stage are scored, recorded by their files' hash and by
+whether the GT informed them, and compared only with seeds made alike.
 """
 import json
 import shutil
@@ -17,7 +19,8 @@ import pytest
 import clip_dirs as C
 from evalkit.classes import VIEWS, load_table
 from evalkit.code_sha import eval_code_sha
-from evalkit.evaluate import check_table, main, read_population, score_condition, write_scores
+from evalkit.evaluate import check_table, main, read_population, score_condition, seed_file, write_scores
+from evalkit.inputs import sha_of_files
 from evalkit.keys import CLIP_METRICS, FRAME_METRICS, SIGNS, metric_key
 from evalkit.time_iou import time_iou
 from evalkit.tools.condition_inventory import read_evals
@@ -40,9 +43,20 @@ def write_condition(tmp_path, tag, regions_of=lambda gt: gt.copy(), clips=CLIPS,
                        seed_info=seed_info)
 
 
-def score(tmp_path, tag, data="data", clips=CLIPS, propagation=None, pilot=False):
+# What the tracker records for regions it read from seed files, on the centre of three frames: the two
+# regions of `write_seeds`, each kept at one pixel or more.
+EXTERNAL = {**BOTH_WAYS, "seed_source": "external", "seed_min_area": 1, "n_seed_regions": 2}
+
+
+def write_seeds(root, clips=CLIPS, frame=1):
+    for k, clip in enumerate(clips):
+        (root / clip).mkdir(parents=True)
+        np.save(root / clip / f"label_{frame:04d}.npy", C.two_organs(cut=8 + k).astype(np.int16))
+
+
+def score(tmp_path, tag, data="data", clips=CLIPS, propagation=None, pilot=False, seeds=None, gt_informed=None):
     return score_condition("cholecseg8k", None, clips, tmp_path / data, tmp_path / "tracks", tag, propagation,
-                           pilot=pilot)
+                           seeds=seeds, seeds_gt_informed=gt_informed, pilot=pilot)
 
 
 def test_a_perfect_prediction_scores_one_on_every_key_and_the_tools_read_the_json(tmp_path):
@@ -65,6 +79,7 @@ def test_a_perfect_prediction_scores_one_on_every_key_and_the_tools_read_the_jso
     assert summary["eval_code_sha"] == eval_code_sha()
     assert set(summary["input_shas"]) == set(CLIPS)
     assert set(summary["versions"]) == {"python", "numpy", "opencv", "pillow"}
+    assert summary["seed"] == {"source": "sam", "gt_informed": False}
     assert read_evals(str(out.parent))["perfect"]["dir"] == "perfect"
 
 
@@ -153,8 +168,8 @@ def test_the_json_records_the_rule_each_clip_s_seed_info_gives(tmp_path, info, r
 
 
 @pytest.mark.parametrize("info, why", [
-    ({"seed_source": "gt", "seed_frame": 1, "bidir": True, "frames": [0, 1, 2]}, "not from the tracker's own masks"),
-    ({"seed_source": "external", "seed_frame": 1, "bidir": True, "frames": [0, 1, 2]}, "not from the tracker's own masks"),
+    ({"seed_source": "gt", "seed_frame": 1, "bidir": True, "frames": [0, 1, 2]}, "the seed came from 'gt'"),
+    ({"seed_source": "external", "seed_frame": 0, "bidir": True, "frames": [0, 1, 2]}, "the centre of the labelled frames is 1"),
     ({"seed_frame": 1, "bidir": True, "frames": [0, 1, 2]}, "names no seed_source"),
     ({"seed_source": "sam", "seed_frame": 2, "bidir": True, "frames": [0, 1, 2]}, "the centre of the labelled frames is 1"),
     ({"seed_source": "sam", "seed_frame": 0, "bidir": True, "frames": [0, 1, 2]}, "the centre of the labelled frames is 1"),
@@ -215,7 +230,7 @@ def test_pilot_mode_refuses_a_gt_seed_beside_a_clip_without_a_record_in_either_o
     write_condition(tmp_path, "c", clips=CLIPS[:1], seed_info={"seed_source": "gt", "seed_frame": 1,
                                                                "bidir": True, "frames": [0, 1, 2]})
     write_condition(tmp_path, "c", clips=CLIPS[1:], seed_info=None)
-    with pytest.raises(ValueError, match="not from the tracker's own masks"):
+    with pytest.raises(ValueError, match="the seed came from 'gt'"):
         score(tmp_path, "c", clips=list(order), pilot=True)
 
 
@@ -229,3 +244,109 @@ def test_pilot_mode_refuses_a_record_it_cannot_parse(tmp_path):
         (tmp_path / "tracks" / clip / "c" / "seed_info.json").write_bytes(b"\xff\xfe{")
     with pytest.raises(ValueError, match="holds no propagation rule: 'utf-8' codec"):
         score(tmp_path, "c", pilot=True)
+
+
+@pytest.mark.parametrize("pilot", [False, True])
+def test_seeds_made_outside_the_stage_are_scored_and_recorded_by_their_files_hash(tmp_path, pilot):
+    write_condition(tmp_path, "c", seed_info=EXTERNAL)
+    write_seeds(tmp_path / "seeds")
+    summary = score(tmp_path, "c", pilot=pilot, seeds=str(tmp_path / "seeds"), gt_informed=False)
+    assert summary["propagation"] == "both_ways_from_centre"
+    assert summary["seed"] == {"source": "external", "gt_informed": False}
+    for clip in CLIPS:
+        assert summary["input_shas"][clip]["seeds"] == sha_of_files([tmp_path / "seeds" / clip / "label_0001.npy"])
+    # The hash names the files, not the path they were given by: a `{clip}` pattern or a link to the
+    # same directory gives the same record.
+    (tmp_path / "link").symlink_to(tmp_path / "seeds")
+    for given in (str(tmp_path / "seeds" / "{clip}"), str(tmp_path / "link")):
+        again = score(tmp_path, "c", pilot=pilot, seeds=given, gt_informed=False)
+        assert again["input_shas"] == summary["input_shas"] and again["seed"] == summary["seed"]
+
+
+def test_the_seed_file_is_where_the_tracking_stage_reads_it(tmp_path):
+    track = pytest.importorskip("pipeline.track")
+    for seeds in (str(tmp_path), str(tmp_path / "{clip}" / "track_rgb_k10")):
+        assert seed_file(seeds, "VID01_a", 7) == track.seed_labels_dir(seeds, "VID01_a") / "label_0007.npy"
+
+
+@pytest.mark.parametrize("seeds, gt_informed, why", [
+    (None, False, "give their directory with --seeds"),
+    ("seeds", None, "state it with --seeds-gt-informed"),
+])
+def test_external_seeds_need_their_directory_and_a_statement_on_the_gt(tmp_path, seeds, gt_informed, why):
+    write_condition(tmp_path, "c", seed_info=EXTERNAL)
+    write_seeds(tmp_path / "seeds")
+    with pytest.raises(ValueError, match=why):
+        score(tmp_path, "c", seeds=seeds and str(tmp_path / seeds), gt_informed=gt_informed)
+
+
+@pytest.mark.parametrize("info, error, why", [
+    ({**EXTERNAL, "n_seed_regions": 3}, ValueError, "holds 2 regions of 1 pixels or more, and the tracker's record counts 3"),
+    ({**EXTERNAL, "seed_min_area": 500}, ValueError, "holds 0 regions of 500 pixels or more"),
+    ({k: v for k, v in EXTERNAL.items() if k != "n_seed_regions"}, ValueError, "cannot be checked"),
+    ({**EXTERNAL, "n_seed_regions": True}, ValueError, "cannot be checked"),
+])
+def test_a_seed_file_that_is_not_the_one_the_tracker_read_is_refused(tmp_path, info, error, why):
+    write_condition(tmp_path, "c", seed_info=info)
+    write_seeds(tmp_path / "seeds")
+    with pytest.raises(error, match=why):
+        score(tmp_path, "c", seeds=str(tmp_path / "seeds"), gt_informed=False)
+
+
+def test_a_missing_seed_file_is_refused(tmp_path):
+    write_condition(tmp_path, "c", seed_info=EXTERNAL)
+    write_seeds(tmp_path / "seeds", frame=0)
+    with pytest.raises(FileNotFoundError, match="no seed file .*label_0001.npy"):
+        score(tmp_path, "c", seeds=str(tmp_path / "seeds"), gt_informed=False)
+
+
+@pytest.mark.parametrize("info", [BOTH_WAYS, {"seed_source": "per_frame", "frames": "all"}])
+def test_a_statement_the_record_already_decides_is_refused(tmp_path, info):
+    write_condition(tmp_path, "c", seed_info=info)
+    write_seeds(tmp_path / "seeds")
+    with pytest.raises(ValueError, match="already says that no GT informed the seeds"):
+        score(tmp_path, "c", gt_informed=False)
+    with pytest.raises(ValueError, match="--seeds names seed files"):
+        score(tmp_path, "c", seeds=str(tmp_path / "seeds"))
+
+
+def test_labels_without_a_record_state_the_gt_unless_they_are_per_frame(tmp_path):
+    write_condition(tmp_path, "c", seed_info=None)
+    with pytest.raises(ValueError, match="no recorded source, so whether the GT made or informed them"):
+        score(tmp_path, "c", propagation="both_ways_from_centre")
+    summary = score(tmp_path, "c", propagation="both_ways_from_centre", gt_informed=True)
+    assert summary["seed"] == {"source": None, "gt_informed": True}
+    assert score(tmp_path, "c", propagation="per_frame")["seed"] == {"source": "per_frame", "gt_informed": False}
+
+
+def test_seeds_made_two_ways_in_one_condition_are_refused(tmp_path):
+    write_condition(tmp_path, "c", clips=CLIPS[:1])
+    write_condition(tmp_path, "c", clips=CLIPS[1:], seed_info=EXTERNAL)
+    with pytest.raises(ValueError, match=r"seed sources \['external', 'sam'\]; a condition's seeds are made one way"):
+        score(tmp_path, "c", gt_informed=False)
+
+
+def test_a_condition_the_gt_informed_is_compared_only_with_another(tmp_path):
+    write_condition(tmp_path, "sam")
+    write_condition(tmp_path, "kgt", seed_info=EXTERNAL)
+    write_condition(tmp_path, "gt_seeded", seed_info=None)
+    write_seeds(tmp_path / "seeds")
+    sam = score(tmp_path, "sam")
+    kgt = score(tmp_path, "kgt", seeds=str(tmp_path / "seeds"), gt_informed=True)
+    gt_seeded = score(tmp_path, "gt_seeded", propagation="both_ways_from_centre", gt_informed=True)
+    with pytest.raises(ValueError, match="whose seeds the GT made or informed cannot be compared"):
+        check_comparable(sam, kgt)
+    with pytest.raises(ValueError, match="whose seeds the GT made or informed cannot be compared"):
+        check_comparable(kgt, score(tmp_path, "kgt", seeds=str(tmp_path / "seeds"), gt_informed=False))
+    assert check_comparable(kgt, gt_seeded)["clips"] == CLIPS
+
+
+def test_the_command_line_records_the_seeds_and_the_statement(tmp_path):
+    write_condition(tmp_path, "c", seed_info=EXTERNAL)
+    write_seeds(tmp_path / "seeds")
+    (tmp_path / "clips.txt").write_text("\n".join(CLIPS) + "\n")
+    out = tmp_path / "c.json"
+    main(["--dataset", "cholecseg8k", "--clips", str(tmp_path / "clips.txt"),
+          "--data-root", str(tmp_path / "data"), "--tracks-root", str(tmp_path / "tracks"),
+          "--tag", "c", "--out", str(out), "--seeds", str(tmp_path / "seeds"), "--seeds-gt-informed", "yes"])
+    assert json.loads(out.read_text())["seed"] == {"source": "external", "gt_informed": True}

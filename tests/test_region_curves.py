@@ -25,8 +25,8 @@ def score(name, values, clips=CLIPS, pilot=False):
     return {"eval_code_sha": "e", "dataset": "atlas120k", "class_set": "original", "views": ["all"], "pilot": pilot,
             "input_shas": {c: {"gt_masks": "g", "depth": "d", "crop": "c", "frames": "f", "predictions": name}
                            for c in clips},
-            "versions": {}, "propagation": "both_ways_from_centre", "clips": clips,
-            "track_dir_name": f"track_rgb_{name}", "per_clip": [{"clip": c, KEY: v} for c, v in zip(clips, values)]}
+            "versions": {}, "propagation": "both_ways_from_centre", "seed": {"source": "sam", "gt_informed": False},
+            "clips": clips, "track_dir_name": f"track_rgb_{name}", "per_clip": [{"clip": c, KEY: v} for c, v in zip(clips, values)]}
 
 
 def components(name, values, clips=CLIPS):

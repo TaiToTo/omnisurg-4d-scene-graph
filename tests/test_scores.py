@@ -47,7 +47,7 @@ def evaluator_json(sha=SHA, clips=CLIPS, dataset="cholecseg8k", pilot=False, cla
                    views=("all", "tissue", "geometric"), propagation=BOTH_WAYS):
     return dict(
         eval_code_sha=sha, dataset=dataset, pilot=pilot, class_set=class_set, views=list(views),
-        clips=list(clips), propagation=propagation,
+        clips=list(clips), propagation=propagation, seed={"source": "sam", "gt_informed": False},
         input_shas={c: {"gt_masks": "g" * 64, "depth": "d" * 64, "crop": "c" * 64, "frames": "f" * 64, "predictions": f"p{c}"} for c in clips},
         versions={"python": "3.12.0", "numpy": "2.0.0"},
         per_clip=[dict(clip=c, **{metric_key("F1_50", v): 0.5 for v in views}) for c in clips],
@@ -134,6 +134,49 @@ def test_an_evaluator_json_without_a_rule_is_neither_kind():
 def test_a_pilot_json_records_no_rule_and_two_of_them_compare_as_before():
     assert scores.propagation_rule_of(pilot_json()) is None
     assert "propagation" not in check_comparable(pilot_json(), pilot_json())
+
+
+# ---------------------------------------------------------------- seeds the GT informed
+
+
+def informed(source="external", gt_informed=True, **kw):
+    j = evaluator_json(**kw)
+    j["seed"] = {"source": source, "gt_informed": gt_informed}
+    return j
+
+
+def test_a_condition_whose_seeds_the_gt_informed_is_compared_only_with_another():
+    with pytest.raises(ValueError, match="whose seeds the GT made or informed cannot be compared") as e:
+        check_comparable(evaluator_json(), informed())
+    assert "gt_informed=False" in str(e.value) and "gt_informed=True" in str(e.value)
+    with pytest.raises(ValueError, match="whose seeds the GT made or informed"):
+        check_comparable(informed(propagation=scores.PER_FRAME), evaluator_json(propagation=scores.PER_FRAME))
+    assert check_comparable(informed(), informed(source=None))["clips"] == sorted(CLIPS)
+    assert check_comparable(evaluator_json(), informed(gt_informed=False))["clips"] == sorted(CLIPS)
+
+
+def test_a_table_never_holds_seeds_the_gt_informed_beside_seeds_it_did_not():
+    with pytest.raises(ValueError, match="(?s)a and c cannot share a table: .*GT made or informed"):
+        scores.check_comparable_table({"a": informed(), "b": informed(), "c": evaluator_json()})
+
+
+@pytest.mark.parametrize("seed", [None, "external", {"source": "external"}, {"source": "sam", "gt_informed": 0}])
+def test_a_seed_record_that_does_not_say_whether_the_gt_informed_it_is_refused(seed):
+    j = evaluator_json()
+    j["seed"] = seed
+    with pytest.raises(ValueError, match="says neither that the GT informed it nor that it did not"):
+        check_comparable(evaluator_json(), j)
+
+
+def test_an_evaluator_json_without_a_seed_record_is_neither_kind():
+    j = evaluator_json()
+    del j["seed"]
+    with pytest.raises(ValueError, match="neither"):
+        check_comparable(evaluator_json(), j)
+
+
+def test_a_pilot_json_records_no_seeds():
+    assert scores.gt_informed_of(pilot_json()) is None
 
 
 def test_one_table_holds_one_rule_besides_per_frame():
@@ -360,6 +403,14 @@ def test_two_scores_that_read_a_different_depth_map_are_refused():
     b["input_shas"][CLIPS[1]]["depth"] = "x" * 64
     with pytest.raises(ValueError, match="different depth"):
         check_comparable(evaluator_json(), b)
+
+
+def test_different_seed_files_are_the_condition_s_own_and_pass():
+    a, b = informed(), informed()
+    a["input_shas"][CLIPS[0]]["seeds"] = "s" * 64
+    b["input_shas"][CLIPS[0]]["seeds"] = "t" * 64
+    assert check_comparable(a, b)["clips"] == sorted(CLIPS)
+    assert check_comparable(evaluator_json(), informed(gt_informed=False) | {"input_shas": a["input_shas"]})
 
 
 def test_different_predictions_are_the_point_and_pass():
