@@ -13,6 +13,12 @@ only when their hashes match. A second scorer scores the camera poses
 against StereoMIS's ground truth. A web page shows a clip's point clouds,
 regions and scene graphs.
 
+![From a clip to a 4D scene graph, on a drawn scene: 1, the clip's frames; 2, a depth map and a point cloud per frame, and the camera's path; 3, regions that keep their ids from frame to frame and have no names; 4, a scene graph per frame, a node per region and a word per pair such as right, front or above; 5, the same relations through time, each holding for a run of frames, and the viewer that shows them. Below, what is scored: the camera poses against StereoMIS's ground truth by trajectory_eval, and the regions against the hand-labelled GT masks by evalkit.](docs/figures/scene_graph_overview.png)
+
+The steps on a drawn scene. The words on the edges are an illustration, not
+the pipeline's output. The two scorers score the camera poses and the
+regions, not the scene graphs.
+
 ## Status
 
 The code is being moved here from the research workbench where the

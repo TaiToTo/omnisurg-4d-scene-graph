@@ -10,6 +10,8 @@ the earlier stages wrote into the clip.
 
 ## Contents
 
+![The pipeline in five bands, in the order they run: 1, one extraction stage per dataset writes a clip's input_images, seg_masks and frame_manifest.json, and D4D's census selects its sides; 2, DA3 and Pi3X write depth, camera poses and point clouds, which trajectory_eval scores on StereoMIS; 3, the tracking and per-frame stages write a label map per frame and seed_info.json, which evalkit.evaluate scores against seg_masks; 4, the export stage writes the regions, the scene graphs per frame and through time, and the hierarchy into pc_vis; 5, the viewer bundle stage writes the static files the web page reads.](figures/pipeline_map.png)
+
 [A clip](#a-clip) says what the stages read and write. The stages, in the
 order they run:
 
