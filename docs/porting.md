@@ -223,14 +223,15 @@ Each question says what it blocks and where its answer is written.
 - **Cuts inside GT clips.** Every candidate whose spot differs by more
   than 30 inside the population is judged, and 39 clips hold a cut
   (`atlas120k_meta/cuts.csv`). After a cut, a tracking condition's scores
-  measure the scene change, not the input. Decided: split each clip at its
-  cuts. The extraction rule ends a run of consecutive frames at a cut as
-  well, and keeps the runs that still have at least 8 frames after
-  thinning; replayed in the workbench, the 315 clips become 339. Open: the
+  measure the scene change, not the input. Decided on 2026-10-12: split
+  each clip at its cuts. The extraction rule ends a run of consecutive
+  frames at a cut as well, and keeps the runs that still have at least 8
+  frames after thinning; replayed in the workbench, the 315 clips become
+  339. Open: the
   extraction stage reads `cuts.csv`; the population is extracted again; and
   the clips that replace the 39 get depth, camera poses and every tracking
   condition. Not resolved, and not blocking: most candidates between 20
-  and 30 were not looked at, and two of those looked at are cuts (the
+  and 30 were not judged, and two of those judged are cuts (the
   README says so). Blocks: extracting the population again, and the freeze.
   Answer in: `atlas120k_meta/README.md`.
 
