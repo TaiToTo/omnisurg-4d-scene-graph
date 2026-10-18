@@ -3,7 +3,7 @@
 The workbench's records are written from the keys and values of real
 ones, cut short where a list of frames is long. The records of
 `pipeline.track` and `pipeline.per_frame` come from running the stages
-with a stand-in segmenter and tracker, which needs the `render` extra.
+with `tests/stand_ins.py`'s segmenter and tracker, which needs the `render` extra.
 Each problem the tool reports has a test that plants it.
 """
 
@@ -239,41 +239,17 @@ def test_an_unknown_seed_source_or_a_root_that_is_not_there_is_refused(tmp_path)
 def run_stage(tmp_path, stage: str, **settings) -> None:
     """Run `pipeline.track` or `pipeline.per_frame` on one clip with a stand-in segmenter and tracker."""
     pytest.importorskip("matplotlib")
-    from PIL import Image
-
     from pipeline.per_frame import run_per_frame
     from pipeline.track import run_track
-    from sam3_wrapper import FrameResult
+    from stand_ins import StandInSegmenter, StandInTracker, write_depth_clip
 
-    clip = tmp_path / "clips" / "clip0"
-    (clip / "input_images").mkdir(parents=True)
-    (clip / "exports" / "mini_npz").mkdir(parents=True)
-    for i in range(3):
-        Image.fromarray(np.full((8, 10, 3), 50 * i, np.uint8)).save(clip / "input_images" / f"{i:06d}.png")
-    depth = np.stack([np.full((8, 10), 0.3 + 0.01 * i, np.float32) for i in range(3)])
-    K = np.tile(np.array([[10.0, 0, 5], [0, 10.0, 4], [0, 0, 1]]), (3, 1, 1))
-    np.savez(clip / "exports" / "mini_npz" / "results.npz", depth=depth, intrinsics=K)
-
-    class Segmenter:
-        def label_map(self, image, points_per_side):
-            return np.zeros(image.shape[:2], int)
-
-    class Tracker:
-        def init_video(self, frames):
-            self.n = len(frames)
-
-        def add_masks(self, frame_idx, masks, obj_ids):
-            self.masks, self.ids = masks, obj_ids
-
-        def propagate(self, start, reverse=False):
-            for f in (range(start, -1, -1) if reverse else range(start, self.n)):
-                yield FrameResult(f, list(self.ids), np.stack(self.masks), np.ones(len(self.ids)))
-
+    clip = write_depth_clip(tmp_path / "clips", "clip0", 3)
     if stage == "track":
-        run_track(clip, tmp_path / "tracks", "t", "both_ways_from_centre", Segmenter(), Tracker(), seed_min_area=1,
+        run_track(clip, tmp_path / "tracks", "t", "both_ways_from_centre", StandInSegmenter(), StandInTracker(),
+                  seed_min_area=1,
                   **settings)
     else:
-        run_per_frame(clip, tmp_path / "tracks", "t", Segmenter(), seed_min_area=1, **settings)
+        run_per_frame(clip, tmp_path / "tracks", "t", StandInSegmenter(), seed_min_area=1, **settings)
 
 
 @pytest.mark.parametrize("stage, settings, condition, source, base", [
@@ -287,7 +263,7 @@ def test_the_records_this_repository_s_stages_write_are_read(tmp_path, stage, se
         seeds = tmp_path / "seeds" / "clip0"
         seeds.mkdir(parents=True)
         for i in range(3):
-            np.save(seeds / f"label_{i:04d}.npy", np.zeros((8, 10), np.int32))
+            np.save(seeds / f"label_{i:04d}.npy", np.zeros((12, 16), np.int32))
         settings = {**settings, "seed_labels": str(tmp_path / "seeds" / "{clip}")}
     run_stage(tmp_path, stage, **settings)
     labels, sam_input = settings.get("seed_labels"), settings["sam_input"]

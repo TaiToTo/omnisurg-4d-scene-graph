@@ -1,7 +1,7 @@
 """Run `pipeline.per_frame` through a stand-in segmenter, and check what it writes and what it refuses.
 
-The stand-in cuts every image into fixed regions, so these tests need no
-torch and no weights. The segmenter inputs need the `render` extra.
+The stand-in segmenter and the clip are `tests/stand_ins.py`'s, so these
+tests need no torch and no weights. The segmenter inputs need the `render` extra.
 """
 
 import json
@@ -10,16 +10,16 @@ import sys
 
 import numpy as np
 import pytest
-from PIL import Image
-
 pytest.importorskip("matplotlib")
+
+from stand_ins import H, W, StandInSegmenter, write_depth_clip  # noqa: E402
 
 import pipeline.per_frame as per_frame  # noqa: E402
 from pipeline.per_frame import run_per_frame  # noqa: E402
 from pipeline.track import SEED_SAM_KWARGS, read_clip  # noqa: E402
 from surgical_core.geometry.render import global_depth01, sam_input_image  # noqa: E402
 
-H, W, N = 12, 16, 4
+N = 4
 
 # Settings off every default, so that a setting lost on its way to the input or the record shows.
 SETTINGS = dict(sam_input="normal_edge", depth_source="pi3", points_per_side=8, seed_min_area=5, edge_gain=0.85,
@@ -33,27 +33,6 @@ RECORD = dict(clip="VID01_s15_80_crop", tag="t", seed_source="per_frame", track_
                               seed_edge_gain=0.85, seed_smooth=False, edge_ring_masked=False))
 
 
-class StandInSegmenter:
-    """Cut each image into a left part (region 0), a right part (1) and a 2x2 corner (2).
-
-    The k-th image this segmenter is given, counted across clips, is cut at column `W // 2 + k`, so a frame
-    written with another frame's labels shows. An image with `k` of `W // 2` or more has no right part.
-    """
-
-    device = "cpu"
-
-    def __init__(self):
-        self.images, self.grids = [], []
-
-    def label_map(self, image, points_per_side):
-        labels = np.zeros(image.shape[:2], int)
-        labels[:, W // 2 + len(self.images):] = 1
-        self.images.append(image.copy())
-        self.grids.append(points_per_side)
-        labels[:2, :2] = 2
-        return labels
-
-
 class FailingSegmenter(StandInSegmenter):
     """Cut two frames, then fail on the third, as a run that runs out of memory does."""
 
@@ -64,24 +43,7 @@ class FailingSegmenter(StandInSegmenter):
 
 
 def _clip(tmp_path, name="VID01_s15_80_crop"):
-    """Write a clip of `N` frames with DA3 depth and Pi3X depth, and return its directory.
-
-    The DA3 depth is a slope with a hole, 0.05 farther in each frame; the Pi3X depth is a curve without one.
-    """
-    d = tmp_path / "clips" / name
-    (d / "input_images").mkdir(parents=True)
-    (d / "exports" / "mini_npz").mkdir(parents=True)
-    rng = np.random.default_rng(0)
-    for i in range(N):
-        Image.fromarray(rng.integers(0, 256, (H, W, 3), dtype=np.uint8)).save(d / "input_images" / f"{i:06d}.png")
-    yy, xx = np.mgrid[0:H, 0:W]
-    depth = np.stack([0.3 + 0.01 * xx + 0.005 * yy + 0.05 * i for i in range(N)]).astype(np.float32)
-    depth[:, 5:8, 6:10] = 0.0
-    K = np.tile(np.array([[20.0, 0, W / 2], [0, 20.0, H / 2], [0, 0, 1]]), (N, 1, 1))
-    np.savez(d / "exports" / "mini_npz" / "results.npz", depth=depth, intrinsics=K)
-    pi3 = np.stack([1.0 + 0.04 * yy * yy for _ in range(N)]).astype(np.float32)
-    np.savez(d / "exports" / "mini_npz" / "results__pi3x.npz", depth=pi3, intrinsics=K)
-    return d
+    return write_depth_clip(tmp_path / "clips", name, N, hole=True, pi3x=True)
 
 
 def _files(d):

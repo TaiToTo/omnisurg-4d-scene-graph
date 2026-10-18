@@ -1,9 +1,9 @@
 """Run `pipeline.track` through a stand-in segmenter and tracker, and check what it writes and what it refuses.
 
-The stand-ins answer without torch or weights: the segmenter cuts every
-image into fixed regions, and the tracker returns its seed masks on every
-frame it is asked for. `pipeline.byte_check` checks the real models against
-the workbench's stage. The segmenter inputs need the `render` extra.
+The stand-ins are `tests/stand_ins.py`'s: they answer without torch or
+weights, and no frame of theirs is like another. `pipeline.byte_check`
+checks the real models against the workbench's stage. The segmenter inputs
+need the `render` extra.
 """
 
 import json
@@ -16,66 +16,18 @@ from PIL import Image
 
 pytest.importorskip("matplotlib")
 
+from stand_ins import H, W, StandInSegmenter, StandInTracker, carried, write_depth_clip  # noqa: E402
+
 import pipeline.track as track  # noqa: E402
 from pipeline.track import collapse, paint_masks, read_clip, run_track, seed_masks, window  # noqa: E402
 from sam3_wrapper import FrameResult  # noqa: E402
 from surgical_core.geometry.render import sam_input_image  # noqa: E402
 
-H, W, N = 12, 16, 5
-
-
-class StandInSegmenter:
-    """Cut every image into a left half (region 0), a right half (1) and a 2x2 corner (2)."""
-
-    def __init__(self):
-        self.images = []
-
-    def label_map(self, image, points_per_side):
-        self.images.append(image.copy())
-        labels = np.zeros(image.shape[:2], int)
-        labels[:, W // 2:] = 1
-        labels[:2, :2] = 2
-        return labels
-
-
-class StandInTracker:
-    """Return the seed masks on every frame from the start frame on, in the direction asked."""
-
-    def __init__(self):
-        self.calls = []
-
-    def init_video(self, frames):
-        self.frames = frames
-
-    def add_masks(self, frame_idx, masks, obj_ids):
-        self.masks, self.ids = masks, obj_ids
-
-    def propagate(self, start_frame_idx, reverse=False):
-        self.calls.append((start_frame_idx, reverse))
-        order = range(start_frame_idx, -1, -1) if reverse else range(start_frame_idx, len(self.frames))
-        for f in order:
-            yield FrameResult(f, list(self.ids), np.stack(self.masks), np.linspace(0.9, 0.5, len(self.ids)))
+N = 5
 
 
 def _clip(tmp_path, hole=False, name="VID01_s15_80_crop", scale=1):
-    """Write a clip of `N` frames with DA3 depth, a slope with a hole when asked, and return its directory.
-
-    The images are `scale` times the depth's size, as a clip's images are larger than its depth.
-    """
-    d = tmp_path / "clips" / name
-    (d / "input_images").mkdir(parents=True)
-    (d / "exports" / "mini_npz").mkdir(parents=True)
-    rng = np.random.default_rng(0)
-    for i in range(N):
-        Image.fromarray(rng.integers(0, 256, (H * scale, W * scale, 3), dtype=np.uint8)).save(
-            d / "input_images" / f"{i:06d}.png")
-    yy, xx = np.mgrid[0:H, 0:W]
-    depth = np.stack([0.3 + 0.01 * xx + 0.005 * yy + 0.001 * i for i in range(N)]).astype(np.float32)
-    if hole:
-        depth[:, 5:8, 6:10] = 0.0
-    K = np.tile(np.array([[20.0, 0, W / 2], [0, 20.0, H / 2], [0, 0, 1]]), (N, 1, 1))
-    np.savez(d / "exports" / "mini_npz" / "results.npz", depth=depth, intrinsics=K, extrinsics=np.zeros((N, 3, 4)))
-    return d
+    return write_depth_clip(tmp_path / "clips", name, N, scale=scale, hole=hole)
 
 
 def _run(tmp_path, clip, **kw):
@@ -101,6 +53,20 @@ def test_forward_from_first_seeds_frame_0_and_carries_forwards(tmp_path):
     assert trk.calls == [(0, False)]
     info = json.loads((lab_dir / "seed_info.json").read_text())
     assert (info["seed_frame"], info["bidir"]) == (0, False)
+
+
+@pytest.mark.parametrize("rule, seed", [("both_ways_from_centre", 2), ("forward_from_first", 0)])
+def test_each_frame_s_label_is_the_seed_carried_to_that_frame(tmp_path, rule, seed):
+    # The stand-in moves the seed one column per frame, so a label written on another frame, or a
+    # propagation that starts away from the prompt, differs from the roll of the seed frame's label.
+    lab_dir, _, _ = _run(tmp_path, _clip(tmp_path), rule=rule)
+    # On the seed frame, the segmenter's first cut under the tracker's ids; a prompt on another frame shows here.
+    at_seed = np.load(lab_dir / f"label_{seed:04d}.npy")
+    assert np.array_equal(at_seed, StandInSegmenter().label_map(np.zeros((H, W, 3), np.uint8), 0) + 1)
+    for f in range(N):
+        label = np.load(lab_dir / f"label_{f:04d}.npy")
+        assert np.array_equal(label, carried(at_seed, f, seed)), f
+        assert f == seed or not np.array_equal(label, at_seed), f
 
 
 def test_the_two_rules_place_the_seed_as_the_evaluator_reads_them():
@@ -387,18 +353,6 @@ def test_a_montage_opencv_cannot_write_is_refused(tmp_path, monkeypatch):
     assert [p.name for p in (tmp_path / "tracks" / clip.name).iterdir() if "partial" in p.name] == []
 
 
-class _StandInSession(StandInTracker):
-    device = "cpu"
-
-    def __init__(self, *a, **kw):
-        super().__init__()
-
-
-class _StandInSeedSegmenter(StandInSegmenter):
-    def __init__(self, ckpt, device):
-        super().__init__()
-
-
 def _main(monkeypatch, *argv, session=None, segmenter=None):
     """Run `main` with `session` for SAM 3 and `segmenter` for SAM; loading a model without one fails the test."""
     def refuse(*a, **kw):
@@ -419,15 +373,15 @@ def _argv(tmp_path, *extra):
 def test_main_runs_every_clip_with_depth(tmp_path, monkeypatch):
     _clip(tmp_path)
     _clip(tmp_path, name="VID02_s15_80_crop")
-    _main(monkeypatch, *_argv(tmp_path, "--sam-ckpt", "sam.pth"), session=_StandInSession,
-          segmenter=_StandInSeedSegmenter)
+    _main(monkeypatch, *_argv(tmp_path, "--sam-ckpt", "sam.pth"), session=StandInTracker,
+          segmenter=StandInSegmenter)
     assert sorted(p.name for p in (tmp_path / "tracks").iterdir()) == ["VID01_s15_80_crop", "VID02_s15_80_crop"]
 
 
 def test_state_on_cpu_reaches_the_tracker_and_leaves_the_record_as_it_was(tmp_path, monkeypatch):
     asked = []
 
-    class RecordingSession(_StandInSession):
+    class RecordingSession(StandInTracker):
         def __init__(self, *a, **kw):
             super().__init__()
             asked.append(kw["state_on_cpu"])
@@ -436,7 +390,7 @@ def test_state_on_cpu_reaches_the_tracker_and_leaves_the_record_as_it_was(tmp_pa
     records = []
     for extra in ([], ["--state-on-cpu"]):
         _main(monkeypatch, *_argv(tmp_path, "--sam-ckpt", "sam.pth", "--overwrite", *extra), session=RecordingSession,
-              segmenter=_StandInSeedSegmenter)
+              segmenter=StandInSegmenter)
         records.append((tmp_path / "tracks" / "VID01_s15_80_crop" / "track_rgb_t" / "seed_info.json").read_text())
     assert asked == [False, True]
     assert records[0] == records[1]
@@ -468,7 +422,7 @@ def test_main_refuses_to_cut_seeds_without_the_sam_weights_before_the_models_loa
 def test_main_with_seed_labels_does_not_load_sam(tmp_path, monkeypatch):
     clip = _clip(tmp_path)
     seeds = _seeds(tmp_path, clip, 0, np.zeros((H, W), int))
-    _main(monkeypatch, *_argv(tmp_path, "--seed-labels", seeds), session=_StandInSession)
+    _main(monkeypatch, *_argv(tmp_path, "--seed-labels", seeds), session=StandInTracker)
     assert (tmp_path / "tracks" / clip.name / "track_rgb_t").is_dir()
 
 
@@ -477,6 +431,6 @@ def test_main_exits_with_an_error_when_a_clip_fails(tmp_path, monkeypatch):
     bad = _clip(tmp_path, name="VID02_s15_80_crop")
     (bad / "input_images" / "000003.png").unlink()
     with pytest.raises(SystemExit, match="1 of 2 clip.* failed: VID02_s15_80_crop"):
-        _main(monkeypatch, *_argv(tmp_path, "--sam-ckpt", "sam.pth"), session=_StandInSession,
-              segmenter=_StandInSeedSegmenter)
+        _main(monkeypatch, *_argv(tmp_path, "--sam-ckpt", "sam.pth"), session=StandInTracker,
+              segmenter=StandInSegmenter)
     assert (tmp_path / "tracks" / "VID01_s15_80_crop" / "track_rgb_t").is_dir()

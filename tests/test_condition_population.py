@@ -2,7 +2,7 @@
 
 Each clip runs a stand-in command: it records the arguments it was given and
 its process id, then runs `pipeline.track.main` or `pipeline.per_frame.main`
-with a segmenter and a tracker that need no torch and no weights. The labels
+with `tests/stand_ins.py`'s segmenter and tracker, which need no torch and no weights. The labels
 and the record are therefore the ones the stages write. A clip named `broken`
 makes the command exit non-zero, one named `slow` makes it wait, and one
 named `drifted` makes it rewrite its record with another seed edge gain.
@@ -20,9 +20,9 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from PIL import Image
-
 pytest.importorskip("matplotlib")
+
+from stand_ins import H, W, write_depth_clip  # noqa: E402
 
 import pipeline.condition_population as driver  # noqa: E402
 from pipeline.condition_population import (build_parser, check_population, expected_record, main,  # noqa: E402
@@ -30,7 +30,7 @@ from pipeline.condition_population import (build_parser, check_population, expec
 from pipeline.depth_population import STOP_SIGNALS, stop  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[1]
-H, W, N = 12, 16, 5
+N = 5
 
 STAND_IN = '''
 import json, os, sys, time
@@ -38,7 +38,7 @@ from pathlib import Path
 import numpy as np
 import pipeline.per_frame as per_frame
 import pipeline.track as track
-from sam3_wrapper import FrameResult
+from stand_ins import StandInSegmenter, StandInTracker
 
 stage, args = sys.argv[1], sys.argv[2:]
 tracks_root = Path(args[args.index("--tracks-root") + 1])
@@ -51,35 +51,8 @@ if clip == "slow":
     time.sleep(60)
 
 
-class Segmenter:
-    """Cut every image into a left half and a right half."""
-
-    device = "cpu"
-
-    def label_map(self, image, points_per_side):
-        labels = np.zeros(image.shape[:2], int)
-        labels[:, image.shape[1] // 2:] = 1
-        return labels
-
-
-class Tracker:
-    """Return the seed masks on every frame from the start frame on, in the direction asked."""
-
-    device = "cpu"
-
-    def init_video(self, frames):
-        self.n = len(frames)
-
-    def add_masks(self, frame_idx, masks, obj_ids):
-        self.masks, self.ids = masks, obj_ids
-
-    def propagate(self, start, reverse=False):
-        for f in (range(start, -1, -1) if reverse else range(start, self.n)):
-            yield FrameResult(f, list(self.ids), np.stack(self.masks), np.ones(len(self.ids)))
-
-
-track.Sam3VideoInstanceSession = lambda model_id, device, gpu, state_on_cpu: Tracker()
-track.SeedSegmenter = per_frame.SeedSegmenter = lambda checkpoint, device: Segmenter()
+track.Sam3VideoInstanceSession = StandInTracker
+track.SeedSegmenter = per_frame.SeedSegmenter = StandInSegmenter
 sys.argv = [stage, *args]
 (track if stage == "track" else per_frame).main()
 if clip == "drifted":
@@ -95,18 +68,7 @@ PER_FRAME = ["--sam-input", "rgb", "--points-per-side", "8", "--seed-min-area", 
 
 
 def make_clip(root: Path, name: str, n: int = N, pi3x: bool = False) -> None:
-    """Write a clip of `n` frames with DA3's bundle, and Pi3X's when asked."""
-    clip = root / name
-    (clip / "input_images").mkdir(parents=True)
-    (clip / "exports" / "mini_npz").mkdir(parents=True)
-    for i in range(n):
-        Image.fromarray(np.full((H, W, 3), 40 * i, np.uint8)).save(clip / "input_images" / f"{i:06d}.png")
-    yy, xx = np.mgrid[0:H, 0:W]
-    depth = np.stack([0.3 + 0.01 * xx + 0.005 * yy + 0.001 * i for i in range(n)]).astype(np.float32)
-    K = np.tile(np.array([[20.0, 0, W / 2], [0, 20.0, H / 2], [0, 0, 1]]), (n, 1, 1))
-    np.savez(clip / "exports" / "mini_npz" / "results.npz", depth=depth, intrinsics=K, extrinsics=np.zeros((n, 3, 4)))
-    if pi3x:
-        np.savez(clip / "exports" / "mini_npz" / "results__pi3x.npz", depth=2 * depth, intrinsics=K)
+    write_depth_clip(root, name, n, pi3x=pi3x)
 
 
 def settings(stage: str, *options: str, tag: str = "t", sam_ckpt: str | None = None) -> object:
@@ -143,8 +105,9 @@ def run(tmp_path, monkeypatch):
     script.write_text(STAND_IN)
     monkeypatch.setattr(driver, "STAGE_COMMANDS", {s: [sys.executable, str(script), s] for s in driver.STAGE_COMMANDS})
     monkeypatch.setattr(driver, "POLL_SEC", 0.02)
-    # The stand-in imports the stages from this checkout, installed or not.
-    monkeypatch.setenv("PYTHONPATH", os.pathsep.join([str(REPO), *filter(None, [os.environ.get("PYTHONPATH")])]))
+    # The stand-in imports the stages from this checkout, installed or not, and the stand-in models from `tests/`.
+    monkeypatch.setenv("PYTHONPATH", os.pathsep.join([str(REPO), str(REPO / "tests"),
+                                                   *filter(None, [os.environ.get("PYTHONPATH")])]))
     ckpt = tmp_path / "sam.pth"
     ckpt.write_bytes(b"")
     (tmp_path / "clips").mkdir()
