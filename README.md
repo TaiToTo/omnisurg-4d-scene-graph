@@ -6,6 +6,18 @@ them in 3D and follows them through time. A frame's scene graph lists its
 regions and says where each lies from the others: right, above, in front,
 and so on. No model is trained; the pipeline combines existing ones.
 
+## Contents
+
+- [From a video to a scene graph](#from-a-video-to-a-scene-graph): the
+  steps in one figure, and what is scored
+- [Where to start](#where-to-start): which page to read for what
+- [What is where](#what-is-where): the folders, by what they do
+- [Install](#install) and [Tests](#tests)
+- [Status](#status): what has been moved here so far
+- [License](#license)
+
+## From a video to a scene graph
+
 ![From a clip to a 4D scene graph, on a drawn scene: 1, the clip's frames; 2, a depth map and a point cloud per frame, and the camera's path; 3, regions that keep their ids from frame to frame and have no names; 4, a scene graph per frame, a node per region and a word per pair such as right, front or above; 5, the same relations through time, each holding for a run of frames, and the viewer that shows them. Below, what is scored: the camera poses against StereoMIS's ground truth by trajectory_eval, and the regions against the hand-labelled GT masks by evalkit.](docs/figures/scene_graph_overview.png)
 
 The figure draws the steps on a made-up scene. Two scorers check the
@@ -15,24 +27,6 @@ results, not the scene graphs:
   in ATLAS-120k and CholecSeg8k.
 - `trajectory_eval`, the camera trajectory scorer, compares the camera's
   path with the true path, in StereoMIS.
-
-## Status
-
-The code is being moved here from the research workbench where the
-measurements were made. The evaluator is not frozen yet, so its scores are
-not final.
-
-- Ported: the extraction stages and the D4D census, depth and camera
-  poses, segmentation and tracking, the evaluator and its tools, the camera
-  trajectory scorer, and the viewer.
-- Not ported yet: the export stage, which builds the scene graphs; the
-  paper's tables; and the D4D measurements after the census.
-
-This repository alone takes a clip as far as tracked regions and their
-scores. The viewer bundle stage reads scene graphs that the workbench's
-export stage wrote. [`docs/porting.md`](docs/porting.md) says what each
-part was checked against, what is left, and the decisions still to carry
-out.
 
 ## Where to start
 
@@ -47,20 +41,50 @@ out.
 
 ## What is where
 
-| path | what it holds | read next |
-|---|---|---|
-| [`pipeline/`](pipeline/) | the stages, each run as `python -m pipeline.<stage>` | [`docs/pipeline.md`](docs/pipeline.md) |
-| [`evalkit/`](evalkit/) | the evaluator, hashed into `eval_code_sha` | [`evalkit/README.md`](evalkit/README.md), then [`docs/evaluation.md`](docs/evaluation.md) |
-| [`evalkit/tools/`](evalkit/tools/) | what reads scores or predictions, never hashed: comparisons, tables, statistics | each module's docstring |
-| [`trajectory_eval/`](trajectory_eval/) | the camera trajectory scorer, hashed into `trajectory_code_sha`; its `tools/` score StereoMIS and read the scores, never hashed | [`docs/pipeline.md`](docs/pipeline.md#the-stereomis-camera-trajectory-scores) |
-| [`surgical_core/`](surgical_core/) | dataset readers, geometry and the viewer's data model, shared by the pipeline and the tools; the evaluator imports none of it | each module's docstring |
-| [`recon3d_wrapper/`](recon3d_wrapper/) | Depth Anything 3 and Pi3X behind one interface | [`docs/pipeline.md`](docs/pipeline.md) |
-| [`sam3_wrapper/`](sam3_wrapper/) | tracking with SAM 3 from mask prompts on one frame | [`docs/pipeline.md`](docs/pipeline.md) |
-| [`atlas120k_meta/`](atlas120k_meta/) | the clips measured, their crop rectangles and frame ratios; no video | [`atlas120k_meta/README.md`](atlas120k_meta/README.md) |
-| [`cholecseg8k_meta/`](cholecseg8k_meta/) | the clips measured and their crop rectangles; no video | [`cholecseg8k_meta/README.md`](cholecseg8k_meta/README.md) |
-| [`d4d_meta/`](d4d_meta/) | the clips the census measures and the sides the measurements score; no frame or point cloud | [`d4d_meta/README.md`](d4d_meta/README.md) |
-| [`viewer/`](viewer/) | the web page | [`viewer/README.md`](viewer/README.md) |
-| [`docs/`](docs/) | the specifications, and how a change is reviewed | [`docs/review.md`](docs/review.md) |
+### Make the scene graphs
+
+[`docs/pipeline.md`](docs/pipeline.md) says how to run each stage.
+
+| folder | what it holds |
+|---|---|
+| [`pipeline/`](pipeline/) | the stages; each runs as `python -m pipeline.<stage>` |
+| [`recon3d_wrapper/`](recon3d_wrapper/) | the depth models, Depth Anything 3 and Pi3X |
+| [`sam3_wrapper/`](sam3_wrapper/) | SAM 3, which follows the regions through time |
+| [`surgical_core/`](surgical_core/) | code the stages and the tools share: dataset readers, geometry, the viewer's data model; the evaluator uses none of it |
+
+### Score the results
+
+[`evalkit/README.md`](evalkit/README.md) says how the regions are scored;
+[the last section of `docs/pipeline.md`](docs/pipeline.md#the-stereomis-camera-trajectory-scores)
+says how the camera's path is scored.
+
+| folder | what it holds |
+|---|---|
+| [`evalkit/`](evalkit/) | the evaluator, which scores the regions |
+| [`evalkit/tools/`](evalkit/tools/) | tools that read the scores or the regions: comparisons, tables, statistics |
+| [`trajectory_eval/`](trajectory_eval/) | the camera trajectory scorer, which scores the camera's path; its `tools/` run it on StereoMIS and read the scores |
+
+Each scorer records a hash of its own code with every score:
+`eval_code_sha` and `trajectory_code_sha`. Two scores are compared only
+when their hashes match. The tools are not part of either hash.
+
+### Describe the datasets
+
+Each folder's README says how its files were made. None holds the data
+itself: no video, frame or point cloud.
+
+| folder | what it holds |
+|---|---|
+| [`atlas120k_meta/`](atlas120k_meta/) | ATLAS-120k: the clips measured, their crop rectangles and frame ratios |
+| [`cholecseg8k_meta/`](cholecseg8k_meta/) | CholecSeg8k: the clips measured and their crop rectangles |
+| [`d4d_meta/`](d4d_meta/) | D4D: the clips the census measures, and the sides the measurements score |
+
+### Show and explain
+
+| folder | what it holds |
+|---|---|
+| [`viewer/`](viewer/) | the web page that shows a clip's scene graphs |
+| [`docs/`](docs/) | the specifications, and [`docs/review.md`](docs/review.md), the rules a change is reviewed against |
 
 ## Install
 
@@ -113,6 +137,24 @@ green.
 pip install -e ".[render,tools,stereomis]" pytest
 pytest
 ```
+
+## Status
+
+The code is being moved here from the research workbench where the
+measurements were made. The evaluator is not frozen yet, so its scores are
+not final.
+
+- Ported: the extraction stages and the D4D census, depth and camera
+  poses, segmentation and tracking, the evaluator and its tools, the camera
+  trajectory scorer, and the viewer.
+- Not ported yet: the export stage, which builds the scene graphs; the
+  paper's tables; and the D4D measurements after the census.
+
+This repository alone takes a clip as far as tracked regions and their
+scores. The viewer bundle stage reads scene graphs that the workbench's
+export stage wrote. [`docs/porting.md`](docs/porting.md) says what each
+part was checked against, what is left, and the decisions still to carry
+out.
 
 ## License
 
