@@ -12,7 +12,7 @@ no check is recorded.
 | area | ported | checked |
 |---|---|---|
 | evaluator, `evalkit/` | class tables, metrics, entry point, pilot mode | in pilot mode, every key shared with the pilot evaluator equal on 23 conditions × 315 clips, at `eval_code_sha` `a5d7ea46…` |
-| score tools, `evalkit/tools/` | every tool in the layout of `AGENTS.md` but `track_metrics` | `paired_table`, `arms_paired`, `claims_table`, `leave_one_video_out`, `print_status_tables`, `kmerge`: the workbench's values on the same inputs |
+| score tools, `evalkit/tools/` | every tool in the layout of `AGENTS.md` | `paired_table`, `arms_paired`, `claims_table`, `leave_one_video_out`, `print_status_tables`, `kmerge`: the workbench's values on the same inputs. `track_metrics` on component tracks: the values of the workbench's functions on random frames at the four sizes, but where two IoUs tie exactly |
 | camera trajectory scorer, `trajectory_eval/` | `pose_metrics`, the scoring of a clip, `pose_controls`, `scores`, `score_stereomis`, `stereomis_table` | `pose_metrics`: the workbench's values on 1200 random, planar and static trajectories. The scoring of a clip, `pose_controls` and `score_stereomis`: the workbench's 387 StereoMIS rows, every value, scored again from its stored outputs. `stereomis_table`, on those rows: the 24 pairs of the workbench's `summary_20.json`, every field |
 | extraction and crop | ATLAS-120k, CholecSeg8k, LapEx, StereoMIS, the D4D census and population | the CholecSeg8k crop and 13 of the 27 CholecSeg8k clips: the workbench's bytes. LapEx's 735 clips: the workbench's frames and masks, and its manifests apart from `depth_info`. The D4D census: every field it writes equal to the workbench's census on the 271 clips. The D4D population: the same bytes from the ported census as from the workbench's |
 | depth | DA3, Pi3X, point clouds, the population drivers | DA3, point clouds and Pi3X: the workbench's bytes on the GPU machine, on three clips. DA3 also on the 25 LapEx clips whose border the workbench did not fill |
@@ -42,9 +42,6 @@ not compared:
 
 ## Not ported yet
 
-- **`track_metrics`**, the measures of identity over time. It waits on "The
-  GT track of `track_metrics`". It is ported without its minimum area,
-  `MIN_AREA`, since the evaluator has no minimum object size.
 - **The export stage**: the regions, scene graphs, hierarchies and graphs
   through time that `pipeline.viewer_bundle` reads, with the `surgical_core`
   modules they need. Its byte check needs a clip whose tracking labels the
@@ -55,6 +52,9 @@ not compared:
 - **LapEx's comparisons**. They wait on "How LapEx is scored".
 - **The conditions seeded from GT masks** (`t12_gtseed`, `t12_paste`). They
   wait on "Conditions seeded from GT".
+- **The identity table from `track_metrics`.** `print_status_tables
+  --identity` reads the JSON the workbench's `summarize_track12` wrote;
+  nothing builds the table from the JSON `track_metrics` writes.
 - **Two comparisons of the granularity result**: the geometry inputs
   against `rgb` at a matched number of regions, and merges that never join
   two regions across a geometric boundary.
@@ -105,7 +105,7 @@ not compared:
 4. **How the regions are compared.** Decided on 2026-10-12:
    - Every condition is scored on whole-class objects by the evaluator,
      and on component objects at 0, 100, 300 and 400 px by
-     `component_scores`.
+     `component_scores`. `track_metrics` measures both kinds of track.
    - The paper describes how each measure moves across these settings,
      not which condition wins. Open: how the questions and primary
      metrics of `docs/evaluation.md` change.
@@ -211,9 +211,10 @@ Each question says what it blocks and where its answer is written.
 - **Conditions seeded from GT.** The workbench seeded `t12_gtseed` and
   `t12_paste` from GT masks. On the 151 ATLAS-120k clips with an even
   number of frames, the seed sits one frame before the centre:
-  `track_metrics.pick_seed_frame` breaks a tie toward the earlier frame,
-  while the tracking stage and `rule_of_seed_info` take `frames[n // 2]`.
-  So on those clips the conditions hold neither propagation rule. The
+  the workbench's `track_metrics.pick_seed_frame` breaks a tie toward the
+  earlier frame, while the tracking stage and `rule_of_seed_info` take
+  `frames[n // 2]`. So on those clips the conditions hold neither
+  propagation rule. The
   workbench's `normal_edge_t12_gtseed` and `rgb_edge_t12_gtseed` records
   hold no edge ring for the tracker's input, so `condition_inventory` and
   `check_provenance` refuse them until the conditions are measured again.
@@ -223,7 +224,8 @@ Each question says what it blocks and where its answer is written.
   frames carry GT (`docs/pipeline.md`, "A clip"). CholecSeg8k's windows
   moved for it (`cholecseg8k_meta/README.md`); ATLAS-120k's clips carry GT
   on every frame. Open: which code places a GT seed, and how the evaluator
-  scores it. Blocks: measuring the `t12_*` conditions again. Answer in:
+  scores it. Blocks: measuring the `t12_*` conditions again, with the
+  evaluator and with `track_metrics`. Answer in:
   `docs/evaluation.md` and `docs/pipeline.md`.
 - **Cuts inside GT clips.** The workbench searched for scene changes inside
   GT clips at frame pairs whose pixel difference was above 40, and judged
@@ -249,16 +251,6 @@ Each question says what it blocks and where its answer is written.
 
 ### Tools and tables
 
-- **The GT track of `track_metrics`.** The datasets carry no ids for
-  individual things, so the tool defines its own GT track. The workbench
-  linked each class's connected components over time, greedily, at an IoU
-  of 0.3 or more, keeping a track through three missed observations. Open:
-  whether a track is a whole class followed over time or linked
-  components, and then the linking rule; whether a gap counts in
-  observations or seconds; which frame hold starts from when the seed frame
-  has no GT; which `hold_mean` definition keeps the name; and what hold
-  means under `forward_from_first`. Blocks: porting `track_metrics`.
-  Answer in: `docs/evaluation.md`.
 - **The paired table on the evaluator's scores.** `paired_table` prints the
   pilot's table only. The six `t5_*` rows wait on "Seeds made outside the
   tracking stage". A table holds one propagation rule, so it is printed
