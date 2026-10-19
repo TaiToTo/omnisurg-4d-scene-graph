@@ -49,6 +49,10 @@ not compared:
 - **The paper's tables**: the claims grid.
 - **D4D**: depth, seeds, the front/behind relation and the camera
   trajectory.
+- **The StereoMIS depth export.** `pipeline.select_stereomis_clips` reads
+  its `stats.npy` to mark clips `no_surface`, and no tracked file makes it,
+  so the clip list is made again only from the workbench's export. The
+  rule leaves out no clip of the list.
 - **LapEx's comparisons**. They wait on "How LapEx is scored".
 - **The conditions seeded from GT masks** (`t12_gtseed`, `t12_paste`). They
   wait on "Conditions seeded from GT".
