@@ -94,10 +94,11 @@ def test_a_view_without_a_class_leaves_the_keys_undefined():
     assert (ours[0]["F1_50"], ours[0]["SQ"], ours[0]["inst_BF"], ours[0]["predicted"]) == (None, None, None, 0)
 
 
-def write_condition(tmp_path, frames, gt_frames=None):
+def write_condition(tmp_path, frames, gt_frames=None, seed_info=None):
     C.write_clip(tmp_path / "data", "VID01_a", [gt_map(g) for g, _ in frames], gt_frames=gt_frames,
                  dataset="atlas120k")
-    C.write_labels(tmp_path / "tracks", "VID01_a", "c", {k: region_map(r) for k, (_, r) in enumerate(frames)})
+    C.write_labels(tmp_path / "tracks", "VID01_a", "c", {k: region_map(r) for k, (_, r) in enumerate(frames)},
+                   seed_info=seed_info)
 
 
 def measure(tmp_path):
@@ -157,6 +158,16 @@ def test_an_excluded_frame_with_faulty_depth_is_refused(tmp_path):
 def test_labels_without_a_rule_are_refused(tmp_path):
     write_condition(tmp_path, [SPILL])
     with pytest.raises(ValueError, match="state the rule"):
+        measure_condition("atlas120k", None, ["VID01_a"], tmp_path / "data", tmp_path / "tracks", "c", None, SIZES)
+
+
+@pytest.mark.parametrize("info", [
+    {"seed_source": "external", "seed_frame": 1, "bidir": True, "frames": [0, 1, 2]},
+    {"seed_source": "per_frame", "frames": "all", "kmerge": {"from_tag": "t", "k": 2}},
+])
+def test_a_condition_whose_records_do_not_decide_the_gt_is_refused_since_the_json_does_not_record_it(tmp_path, info):
+    write_condition(tmp_path, [SPILL] * 3, seed_info=info)
+    with pytest.raises(ValueError, match="does not say whether the GT informed it"):
         measure_condition("atlas120k", None, ["VID01_a"], tmp_path / "data", tmp_path / "tracks", "c", None, SIZES)
 
 

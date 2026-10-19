@@ -1,19 +1,21 @@
-"""Read StereoMIS: the stereo calibration, rectified frames, camera poses and tissue masks.
+"""Read StereoMIS: the calibration, the rectified frames and their times, camera poses, tissue masks and clips.
 
 A sequence's video stacks two views, the left one on top. A frame is named by
-its 0-based position in the video, the frame FFmpeg's `select=eq(n,N)` decodes.
-The ground truth's row of a frame, and the file number of its mask or depth
-map, are offset from that position by amounts measured once per sequence and
-kept in the tables below. Masks and depth maps are in the rectified left view
-at half resolution. The ground truth holds camera-to-world poses in m, and
-`load_gt` returns them in mm. `clips` cuts a sequence into the fixed clips the
-camera trajectory result is measured on, and marks the clips whose inputs
-cannot be measured. Every function takes the dataset's root as an argument.
+its 0-based position in the video, the frame FFmpeg's `select=eq(n,N)` decodes,
+and its time is the video's timestamp. The ground truth's row of a frame, and
+the file number of its mask or depth map, are offset from that position by
+amounts measured once per sequence and kept in the tables below. Masks and depth
+maps are in the rectified left view at half resolution. The ground truth holds
+camera-to-world poses in m, and `load_gt` returns them in mm. `clips` cuts a
+sequence into the clips the camera trajectory result is measured on; the clip
+list keeps them as data, and `read_clip_list` reads it. Every function takes
+the dataset's root as an argument.
 """
 
 import configparser
 import functools
 import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -29,21 +31,25 @@ VIEW_SIZE = (1280, 1024)
 HALF_SIZE = (640, 512)
 
 # A frame's position less the file number of its mask and depth map: the file number is the position less this
-# offset, so P2's -1 numbers a file one ahead of its frame. Measured by warping the right view onto the left with
-# the depth. P2_3's camera never moves, so its value is its neighbours'.
-DEPTH_FILE_OFFSET = {"P1": 0, "P2_0": -1, "P2_1": -1, "P2_2": -1, "P2_3": -1,
-                     "P2_4": -1, "P2_5": -1, "P2_6": -1, "P2_7": -1, "P2_8": -1}
+# offset, so -1 numbers a file one ahead of its frame, as every sequence numbers its files from 1. Measured on P2 by
+# warping the right view onto the left with the depth, and on P1 by matching its shipped frames (`video_frames/`)
+# with the decoded ones. P2_3's camera never moves, so its value is its neighbours'.
+DEPTH_FILE_OFFSET = {s: -1 for s in SEQUENCES}
 
 # The ground truth's row of a frame, less the frame's position. Moving depth between frames with the poses reads it
-# on seven sequences: their best offsets lie from -6 to -2, and -4 is at most 6.5 % worse than each sequence's best.
-GT_ROW_OFFSET = {s: -4 for s in SEQUENCES}
+# on seven sequences: their best offsets lie from -5 to -2, and -3 is at most 6.25 % worse than each sequence's best.
+GT_ROW_OFFSET = {s: -3 for s in SEQUENCES}
 
 # The ground truth's translations are in m; the depth maps are in mm.
 GT_TO_MM = 1000.0
 
-# A clip is 112 frames 0.2 s apart, 22.4 s, and clips do not overlap. They are fixed before anything is measured.
+# A clip is 112 frames a stride apart, the stride being 0.2 s at the frame rate the video declares, and clips do not
+# overlap. They are fixed before anything is measured.
 CLIP_FRAMES = 112
 CLIP_INTERVAL_S = 0.2
+# The grid's first position, fixed apart from the offsets, so that measuring an offset again moves no clip's frames.
+# At even positions every frame of P2 has a mask of its own number.
+CLIP_GRID_START = 4
 
 # A depth map shows no surface (the view is inside a trocar, or against tissue) when its median is outside
 # 30-400 mm or no more than half its pixels have depth. A clip is left out when fewer than half of its maps show one.
@@ -178,6 +184,38 @@ def video_info(root: Path, seq: str) -> dict:
     return dict(width=w, height=h, n_frames=int(s["nb_frames"]), fps=num / den)
 
 
+@functools.lru_cache(maxsize=None)
+def frame_times(root: Path, seq: str) -> np.ndarray:
+    """Return each frame's time in s, indexed by position: the video's timestamps, in the order they are shown.
+
+    The P2 videos declare 59.94 frames a second, but by their timestamps 12 frames span 0.217 s at the median, and
+    some recordings pause. So a time is read from the video, never computed from a position and the frame rate.
+
+    Raises:
+        ValueError: a frame has no timestamp, two frames share one, or the video holds another number of frames
+            than `video_info` gives.
+    """
+    out = subprocess.run(
+        ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=time_base:packet=pts",
+         "-of", "json", str(video_path(root, seq))], capture_output=True, check=True, text=True).stdout
+    data = json.loads(out)
+    num, den = (int(x) for x in data["streams"][0]["time_base"].split("/"))
+    pts = [p.get("pts") for p in data.get("packets", [])]
+    if any(p is None for p in pts):
+        raise ValueError(f"{seq}: {sum(p is None for p in pts)} frames have no timestamp")
+    # Packets come in the order they are decoded; frames are shown in the order of their timestamps.
+    pts = sorted(int(p) for p in pts)
+    if len(set(pts)) != len(pts):
+        raise ValueError(f"{seq}: {len(pts) - len(set(pts))} frames share a timestamp with another")
+    n = video_info(root, seq)["n_frames"]
+    if len(pts) != n:
+        raise ValueError(f"{seq}: the video holds {len(pts)} timestamps for {n} frames")
+    # Integer times the time base, so that a time is the double nearest the exact one.
+    t = np.array([p * num / den for p in pts])
+    t.setflags(write=False)
+    return t
+
+
 def iter_frame_set(root: Path, seq: str, frames):
     """Decode the given frames in one pass, and yield each one's rectified views at half resolution.
 
@@ -234,8 +272,8 @@ def load_gt(root: Path, seq: str) -> tuple[np.ndarray, np.ndarray]:
     """Return the ground truth's camera-to-world rotations and translations in mm, one per row.
 
     `groundtruth.txt` holds one row `idx tx ty tz qx qy qz qw` per frame of the record. A point `p` in camera
-    coordinates is `R @ p + t` in world coordinates. A row is not a frame's position; `gt_row` maps one to the
-    other.
+    coordinates is `R @ p + t` in world coordinates. A row is not a frame's position; `GT_ROW_OFFSET` maps one to
+    the other.
 
     Returns:
         (N, 3, 3) rotations and (N, 3) translations in mm.
@@ -273,26 +311,17 @@ def measured_offset(table: dict, seq: str) -> int:
     return table[seq]
 
 
-def gt_row(seq: str, frame: int) -> int:
-    """Return the ground truth's row of the frame at a position, by the measured offset only.
+def gt_pose(root: Path, seq: str, rows) -> np.ndarray:
+    """Return the (N, 4, 4) camera-to-world poses of the ground truth's rows, translations in mm.
 
     Raises:
-        KeyError: the sequence has no measured offset.
-    """
-    return frame + measured_offset(GT_ROW_OFFSET, seq)
-
-
-def gt_pose(root: Path, seq: str, frames) -> np.ndarray:
-    """Return the (N, 4, 4) camera-to-world poses of the frames at the given positions, translations in mm.
-
-    Raises:
-        ValueError: no frame is given.
-        IndexError: a frame's row is outside the ground truth. The pose at the end is not used in its place.
+        ValueError: no row is given.
+        IndexError: a row is outside the ground truth. The pose at the end is not used in its place.
     """
     R, t = load_gt(root, seq)
-    rows = np.asarray([gt_row(seq, int(f)) for f in frames])
+    rows = np.asarray(rows, dtype=int)
     if rows.size == 0:
-        raise ValueError(f"{seq}: no frame given")
+        raise ValueError(f"{seq}: no row given")
     if rows.min() < 0 or rows.max() >= len(R):
         raise IndexError(f"{seq}: ground truth rows {rows.min()}-{rows.max()} are outside 0-{len(R) - 1}")
     T = np.tile(np.eye(4), (len(rows), 1, 1))
@@ -301,40 +330,48 @@ def gt_pose(root: Path, seq: str, frames) -> np.ndarray:
     return T
 
 
-def load_mask(root: Path, seq: str, frame: int) -> np.ndarray | None:
-    """Return the frame's tissue mask (True on tissue, False on instruments and outside the view), or None.
+@functools.lru_cache(maxsize=None)
+def mask_numbers(root: Path, seq: str) -> frozenset[int]:
+    """Return the file numbers of the sequence's masks, `masks/NNNNNNl.png`."""
+    return frozenset(int(p.name[:6]) for p in (Path(root) / seq / "masks").glob("[0-9]" * 6 + "l.png"))
 
-    The dataset's mask is 255 on tissue and 0 elsewhere. A frame without a mask file gets None.
+
+def nearest_mask(root: Path, seq: str, frame: int, tol: int = 2) -> int | None:
+    """Return the file number of the mask of the frame nearest `frame` that has one, within `tol` frames, or None.
+
+    The masks of P1 to P2_5 are on odd file numbers only, and those of P2_6 to P2_8 on every number, so a frame
+    may have none of its own. Instruments move little in one or two frames (17 to 33 ms). Of two frames equally
+    near, the earlier one is taken.
 
     Raises:
         KeyError: the sequence has no measured file offset.
+    """
+    off, have = measured_offset(DEPTH_FILE_OFFSET, seq), mask_numbers(root, seq)
+    for d in range(tol + 1):
+        for f in ((frame,) if d == 0 else (frame - d, frame + d)):
+            if f - off in have:
+                return f - off
+    return None
+
+
+def load_mask(root: Path, seq: str, number: int) -> np.ndarray:
+    """Return the tissue mask of a file number: True on tissue, False on instruments and outside the view.
+
+    The dataset's mask is 255 on tissue and 0 elsewhere.
+
+    Raises:
+        FileNotFoundError: the sequence has no mask of that number.
         ValueError: the mask file cannot be read, or is not of `HALF_SIZE`.
     """
-    path = Path(root) / seq / "masks" / ("%06dl.png" % (frame - measured_offset(DEPTH_FILE_OFFSET, seq)))
+    path = Path(root) / seq / "masks" / ("%06dl.png" % number)
     if not path.exists():
-        return None
+        raise FileNotFoundError(path)
     a = cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
     if a is None:
         raise ValueError(f"{path} exists but cannot be read")
     if a.shape[::-1] != HALF_SIZE:
         raise ValueError(f"{path} is {a.shape[1]}x{a.shape[0]}, the masks are {HALF_SIZE[0]}x{HALF_SIZE[1]}")
     return a > 127
-
-
-def load_mask_nearest(root: Path, seq: str, frame: int, tol: int = 2) -> np.ndarray | None:
-    """Return the tissue mask of the frame nearest `frame` that has one, within `tol` frames, or None.
-
-    The masks of P1 to P2_5 are on odd file numbers only, and those of P2_6 to P2_8 on every number. On the
-    usable clips, every frame of P2 has a mask of its own number, and no frame of P1 does: P1's clips take even
-    positions, so 504 of its 672 take a mask one position away and 168 have none within `tol`. Instruments move
-    little in one or two frames (17 to 33 ms). Of two frames equally near, the earlier one is taken.
-    """
-    for d in range(tol + 1):
-        for f in ((frame,) if d == 0 else (frame - d, frame + d)):
-            m = load_mask(root, seq, f)
-            if m is not None:
-                return m
-    return None
 
 
 @functools.lru_cache(maxsize=None)
@@ -413,8 +450,7 @@ def clips(root: Path, depth_root: Path, seq: str) -> tuple[dict, ...]:
     - `gt_jump`: the ground truth breaks inside it;
     - `gt_static`: the true camera's RMS radius is below `CLIP_MIN_SPAN_MM`.
 
-    The ground truth's rows lag the positions, so the grid starts at the first position that has a row. A clip
-    whose rows run past the ground truth's end is not returned.
+    The grid starts at `CLIP_GRID_START`. A clip whose rows run outside the ground truth is not returned.
 
     Args:
         root: the dataset's root.
@@ -422,8 +458,9 @@ def clips(root: Path, depth_root: Path, seq: str) -> tuple[dict, ...]:
         seq: the sequence.
 
     Returns:
-        One dict per clip: `name`, `seq`, `frames` (positions), `times` (s), `stride`, `span_mm`, `depth_ok`,
-        `usable`, `drop` (the reason, or "") and `stratum`.
+        One dict per clip, with the keys of `CLIP_KEYS`: `drop` is the reason, or ""; `frames` are positions;
+        each frame's row is its position plus `gt_row_offset`; `times` are in s; `masks` holds the file number
+        of each frame's nearest mask, or None.
 
     Raises:
         KeyError: the sequence has no measured offset, before anything is read.
@@ -437,9 +474,9 @@ def clips(root: Path, depth_root: Path, seq: str) -> tuple[dict, ...]:
     d_ok = {int(r[0]) + file_off: shows_surface(r[1], r[2]) for r in st}
     _, tw = load_gt(root, seq)
     n_gt = len(tw)
+    times = frame_times(root, seq)
     out = []
-    first = max(0, -off)
-    for k, start in enumerate(range(first, info["n_frames"] - span + 1, span)):
+    for k, start in enumerate(range(CLIP_GRID_START, info["n_frames"] - span + 1, span)):
         frames = list(range(start, start + span, stride))
         rows = [f + off for f in frames]
         if min(rows) < 0 or max(rows) >= n_gt:
@@ -452,9 +489,59 @@ def clips(root: Path, depth_root: Path, seq: str) -> tuple[dict, ...]:
         c = tw[np.array(rows)]
         sp = float(np.sqrt(((c - c.mean(0)) ** 2).sum(1).mean()))
         drop = drop_of(ok, has_gt_jump(root, seq, frames[0], frames[-1]), sp)
-        out.append(dict(name=f"{seq}__clip_{k:04d}", seq=seq, frames=frames,
-                        times=[f / info["fps"] for f in frames], stride=stride,
-                        span_mm=round(sp, 3), depth_ok=round(ok, 3),
-                        usable=not drop, drop=drop,
-                        stratum=stratum_of(sp)))
+        out.append(dict(name=f"{seq}__clip_{k:04d}", seq=seq, usable=not drop, drop=drop, stratum=stratum_of(sp),
+                        span_mm=round(sp, 3), depth_ok=round(ok, 3), stride=stride, gt_row_offset=off,
+                        frames=frames, times=[float(times[f]) for f in frames],
+                        masks=[nearest_mask(root, seq, f) for f in frames]))
     return tuple(out)
+
+
+# The keys of a clip, in the order the clip list writes them.
+CLIP_KEYS = ("name", "seq", "usable", "drop", "stratum", "span_mm", "depth_ok", "stride", "gt_row_offset",
+             "frames", "times", "masks")
+
+
+def gt_rows(clip: dict) -> list[int]:
+    """Return the ground truth's row of each frame of a clip of the clip list."""
+    return [f + clip["gt_row_offset"] for f in clip["frames"]]
+
+
+def usable_clips(clip_list, sequences=SEQUENCES) -> list[dict]:
+    """Return the clips of the sequences that the clip list marks usable, sequence by sequence."""
+    return [c for seq in sequences for c in clip_list if c["seq"] == seq and c["usable"]]
+
+
+def write_clip_list(clip_list, path: Path) -> None:
+    """Write clips as a JSON list, one clip a line, with the keys of `CLIP_KEYS` in order."""
+    lines = [json.dumps({k: c[k] for k in CLIP_KEYS}) for c in clip_list]
+    Path(path).write_text("[\n" + ",\n".join(lines) + "\n]\n", encoding="utf-8")
+
+
+def read_clip_list(path: Path) -> tuple[dict, ...]:
+    """Return the clips of a clip list, in its order.
+
+    Raises:
+        ValueError: the file is not a list of clips with the keys of `CLIP_KEYS`, a name is not
+            `<sequence>__clip_NNNN` or is given twice, a clip has not `CLIP_FRAMES` frames, a time and a mask
+            for each, its frames are not `stride` apart, its times do not increase, or it is usable while it
+            records a reason it is left out, or the reverse.
+    """
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(data, list) or not all(isinstance(c, dict) and tuple(c) == CLIP_KEYS for c in data):
+        raise ValueError(f"{path} is not a list of clips with the keys {list(CLIP_KEYS)}, in that order")
+    seen = set()
+    for c in data:
+        name, seq = c["name"], c["seq"]
+        if seq not in SEQUENCES or not re.fullmatch(rf"{re.escape(seq)}__clip_\d{{4}}", name) or name in seen:
+            raise ValueError(f"{path}: {name!r} of {seq!r} is not <sequence>__clip_NNNN of a sequence, or comes twice")
+        seen.add(name)
+        frames = c["frames"]
+        if len(frames) != CLIP_FRAMES or len(c["times"]) != len(frames) or len(c["masks"]) != len(frames):
+            raise ValueError(f"{path}: {name} has {len(frames)} frames, {len(c['times'])} times and "
+                             f"{len(c['masks'])} masks, where {CLIP_FRAMES} of each are expected")
+        if np.any(np.diff(frames) != c["stride"]) or not np.all(np.diff(c["times"]) > 0):
+            raise ValueError(f"{path}: {name}'s frames are not {c['stride']} apart, or its times do not increase")
+        if c["usable"] is not (c["drop"] == ""):
+            raise ValueError(f"{path}: {name} records usable {c['usable']!r} and the reason {c['drop']!r}; a clip is "
+                             "usable, true, exactly when it records no reason")
+    return tuple(data)

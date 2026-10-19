@@ -4,8 +4,10 @@ A sound tree of two conditions on three clips, with clip lengths that
 differ (5, 9, 13 labels: a clip's length is its own), is built in a
 temporary directory, and one fault at a time is planted in it: a mixed
 condition, a short one, provenance without labels, labels without
-provenance, scores that cannot be compared, a missing root, and the
-mixes the evaluator's JSONs make possible.
+provenance, scores that cannot be compared, two scores in one score root
+on one label directory, a score on other clips than its label directory
+holds, a score of the same name in another score root, a missing root,
+and the mixes the evaluator's JSONs make possible.
 """
 import json
 import os
@@ -42,6 +44,7 @@ def evaluator_score(track_dir: str, pilot: bool = False, class_set: str = "origi
     return dict(track_dir_name=track_dir, eval_code_sha="a" * 64, dataset="atlas120k", pilot=pilot,
                 class_set=class_set, views=["all", "tissue", "geometric"], n_clips=len(clips), n_missing=0,
                 n_failed=0, clips=list(clips), versions={}, propagation="both_ways_from_centre",
+                seed_source="sam", gt_informed=False,
                 input_shas={c: {"gt_masks": "g", "depth": depth, "crop": "c", "frames": "f", "predictions": track_dir} for c in clips},
                 per_clip=[dict(clip=c) for c in clips])
 
@@ -385,6 +388,57 @@ def test_a_score_whose_labels_are_gone_is_reported(tree):
     assert any("have no labels" in p and "ghost" in p for p in problems(tr, ev))
 
 
+def test_two_scores_in_one_score_root_on_one_label_directory_are_reported(tree):
+    tr, ev = tree
+    write_score(ev, "a_rgb_again", pilot_score("track_rgb_a_rgb"))
+    assert any(f"{ev}: 2 scores name the label directory track_rgb_a_rgb: ['a_rgb', 'a_rgb_again']" in p
+               for p in problems(tr, ev))
+
+
+@pytest.mark.parametrize("suffix", ["", "_benchmark"], ids=["tag_name", "own_name"])
+def test_two_score_roots_may_each_score_one_label_directory(tree, suffix):
+    # The second class set is scored into a score root of its own, under the tag's name or a name of its own.
+    tr, ev = tree
+    bench = ev.parent / "scores_benchmark"
+    bench.mkdir()
+    for t in ("a_rgb", "a_normal"):
+        write_score(ev, t, evaluator_score(f"track_rgb_{t}"))
+        write_score(bench, t + suffix, evaluator_score(f"track_rgb_{t}", class_set="benchmark"))
+    assert CI.inventory([(str(tr), str(ev), "original"), (str(tr), str(bench), "benchmark")]) == []
+
+
+@pytest.mark.parametrize("reverse", [False, True], ids=["given_order", "reversed"])
+def test_a_score_is_not_hidden_by_one_of_the_same_name_in_another_score_root(tree, reverse):
+    # Kept by name alone, the later root's `a_rgb.json` hid the earlier one's: in one order the score of
+    # labels that are gone passed, in the other the labels the hidden score had scored read as unscored.
+    tr, ev = tree
+    other = ev.parent / "scores_other"
+    other.mkdir()
+    write_score(other, "a_rgb", pilot_score("track_rgb_a_ghost"))
+    roots = [(str(tr), str(ev), "T"), (str(tr), str(other), "other")]
+    probs = CI.inventory(roots[::-1] if reverse else roots, require_scored=True)
+    assert any("have no labels" in p and str(other / "a_rgb.json") in p for p in probs)
+    assert not any("not scored" in p for p in probs)
+
+
+def test_a_score_on_fewer_clips_than_its_label_directory_holds_is_reported(tree):
+    # The score names every clip it holds, so nothing in it says a clip is missing.
+    tr, ev = tree
+    s = pilot_score("track_rgb_a_rgb")
+    s["clips"], s["per_clip"], s["n_clips"] = CLIPS[:2], s["per_clip"][:2], 2
+    write_score(ev, "a_rgb", s)
+    assert any(f"{ev / 'a_rgb.json'}: scored 2 clips where the label directory track_rgb_a_rgb holds labels on 3 "
+               "(unscored ['c3'])" in p for p in problems(tr, ev))
+
+
+def test_a_score_on_a_clip_its_label_directory_does_not_hold_is_reported(tree):
+    tr, ev = tree
+    s = evaluator_score("track_rgb_a_rgb", clips=CLIPS + ["c4"])
+    write_score(ev, "a_rgb", s)
+    assert any(f"{ev / 'a_rgb.json'}: scored 4 clips where the label directory track_rgb_a_rgb holds labels on 3 "
+               "(without labels ['c4'])" in p for p in problems(tr, ev))
+
+
 def test_labels_nobody_scored_are_a_problem_only_when_required(tree, capsys):
     tr, ev = tree
     plant(tr, {"track_rgb_a_unscored": [(c, provenance("depth", 8), LABELS[c]) for c in CLIPS]})
@@ -423,7 +477,7 @@ def test_the_table_says_scored_of_labels_scored_from_another_root(tmp_path, caps
 
 
 def test_a_missing_root_is_refused_before_anything_is_counted(tmp_path):
-    with pytest.raises(ValueError, match="does not exist"):
+    with pytest.raises(ValueError, match="label root of --root does not exist"):
         CI.inventory([(str(tmp_path / "no_such_root"), "", "T")])
 
 
@@ -435,7 +489,7 @@ def test_a_file_is_not_a_root(tmp_path):
 
 def test_a_score_root_that_does_not_exist_is_refused(tmp_path):
     (tmp_path / "tracks").mkdir()
-    with pytest.raises(ValueError, match="score directory does not exist"):
+    with pytest.raises(ValueError, match="score root of --root does not exist"):
         CI.inventory([(str(tmp_path / "tracks"), str(tmp_path / "scroes"), "T")])
 
 

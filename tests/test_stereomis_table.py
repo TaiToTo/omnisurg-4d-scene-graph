@@ -31,7 +31,8 @@ def rows_of(conds=tuple(OFFSET)) -> list[dict]:
             for c in conds:
                 rows.append(dict(clip=f"{s}__clip_{k:04d}", seq=s, stratum=stratum, span_mm=20.0 - 15 * k, cond=c,
                                  ate_rel=round(base + OFFSET[c](s), 4), rpe_trans_rel=0.5, rpe_rot_deg=1.0,
-                                 scale_ratio=None if c == "floor_static" else 2.0, trajectory_code_sha=SHA))
+                                 scale_ratio=None if c == "floor_static" else 2.0, trajectory_code_sha=SHA,
+                                 clip_list_sha=SHA))
     return rows
 
 
@@ -121,7 +122,7 @@ def test_the_command_reads_the_score_files_and_refuses_two_versions_of_the_score
     monkeypatch.setattr(sys, "argv", ["stereomis_table", str(a), str(b), "--out", str(out)])
     T.main()
     written = json.loads(out.read_text())
-    assert len(written["pairs"]) == 9 and written["trajectory_code_sha"] == SHA
+    assert len(written["pairs"]) == 9 and written["trajectory_code_sha"] == written["clip_list_sha"] == SHA
     b.write_text(json.dumps([dict(r, trajectory_code_sha="d" * 64) for r in rows if r["cond"] != "floor_static"]))
     with pytest.raises(SystemExit, match="2 versions of the scorer"):
         T.main()

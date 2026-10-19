@@ -12,7 +12,7 @@ from __future__ import annotations
 import csv
 import re
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from pathlib import Path
 
 # The inputs: the image the segmenter cut the regions from, or, under a seed from GT, the tracker's input.
@@ -38,6 +38,10 @@ RULES = {"centre": "both_ways_from_centre", "forward": "forward_from_first", "pe
 # smoothing change no other input, so a record of 0.85 with smoothing, the tracking stage's own default, is no
 # setting off the default there.
 SETTINGS = ("keepring", "instrument-text")
+# The directory a condition's labels go to, `track_<the tracker's input>_<name>`, as `pipeline.condition_population`
+# names it. The longer inputs come first, so that `rgb_edge` is not read as `rgb` and a name that starts with `edge`.
+LABEL_DIR = re.compile("track_(" + "|".join(sorted((i.replace("-", "_") for i in INPUTS), key=len, reverse=True))
+                       + ")_(.+)")
 
 TABLE = Path(__file__).with_name("condition_names.tsv")
 COLUMNS = ("dataset", "workbench", "name", "unresolved", "record")
@@ -118,6 +122,34 @@ def parse(name: str) -> Parts:
     if "instrument-text" in words and seed != "sam":
         raise ValueError(f"{name!r}: only the tracking stage's segmenter adds instruments to its seed")
     return Parts(inp, depth, pps, seed, rule, tuple(words))
+
+
+def parse_label_dir(dir_name: str) -> Parts:
+    """Return the parts of the condition whose labels a directory holds, `track_<the tracker's input>_<name>`.
+
+    Raises:
+        ValueError: The directory is not named so, or `parse` refuses the name.
+    """
+    m = LABEL_DIR.fullmatch(dir_name)
+    if m is None:
+        raise ValueError(f"{dir_name!r} is no label directory track_<input>_<name>, so it names no condition")
+    return parse(m.group(2))
+
+
+def check_rules(a: Parts, b: Parts) -> None:
+    """Refuse two conditions under different rules, unless one is per frame or they differ in the rule alone.
+
+    The difference between two rules would otherwise look like a difference between the methods.
+
+    Raises:
+        ValueError: The rules differ, neither is `perframe`, and another part differs too.
+    """
+    if a.rule == b.rule or "perframe" in (a.rule, b.rule):
+        return
+    differ = [f.name for f in fields(Parts) if f.name != "rule" and getattr(a, f.name) != getattr(b, f.name)]
+    if differ:
+        raise ValueError(f"{a.name()} and {b.name()} are under two propagation rules and differ in {differ} too; "
+                         "two rules are compared only on conditions that differ in the rule alone")
 
 
 @dataclass(frozen=True)

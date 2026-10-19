@@ -28,7 +28,7 @@ from evalkit.tools.paired_stats import MARK_RULE, compare_pair, format_signed, i
 from evalkit.tools.scores import (
     PER_FRAME,
     check_comparable_table,
-    check_one_rule,
+    check_table_rules,
     load_scores,
     propagation_rule_of,
     sign_of_key,
@@ -202,7 +202,7 @@ def build(dirs: Mapping[str, str], key: str) -> tuple[list[tuple[Claim, list[dic
             - a directory that is missing, or holds none of its conditions;
             - a JSON that records no dataset, or another than its column's;
             - two JSONs of one column that are not comparable;
-            - two propagation rules besides `per_frame` in the table;
+            - two propagation rules besides `per_frame` in the table, without their pairs;
             - a key with no direction, or a reference value;
             - a JSON that has the key in none of its rows;
             - a pair whose propagation rules contradict its claim's stage.
@@ -211,10 +211,11 @@ def build(dirs: Mapping[str, str], key: str) -> tuple[list[tuple[Claim, list[dic
     columns = {ds: read_column(dirs[ds], sorted({t for c in CLAIMS for t in c.pairs[ds]})) for ds in DATASETS}
     loaded = {f"{ds}/{t}": s for ds, col in columns.items() for t, s in col.items() if s is not None}
 
-    # The checks that hold across cells: one dataset and population per column, one rule per table, a key with
+    # The checks that hold across cells: one dataset and population per column, one rule per table or two in
+    # their pairs, a key with
     # a better direction.
     differ = check_columns(columns)
-    rule = check_one_rule(loaded)
+    rule = check_table_rules(loaded)
     for name, s in loaded.items():
         try:
             sign = sign_of_key(s, key)

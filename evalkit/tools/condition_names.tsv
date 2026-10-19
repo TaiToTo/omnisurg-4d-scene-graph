@@ -65,7 +65,7 @@ cholecseg8k	ch_edge_pps4	normal-edge_da3_pps4_sam_centre_keepring		run log
 cholecseg8k	ch_edge_pps48	normal-edge_da3_pps48_sam_centre_keepring		run log
 cholecseg8k	ch_edge_pps6	normal-edge_da3_pps6_sam_centre_keepring		run log
 cholecseg8k	ch_edge_pps8	normal-edge_da3_pps8_sam_centre_keepring		run log
-cholecseg8k	ch_normal		the seed frame was chosen by its share of instrument pixels and is off the centre on 11 of the 27 clips: neither propagation rule	run log
+cholecseg8k	ch_normal		the seed frame was chosen by its share of instrument pixels and is off the centre on 11 of the pilot's 27 clips: neither propagation rule	run log
 cholecseg8k	ch_normal_center	normal_da3_pps24_sam_centre		run log
 cholecseg8k	ch_normal_perframe_pps16	normal_da3_pps16_perframe		run log
 cholecseg8k	ch_normal_perframe_pps24	normal_da3_pps24_perframe		run log

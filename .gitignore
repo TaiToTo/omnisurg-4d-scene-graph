@@ -29,7 +29,9 @@ viewer/.vite/
 /*.svg
 
 # IDE / OS / secrets
-.claude/
+.claude/*
+!.claude/settings.json
+!.claude/hooks/
 .vscode/
 .env
 **/.DS_Store

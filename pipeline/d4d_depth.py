@@ -4,7 +4,7 @@ For each side of the population, the stage runs DA3 on a window of `--window` fr
 to the scan, and keeps that frame's depth alone. The window gives DA3 the context of neighbouring frames. A
 scan lies outside its clip, so the frame sits at the window's start for a `start` side and at its end for an
 `end` side. The stage writes one file per side, `<key, / as __>__<side>.npz`. It skips a side whose file exists
-once the file's frame, window and resolution are this run's, and refuses one whose differ.
+once the file's frame, window and resolution are this run's, and refuses one whose frame, window or resolution differ.
 
 Usage:
     python -m pipeline.d4d_depth --root /path/to/D4D/extracted --population d4d_meta/population.json \\
@@ -21,7 +21,8 @@ import numpy as np
 import surgical_core.d4d as d4d
 from recon3d_wrapper.da3 import DA3, DEFAULT_PROCESS_RES
 
-# The frames DA3 sees at once around a side's frame: as many as a CholecSeg8k clip holds.
+# The frames DA3 sees at once: the side's frame and those that follow or precede it in the clip, as many as a
+# CholecSeg8k clip holds.
 WINDOW = 30
 
 # The fields that say which frame and which settings made a side's file.
