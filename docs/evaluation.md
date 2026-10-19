@@ -237,10 +237,7 @@ with IoU ≥ `MATCH_IOU` is a *hit*. `F1_50`, `SQ` and `inst_BF` are taken over
 these objects.
 
 This figure and the ones below draw one scene and run the modules on it.
-Hatched pixels are not scored; "Views" says which. The pale patch next to the
-tool has no depth. Normal mode would refuse such a frame. The figures leave
-the patch out of the scored pixels, as pilot mode does, and score the rest by
-the normal rules.
+Hatched pixels are not scored; "Views" says which.
 
 ![Objects on a drawn scene in the geometric view: two GT objects, one per class; three predicted objects, one per region; the pairs taken greedily by IoU, two hits, and F1_50 and SQ computed from them.](figures/objects.png)
 
@@ -339,7 +336,7 @@ that stops at its edge.
 ![One drawn scene in the three views: hatched pixels are not scored; the tool leaves the tissue view, and the tool and the blood leave the geometric view. A table counts each removed pixel once, by the first reason that removed it.](figures/scored_pixels.png)
 
 [`evalkit/scored.py`](../evalkit/scored.py) computes the numbers on this
-scene, in pilot mode.
+scene.
 
 #### Why removed pixels are not filled in
 
@@ -502,7 +499,7 @@ where the GT is unlabelled, and decides no claim. It is reported beside a
 comparison whose two conditions differ in it by much, as the pilot
 measurements did for the share of pixels left without a region.
 
-![unlabelled_share on a drawn scene: a region that fits the liver and one that spills into unlabelled tissue get the same value on every other key; unlabelled_share is 0 for the first and 0.542 for the second.](figures/unlabelled_share.png)
+![unlabelled_share on a drawn scene: a region that fits the liver and one that spills into unlabelled tissue get the same value on every other key; unlabelled_share is 0 for the first and 0.552 for the second.](figures/unlabelled_share.png)
 
 [`evalkit/unlabelled.py`](../evalkit/unlabelled.py) computes the numbers on
 this scene.
