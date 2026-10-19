@@ -235,17 +235,19 @@ def test_a_gt_flag_without_a_mask_file_is_refused(tmp_path):
 
 
 def test_the_region_line_is_filled_on_the_mask_as_stored_and_counted_at_the_depth_s_shape(tmp_path):
-    # The mask is twice the depth's size, so the line on column 12 is 2 px wide there: its left half
-    # takes the liver and its right half the gallbladder, and the resize keeps the left one.
+    # The mask is twice the depth's size, and the line is drawn on it from an odd column, so that the
+    # resize keeps the line's right half only. Filled on the mask, that half is gallbladder, from the
+    # pixel beside it. Filled after the resize, the line would be 1 px wide, as near to both organs,
+    # and take the liver's smaller id: the orders differ on column 13.
     gt = C.two_organs(cut=12)
-    gt[:, 12] = C.REGION_LINE
-    gt[5, 20] = C.REGION_LINE          # a dot inside the gallbladder, 2 x 2 px on the mask
     C.write_clip(tmp_path / "data", "c", [gt, C.two_organs()])
+    big = np.kron(gt, np.ones((2, 2), dtype=np.int32))
+    big[:, 24], big[:, 25:27] = C.LIVER, C.REGION_LINE
+    big[10:12, 40:42] = C.REGION_LINE          # a dot inside the gallbladder, 1 px at the depth's shape
+    Image.fromarray(C.colour_mask(big)).save(tmp_path / "data" / "c" / MASK_DIR / f"{0:06d}_color_mask.png")
     C.write_labels(tmp_path / "tracks", "c", TAG, {0: C.two_organs(), 1: C.two_organs()}, scale=2)
     clip = read(tmp_path)
-    expected = gt.copy()
-    expected[:, 12], expected[5, 20] = C.LIVER, C.GALLBLADDER
-    assert np.array_equal(clip.gt[0], expected)
+    assert np.array_equal(clip.gt[0], C.two_organs(cut=13))
     assert dict(clip.filled_pixels) == {0: 21, 1: 0}
 
 

@@ -1,7 +1,7 @@
 """Read one clip's inputs: its frames, GT masks, depth and predictions.
 
-The inputs sit in three places:
-- `<data_root>/<clip>/frame_manifest.json` lists the frames in processing
+The inputs are read from three places:
+- `<data_root>/<clip>/frame_manifest.json` lists the frames in the pipeline's
   order and marks the GT frames (`docs/evaluation.md`, "Which frames").
 - `<data_root>/<clip>/exports/mini_npz/results.npz` holds the depth, frame
   `i` as `depth[i]`, and `seg_masks/<i:06d><suffix>` a GT frame's mask.
@@ -255,10 +255,11 @@ def read_clip(data_root: str | Path, tracks_root: str | Path, tag: str, clip: st
     gt, filled_pixels = {}, {}
     for i, p in mask_paths.items():
         with Image.open(p) as image:
-            try:
-                ids, was_filled = fill_from_nearest(table.mask_ids(image), table.filled_mask_ids)
-            except ValueError as e:
-                raise ValueError(f"{clip}: frame {i}: {e}") from None
+            ids = table.mask_ids(image)
+        try:
+            ids, was_filled = fill_from_nearest(ids, table.filled_mask_ids)
+        except ValueError as e:
+            raise ValueError(f"{clip}: frame {i}: {e}") from None
         gt[i] = _resized(ids, shape)
         filled_pixels[i] = int(_resized(was_filled.astype(np.uint8), shape).sum()) if was_filled.any() else 0
 

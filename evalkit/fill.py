@@ -2,12 +2,12 @@
 
 A `filled` class is no class: a line or gap the annotation leaves between
 two regions (`docs/evaluation.md`, "Class types"). `fill_from_nearest`
-gives each of its pixels the id of the nearest pixel of another class.
-Nearness counts steps between 4-neighbours. Of several ids equally near,
-the pixel takes the smallest, so a line 1 px wide takes the smaller of the
-ids on its two sides, whole. The reader fills a mask as stored, before it
-is resized, so that the fill depends on the annotation alone, not on the
-depth map's shape.
+gives each of its pixels the id of the nearest pixel whose class is not
+`filled`. Nearness counts steps between 4-neighbours. Of several ids
+equally near, the pixel takes the smallest, so a line 1 px wide takes the
+smaller of the ids on its two sides, whole. The reader fills a mask as
+stored, before it is resized, so that the fill depends on the annotation
+alone, not on the depth map's shape.
 """
 from __future__ import annotations
 
@@ -15,12 +15,12 @@ import numpy as np
 
 
 def fill_from_nearest(mask_ids: np.ndarray, filled_ids: frozenset[int]) -> tuple[np.ndarray, np.ndarray]:
-    """Give each pixel of a `filled` id the id of the nearest pixel of another id.
+    """Give each pixel of a `filled` id the id of the nearest pixel whose id is not filled.
 
     The fill grows one step at a time from the pixels of other ids. Each
     step gives every pixel still to fill that has a 4-neighbour already
     filled or never to fill the smallest of those neighbours' ids. A pixel
-    filled at step d is d steps from its nearest pixel of another id, and
+    filled at step d is d steps from its nearest pixel of an id not filled, and
     the smallest of its neighbours' ids is the smallest id among those
     equally near, since each neighbour holds the smallest of its own.
 
