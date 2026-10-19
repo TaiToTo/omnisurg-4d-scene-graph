@@ -1,8 +1,8 @@
 """Score and average one clip by the pilot evaluator's rules, in pilot mode.
 
 Pilot mode exists for the check against the pilot evaluator and is removed
-before the freeze. It reads a clip with `evalkit.inputs.read_clip`, so it
-refuses every input normal mode refuses. Two things it then takes the
+before the freeze. It scores a clip as `evalkit.inputs.read_clip` read it,
+so it refuses every input normal mode refuses. Two things it then takes the
 pilot's way: CholecSeg8k's GT colours, by the pilot's own colour table; and
 the predicted frames, in the order of their file names.
 Each frame is scored with the evaluator's modules under the pilot's objects
@@ -22,7 +22,7 @@ import numpy as np
 from evalkit.boundary import BoundaryScore, boundary_pixels, boundary_score
 from evalkit.classes import ClassTable
 from evalkit.classmap import class_map
-from evalkit.inputs import MASK_DIR, MASK_SUFFIX, read_clip
+from evalkit.inputs import MASK_DIR, MASK_SUFFIX, ClipInputs
 from evalkit.inst_bf import instance_boundary_f
 from evalkit.keys import metric_key
 from evalkit.objects import instance_scores
@@ -212,20 +212,18 @@ def _frame_values(v: dict) -> dict:
     return out
 
 
-def score_pilot_clip(data_root: str | Path, tracks_root: str | Path, tag: str, clip: str,
-                     table: ClassTable) -> tuple[dict, dict[str, str]]:
-    """Score one clip in pilot mode.
+def score_pilot_clip(inputs: ClipInputs, data_root: str | Path, table: ClassTable) -> dict:
+    """Score one clip in pilot mode, and return its row.
 
-    Returns:
-        The clip's row and the hash of each input read, as normal mode records them.
+    Args:
+        inputs: The clip's inputs, read and checked by `read_clip` as normal mode reads them.
+        data_root: The directory holding one directory per clip, where CholecSeg8k's colour masks are read again.
+        table: The class table `inputs` was read with.
 
     Raises:
-        FileNotFoundError, ValueError, KeyError: `read_clip` refuses the clip's inputs, or OpenCV cannot read a
-            colour mask.
+        ValueError: OpenCV cannot read a colour mask.
     """
-    # The clip's inputs, read and checked as normal mode reads them.
-    inputs = read_clip(data_root, tracks_root, tag, clip, table)
-    shape = inputs.depth.shape[1:]
+    clip, shape = inputs.clip, inputs.depth.shape[1:]
 
     # The GT the pilot's way: CholecSeg8k's colours by the pilot's table; ATLAS-120k's ids, which the pilot
     # read as they are.
@@ -242,4 +240,4 @@ def score_pilot_clip(data_root: str | Path, tracks_root: str | Path, tag: str, c
     frames = [(inputs.numbers[i], pilot_frame(gt[i], inputs.regions[i], valid[i], PILOT_INSTRUMENT_IDS[table.dataset]))
               for i in order if i in gt]
     time_iou = pilot_time_iou([inputs.regions[i] for i in order], [valid[i] for i in order])
-    return pilot_row(clip, frames, time_iou), dict(inputs.shas)
+    return pilot_row(clip, frames, time_iou)

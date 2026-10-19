@@ -49,9 +49,12 @@ not compared:
 - **The paper's tables**: the claims grid.
 - **D4D**: depth, seeds, the front/behind relation and the camera
   trajectory.
-- **LapEx's comparisons**. They wait on "How LapEx is scored".
+- **LapEx's comparisons**. They wait on "How LapEx is compared".
 - **The conditions seeded from GT masks** (`t12_gtseed`, `t12_paste`). They
   wait on "Conditions seeded from GT".
+- **Seeds made outside the tracking stage, and labels `kmerge` merged, in
+  `component_scores` and `track_metrics`.** Both tools refuse them until
+  their JSONs record `gt_informed` as the evaluator's score does.
 - **The identity table from `track_metrics`.** `print_status_tables
   --identity` reads the JSON the workbench's `summarize_track12` wrote;
   nothing builds the table from the JSON `track_metrics` writes.
@@ -99,9 +102,8 @@ not compared:
 3. **The conditions take their names at the re-score.**
    `evalkit/tools/condition_names.tsv` maps each workbench condition that
    the paper's tables read to its name here, or says why its records show
-   none. The `t5_*` rows name the rule their records show, which the
-   evaluator scores only once it accepts a seed made outside the tracking
-   stage. With the re-score, and not before, the label directories and the
+   none. The `t5_*` rows name the rule their records show. With the
+   re-score, and not before, the label directories and the
    score JSONs take these names, and `paired_table`, `claims_table` and
    `arms_paired` read their tags from the table. Until then the tools read
    the workbench's names.
@@ -196,28 +198,14 @@ Each question says what it blocks and where its answer is written.
 
 ### Before the freeze
 
-- **Boundary dilation.** `evalkit/boundary.py` dilates with `cv2.dilate`.
-  A numpy shift-or agrees on every mask tried, borders included. Should a
-  hashed file depend on OpenCV's behaviour while OpenCV is unpinned?
-  Blocks: the freeze. Answer in: `evalkit/boundary.py`.
-- **CholecSeg8k's Region line.** CholecSeg8k draws a 1 px white line
-  between regions, which the class table types `ignored`. 87 % of its
-  pixels are the image's outer pixel, which the crop removes. The rest
-  sits mostly in video43 and video52, where an edge against it is no
-  boundary, so those videos lose much of their GT boundary. Does the loader
-  fill the line from its neighbours, by a fixed rule with the count
-  recorded, or does the line stay ignored with the loss documented?
-  Blocks: the freeze. Answer in: `docs/evaluation.md`, the CholecSeg8k table.
-- **Seeds made outside the tracking stage.** `rule_of_seed_info` refuses a
-  `seed_source` other than `sam` or `per_frame`. So the evaluator refuses
-  the six `t5_*` conditions of the granularity result, and every condition
-  that `pipeline/track.py --seed-labels` makes. The record names the seeds
-  by the path as given, so one directory given by two paths reads as two
-  conditions. Open: which values of `seed_source` the evaluator scores, how
-  a score records and names its seeds' source, and which comparisons the
-  tools refuse across sources. Blocks: the freeze, and the granularity
-  result. Answer in: `docs/evaluation.md`, which says no such condition is
-  reported.
+- **Mask resize.** `evalkit/inputs.py` resizes a GT mask, and a prediction
+  of another shape, to the depth map's shape with `cv2.resize`, nearest
+  neighbour. It is the one hashed file that still depends on OpenCV's
+  behaviour, and OpenCV is unpinned: a score records its version but cannot
+  fix it. Does the resize move to numpy, checked equal to `cv2.resize` on
+  the frame sizes the datasets have, or does it stay with OpenCV? If OpenCV
+  leaves the evaluator, `RECORDED_LIBRARIES` in `evalkit/code_sha.py` drops
+  `cv2` with it. Blocks: the freeze. Answer in: `evalkit/inputs.py`.
 - **Conditions seeded from GT.** The workbench seeded `t12_gtseed` and
   `t12_paste` from GT masks. On the 151 ATLAS-120k clips with an even
   number of frames, the seed sits one frame before the centre:
@@ -267,15 +255,13 @@ Each question says what it blocks and where its answer is written.
 ### Tools and tables
 
 - **The paired table on the evaluator's scores.** `paired_table` prints the
-  pilot's table only. The six `t5_*` rows wait on "Seeds made outside the
-  tracking stage". `paired_table` holds one propagation rule per table, so
-  it is printed once per rule. The evaluator records `objects.predicted` in place of
+  pilot's table only. `paired_table` holds one propagation rule per table,
+  so it is printed once per rule. The evaluator records `objects.predicted` in place of
   `n_regions_mean`. Open: which block answers which of the paper's three
   questions ("Primary metrics" in `docs/evaluation.md`), and which rows,
   keys and views each table holds. Answer in: `paired_table`'s docstring.
 - **The claims table on the evaluator's scores.** `claims_table` prints the
-  workbench's table from the pilot's scores. Its three rows that read
-  `t5_k10` wait on "Seeds made outside the tracking stage". The workbench
+  workbench's table from the pilot's scores. The workbench
   read every claim on `inst_F1_50_labeled`, whose nearest view here is
   `all`, and on the 13-video ATLAS-120k set, where the port makes the
   conditions on 315 clips. Open: which key or keys the claims are read on,
@@ -338,16 +324,10 @@ Each question says what it blocks and where its answer is written.
 
 ### LapEx
 
-- **How LapEx is scored.** The evaluator holds no LapEx class table, so
-  neither it nor `kmerge` reads a LapEx clip. Open:
-  - its class table, where level 0, interstitial space, is a class that the
-    extraction writes as 11;
-  - its crop rectangle: the evaluator requires `crop_info` or `crop` in the
-    manifest, and the extraction writes neither;
-  - its comparison: the workbench resampled 30 case means, which weighs
-    the cases unlike `paired_stats`.
-
-  Blocks: scoring LapEx. Answer in: `docs/evaluation.md`.
+- **How LapEx is compared.** The workbench resampled 30 case means, which
+  weighs the cases unlike `paired_stats`. Open: whether LapEx's comparisons
+  resample as `paired_stats` does. Blocks: LapEx's comparisons. Answer in:
+  `docs/evaluation.md`.
 
 ### The public viewer
 

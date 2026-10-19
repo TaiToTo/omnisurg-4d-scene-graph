@@ -44,6 +44,7 @@ def evaluator_score(track_dir: str, pilot: bool = False, class_set: str = "origi
     return dict(track_dir_name=track_dir, eval_code_sha="a" * 64, dataset="atlas120k", pilot=pilot,
                 class_set=class_set, views=["all", "tissue", "geometric"], n_clips=len(clips), n_missing=0,
                 n_failed=0, clips=list(clips), versions={}, propagation="both_ways_from_centre",
+                seed_source="sam", gt_informed=False,
                 input_shas={c: {"gt_masks": "g", "depth": depth, "crop": "c", "frames": "f", "predictions": track_dir} for c in clips},
                 per_clip=[dict(clip=c) for c in clips])
 

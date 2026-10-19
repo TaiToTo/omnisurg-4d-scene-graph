@@ -8,7 +8,7 @@ this page is the short version, with a map of the parts.
 
 The pipeline cuts every frame of a surgical video into regions and follows
 them over time. It is not trained on surgery and it never names a region.
-Against two public datasets with hand-labelled masks, the evaluator asks
+Against three public datasets with hand-labelled masks, the evaluator asks
 three questions. Two of them are decided by keys named here; the other keys
 help explain the answers.
 

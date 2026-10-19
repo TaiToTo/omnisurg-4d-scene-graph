@@ -17,8 +17,11 @@ def label_table_of(table: ClassTable) -> LabelTable:
     """The label table of a dataset's class table.
 
     Every class whose type is an object is a foreground entry with the
-    colour the class table gives it; the ignored, background and excluded
-    types become background ids.
+    colour the class table gives it; the ignored, background, excluded and
+    filled types become background ids. A `filled` class is drawn as
+    background because the viewer reads the mask as stored: the evaluator
+    fills its pixels from the nearest region (`evalkit.fill`), the viewer
+    does not.
 
     Raises:
         ValueError: a foreground class has no colour. ATLAS-120k's benchmark
