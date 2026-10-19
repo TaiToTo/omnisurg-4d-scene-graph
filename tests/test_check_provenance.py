@@ -246,8 +246,7 @@ def run_stage(tmp_path, stage: str, **settings) -> None:
     clip = write_depth_clip(tmp_path / "clips", "clip0", 3)
     if stage == "track":
         run_track(clip, tmp_path / "tracks", "t", "both_ways_from_centre", StandInSegmenter(), StandInTracker(),
-                  seed_min_area=1,
-                  **settings)
+                  seed_min_area=1, **settings)
     else:
         run_per_frame(clip, tmp_path / "tracks", "t", StandInSegmenter(), seed_min_area=1, **settings)
 

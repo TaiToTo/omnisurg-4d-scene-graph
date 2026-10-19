@@ -1,4 +1,4 @@
-"""Stand-ins for the tracking stages' tests: a segmenter, a tracker and a clip with depth, none alike per frame.
+"""Stand-ins for `pipeline.track` and `pipeline.per_frame`'s tests: a segmenter, a tracker and a clip, none alike per frame.
 
 The segmenter cuts the k-th image it is given one column farther right
 than the one before; the tracker carries its seed masks one column to the
@@ -20,11 +20,11 @@ class StandInSegmenter:
 
     The k-th image this segmenter is given, counted across clips, is cut at column `W // 2 + k`, so a frame
     written with another frame's labels shows. An image with `k` of `W // 2` or more has no right part.
+    It takes `SeedSegmenter`'s arguments and keeps them as `checkpoint` and `device`.
     """
 
-    device = "cpu"
-
-    def __init__(self, *args, **kwargs):
+    def __init__(self, checkpoint: str = "", device: str = "auto"):
+        self.checkpoint, self.device = checkpoint, device
         self.images, self.grids = [], []
 
     def label_map(self, image, points_per_side):
@@ -40,12 +40,13 @@ class StandInTracker:
     """Carry the seed masks, rolled one column to the right per frame away from the prompted frame, in the direction asked.
 
     `calls` records each `propagate` call as `(start frame, reverse)`; `frames`, `seed_frame`, `masks` and `ids`
-    hold what the stage handed in.
+    hold what the stage handed in. It takes `Sam3VideoInstanceSession`'s arguments.
     """
 
     device = "cpu"
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, model_id: str = "", device: str = "auto", gpu: int | None = None,
+                 state_on_cpu: bool = False):
         self.calls = []
 
     def init_video(self, frames):

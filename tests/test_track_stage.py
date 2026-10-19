@@ -69,6 +69,16 @@ def test_each_frame_s_label_is_the_seed_carried_to_that_frame(tmp_path, rule, se
         assert f == seed or not np.array_equal(label, at_seed), f
 
 
+def test_the_tracker_gets_each_frame_s_image_in_that_frame_s_place(tmp_path):
+    # The clip's images differ per frame, so a frame handed to the tracker in another frame's place shows.
+    clip = _clip(tmp_path)
+    _, _, trk = _run(tmp_path, clip)
+    assert trk.frames.shape == (N, H, W, 3)
+    for f in range(N):
+        rgb = np.array(Image.open(clip / "input_images" / f"{f:06d}.png").convert("RGB"))
+        assert np.array_equal(trk.frames[f], rgb), f
+
+
 def test_the_two_rules_place_the_seed_as_the_evaluator_reads_them():
     assert window("both_ways_from_centre", 30) == (list(range(30)), 15, True)
     assert window("forward_from_first", 30) == (list(range(30)), 0, False)
@@ -370,12 +380,20 @@ def _argv(tmp_path, *extra):
             *extra]
 
 
-def test_main_runs_every_clip_with_depth(tmp_path, monkeypatch):
+def test_main_runs_every_clip_with_depth_and_opens_the_segmenter_on_the_tracker_s_device(tmp_path, monkeypatch):
+    opened = []
+
+    class RecordingSegmenter(StandInSegmenter):
+        def __init__(self, *a, **kw):
+            super().__init__(*a, **kw)
+            opened.append((self.checkpoint, self.device))
+
     _clip(tmp_path)
     _clip(tmp_path, name="VID02_s15_80_crop")
     _main(monkeypatch, *_argv(tmp_path, "--sam-ckpt", "sam.pth"), session=StandInTracker,
-          segmenter=StandInSegmenter)
+          segmenter=RecordingSegmenter)
     assert sorted(p.name for p in (tmp_path / "tracks").iterdir()) == ["VID01_s15_80_crop", "VID02_s15_80_crop"]
+    assert opened == [("sam.pth", "cpu")]
 
 
 def test_state_on_cpu_reaches_the_tracker_and_leaves_the_record_as_it_was(tmp_path, monkeypatch):
