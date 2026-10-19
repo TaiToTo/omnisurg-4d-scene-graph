@@ -2,14 +2,14 @@
 
 The stage reads a clip's `frame_manifest.json` and `input_images/`. It
 writes `depth_raw/depth_NNNNNN.npy`, `depth_vis/NNNN.jpg`,
-`exports/mini_npz/results.npz` and `pc_vis/frame_NNNN.glb`, and adds
-`depth_info` to the manifest. The bundle `results.npz` holds depth,
-confidence, intrinsics and world-to-camera extrinsics. The stage refuses:
+`exports/mini_npz/results.npz` (depth, confidence, intrinsics and
+world-to-camera extrinsics) and `pc_vis/frame_NNNN.glb`, and adds
+`depth_info` to the manifest. The stage refuses:
 
 - a clip without `crop_info.json`, unless it is an ATLAS-120k, a StereoMIS
   or a LapEx clip: a CholecSeg8k clip before the crop stage;
-- a clip that already holds the stage's output, unless `--overwrite` is
-  given, which removes that output first.
+- a clip that already holds the stage's output, unless `--overwrite` is given;
+- an image OpenCV cannot read for the point clouds, unless `--no-glb` is given.
 
 Usage:
     python -m pipeline.depth --input-dir /path/to/clips [--clips <clip> ...] [--device auto] [--gpu N]
@@ -150,7 +150,7 @@ def run_depth(clip_dir: Path, model: Reconstructor, process_res: int, write_glb:
     print(f"  depth shape {depth.shape}")
 
     # Read the images the point clouds are coloured with, at the depth's size. OpenCV returns None for an
-    # image it cannot read, and the earlier output must not go before every image is in hand.
+    # image it cannot read, and the earlier output must not be removed before every image is read.
     colours = []
     if write_glb:
         for p in image_paths:

@@ -798,8 +798,10 @@ The stage refuses:
 - a frame without its cloud, a cloud that is not a GLB of one float32 point
   list, or a cloud without one point per pixel;
 - an unknown track, a track named twice, a track of another dataset's
-  classes, a track without regions, a scene graph on a frame without
-  regions, or regions or a scene graph on a frame the clip does not have;
+  classes, a track without regions, or a scene graph on a frame without
+  regions;
+- regions, a scene graph or a hierarchy that no frame of the clip reads:
+  numbered outside the clip's frames, or not as `NNNN`;
 - regions off DA3's grid, a label that is not an integer or of no listed
   class, a class without an integer id above 0, a string name and a colour
   of three numbers, a stage other than `anchor` or `propagated`, or an
