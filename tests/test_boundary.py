@@ -112,18 +112,43 @@ def test_the_tolerance_is_a_square_not_a_disk():
             within_tolerance(b, bad)
 
 
-@pytest.mark.parametrize("shape", [(1, 1), (1, 7), (6, 1), (5, 5), (17, 23), (40, 3)])
-@pytest.mark.parametrize("tol", [0, 1, 2, 3, 7])
-def test_the_tolerance_equals_opencv_s_square_dilation_borders_included(shape, tol):
-    # The tolerance was `cv2.dilate` with a square of ones; the numpy rule that replaced it must mark the
-    # same pixels, on sparse and dense masks, with boundary pixels on the frame's edges and corners.
+SHAPES = [(1, 1), (1, 7), (6, 1), (5, 5), (17, 23), (40, 3)]
+TOLERANCES = [0, 1, 2, 3, 7]
+
+
+def masks_with_edges(shape, tol):
+    """Sparse, dense, empty and full masks, and one with pixels on every edge and a corner."""
     rng = np.random.default_rng(sum(shape) * 10 + tol)
     masks = [rng.random(shape) < p for p in (0.02, 0.2, 0.7)]
     edges = np.zeros(shape, dtype=bool)
     edges[0, :] = edges[-1, -1] = edges[:, 0] = True
-    masks += [edges, np.zeros(shape, dtype=bool), np.ones(shape, dtype=bool)]
+    return masks + [edges, np.zeros(shape, dtype=bool), np.ones(shape, dtype=bool)]
+
+
+def every_window(mask, tol):
+    """The definition of `docs/evaluation.md` written out, pixel by pixel: a pixel is marked
+    when the (2·tol + 1)² window around it, cut at the frame's edge, holds a boundary pixel."""
+    out = np.zeros_like(mask)
+    for r, c in np.ndindex(mask.shape):
+        out[r, c] = mask[max(0, r - tol):r + tol + 1, max(0, c - tol):c + tol + 1].any()
+    return out
+
+
+@pytest.mark.parametrize("shape", SHAPES)
+@pytest.mark.parametrize("tol", TOLERANCES)
+def test_the_tolerance_marks_each_pixel_whose_window_cut_at_the_edge_holds_a_boundary_pixel(shape, tol):
+    # Pinned without OpenCV, so that a change in cv2's border handling cannot move the rule.
+    for mask in masks_with_edges(shape, tol):
+        assert (within_tolerance(mask, tol) == every_window(mask, tol)).all()
+
+
+@pytest.mark.parametrize("shape", SHAPES)
+@pytest.mark.parametrize("tol", TOLERANCES)
+def test_the_tolerance_marks_the_same_pixels_as_cv2_dilate_borders_included(shape, tol):
+    # The pilot evaluator dilated with `cv2.dilate` and a square of ones; the numpy rule that replaced it
+    # must mark the same pixels, boundary pixels on the frame's edges and corners included.
     kernel = np.ones((2 * tol + 1, 2 * tol + 1), dtype=np.uint8)
-    for mask in masks:
+    for mask in masks_with_edges(shape, tol):
         assert (within_tolerance(mask, tol) == cv2.dilate(mask.astype(np.uint8), kernel).astype(bool)).all()
 
 

@@ -100,14 +100,14 @@ def within_tolerance(boundary: np.ndarray, tol: int = BOUNDARY_TOL_PX) -> np.nda
     # it rather than OpenCV, whose version a score records but cannot fix.
     out = boundary.copy()
     for axis in (0, 1):
-        done = out.copy()
+        grown = out.copy()
         for shift in range(1, min(tol, out.shape[axis]) + 1):
             ahead = [slice(None), slice(None)]
             behind = [slice(None), slice(None)]
             ahead[axis], behind[axis] = slice(shift, None), slice(None, -shift)
-            done[tuple(ahead)] |= out[tuple(behind)]
-            done[tuple(behind)] |= out[tuple(ahead)]
-        out = done
+            grown[tuple(ahead)] |= out[tuple(behind)]
+            grown[tuple(behind)] |= out[tuple(ahead)]
+        out = grown
     return out
 
 
