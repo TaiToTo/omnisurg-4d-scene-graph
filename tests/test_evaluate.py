@@ -19,8 +19,12 @@ import pytest
 
 import clip_dirs as C
 from evalkit.classes import VIEWS, load_table
+from evalkit.clip import ScoredFrame, summarize_clip
 from evalkit.code_sha import eval_code_sha
-from evalkit.evaluate import MERGED, check_table, main, read_population, score_condition, seed_file, write_scores
+from evalkit.evaluate import (
+    MERGED, check_table, clip_row, main, read_population, score_condition, seed_file, write_scores,
+)
+from evalkit.frame import score_frame
 from evalkit.inputs import sha_of_files
 from evalkit.keys import CLIP_METRICS, FRAME_METRICS, SIGNS, metric_key
 from evalkit.time_iou import time_iou
@@ -33,6 +37,9 @@ CLIPS = ["VID01_a", "VID02_b"]
 # ways, and on the first frame, carried forward.
 BOTH_WAYS = {"seed_source": "sam", "seed_frame": 1, "bidir": True, "frames": [0, 1, 2]}
 FORWARD = {"seed_source": "sam", "seed_frame": 0, "bidir": False, "frames": [0, 1, 2]}
+
+# ATLAS-120k's Liver and its marker that takes a whole frame out.
+ATLAS_LIVER, ATLAS_EXCLUDED = 12, 42
 
 
 def write_condition(tmp_path, tag, regions_of=lambda gt: gt.copy(), clips=CLIPS, data="data", seed_info=BOTH_WAYS):
@@ -81,6 +88,8 @@ def test_a_perfect_prediction_scores_one_on_every_key_and_the_tools_read_the_jso
     assert set(summary["input_shas"]) == set(CLIPS)
     assert set(summary["versions"]) == {"python", "numpy", "opencv", "pillow"}
     assert (summary["seed_source"], summary["gt_informed"]) == ("sam", False)
+    assert all(row["filled_pixels"] == 0 and {f["filled_pixels"] for f in row["frames"]} == {0}
+               for row in summary["per_clip"])
     assert read_evals(str(out.parent))["perfect"]["dir"] == "perfect"
 
 
@@ -377,3 +386,52 @@ def test_the_command_line_records_the_seeds_and_the_statement(tmp_path):
           "--tag", "c", "--out", str(out), "--seeds", str(tmp_path / "seeds"), "--gt-informed", "yes"])
     summary = json.loads(out.read_text())
     assert (summary["seed_source"], summary["gt_informed"]) == ("external", True)
+
+
+def line_between_organs(cut: int) -> np.ndarray:
+    """Liver left of column `cut`, gallbladder right of it, and CholecSeg8k's region line on column `cut`."""
+    gt = C.two_organs(cut=cut)
+    gt[:, cut] = C.REGION_LINE
+    return gt
+
+
+def test_the_region_line_is_filled_scored_as_its_neighbours_and_counted(tmp_path):
+    # Every frame draws the line between the two organs. Filled, the line is liver on its left half and
+    # gallbladder on its right, so a prediction of the organs alone scores one and its boundary is found.
+    gt = [line_between_organs(cut=8 + 2 * i) for i in range(3)]
+    C.write_clip(tmp_path / "data", "VID01_a", gt)
+    filled = [np.where(g == C.REGION_LINE, C.LIVER, g) for g in gt]
+    C.write_labels(tmp_path / "tracks", "VID01_a", "c", {i: f for i, f in enumerate(filled)}, seed_info=BOTH_WAYS)
+    row = score(tmp_path, "c", clips=["VID01_a"])["per_clip"][0]
+    assert row["F1_50/all"] == 1.0 and row["boundary_R_raw/all"] == 1.0 and row["mIoU/all"] == 1.0
+    # The masks are twice the depth's size: the line is 2 px wide there, and one column of 20 px here.
+    assert [f["filled_pixels"] for f in row["frames"]] == [20, 20, 20] and row["filled_pixels"] == 60
+    assert row["pixels"]["all"]["ignored"] == 0
+
+
+def test_a_lapex_clip_is_scored_whole_with_its_interstitial_space_filled(tmp_path):
+    # One frame, as LapEx's extraction writes it: no crop rectangle, no `is_anchor`, grey-level ids, and a
+    # gap of interstitial space between the liver and the stomach.
+    gt = np.full((20, 30), C.LAPEX_STOMACH, dtype=np.int32)
+    gt[:, :12] = C.LAPEX_LIVER
+    gt[:, 12] = C.LAPEX_GAP
+    C.write_lapex_clip(tmp_path / "data", "01__gt_0040", gt)
+    C.write_labels(tmp_path / "tracks", "01__gt_0040", "c",
+                   {0: np.where(gt == C.LAPEX_GAP, C.LAPEX_LIVER, gt)}, seed_info={"seed_source": "per_frame"})
+    summary = score_condition("lapex", None, ["01__gt_0040"], tmp_path / "data", tmp_path / "tracks", "c")
+    row = summary["per_clip"][0]
+    assert summary["dataset"] == "lapex" and row["F1_50/geometric"] == 1.0 and row["boundary_R_raw/all"] == 1.0
+    assert row["filled_pixels"] == 20
+
+
+def test_the_row_sums_the_filled_pixels_of_the_scored_frames_only():
+    # No table has both an `excluded` and a `filled` class, so the row is built from two ATLAS-120k frames.
+    atlas = load_table("atlas120k")
+    gt = np.full((20, 30), ATLAS_LIVER, dtype=np.int32)
+    marked = gt.copy()
+    marked[:2, :2] = ATLAS_EXCLUDED
+    depth, regions = np.ones(gt.shape, dtype=np.float32), np.zeros(gt.shape, dtype=np.int32)
+    scores = summarize_clip([ScoredFrame(1, score_frame(gt, regions, depth, atlas)),
+                             ScoredFrame(2, score_frame(marked, regions, depth, atlas))], time_iou=None)
+    row = clip_row("c", scores, {1: 5, 2: 7})
+    assert row["filled_pixels"] == 5 and [f["filled_pixels"] for f in row["frames"]] == [5, 7]

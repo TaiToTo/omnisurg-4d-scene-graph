@@ -113,8 +113,8 @@ def test_the_tissue_domains_need_the_instrument_ids():
         pilot_domains(S.exact().gt, ALL, frozenset())
     assert PILOT_INSTRUMENT_IDS == {"cholecseg8k": {5, 9}, "atlas120k": {1}}
     # Keyed by the evaluator's dataset names, so that a renamed dataset
-    # cannot leave an orphan key behind.
-    assert set(PILOT_INSTRUMENT_IDS) == set(CLASS_SETS)
+    # cannot leave an orphan key behind. The pilot evaluator scored no LapEx.
+    assert set(PILOT_INSTRUMENT_IDS) == set(CLASS_SETS) - {"lapex"}
 
 
 def test_a_region_on_background_is_an_object_in_full_and_none_in_labeled():

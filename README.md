@@ -25,7 +25,7 @@ The figure draws the steps on a made-up scene. Two scorers check the
 results, not the scene graphs:
 
 - `evalkit`, the evaluator, compares the regions with masks drawn by hand,
-  in ATLAS-120k and CholecSeg8k.
+  in ATLAS-120k, CholecSeg8k and LapEx.
 - `trajectory_eval`, the camera trajectory scorer, compares the camera's
   path with the true path, in StereoMIS.
 

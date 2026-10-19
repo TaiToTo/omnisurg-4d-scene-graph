@@ -23,7 +23,7 @@ import dataclasses
 import json
 import os
 import platform
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 import cv2
@@ -36,7 +36,7 @@ from evalkit.code_sha import eval_code_sha, hashed_files
 from evalkit.frame import score_frame
 from evalkit.inputs import ClipInputs, read_clip, sha_of_files
 from evalkit.keys import FRAME_METRICS, metric_key
-from evalkit.pilot import PILOT_DOMAINS
+from evalkit.pilot import PILOT_DOMAINS, PILOT_INSTRUMENT_IDS
 from evalkit.pilot_clip import score_pilot_clip
 from evalkit.scored import valid_depth
 from evalkit.time_iou import time_iou
@@ -107,8 +107,14 @@ def _number(value):
     return None if value is None else float(value)
 
 
-def clip_row(clip: str, scores: ClipScores) -> dict:
-    """Build one clip's row of the score JSON: the means, the counts behind them, and the per-frame values."""
+def clip_row(clip: str, scores: ClipScores, filled_pixels: Mapping[int, int]) -> dict:
+    """Build one clip's row of the score JSON: the means, the counts behind them, and the per-frame values.
+
+    Args:
+        clip: The clip's name.
+        scores: The clip's scores, from `score_clip`.
+        filled_pixels: Each GT frame's number in the source video to the pixels whose GT the fill gave.
+    """
     views = scores.views
     row: dict = {"clip": clip}
     row.update({metric_key(m, v): _number(views[v].means[m]) for v in VIEWS for m in FRAME_METRICS})
@@ -116,12 +122,14 @@ def clip_row(clip: str, scores: ClipScores) -> dict:
     row["n_frames"] = {metric_key(m, v): int(views[v].n_frames[m]) for v in VIEWS for m in FRAME_METRICS}
     row["n_scored_frames"] = scores.n_scored_frames
     row["n_excluded_frames"] = scores.n_excluded_frames
+    # Summed over the scored frames, as `pixels` is.
+    row["filled_pixels"] = sum(int(filled_pixels[f.frame]) for f in scores.frames if not f.scores.excluded)
     row["pixels"] = {v: {k: int(n) for k, n in dataclasses.asdict(views[v].pixels).items()} for v in VIEWS}
     row["objects"] = {v: {"gt": int(views[v].n_gt_objects), "predicted": int(views[v].n_pred_objects),
                           "hits": int(views[v].n_hits), "inst_bf_hits": int(views[v].n_inst_bf_hits)}
                       for v in VIEWS}
     row["frames"] = [
-        {"frame": f.frame, "excluded": f.scores.excluded,
+        {"frame": f.frame, "excluded": f.scores.excluded, "filled_pixels": int(filled_pixels[f.frame]),
          **{metric_key(m, v): _number(value) for v, s in f.scores.views.items() for m, value in s.metrics().items()}}
         for f in scores.frames
     ]
@@ -355,16 +363,19 @@ def score_condition(dataset: str, class_set: str | None, clips: Sequence[str],
         pilot: Score by the pilot evaluator's rules.
 
     Raises:
-        ValueError, KeyError, FileNotFoundError: Pilot mode is asked for a class set other than `original`;
-            the condition's propagation rule is unknown (`condition_rule`); its seeds are not known
-            (`condition_seed`); a clip's seed file is not the one the tracker read (`_seed_sha`); or a clip's
-            inputs cannot be read or scored. Nothing is returned for the others.
+        ValueError, KeyError, FileNotFoundError: Pilot mode is asked for a class set other than `original`,
+            or for a dataset the pilot evaluator never scored; the condition's propagation rule is unknown
+            (`condition_rule`); its seeds are not known (`condition_seed`); a clip's seed file is not the one
+            the tracker read (`_seed_sha`); or a clip's inputs cannot be read or scored. Nothing is returned for
+            the others.
     """
     # The table, the rule and the seeds' records, each refused before any clip is scored.
     table = load_table(dataset, class_set)
     check_table(table)
     if pilot and table.class_set != "original":
         raise ValueError("pilot mode scores the original ids, as the pilot evaluator did")
+    if pilot and table.dataset not in PILOT_INSTRUMENT_IDS:
+        raise ValueError(f"the pilot evaluator scored no {table.dataset} clip, so pilot mode has nothing to reproduce")
     rule = condition_rule(tracks_root, tag, clips, propagation)
     source, gt_informed, external = condition_seed(tracks_root, tag, clips, rule, seeds, gt_informed)
     sha = eval_code_sha()
@@ -376,7 +387,11 @@ def score_condition(dataset: str, class_set: str | None, clips: Sequence[str],
         shas[clip] = dict(inputs.shas)
         if clip in external:
             shas[clip]["seeds"] = _seed_sha(seeds, clip, external[clip], inputs.depth.shape[1:])
-        rows.append(score_pilot_clip(inputs, data_root, table) if pilot else clip_row(clip, score_clip(inputs, table)))
+        if pilot:
+            rows.append(score_pilot_clip(inputs, data_root, table))
+        else:
+            filled_pixels = {inputs.numbers[i]: n for i, n in inputs.filled_pixels.items()}
+            rows.append(clip_row(clip, score_clip(inputs, table), filled_pixels))
     return {
         "eval_code_sha": sha, "dataset": table.dataset, "class_set": table.class_set,
         "views": list(PILOT_DOMAINS if pilot else VIEWS), "pilot": pilot, "track_dir_name": tag,
