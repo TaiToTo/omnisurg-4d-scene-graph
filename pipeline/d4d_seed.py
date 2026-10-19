@@ -1,7 +1,7 @@
 """Cut each D4D side's frame into seed regions, the regions the front/behind relation is scored on.
 
-The stage reads each side's file of `pipeline.d4d_depth`, and the frame it names. It builds the `normal_edge`
-input from the depth, with the edges at full darkness and the normals unsmoothed. The tracking stage's
+The stage reads each side's depth file of `pipeline.d4d_depth`. It builds the `normal_edge` input from the
+depth, with the edges at full darkness and the normals unsmoothed. The tracking stage's
 segmenter then cuts the input at 24 points per side. The stage writes the regions, `<side>.npy`, numbered
 0..K-1 and -1 for none, and their record, `<side>.json`, which holds the depth file's hash and the settings.
 It skips a side whose two files exist once the record holds the depth file's hash and this run's settings, and
@@ -18,7 +18,6 @@ import json
 import os
 from pathlib import Path
 
-import cv2
 import numpy as np
 
 from pipeline.track import SeedSegmenter
@@ -67,35 +66,19 @@ def check_done(record_path: Path, depth_path: Path, expected: dict) -> None:
                          "record's settings")
 
 
-def frame_rgb(path: str, shape: tuple[int, int]) -> np.ndarray:
-    """Return the frame as (H, W, 3) uint8 RGB at `shape`, resized with area averaging.
-
-    Raises:
-        FileNotFoundError: the frame cannot be read.
-    """
-    bgr = cv2.imread(path)
-    if bgr is None:
-        raise FileNotFoundError(f"cannot read the frame {path}")
-    rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
-    if rgb.shape[:2] != shape:
-        rgb = cv2.resize(rgb, (shape[1], shape[0]), interpolation=cv2.INTER_AREA)
-    return rgb
-
-
 def run_side(depth_path: Path, out: Path, segmenter, mask_ring: bool, sam_ckpt: str) -> int:
     """Cut one side's frame into regions, write the regions and their record, and return the number of regions.
 
     The regions are written before the record, each under a temporary name and then renamed. A side is done
     only when both files exist, so a run stopped midway leaves no side that a later run would skip.
     """
-    # Build the seed input from the side's depth and frame.
+    # Build the seed input from the side's depth.
     with np.load(depth_path, allow_pickle=False) as z:
         depth, K = z["depth"].astype(np.float32), z["intrinsics"].astype(np.float32)
-        image_path = str(z["image_path"])
         fields = {k: int(z[k]) for k in ("window", "process_res", "frame_index")}
-    # `normal_edge` reads no grey image; zeros of the depth's shape stand in for it.
-    image = sam_input_image(SAM_INPUT, depth, K, np.zeros_like(depth), frame_rgb(image_path, depth.shape),
-                            edge_gain=EDGE_GAIN, smooth=SMOOTH, mask_ring=mask_ring)
+    # `normal_edge` reads neither the grey image nor the RGB frame; zeros of the depth's shape and None stand in.
+    image = sam_input_image(SAM_INPUT, depth, K, np.zeros_like(depth), None, edge_gain=EDGE_GAIN, smooth=SMOOTH,
+                            mask_ring=mask_ring)
 
     # Cut the input into regions, and write them and then their record.
     labels = segmenter.label_map(image, POINTS_PER_SIDE).astype(np.int32)

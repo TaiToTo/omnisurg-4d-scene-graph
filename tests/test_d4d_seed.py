@@ -5,13 +5,12 @@ given. Each refusal has a test that plants its fault:
 
 - a side's record made from another depth file, with another ring setting, with another grid, or with other
   SAM weights;
-- a frame that cannot be read;
 - a depth directory with no side's file.
 """
 
 import json
+from pathlib import Path
 
-import cv2
 import numpy as np
 import pytest
 
@@ -35,11 +34,9 @@ class StandInSegmenter:
         return labels
 
 
-def write_side(tmp_path, frame_size=(32, 24)) -> tuple:
-    """Write a frame and a side's depth file that names it; return the depth file and the frame."""
+def write_side(tmp_path) -> Path:
+    """Write a side's depth file, which names a frame that does not exist, and return it."""
     rng = np.random.default_rng(0)
-    frame = rng.integers(0, 255, (frame_size[1], frame_size[0], 3), dtype=np.uint8)
-    cv2.imwrite(str(tmp_path / "frame.png"), frame)
     depth_dir = tmp_path / "depth"
     depth_dir.mkdir(exist_ok=True)
     depth = (1.0 + rng.random((H, W))).astype(np.float32)
@@ -48,20 +45,19 @@ def write_side(tmp_path, frame_size=(32, 24)) -> tuple:
     np.savez_compressed(path, depth=depth, conf=depth, intrinsics=K, extrinsics=np.eye(4, dtype=np.float32)[:3],
                         frame_index=np.int32(7), frame_minus_gt_s=np.float32(-3.0), window=np.int32(30),
                         process_res=np.int32(504), image_path=np.str_(str(tmp_path / "frame.png")))
-    return path, frame
+    return path
 
 
 def test_a_side_is_cut_from_the_normal_edge_input_and_recorded(tmp_path):
-    path, frame = write_side(tmp_path)
+    path = write_side(tmp_path)
     seg = StandInSegmenter()
     out = tmp_path / "seed"
     out.mkdir()
     assert d4d_seed.run_side(path, out, seg, True, "/w/sam_vit_h_4b8939.pth") == 2
 
-    # The segmenter saw the normal_edge input of the side's depth and frame, at full edge darkness, unsmoothed.
+    # The segmenter saw the normal_edge input of the side's depth, at full edge darkness, unsmoothed.
     with np.load(path) as z:
-        rgb = cv2.resize(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), (W, H), interpolation=cv2.INTER_AREA)
-        want = sam_input_image("normal_edge", z["depth"], z["intrinsics"], np.zeros((H, W), np.float32), rgb,
+        want = sam_input_image("normal_edge", z["depth"], z["intrinsics"], np.zeros((H, W), np.float32), None,
                                edge_gain=1.0, smooth=False, mask_ring=True)
     (image, pps), = seg.images
     assert pps == 24 and np.array_equal(image, want)
@@ -74,13 +70,6 @@ def test_a_side_is_cut_from_the_normal_edge_input_and_recorded(tmp_path):
                       "edge_gain": 1.0, "smooth": False, "edge_ring_masked": True,
                       "sam_ckpt": "sam_vit_h_4b8939.pth", "n_regions": 2}
     assert sorted(p.name for p in out.iterdir()) == [f"{STEM}.json", f"{STEM}.npy"]
-
-
-def test_a_frame_that_cannot_be_read_is_refused(tmp_path):
-    path, _ = write_side(tmp_path)
-    (tmp_path / "frame.png").unlink()
-    with pytest.raises(FileNotFoundError, match="cannot read the frame"):
-        d4d_seed.run_side(path, tmp_path, StandInSegmenter(), True, "sam.pth")
 
 
 def run_main(tmp_path, monkeypatch, extra=()):
@@ -121,7 +110,7 @@ def test_main_refuses_a_side_made_with_other_sam_weights(tmp_path, monkeypatch):
 
 
 def test_main_refuses_a_side_made_from_another_depth(tmp_path, monkeypatch):
-    path, _ = write_side(tmp_path)
+    path = write_side(tmp_path)
     run_main(tmp_path, monkeypatch)
     with np.load(path) as z:
         fields = {k: z[k] for k in z.files}
