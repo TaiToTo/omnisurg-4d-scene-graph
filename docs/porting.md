@@ -13,7 +13,7 @@ no check is recorded.
 |---|---|---|
 | evaluator, `evalkit/` | class tables, metrics, entry point, pilot mode | in pilot mode, every key shared with the pilot evaluator equal on 23 conditions × 315 clips, at `eval_code_sha` `a5d7ea46…` |
 | score tools, `evalkit/tools/` | every tool in the layout of `AGENTS.md` | `paired_table`, `arms_paired`, `claims_table`, `leave_one_video_out`, `print_status_tables`, `kmerge`: the workbench's values on the same inputs. `track_metrics` on component tracks: the values of the workbench's functions on random frames at the four sizes, but where two IoUs tie exactly |
-| camera trajectory scorer, `trajectory_eval/` | `pose_metrics`, the scoring of a clip, `pose_controls`, `scores`, `score_stereomis`, `stereomis_table`, `score_d4d` | `pose_metrics`: the workbench's values on 1200 random, planar and static trajectories. The scoring of a clip, `pose_controls` and `score_stereomis`: the workbench's 387 StereoMIS rows, every value, scored again from its stored outputs, at the workbench's offsets and times. `stereomis_table`, on those rows: the 24 pairs of the workbench's `summary_20.json`, every field. `score_d4d`: the workbench's tracker census, every field, on the 269 clips both populations hold; the 2 clips only this repository's population holds move less than 1 mm, so the same 12 clips are selected. Their 1344 frames, byte for byte, and their manifests. The workbench's 36 D4D rows, every value, scored again from its stored bundles |
+| camera trajectory scorer, `trajectory_eval/` | `pose_metrics`, the scoring of a clip, `pose_controls`, `scores`, `score_stereomis`, `stereomis_table`, `score_d4d` | `pose_metrics`: the workbench's values on 1200 random, planar and static trajectories. The scoring of a clip, `pose_controls` and `score_stereomis`: the workbench's 387 StereoMIS rows, every value, scored again from its stored outputs, at the workbench's offsets and times. `stereomis_table`, on those rows: the 24 pairs of the workbench's `summary_20.json`, every field. `score_d4d`: the clip list's 9 usable clips are the 9 the workbench scored, at its frames; the other 3 it selected are left out for its reasons. Their 1008 frames, byte for byte, and their manifests. The workbench's 36 D4D rows, scored again from its stored bundles: every value but three unrounded `scale`s, which differ in their last digit |
 | extraction and crop | ATLAS-120k, CholecSeg8k, LapEx, StereoMIS, the D4D census and population | the CholecSeg8k crop and 13 of the 27 CholecSeg8k clips: the workbench's bytes. LapEx's 735 clips: the workbench's frames and masks, and its manifests apart from `depth_info`. The D4D census: every field it writes equal to the workbench's census on the 271 clips. The D4D population: the same bytes from the ported census as from the workbench's |
 | depth | DA3, Pi3X, point clouds, the population drivers | DA3, point clouds and Pi3X: the workbench's bytes on the GPU machine, on three clips. DA3 also on the 25 LapEx clips whose border the workbench did not fill |
 | segmentation and tracking | `track`, `per_frame`, `condition_population` | `track` and `per_frame`: the workbench's bytes on the GPU machine, on three clips. `condition_population`: the workbench's commands, for 43 conditions. The 40 segmenter inputs that `tests/test_render_outputs_are_pinned.py` pins: the workbench's, rendered with each case's ring setting |
@@ -191,10 +191,9 @@ only:
 - **The ATLAS-120k manifest key `pixel_source`.** The workbench's extractor
   gained it after the GPU machine's clips were extracted.
 - **The names of the D4D trajectory files.** A clip's manifest names its
-  length `duration_sec`, where the workbench wrote `span_sec`. The census
-  writes `duration_s`, `tracker_prefix` and `reason` for `span_s`, `tf` and
-  `why`, a reason as a name rather than a sentence. A row writes `n_tracked`
-  for `n_frames`. `span_mm` keeps one meaning, a trajectory's RMS radius.
+  length `duration_sec`, where the workbench wrote `span_sec`. A row writes
+  `n_tracked` for `n_frames`. `span_mm` keeps one meaning, a trajectory's
+  RMS radius.
 - **The D4D population.** The workbench's rule also left out 45 sides as
   `tissue_moving`, from the tissue's motion at the clip's end nearest the
   scan. The rule here keeps them: 532 sides where the workbench kept 487.
@@ -310,16 +309,6 @@ Each question says what it blocks and where its answer is written.
   as having none. Open: whether such a mask moves out of `seg_masks/` or
   takes a name of its own. Blocks: porting the step that writes them.
   Answer in: `docs/pipeline.md`.
-
-### D4D
-
-- **What fixes the D4D trajectory clips.** `score_d4d` selects the clips
-  from a census of the tracker log, which it measures again on every run.
-  It leaves clips out by rules that `trajectory_code_sha` does not cover:
-  the tracked frames, the limits on a jump and the least span. Open:
-  whether the selected clips are kept as data under `d4d_meta/`, and
-  whether the hash covers these rules. Blocks: the D4D trajectory result.
-  Answer in: `d4d_meta/README.md`.
 
 ### LapEx
 
