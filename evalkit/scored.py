@@ -80,12 +80,17 @@ def _mask_id_map(mask_ids: np.ndarray) -> np.ndarray:
     return mask_ids
 
 
-def _excluded_ids_present(mask_ids: np.ndarray, table: ClassTable) -> list[int]:
-    """Return the excluded markers the frame holds; every id present is checked against the table first."""
+def _ids_present(mask_ids: np.ndarray, table: ClassTable) -> list[int]:
+    """Return the ids the frame holds, each checked against the table, so an unknown id raises here."""
     present = np.unique(mask_ids).tolist()
     for v in present:
         table.class_of(v)
-    return sorted(v for v in present if v in table.excluded_mask_ids)
+    return present
+
+
+def _excluded_ids_present(mask_ids: np.ndarray, table: ClassTable) -> list[int]:
+    """Return the excluded markers the frame holds; every id present is checked against the table first."""
+    return sorted(v for v in _ids_present(mask_ids, table) if v in table.excluded_mask_ids)
 
 
 def frame_is_excluded(mask_ids: np.ndarray, table: ClassTable) -> bool:
@@ -167,7 +172,8 @@ def scored_pixels(
 
     # On the mask ids, before the mapping: in the benchmark set the marker
     # has become background by the time the classes are typed.
-    excluded = _excluded_ids_present(mask_ids, table)
+    present = _ids_present(mask_ids, table)
+    excluded = sorted(v for v in present if v in table.excluded_mask_ids)
     if excluded:
         raise ValueError(
             f"{table.dataset}: mask id {excluded} marks the frame as excluded; it is skipped "
@@ -175,7 +181,7 @@ def scored_pixels(
         )
     # A `filled` id left here was never filled, and no view would score its
     # pixels or say why.
-    unfilled = sorted(set(np.unique(mask_ids).tolist()) & table.filled_mask_ids)
+    unfilled = sorted(v for v in present if v in table.filled_mask_ids)
     if unfilled:
         raise ValueError(f"{table.dataset}: mask id {unfilled} is of a filled class, which the reader fills "
                          f"before a frame is scored")

@@ -283,13 +283,13 @@ the end:
 `expert` and `backdrop` came out of looking at every ATLAS-120k class in the
 masks: many classes were neither shape nor colour, but one of these two.
 
-The fill gives each pixel of a `filled` class the id of the nearest pixel of
-another class. Nearness counts steps between 4-neighbours, and of several
-ids equally near, the pixel takes the smallest. The fill runs on the mask
-as stored, before it is resized, where CholecSeg8k's line is 1 px wide. A
-row of the score counts the filled pixels at the depth map's shape, per
-frame and in all, as `filled_pixels`. Pilot mode does not fill: it reads
-CholecSeg8k's line as background, as the pilot evaluator did.
+The fill gives each pixel of a `filled` class the id of the nearest pixel
+whose class is not `filled`. Nearness counts steps between 4-neighbours,
+and of several ids equally near, the pixel takes the smallest. The fill
+runs on the mask as stored, before it is resized, where CholecSeg8k's line
+is 1 px wide. A row of the score counts the filled pixels at the depth
+map's shape, per frame and in all, as `filled_pixels`. Pilot mode does not
+fill: it reads CholecSeg8k's line as background, as the pilot evaluator did.
 
 ### Views
 
@@ -337,10 +337,15 @@ Removing and filling differ on almost no pixel, so nothing is counted for
 the difference.
 
 A `filled` class is filled, not removed, because it is no class at all: a
-line or gap the annotation leaves between two classes, most of whose pixels
-lie within 2 px of one. Removed, it would take with it the GT boundary it
-lies on, since an edge against a removed pixel is no boundary
-("Boundaries").
+line or gap the annotation leaves between two classes, every pixel of which
+lies within 2 px of one. Removed, it would remove the GT boundary it lies
+on, since an edge against a removed pixel is no boundary ("Boundaries").
+The fill is one more rule, and it leans one way: a pixel as near to two
+classes takes the smaller id, so where two classes meet along a line, the
+one with the smaller id is 1 px wider on the mask. That is less than
+`BOUNDARY_TOL_PX` at the depth map's shape, where the masks are scored, but
+a predicted edge at the edge of that tolerance can still change side, and
+no score was measured for the difference.
 
 #### Background
 
@@ -669,11 +674,14 @@ instead ("Component objects").
   refused. The marker occurs in no palette mask of the release, and no colour
   mask is background alone.
 - Nothing is dropped without a count: skipped frames, ignored, background and
-  invalid pixels, the pixels each view removes, the filled pixels, and the
-  frames a metric is not defined on are counted in the JSON. A removed pixel
-  is counted once, by the first reason that removes it, in this order:
-  invalid depth, then `ignored`, then `background`, then a class the view
-  leaves out. So a frame's counts are disjoint and sum to its pixels.
+  invalid pixels, the pixels each view removes, and the frames a metric is
+  not defined on are counted in the JSON. The filled pixels are counted too,
+  as `filled_pixels`, though they are not dropped: each is scored under the
+  class the fill gave it, so it is counted again among the frame's pixels.
+  A removed pixel is counted once, by the first reason that removes it, in
+  this order: invalid depth, then `ignored`, then `background`, then a
+  class the view leaves out. So a frame's counts are disjoint and sum to
+  its pixels.
   Invalid depth is counted in pilot mode only, since normal mode refuses a
   frame with invalid depth. In pilot mode, a black corner without depth
   counts as invalid depth, not as ignored. The order is a convention:
@@ -849,10 +857,12 @@ vessels takes anatomical knowledge. Neither moves much: Cystic Duct occurs in 3
 of the 17 videos, Hepatic Vein in 1.
 
 Most of the Region line is the image's outer pixel, which the crop removes.
-In the 27 clips of `cholecseg8k_meta/`, what is left lies on 131 of the 522
-GT frames, most of it in video43 and video52. Ignored, the line took the GT boundary
-there with it; filled, it gives 180,715 pixels a class at the depth map's
-shape.
+In the 25 clips of `cholecseg8k_meta/`, what is left lies on 132 of the 495
+GT frames, 82 % of it in video43 and video52. Ignored, the line would remove
+the GT boundary there; filled, it gives 183,560 pixels a class at the depth
+map's shape. On the masks, 65 % of its pixels are as near to two classes and
+take the smaller id: Abdominal Wall, Liver and Fat over Gallbladder and the
+tools, and Black Background, which is `ignored`, over every class.
 
 ### ATLAS-120k: ids, classes and colours
 
