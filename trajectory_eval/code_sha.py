@@ -3,10 +3,10 @@
 Every StereoMIS score records the hash, and two scores are compared only when
 it matches. It covers the modules of this package, listed by name; `tools/`
 is not hashed. The package may hold nothing else, and a hashed module may
-import only the standard library, numpy and the other hashed modules. The
-bytes are hashed as `eval_code_sha` hashes the evaluator: for each file, its
-package-relative path and then its content, each preceded by its length as
-eight big-endian bytes.
+import only the standard library, numpy, OpenCV and the other hashed modules.
+The bytes are hashed as `eval_code_sha` hashes the evaluator: for each file,
+its package-relative path and then its content, each preceded by its length
+as eight big-endian bytes.
 """
 
 import ast
@@ -23,11 +23,11 @@ PACKAGE_NAME = __name__.rpartition(".")[0]
 TOOLS_DIR_NAME = "tools"
 
 # Every module of the package, hashed.
-HASHED_MODULES = ("__init__.py", "code_sha.py", "pose_metrics.py", "score.py")
+HASHED_MODULES = ("__init__.py", "code_sha.py", "pose_controls.py", "pose_metrics.py", "score.py")
 
-# What a hashed module may import besides the standard library and the other hashed modules. A reader of the
-# dataset or a control's trajectory imported here would decide scores while not hashed.
-LIBRARIES = frozenset({"numpy"})
+# What a hashed module may import besides the standard library and the other hashed modules: numpy, and OpenCV,
+# which the ceiling's odometry runs on. A reader of the dataset imported here would decide scores while not hashed.
+LIBRARIES = frozenset({"numpy", "cv2"})
 
 # The names a filesystem or the interpreter writes into a directory on its own.
 UNTRACKED_NAMES = frozenset({"__pycache__", ".DS_Store"})

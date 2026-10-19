@@ -101,13 +101,12 @@ def test_both_stages_run_on_every_clip_without_their_output_and_a_done_clip_is_s
                                                                  "pi3x_gpu0.log", "pi3x_gpu1.log"}
 
 
-def test_the_population_is_the_usable_clips_of_every_sequence(monkeypatch):
-    def clips(root, depth_root, seq):
-        return ({"name": f"{seq}__clip_0000", "usable": seq != "P2_3"}, {"name": f"{seq}__clip_0001", "usable": False})
-
-    monkeypatch.setattr(driver.stereomis, "clips", clips)
-    assert driver.usable_clips(Path("."), Path(".")) == [f"{s}__clip_0000" for s in driver.stereomis.SEQUENCES
-                                                         if s != "P2_3"]
+def test_the_population_is_the_usable_clips_of_the_clip_list_sequence_by_sequence(monkeypatch):
+    clip_list = tuple({"name": f"{seq}__clip_{k:04d}", "seq": seq, "usable": seq != "P2_3" and k == 0}
+                      for seq in driver.stereomis.SEQUENCES for k in (0, 1))
+    monkeypatch.setattr(driver.stereomis, "read_clip_list", lambda path: clip_list if path == Path("c.json") else ())
+    assert driver.usable_clips(Path("c.json")) == [f"{s}__clip_0000" for s in driver.stereomis.SEQUENCES
+                                                   if s != "P2_3"]
 
 
 def test_a_clip_that_is_not_there_is_refused_before_anything_runs(stand_in):
@@ -211,22 +210,21 @@ def handlers_restored():
 def test_the_command_stops_on_sighup_unless_nohup_ignores_it(tmp_path, monkeypatch, handlers_restored, hup):
     signal.signal(signal.SIGHUP, hup)
     signal.signal(signal.SIGTERM, signal.SIG_DFL)
-    monkeypatch.setattr(sys, "argv", ["depth_stereomis", "--root", "x", "--depth-root", "y", "--input-dir",
-                                      str(tmp_path / "nowhere")])
+    monkeypatch.setattr(sys, "argv", ["depth_stereomis", "--clips", "x", "--input-dir", str(tmp_path / "nowhere")])
     with pytest.raises(SystemExit, match="no such directory"):
         driver.main()
     assert signal.getsignal(signal.SIGHUP) is (signal.SIG_IGN if hup is signal.SIG_IGN else population.stop)
     assert signal.getsignal(signal.SIGTERM) is population.stop
 
 
-def test_the_command_takes_the_population_from_the_reader_and_exits_non_zero_on_a_refusal(stand_in, monkeypatch,
-                                                                                         handlers_restored):
+def test_the_command_takes_the_population_from_the_clip_list_and_exits_non_zero_on_a_refusal(stand_in, monkeypatch,
+                                                                                            handlers_restored):
     make_clip(stand_in, "P1__clip_0000")
-    monkeypatch.setattr(driver, "usable_clips", lambda stereomis_root, depth_root: ["P1__clip_0000"])
-    argv = ["depth_stereomis", "--root", "x", "--depth-root", "y", "--input-dir", str(stand_in), "--gpus", "3"]
+    monkeypatch.setattr(driver, "usable_clips", lambda clip_list: ["P1__clip_0000"])
+    argv = ["depth_stereomis", "--clips", "x", "--input-dir", str(stand_in), "--gpus", "3"]
     monkeypatch.setattr(sys, "argv", argv)
     driver.main()
     assert calls(stand_in) == {"da3_gpu3": ["P1__clip_0000"], "pi3x_gpu3": ["P1__clip_0000"]}
-    monkeypatch.setattr(driver, "usable_clips", lambda stereomis_root, depth_root: ["P1__clip_0000", "P1__clip_0009"])
+    monkeypatch.setattr(driver, "usable_clips", lambda clip_list: ["P1__clip_0000", "P1__clip_0009"])
     with pytest.raises(SystemExit, match="FileNotFoundError"):
         driver.main()

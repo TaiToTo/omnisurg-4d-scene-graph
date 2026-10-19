@@ -26,7 +26,7 @@ import cv2
 import numpy as np
 
 import surgical_core.d4d as d4d
-import trajectory_eval.tools.pose_controls as pose_controls
+import trajectory_eval.pose_controls as pose_controls
 # A D4D clip takes a StereoMIS clip's number of frames, least span and strata, so that the two results compare.
 from surgical_core.stereomis import CLIP_FRAMES, CLIP_MIN_SPAN_MM, stratum_of
 from trajectory_eval.pose_metrics import centers_from_cam_to_world, gt_span

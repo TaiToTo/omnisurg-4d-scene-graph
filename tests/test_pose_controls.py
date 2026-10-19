@@ -1,11 +1,12 @@
-"""Test the floors and the ceiling on trajectories and stereo pairs whose answer is known.
+"""Test the floors, the ceiling and the shuffle on trajectories and stereo pairs whose answer is known.
 
 - The static floor scores exactly 1.0, and the line floor runs at the true
   path's mean speed, so it fits a straight true path exactly.
 - Disparity becomes depth by `bf / d`, inside the kept range only.
 - The ceiling follows a camera sliding over a textured plane: the views are
   windows of one texture, the right one 24 px further along, and each frame
-  moves the windows 2 px, which is 0.5 mm at the plane's 100 mm.
+  moves the windows 2 px, which is 0.5 mm at the plane's 100 mm. The scoring
+  command runs it over a sequence's clips, from one decode.
 """
 
 import numpy as np
@@ -15,8 +16,9 @@ pytest.importorskip("scipy")
 
 import cv2  # noqa: E402
 
-import trajectory_eval.tools.pose_controls as PC  # noqa: E402
 import surgical_core.stereomis as stereomis  # noqa: E402
+import trajectory_eval.pose_controls as PC  # noqa: E402
+import trajectory_eval.tools.score_stereomis as cmd  # noqa: E402
 from trajectory_eval.pose_metrics import ate  # noqa: E402
 
 # A camera of 400 px focal length on 320x256 views, and a 6 mm baseline: bf is 2400, so a plane at 100 mm is at
@@ -218,11 +220,11 @@ def test_a_reset_starts_a_new_trajectory_at_the_identity():
     np.testing.assert_array_equal(vo.poses[0], np.eye(4))
 
 
-def fake_sequence(monkeypatch, clips, mask_of=lambda f: None) -> tuple[list, list]:
-    """Make `stereomis` serve `clips`, frame `f` as `pair(f)` and its nearest mask as `mask_of(f)`.
+def fake_sequence(monkeypatch, mask_of=lambda number: None) -> tuple[list, list]:
+    """Make `stereomis` serve frame `f` as `pair(f)`, and the mask of file number `n` as `mask_of(n)`.
 
     Returns:
-        The lists the frames asked of each decode and the frames asked for a mask are appended to.
+        The lists the frames asked of each decode and the mask numbers read are appended to.
     """
     decoded, masked = [], []
 
@@ -234,24 +236,25 @@ def fake_sequence(monkeypatch, clips, mask_of=lambda f: None) -> tuple[list, lis
         for f in frames:
             yield (f, *pair(f))
 
-    def load_mask_nearest(root, seq, f):
-        masked.append(f)
-        return mask_of(f)
+    def load_mask(root, seq, number):
+        masked.append(number)
+        return mask_of(number)
 
-    monkeypatch.setattr(stereomis, "clips", lambda root, depth_root, seq: clips)
     monkeypatch.setattr(stereomis, "calib", lambda root, seq: Calib)
     monkeypatch.setattr(stereomis, "iter_frame_set", iter_frame_set)
-    monkeypatch.setattr(stereomis, "load_mask_nearest", load_mask_nearest)
+    monkeypatch.setattr(stereomis, "load_mask", load_mask)
     return decoded, masked
 
 
+def clip(k: int, frames: list[int], masks=None) -> dict:
+    return dict(name=f"P1__clip_{k:04d}", frames=frames, masks=masks or [None] * len(frames))
+
+
 def test_each_clip_of_a_sequence_gets_its_own_trajectory_from_one_decode(monkeypatch, tmp_path):
-    clips = (dict(name="P1__clip_0000", frames=[0, 1, 2, 3], usable=True),
-             dict(name="P1__clip_0001", frames=[4, 5, 6], usable=False),
-             dict(name="P1__clip_0002", frames=[7, 8, 9], usable=True))
-    decoded, masked = fake_sequence(monkeypatch, clips)
-    out = PC.run_sequence(tmp_path, tmp_path, "P1")
-    assert decoded == [[0, 1, 2, 3, 7, 8, 9]] and masked == [0, 1, 2, 3, 7, 8, 9]
+    clips = [clip(0, [0, 1, 2, 3], masks=[1, 2, 3, 4]), clip(2, [7, 8, 9])]
+    decoded, masked = fake_sequence(monkeypatch)
+    out = cmd.ceiling(tmp_path, clips, "P1")
+    assert decoded == [[0, 1, 2, 3, 7, 8, 9]] and masked == [1, 2, 3, 4]
     assert list(out) == ["P1__clip_0000", "P1__clip_0002"]
     for name, frames in (("P1__clip_0000", range(4)), ("P1__clip_0002", range(7, 10))):
         alone = run_vo(frames)
@@ -261,22 +264,22 @@ def test_each_clip_of_a_sequence_gets_its_own_trajectory_from_one_decode(monkeyp
         assert n_fail == alone.n_fail == 0
 
 
-def test_each_frame_of_a_sequence_takes_its_nearest_mask(monkeypatch, tmp_path):
-    """Frame 2's nearest mask hides everything, so the step from frame 2 to 3 fails, as it does with the clip alone."""
-    none = np.zeros((VIEW_H, VIEW_W), bool)
-    fake_sequence(monkeypatch, (dict(name="P1__clip_0000", frames=[0, 1, 2, 3, 4], usable=True),),
-                  mask_of=lambda f: none if f == 2 else None)
-    c, R, n_fail = PC.run_sequence(tmp_path, tmp_path, "P1")["P1__clip_0000"]
+def test_each_frame_of_a_sequence_takes_the_mask_the_clip_list_gives_it(monkeypatch, tmp_path):
+    """Frame 2's mask hides everything, so the step from frame 2 to 3 fails, as it does with the clip alone."""
+    none, every = np.zeros((VIEW_H, VIEW_W), bool), np.ones((VIEW_H, VIEW_W), bool)
+    fake_sequence(monkeypatch, mask_of=lambda number: none if number == 3 else every)
+    c, R, n_fail = cmd.ceiling(tmp_path, [clip(0, [0, 1, 2, 3, 4], masks=[1, None, 3, 4, None])], "P1")[
+        "P1__clip_0000"]
     alone = run_vo(range(5), masks=[None, None, none, None, None])
     assert n_fail == alone.n_fail == 1
     np.testing.assert_array_equal(c, alone.result()[0])
     np.testing.assert_array_equal(R, alone.result()[1])
 
 
-def test_a_sequence_without_a_usable_clip_decodes_nothing(monkeypatch, tmp_path):
-    monkeypatch.setattr(stereomis, "clips", lambda root, depth_root, seq: (dict(name="x", frames=[0], usable=False),))
+def test_a_sequence_without_a_clip_decodes_nothing(monkeypatch, tmp_path):
+    monkeypatch.setattr(stereomis, "calib", lambda *a: pytest.fail("calibrated"))
     monkeypatch.setattr(stereomis, "iter_frame_set", lambda *a: pytest.fail("decoded"))
-    assert PC.run_sequence(tmp_path, tmp_path, "P2_3") == {}
+    assert cmd.ceiling(tmp_path, [], "P2_3") == {}
 
 
 @pytest.mark.parametrize("frames", [
@@ -287,8 +290,18 @@ def test_a_sequence_without_a_usable_clip_decodes_nothing(monkeypatch, tmp_path)
     pytest.param(([], [0, 1, 2]), id="a clip without a frame"),
 ])
 def test_clips_one_decode_cannot_feed_in_turn_are_refused_before_decoding(monkeypatch, tmp_path, frames):
-    clips = tuple(dict(name=f"P1__clip_{k:04d}", frames=f, usable=True) for k, f in enumerate(frames))
-    monkeypatch.setattr(stereomis, "clips", lambda root, depth_root, seq: clips)
+    clips = [clip(k, f) for k, f in enumerate(frames)]
     monkeypatch.setattr(stereomis, "iter_frame_set", lambda *a: pytest.fail("decoded"))
     with pytest.raises(ValueError, match="cannot feed the clips in turn"):
-        PC.run_sequence(tmp_path, tmp_path, "P1")
+        cmd.ceiling(tmp_path, clips, "P1")
+
+
+def test_the_shuffle_keeps_every_pose_and_its_order_is_fixed_by_the_seed():
+    c = np.arange(30.0).reshape(10, 3)
+    R = np.stack([np.eye(3) * (i + 1) for i in range(10)])
+    sc, sR = PC.shuffled(c, R)
+    order = np.random.default_rng(PC.SHUFFLE_SEED).permutation(10)
+    np.testing.assert_array_equal(sc, c[order])
+    np.testing.assert_array_equal(sR, R[order])
+    assert not np.array_equal(order, np.arange(10))
+    np.testing.assert_array_equal(PC.shuffled(c, R)[0], sc)

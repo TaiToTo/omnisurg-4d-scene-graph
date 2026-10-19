@@ -16,9 +16,9 @@ requires-python = ">=3.12"
 license = "Apache-2.0"
 authors = [{ name = "Yasuto Tamura" }]
 
-# What the evaluator needs: it reads masks with Pillow, and takes regions and
-# boundaries with numpy and OpenCV. Their versions are recorded with every
-# score, so they are deliberately unpinned here: a reader should be able to
+# What the evaluator needs: it reads masks with Pillow, resizes them with
+# OpenCV, and takes regions and boundaries with numpy. Their versions are
+# recorded with every score, so they are deliberately unpinned here: a reader should be able to
 # install this next to whatever else they have, and pinning would make the
 # package uninstallable long before the numbers stop being citable.
 # opencv-python rather than opencv-python-headless, though nothing here opens a

@@ -87,22 +87,24 @@ omnisurg-4d-scene-graph/
 │                      check_benchmark_mapping pilot_check kmerge paired_table
 │                      arms_paired leave_one_video_out claims_table
 │                      print_status_tables condition_names component_scores
-│                      region_counts region_curves
-│                      (track_metrics: waits on its GT track)
-├── trajectory_eval/   the camera trajectory scorer, hashed into trajectory_code_sha
-│   └── tools/         what makes the controls' trajectories, scores StereoMIS or
-│                      D4D, or reads the scores, never hashed: pose_controls
-│                      score_stereomis score_d4d scores stereomis_table
+│                      region_counts region_curves track_metrics
+├── trajectory_eval/   the camera trajectory scorer and the controls' trajectories,
+│                      hashed into trajectory_code_sha
+│   └── tools/         what scores StereoMIS or D4D, or reads the scores, never
+│                      hashed: scores score_stereomis score_d4d stereomis_table
 ├── pipeline/          depth → segmentation → tracking → viewer export
 ├── recon3d_wrapper/   3D reconstruction — DA3 and Pi3 behind one interface
 ├── sam3_wrapper/      promptable segmentation and tracking with SAM 3
 ├── atlas120k_meta/    crop rectangles, frame ratios, clip population; no video
 ├── cholecseg8k_meta/  crop rectangles, clip population; no video
 ├── d4d_meta/          census clip list, scored sides; no frame or point cloud
+├── stereomis_meta/    clip list: frames, rows, times, masks, usable or not; no video
 ├── viewer/
 ├── docs/              evaluation.md, pilot_evaluator.md, pipeline.md, porting.md,
 │                      review.md
 ├── tests/
+├── .claude/           settings.json and hooks/: what Claude Code refuses before a
+│                      command runs
 └── .github/workflows/ci.yml
 ```
 
@@ -156,10 +158,15 @@ against.
 - **A module's header is short**: what the module does, in at most twelve
   lines, then how to run it. No history, no glossary, no defence of choices.
 - **A term is defined once**, in its area's specification or in the one
-  docstring that uses it; a question or a rule is called by what it says,
-  never by its place in a list.
+  docstring that uses it; a question, a rule or a section is called by what
+  it says, never by its place.
 - **A function of several steps names each step**, one line per block.
 - **A comment gives the reason, not a reference.** Never a section number,
   a ticket or a task id.
+- **A commit carries the GitHub no-reply address**, the repository's own
+  `user.email`. Never pass a personal address to git, not even one the
+  tool environment supplies. `.claude/hooks/refuse_personal_email.py`
+  refuses such a command before it runs, and
+  `tests/test_no_personal_email.py` refuses the history otherwise.
 - Google-style docstrings; imports at module top; code and docs in English.
 - Never vendor upstream model code — depend on it.

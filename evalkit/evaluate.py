@@ -3,17 +3,18 @@
 For each clip it reads the inputs (`evalkit.inputs`), scores every GT frame
 in every view (`evalkit.frame`), pools `time_IoU` over every frame with a
 prediction, and averages over the frames (`evalkit.clip`). The JSON holds
-what `docs/evaluation.md` records with every score, one row per clip, and
-the per-frame values, with the condition's propagation rule as its tracker
-recorded it. With `--pilot`, each clip is read the same way and scored by
-the pilot evaluator's rules instead (`evalkit.pilot_clip`). A clip that
-cannot be scored stops the run, and no JSON is written: a population is
-scored whole or not at all.
+what `docs/evaluation.md` records with every score, one row per clip, the
+per-frame values, the condition's propagation rule and seeds as its tracker
+recorded them, and whether the GT informed the condition. With `--pilot`,
+each clip is read the same way and scored by the pilot evaluator's rules
+instead (`evalkit.pilot_clip`). A clip that cannot be scored stops the run,
+and no JSON is written: a population is scored whole or not at all.
 
 Usage:
     python -m evalkit.evaluate --dataset cholecseg8k --clips clips.txt \\
         --data-root <dir of clips> --tracks-root <dir of predictions> \\
-        --tag <condition> --out <condition>.json [--propagation <rule>] [--pilot]
+        --tag <condition> --out <condition>.json [--propagation <rule>] \\
+        [--seeds <dir of seeds>] [--gt-informed yes|no] [--pilot]
 """
 from __future__ import annotations
 
@@ -22,7 +23,7 @@ import dataclasses
 import json
 import os
 import platform
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 import cv2
@@ -33,9 +34,9 @@ from evalkit.classes import CLASS_SETS, VIEWS, ClassTable, load_table
 from evalkit.clip import ClipScores, ScoredFrame, summarize_clip
 from evalkit.code_sha import eval_code_sha, hashed_files
 from evalkit.frame import score_frame
-from evalkit.inputs import ClipInputs, read_clip
+from evalkit.inputs import ClipInputs, read_clip, sha_of_files
 from evalkit.keys import FRAME_METRICS, metric_key
-from evalkit.pilot import PILOT_DOMAINS
+from evalkit.pilot import PILOT_DOMAINS, PILOT_INSTRUMENT_IDS
 from evalkit.pilot_clip import score_pilot_clip
 from evalkit.scored import valid_depth
 from evalkit.time_iou import time_iou
@@ -45,6 +46,20 @@ PROPAGATION_RULES = ("both_ways_from_centre", "forward_from_first", "per_frame")
 
 # The record a tracker or the per-frame stage writes beside a condition's labels.
 SEED_INFO = "seed_info.json"
+
+# Where a condition's seeds came from, as each clip's record names it in `seed_source`:
+# - `sam`: the tracking stage cut the seed frame itself;
+# - `external`: the tracking stage read the seed's regions from files made outside it (`--seed-labels`);
+# - `per_frame`: no seed, for a condition segmented frame by frame.
+SEED_SOURCES = ("sam", "external", "per_frame")
+
+# The sources whose record decides that the GT informed nothing, unless `kmerge` merged the labels: the stage's
+# own cut reads no GT, and a condition segmented frame by frame has no seed.
+NOT_GT_INFORMED = frozenset({"sam", "per_frame"})
+
+# The key `kmerge` adds to the record of labels it merged to K regions. K can be the clip's number of GT objects,
+# and the record does not say whether it is.
+MERGED = "kmerge"
 
 
 def check_table(table: ClassTable) -> None:
@@ -92,8 +107,14 @@ def _number(value):
     return None if value is None else float(value)
 
 
-def clip_row(clip: str, scores: ClipScores) -> dict:
-    """Build one clip's row of the score JSON: the means, the counts behind them, and the per-frame values."""
+def clip_row(clip: str, scores: ClipScores, filled_pixels: Mapping[int, int]) -> dict:
+    """Build one clip's row of the score JSON: the means, the counts behind them, and the per-frame values.
+
+    Args:
+        clip: The clip's name.
+        scores: The clip's scores, from `score_clip`.
+        filled_pixels: Each GT frame's number in the source video to the pixels whose GT the fill gave.
+    """
     views = scores.views
     row: dict = {"clip": clip}
     row.update({metric_key(m, v): _number(views[v].means[m]) for v in VIEWS for m in FRAME_METRICS})
@@ -101,12 +122,14 @@ def clip_row(clip: str, scores: ClipScores) -> dict:
     row["n_frames"] = {metric_key(m, v): int(views[v].n_frames[m]) for v in VIEWS for m in FRAME_METRICS}
     row["n_scored_frames"] = scores.n_scored_frames
     row["n_excluded_frames"] = scores.n_excluded_frames
+    # Summed over the scored frames, as `pixels` is.
+    row["filled_pixels"] = sum(int(filled_pixels[f.frame]) for f in scores.frames if not f.scores.excluded)
     row["pixels"] = {v: {k: int(n) for k, n in dataclasses.asdict(views[v].pixels).items()} for v in VIEWS}
     row["objects"] = {v: {"gt": int(views[v].n_gt_objects), "predicted": int(views[v].n_pred_objects),
                           "hits": int(views[v].n_hits), "inst_bf_hits": int(views[v].n_inst_bf_hits)}
                       for v in VIEWS}
     row["frames"] = [
-        {"frame": f.frame, "excluded": f.scores.excluded,
+        {"frame": f.frame, "excluded": f.scores.excluded, "filled_pixels": int(filled_pixels[f.frame]),
          **{metric_key(m, v): _number(value) for v, s in f.scores.views.items() for m, value in s.metrics().items()}}
         for f in scores.frames
     ]
@@ -122,13 +145,14 @@ def versions() -> dict[str, str]:
 def rule_of_seed_info(info: dict) -> str:
     """Return the propagation rule a clip's `seed_info.json` records.
 
-    The per-frame stage records `seed_source` `per_frame`. The tracker records `seed_source` `sam`, `bidir`,
-    the seed frame and the frames it labelled. A seed carried both ways must sit on the centre of the labelled
-    frames, taken in time order; its rule is `both_ways_from_centre`. A seed carried forward must sit on frame
-    0; its rule is `forward_from_first`.
+    The per-frame stage records `seed_source` `per_frame`. The tracker records `seed_source` `sam` or
+    `external`, `bidir`, the seed frame and the frames it labelled. A seed carried both ways must sit on the
+    centre of the labelled frames, taken in time order; its rule is `both_ways_from_centre`. A seed carried
+    forward must sit on frame 0; its rule is `forward_from_first`. Where the seed's regions came from does not
+    change where it sits.
 
     Raises:
-        ValueError: The record names no `seed_source`; the seed came from elsewhere, the GT for one; the
+        ValueError: The record names no `seed_source`, or one outside `SEED_SOURCES`, the GT for one; the
             tracker's record is incomplete; its `bidir` is not true or false; its seed frame or a labelled frame
             is not a whole number; a labelled frame repeats; or the seed sits on neither the centre nor the
             first frame.
@@ -138,8 +162,8 @@ def rule_of_seed_info(info: dict) -> str:
         raise ValueError("the record names no seed_source")
     if source == "per_frame":
         return "per_frame"
-    if source != "sam":
-        raise ValueError(f"the seed came from {source!r}, not from the tracker's own masks; "
+    if source not in SEED_SOURCES:
+        raise ValueError(f"the seed came from {source!r}, which is none of {list(SEED_SOURCES)}; "
                          "such a condition holds neither rule, wherever its seed sits")
     frames, seed, bidir = info.get("frames"), info.get("seed_frame"), info.get("bidir")
     if not isinstance(frames, list) or not frames or seed is None or bidir is None:
@@ -204,44 +228,175 @@ def condition_rule(tracks_root: str | Path, tag: str, clips: Sequence[str], stat
     return rules.pop()
 
 
+def seed_file(seeds: str, clip: str, seed_frame: int) -> Path:
+    """Return the seed file the tracking stage read for one clip, as its `--seed-labels` places it.
+
+    The clip's directory is `seeds` with `{clip}` replaced by the clip's name, or `<seeds>/<clip>` when `seeds`
+    holds no `{clip}`. The file is `label_<seed frame>.npy` in it.
+    """
+    clip_dir = Path(seeds.replace("{clip}", clip)) if "{clip}" in seeds else Path(seeds) / clip
+    return clip_dir / f"label_{seed_frame:04d}.npy"
+
+
+def decides_not_gt_informed(info: dict) -> bool:
+    """Return whether a clip's `seed_info.json` decides that the GT informed nothing in its condition.
+
+    A `seed_source` in `NOT_GT_INFORMED` decides it, unless the record holds `MERGED`.
+    """
+    return info.get("seed_source") in NOT_GT_INFORMED and MERGED not in info
+
+
+def _seed_sha(seeds: str, clip: str, info: dict, shape: tuple[int, int]) -> str:
+    """Return the sha256 of a clip's external seed file, once it is the file the tracker can have read.
+
+    The tracker reads a seed of the depth's shape, keeps its regions of `seed_min_area` pixels or more, and
+    records their number as `n_seed_regions`. A file of another shape or number is not the one it read.
+
+    Args:
+        seeds: The directory of the seeds, as the tracking stage's `--seed-labels` took it.
+        clip: The clip's name.
+        info: The clip's `seed_info.json`, with the keys `condition_seed` checks.
+        shape: The clip's depth shape, (H, W).
+
+    Raises:
+        ValueError: The file is not an integer map of `shape`, or its regions are not the record's number.
+        FileNotFoundError: The file is missing.
+    """
+    path = seed_file(seeds, clip, info["seed_frame"])
+    if not path.is_file():
+        raise FileNotFoundError(f"{clip}: no seed file {path}")
+    labels = np.load(path)
+    if labels.shape != shape or not np.issubdtype(labels.dtype, np.integer):
+        raise ValueError(f"{clip}: {path} is not an integer map of the depth's shape {shape}, "
+                         f"got {labels.dtype} of shape {labels.shape}")
+    _, areas = np.unique(labels[labels >= 0], return_counts=True)
+    kept = int((areas >= info["seed_min_area"]).sum())
+    if kept != info["n_seed_regions"]:
+        raise ValueError(f"{clip}: {path} holds {kept} regions of {info['seed_min_area']} pixels or more, and the "
+                         f"tracker's record counts {info['n_seed_regions']}; it is not the seed the tracker read")
+    return sha_of_files([path])
+
+
+def condition_seed(tracks_root: str | Path, tag: str, clips: Sequence[str], rule: str, seeds: str | None = None,
+                   gt_informed: bool | None = None) -> tuple[str | None, bool, dict[str, dict]]:
+    """Return the condition's seed source, whether the GT informed the condition, and the records of external seeds.
+
+    The source is the `seed_source` every clip's `seed_info.json` names. Labels without a record have the source
+    None, or `per_frame` when their stated rule is `per_frame`. The condition is GT-informed when the GT made its
+    seeds or set one of its settings, such as K when K is the clip's number of GT objects. The records decide
+    that it is not when each record does (`decides_not_gt_informed`); otherwise the caller states it.
+
+    Args:
+        tracks_root: The directory holding one directory per clip.
+        tag: The condition's directory name under each clip.
+        clips: The population.
+        rule: The condition's propagation rule, as `condition_rule` returned it.
+        seeds: The directory of `external` seeds, as the tracking stage's `--seed-labels` took it.
+        gt_informed: Whether the GT informed a condition whose records do not decide it.
+
+    Returns:
+        The source, whether the GT informed the condition, and each clip's record for `external` seeds, whose
+        files `_seed_sha` checks once the clip is read; no record for any other source.
+
+    Raises:
+        ValueError: The clips' records name two sources; `gt_informed` is stated for a condition whose records
+            decide it, or not stated for one whose records do not; `seeds` is given for seeds that are not
+            `external`, or missing for seeds that are; or the record of an external seed lacks the seed frame,
+            `seed_min_area` or `n_seed_regions`.
+    """
+    # The source every clip's record names, or the one the stated rule implies.
+    infos = {}
+    for clip in clips:
+        path = Path(tracks_root) / clip / tag / SEED_INFO
+        if path.is_file():
+            infos[clip] = json.loads(path.read_text(encoding="utf-8"))
+    sources = {str(info.get("seed_source")) for info in infos.values()}
+    if len(sources) > 1:
+        raise ValueError(f"{tag}: the clips' records name the seed sources {sorted(sources)}; "
+                         "a condition's seeds are made one way")
+    source = sources.pop() if sources else ("per_frame" if rule == "per_frame" else None)
+
+    # Whether the GT informed the condition: decided by every record, or stated.
+    merged = any(MERGED in info for info in infos.values())
+    decided = all(decides_not_gt_informed(info) for info in infos.values()) if infos else source == "per_frame"
+    if decided:
+        if gt_informed is not None:
+            raise ValueError(f"{tag}: seed_source {source!r} already says that the GT informed nothing; "
+                             "drop --gt-informed")
+        gt_informed = False
+    elif not isinstance(gt_informed, bool):
+        made = (f"its labels were merged to K by {MERGED}" if merged
+                else f"its seeds come from {source or 'no recorded source'}")
+        raise ValueError(f"{tag}: {made}, and no record says whether the GT informed it; "
+                         "state it with --gt-informed")
+
+    # The records of external seeds, whose files are checked once each clip is read.
+    if source != "external":
+        if seeds is not None:
+            raise ValueError(f"{tag}: --seeds names seed files, but its seeds come from {source or 'no record'}")
+        return source, gt_informed, {}
+    if seeds is None:
+        raise ValueError(f"{tag}: its seeds were read from files made outside the tracking stage; "
+                         "give their directory with --seeds, as the stage's --seed-labels took it")
+    keys = ("seed_frame", "seed_min_area", "n_seed_regions")
+    for clip in clips:
+        if any(not isinstance(infos[clip].get(k), int) or isinstance(infos[clip].get(k), bool) for k in keys):
+            raise ValueError(f"{clip}: the tracker's record lacks one of {list(keys)}, "
+                             "so its seed file cannot be checked")
+    return source, gt_informed, infos
+
+
 def score_condition(dataset: str, class_set: str | None, clips: Sequence[str],
                     data_root: str | Path, tracks_root: str | Path, tag: str,
-                    propagation: str | None = None, *, pilot: bool = False) -> dict:
+                    propagation: str | None = None, *, seeds: str | None = None,
+                    gt_informed: bool | None = None, pilot: bool = False) -> dict:
     """Score one condition on every clip, and return its score JSON as a dict.
 
     In pilot mode each clip is read and scored by the pilot evaluator's rules
     (`evalkit.pilot_clip`), in its four domains, for the check against it.
-    The propagation rule is read as in normal mode.
+    The propagation rule and the seeds are read as in normal mode.
 
     Args:
         propagation: The condition's propagation rule, for labels that carry no `seed_info.json`.
+        seeds: The directory of seeds made outside the tracking stage (`condition_seed`).
+        gt_informed: Whether the GT informed a condition whose records do not decide it.
         pilot: Score by the pilot evaluator's rules.
 
     Raises:
-        ValueError, KeyError, FileNotFoundError: Pilot mode is asked for a class set other than `original`;
-            the condition's propagation rule is unknown (`condition_rule`); or a clip's inputs cannot be read
-            or scored. Nothing is returned for the others.
+        ValueError, KeyError, FileNotFoundError: Pilot mode is asked for a class set other than `original`,
+            or for a dataset the pilot evaluator never scored; the condition's propagation rule is unknown
+            (`condition_rule`); its seeds are not known (`condition_seed`); a clip's seed file is not the one
+            the tracker read (`_seed_sha`); or a clip's inputs cannot be read or scored. Nothing is returned for
+            the others.
     """
+    # The table, the rule and the seeds' records, each refused before any clip is scored.
     table = load_table(dataset, class_set)
     check_table(table)
     if pilot and table.class_set != "original":
         raise ValueError("pilot mode scores the original ids, as the pilot evaluator did")
+    if pilot and table.dataset not in PILOT_INSTRUMENT_IDS:
+        raise ValueError(f"the pilot evaluator scored no {table.dataset} clip, so pilot mode has nothing to reproduce")
     rule = condition_rule(tracks_root, tag, clips, propagation)
+    source, gt_informed, external = condition_seed(tracks_root, tag, clips, rule, seeds, gt_informed)
     sha = eval_code_sha()
+
+    # Every clip, read, its seed file checked against its depth, then scored and fingerprinted.
     rows, shas = [], {}
     for clip in clips:
-        if pilot:
-            row, shas[clip] = score_pilot_clip(data_root, tracks_root, tag, clip, table)
-            rows.append(row)
-            continue
         inputs = read_clip(data_root, tracks_root, tag, clip, table)
-        rows.append(clip_row(clip, score_clip(inputs, table)))
         shas[clip] = dict(inputs.shas)
+        if clip in external:
+            shas[clip]["seeds"] = _seed_sha(seeds, clip, external[clip], inputs.depth.shape[1:])
+        if pilot:
+            rows.append(score_pilot_clip(inputs, data_root, table))
+        else:
+            filled_pixels = {inputs.numbers[i]: n for i, n in inputs.filled_pixels.items()}
+            rows.append(clip_row(clip, score_clip(inputs, table), filled_pixels))
     return {
         "eval_code_sha": sha, "dataset": table.dataset, "class_set": table.class_set,
         "views": list(PILOT_DOMAINS if pilot else VIEWS), "pilot": pilot, "track_dir_name": tag,
-        "clips": list(clips),
-        "input_shas": shas, "versions": versions(), "propagation": rule, "per_clip": rows,
+        "clips": list(clips), "input_shas": shas, "versions": versions(), "propagation": rule,
+        "seed_source": source, "gt_informed": gt_informed, "per_clip": rows,
     }
 
 
@@ -265,12 +420,18 @@ def main(argv: Sequence[str] | None = None) -> None:
     ap.add_argument("--out", required=True, help="the score JSON to write")
     ap.add_argument("--propagation", choices=PROPAGATION_RULES, default=None,
                     help="the condition's propagation rule, for labels that carry no seed_info.json")
+    ap.add_argument("--seeds", default=None,
+                    help="the directory of seeds made outside the tracking stage, as its --seed-labels took it")
+    ap.add_argument("--gt-informed", choices=("yes", "no"), default=None,
+                    help="whether the GT made the seeds or set a setting, such as K for seeds or labels merged to "
+                         "the clip's number of GT objects, where the records do not say")
     ap.add_argument("--pilot", action="store_true",
                     help="score by the pilot evaluator's rules, for the check against it")
     args = ap.parse_args(argv)
     clips = read_population(args.clips)
+    gt_informed = None if args.gt_informed is None else args.gt_informed == "yes"
     summary = score_condition(args.dataset, args.class_set, clips, args.data_root, args.tracks_root, args.tag,
-                              args.propagation, pilot=args.pilot)
+                              args.propagation, seeds=args.seeds, gt_informed=gt_informed, pilot=args.pilot)
     write_scores(summary, args.out)
     print(f"{args.tag}: {len(clips)} clips scored, {args.out}")
 

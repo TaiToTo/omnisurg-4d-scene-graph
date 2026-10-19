@@ -26,7 +26,7 @@ def test_the_hash_is_a_full_sha256_and_the_same_on_two_calls():
 
 def test_every_module_of_the_package_is_hashed_and_the_tools_are_not():
     assert {p.name for p in PACKAGE_DIR.glob("*.py")} == set(HASHED_MODULES)
-    assert {"code_sha.py", "pose_metrics.py", "score.py"} <= set(HASHED_MODULES)
+    assert {"code_sha.py", "pose_controls.py", "pose_metrics.py", "score.py"} <= set(HASHED_MODULES)
     assert (PACKAGE_DIR / TOOLS_DIR_NAME / "__init__.py").is_file()
     assert trajectory_code_files() == sorted(HASHED_MODULES)
 
@@ -95,9 +95,9 @@ def test_an_import_by_a_string_is_refused(tmp_path, line):
         trajectory_code_sha(pkg)
 
 
-@pytest.mark.parametrize("line", ["import json", "from numpy import linalg", "from . import pose_metrics",
+@pytest.mark.parametrize("line", ["import json", "from numpy import linalg", "import cv2", "from . import pose_metrics",
                                   "from trajectory_eval import pose_metrics"])
-def test_the_standard_library_numpy_and_the_hashed_modules_may_be_imported(tmp_path, line):
+def test_the_standard_library_numpy_opencv_and_the_hashed_modules_may_be_imported(tmp_path, line):
     pkg = copy_package(tmp_path)
     (pkg / "score.py").write_text((pkg / "score.py").read_text() + f"\n{line}\n")
     assert re.fullmatch(r"[0-9a-f]{64}", trajectory_code_sha(pkg))
