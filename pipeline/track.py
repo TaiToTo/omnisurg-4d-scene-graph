@@ -111,12 +111,16 @@ def read_seed_labels(seed_labels: str, clip: str, frame: int, shape: tuple[int, 
 
     Raises:
         FileNotFoundError: the file is missing, as when the seeds were made for another seed frame.
-        ValueError: the map is not the depth's shape, or holds no region.
+        ValueError: the map is not of integers, is not the depth's shape, or holds no region.
     """
     p = seed_labels_dir(seed_labels, clip) / f"label_{frame:04d}.npy"
     if not p.is_file():
         raise FileNotFoundError(f"no seed labels {p}; were they made for seed frame {frame}?")
-    labels = np.load(p).astype(int)
+    labels = np.load(p)
+    # A cast to int would cut a fraction off an id silently; the evaluator refuses such a file too.
+    if not np.issubdtype(labels.dtype, np.integer):
+        raise ValueError(f"{p} holds {labels.dtype}, not region ids of an integer type")
+    labels = labels.astype(int)
     if labels.shape != shape:
         raise ValueError(f"{p} is {labels.shape}, not the depth's {shape}")
     ids = np.unique(labels[labels >= 0])
