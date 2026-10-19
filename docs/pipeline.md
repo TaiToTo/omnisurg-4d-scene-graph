@@ -28,17 +28,20 @@ a clip holds.
 | | [the point clouds](#the-point-cloud-stage) | `pipeline.point_clouds` | `pc_vis/frame_NNNN.glb`, and each frame's cloud centroid and camera in `frame_manifest.json` |
 | | [Pi3X](#the-pi3x-stage) | `pipeline.pi3x` | DA3's names, with `__pi3x` |
 | | [both models on every StereoMIS clip](#every-stereomis-clip-with-both-models) | `pipeline.depth_stereomis` | DA3's and Pi3X's files, for every usable clip |
+| | [D4D: DA3 on the frame nearest to each side's scan](#the-d4d-depth-and-seed-stages) | `pipeline.d4d_depth` | `--out`: `<key, / as __>__<side>.npz`, one per side |
 | 3 · regions | [tracking](#the-tracking-stage): one frame segmented, its regions followed | `pipeline.track` | `<tracks-root>/<clip>/track_<base>_<tag>/`: `label_NNNN.npy`, `seed_info.json` |
 | | [per-frame](#the-per-frame-segmentation-stage): every frame segmented on its own | `pipeline.per_frame` | `<tracks-root>/<clip>/track_rgb_<tag>/`: the same files |
 | | [one condition on every clip](#a-condition-on-every-clip-of-a-population) | `pipeline.condition_population` | the stage's files, for every clip |
 | | [the experiment plan](#the-experiment-plan) | `pipeline.experiment_plan` | nothing: it checks the plan and prints commands |
 | | [the granularity conditions](#the-granularity-conditions) | `pipeline.per_frame`, `evalkit.tools.kmerge`, `pipeline.track` | conditions merged to K regions |
+| | [D4D: the seed regions of the frame nearest to each side's scan](#the-d4d-depth-and-seed-stages) | `pipeline.d4d_seed` | `--out`: the regions, `.npy`, and their record, `.json`, one pair per side |
 | 4 · the scene graphs | the export stage | — ([Status](../README.md#status)) | in `pc_vis/`: each track's regions and scene graph on each frame, and its graph through time; each frame's hierarchy between two tracks |
 | 5 · the viewer | [the viewer bundle](#the-viewer-bundle-stage) | `pipeline.viewer_bundle` | `<out>/catalog.json`, `<out>/<clip>/` |
 
-The evaluator scores the labels of step 3 against `seg_masks/`
-(`docs/evaluation.md`). `trajectory_eval.tools.score_stereomis` and
-`score_d4d` score the camera poses of step 2
+The evaluator scores the labels of step 3, apart from the D4D seed
+regions, against `seg_masks/` (`docs/evaluation.md`).
+`trajectory_eval.tools.score_stereomis` and `score_d4d` score the camera
+poses of step 2
 ([The StereoMIS camera trajectory scores](#the-stereomis-camera-trajectory-scores),
 [The D4D camera trajectory scores](#the-d4d-camera-trajectory-scores)).
 
@@ -405,6 +408,44 @@ The second step refuses, before it writes anything:
   measure the side;
 - a field the rule reads that is missing or holds a value of the wrong kind,
   such as a `NaN`.
+
+## The D4D depth and seed stages
+
+```bash
+python -m pipeline.d4d_depth --root /path/to/D4D/extracted --population d4d_meta/population.json \
+    --out /path/to/d4d_depth [--clips <key> ...] [--shard 0 --n-shards 1] [--gpu N]
+python -m pipeline.d4d_seed --depth-dir /path/to/d4d_depth --out /path/to/d4d_seed \
+    --sam-ckpt sam_vit_h_4b8939.pth [--keep-edge-ring] [--shard 0 --n-shards 1] [--device cuda] [--gpu N]
+```
+
+The two stages make the inputs of the front/behind relation on the frame
+nearest to each side's scan. The depth stage reads the dataset in place;
+the seed stage reads the depth stage's files alone. Each writes one file per
+side, `<key, / as __>__<side>`.
+
+- The depth stage runs DA3 on 30 frames from that frame into the clip, the
+  whole clip when it is shorter, and keeps the frame's depth, confidence and
+  camera, with the frame's index, path and time less the scan's, as `.npz`.
+  A scan is taken before the clip's first frame or after its last, so the
+  frame is the first or the last, never inside the window.
+- The seed stage cuts the frame into regions, as the tracking stage cuts a
+  seed frame for the condition `normal-edge_da3_pps24_sam_centre`: the
+  `normal_edge` input, edges at full darkness, normals unsmoothed, 24 points
+  per side. It writes the regions as `.npy` and their record as `.json`:
+  the depth file's hash, the settings and the SAM weights' file name.
+
+The depth stage needs the `recon3d` and `d4d` extras and D4D's loader, as
+the README says for the census. The seed stage needs the `track` extra and
+the SAM ViT-H weights.
+
+A run skips a side already made and refuses one made otherwise:
+
+- a depth file whose frame, window or resolution differ from this run's;
+- a seed record whose depth hash, settings or SAM weights' file name differ
+  from this run's.
+
+The depth stage also refuses a clip of `--clips` with no side in the
+population, and a clip of the population that the dataset does not hold.
 
 ## The depth stage
 

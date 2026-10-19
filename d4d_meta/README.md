@@ -107,8 +107,10 @@ A score records the list's hash as `clip_list_sha`, and
 
 `pipeline.d4d_census` makes the census from the dataset.
 `pipeline.select_d4d_population` writes `population.json` and `clips.txt`
-from the census and `census_clips.txt`. `trajectory_eval.tools.score_d4d
-select` writes `trajectory_clips.json` from `clips.txt` and the tracker
-log, and its `prepare` and `score` read it. `docs/pipeline.md` says how to
-run the steps. `tests/test_select_d4d_population.py` pins what
+from the census and `census_clips.txt`. `pipeline.d4d_depth` reads
+`population.json` for the sides it estimates depth on.
+`trajectory_eval.tools.score_d4d select` writes `trajectory_clips.json` from
+`clips.txt` and the tracker log, and its `prepare` and `score` read it.
+`docs/pipeline.md` says how to run the steps.
+`tests/test_select_d4d_population.py` pins what
 must hold between the files.

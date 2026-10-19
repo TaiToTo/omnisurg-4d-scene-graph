@@ -5,7 +5,8 @@ put on `PYTHONPATH`. It refuses a missing `d4d`, and one whose files differ from
 stereo depth maps and instrument masks are files named by their time, `<sec>_<nsec>`, and so is a scan.
 `frame_files` returns a clip's files of one kind and refuses them unless their names are the frames' names.
 `instrument_mask` resizes a mask stored at another size with the nearest neighbour, then dilates it.
-`pixel_hits` counts a scan's points that fall in each pixel of the endoscope's view.
+`pixel_hits` counts a scan's points that fall in each pixel of the endoscope's view. `side_stem` names the
+files a stage writes for one side.
 `tracker_poses` interpolates the camera's pose from a session's optical tracker log, which the loader does
 not read. It marks a pose interpolated across a gap in the log as not tracked.
 """
@@ -95,6 +96,11 @@ def clips(root: str) -> list:
 def clip_key(clip) -> str:
     """Return a clip's key, `<specimen>/<session>/<clip>`."""
     return f"{clip.session.specimen.name}/{clip.session.name}/{clip.name}"
+
+
+def side_stem(key: str, side: str) -> str:
+    """Return the name of a side's files without their suffix: `<key, / as __>__<side>`."""
+    return f"{key.replace('/', '__')}__{side}"
 
 
 def name_time(path) -> float:
