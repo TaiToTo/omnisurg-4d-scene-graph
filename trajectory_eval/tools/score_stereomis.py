@@ -40,11 +40,6 @@ MANIFEST = "frame_manifest.json"
 CONTROLS = ("floor_static", "floor_line", "ceil_stereo")
 
 
-def usable_clips(clip_list, sequences: list[str]) -> list[dict]:
-    """Return the clips of the sequences that the clip list marks usable, sequence by sequence."""
-    return [c for seq in sequences for c in clip_list if c["seq"] == seq and c["usable"]]
-
-
 def ceiling(root: Path, clips: list[dict], seq: str) -> dict[str, tuple[np.ndarray, np.ndarray, int]]:
     """Run the stereo ceiling on clips of one sequence, decoding the sequence once.
 
@@ -100,7 +95,7 @@ def score_controls(root: Path, clip_list, sequences: list[str]) -> list[dict]:
     """
     rows = []
     for seq in sequences:
-        clips = usable_clips(clip_list, [seq])
+        clips = stereomis.usable_clips(clip_list, [seq])
         if not clips:
             print(f"[{seq}] no usable clip", flush=True)
             continue
@@ -164,7 +159,7 @@ def score_methods(root: Path, clip_list, sequences: list[str], clip_root: Path, 
         FileNotFoundError: `check_clip_root` finds a bundle or a manifest missing, before anything is scored.
         ValueError: `check_clip_root` refuses a clip's frames or the painted images, before anything is scored.
     """
-    clips = usable_clips(clip_list, sequences)
+    clips = stereomis.usable_clips(clip_list, sequences)
     check_clip_root(clips, clip_root, methods, masked)
     rows = []
     for c in clips:
@@ -205,7 +200,7 @@ def main() -> None:
 
     root, list_path = Path(args.root), Path(args.clips)
     try:
-        list_bytes = list_path.read_bytes()
+        list_sha = hashlib.sha256(list_path.read_bytes()).hexdigest()
         clip_list = stereomis.read_clip_list(list_path)
         rows = (score_controls(root, clip_list, args.sequences) if args.controls else
                 score_methods(root, clip_list, args.sequences, Path(args.clip_root), args.methods, args.shuffled,
@@ -213,7 +208,7 @@ def main() -> None:
     except (FileNotFoundError, ValueError) as e:
         raise SystemExit(f"{type(e).__name__}: {e}")
     for r in rows:
-        r[LIST_KEY] = hashlib.sha256(list_bytes).hexdigest()
+        r[LIST_KEY] = list_sha
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     with open(out, "w") as fh:

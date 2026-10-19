@@ -39,8 +39,8 @@ PI3X_SETTING = {"model": Pi3X.model_id, "pixel_limit": DEFAULT_PIXEL_LIMIT, "con
 
 
 def usable_clips(clip_list: Path) -> list[str]:
-    """Return the names of the clips the clip list marks usable, in its order."""
-    return [c["name"] for c in stereomis.read_clip_list(clip_list) if c["usable"]]
+    """Return the names of the clips the clip list marks usable, sequence by sequence."""
+    return [c["name"] for c in stereomis.usable_clips(stereomis.read_clip_list(clip_list))]
 
 
 def pi3x_record(manifest: dict) -> dict | None:

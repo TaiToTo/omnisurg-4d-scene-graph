@@ -681,6 +681,13 @@ def test_a_clip_list_is_read_back_as_it_was_written_one_clip_a_line(clip_seq, tm
     assert S.read_clip_list(tmp_path / "clips.json") == cl
 
 
+def test_the_usable_clips_are_those_of_the_sequences_named_sequence_by_sequence():
+    cl = [dict(name=f"{s}__clip_{k:04d}", seq=s, usable=u)
+          for s, k, u in (("P2_0", 0, True), ("P1", 0, True), ("P1", 1, False), ("P2_1", 0, True))]
+    assert [c["name"] for c in S.usable_clips(cl, ["P1", "P2_0"])] == ["P1__clip_0000", "P2_0__clip_0000"]
+    assert [c["name"] for c in S.usable_clips(cl)] == ["P1__clip_0000", "P2_0__clip_0000", "P2_1__clip_0000"]
+
+
 def planted(clip: dict, fault: str) -> dict:
     """Return a copy of `clip` with one fault planted."""
     c = json.loads(json.dumps(clip))

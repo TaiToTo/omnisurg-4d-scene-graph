@@ -101,8 +101,8 @@ def test_both_stages_run_on_every_clip_without_their_output_and_a_done_clip_is_s
                                                                  "pi3x_gpu0.log", "pi3x_gpu1.log"}
 
 
-def test_the_population_is_the_usable_clips_of_the_clip_list_in_its_order(monkeypatch):
-    clip_list = tuple({"name": f"{seq}__clip_{k:04d}", "usable": seq != "P2_3" and k == 0}
+def test_the_population_is_the_usable_clips_of_the_clip_list_sequence_by_sequence(monkeypatch):
+    clip_list = tuple({"name": f"{seq}__clip_{k:04d}", "seq": seq, "usable": seq != "P2_3" and k == 0}
                       for seq in driver.stereomis.SEQUENCES for k in (0, 1))
     monkeypatch.setattr(driver.stereomis, "read_clip_list", lambda path: clip_list if path == Path("c.json") else ())
     assert driver.usable_clips(Path("c.json")) == [f"{s}__clip_0000" for s in driver.stereomis.SEQUENCES

@@ -506,6 +506,11 @@ def gt_rows(clip: dict) -> list[int]:
     return [f + clip["gt_row_offset"] for f in clip["frames"]]
 
 
+def usable_clips(clip_list, sequences=SEQUENCES) -> list[dict]:
+    """Return the clips of the sequences that the clip list marks usable, sequence by sequence."""
+    return [c for seq in sequences for c in clip_list if c["seq"] == seq and c["usable"]]
+
+
 def write_clip_list(clip_list, path: Path) -> None:
     """Write clips as a JSON list, one clip a line, with the keys of `CLIP_KEYS` in order."""
     lines = [json.dumps({k: c[k] for k in CLIP_KEYS}) for c in clip_list]

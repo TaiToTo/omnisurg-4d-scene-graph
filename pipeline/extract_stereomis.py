@@ -56,11 +56,6 @@ def refuse_existing(clips: list[dict], out: Path) -> None:
                 raise FileExistsError(f"{d} exists; remove it to extract {c['name']} again")
 
 
-def usable_clips(clip_list, seq: str) -> list[dict]:
-    """Return the clips of a sequence that the clip list marks usable."""
-    return [c for c in clip_list if c["seq"] == seq and c["usable"]]
-
-
 def extract_sequence(root: Path, clip_list, seq: str, out: Path, mask_instruments: bool) -> list[Path]:
     """Write every usable clip of a sequence under `out`, and return the clip directories.
 
@@ -79,7 +74,7 @@ def extract_sequence(root: Path, clip_list, seq: str, out: Path, mask_instrument
         RuntimeError: an image cannot be written.
     """
     # Find the clips, and refuse before decoding if a clip is there already.
-    clips = usable_clips(clip_list, seq)
+    clips = stereomis.usable_clips(clip_list, [seq])
     refuse_existing(clips, out)
     if not clips:
         return []
@@ -138,7 +133,7 @@ def main() -> None:
     out.mkdir(parents=True, exist_ok=True)
     # Refuse a clip that exists before any sequence is decoded.
     for seq in args.sequences:
-        refuse_existing(usable_clips(clip_list, seq), out)
+        refuse_existing(stereomis.usable_clips(clip_list, [seq]), out)
     total = 0
     for seq in args.sequences:
         made = extract_sequence(root, clip_list, seq, out, args.mask_instruments)
