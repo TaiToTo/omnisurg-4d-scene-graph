@@ -73,5 +73,6 @@ clips, 98 sessions and 5 specimens.
 `pipeline.d4d_census` makes the census from the dataset.
 `pipeline.select_d4d_population` writes `population.json` and `clips.txt`
 from the census and `census_clips.txt`. `docs/pipeline.md` says how to run
-the two steps. `tests/test_select_d4d_population.py` pins what
+the two steps. `pipeline.d4d_depth` reads `population.json` for the sides
+it estimates depth on. `tests/test_select_d4d_population.py` pins what
 must hold between the files.
