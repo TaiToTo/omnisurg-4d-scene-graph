@@ -246,7 +246,7 @@ def test_the_region_line_is_filled_on_the_mask_as_stored_and_counted_at_the_dept
     expected = gt.copy()
     expected[:, 12], expected[5, 20] = C.LIVER, C.GALLBLADDER
     assert np.array_equal(clip.gt[0], expected)
-    assert dict(clip.filled) == {0: 21, 1: 0}
+    assert dict(clip.filled_pixels) == {0: 21, 1: 0}
 
 
 def test_a_mask_of_the_region_line_alone_is_refused(tmp_path):
@@ -270,7 +270,7 @@ def test_a_lapex_clip_is_read_whole_and_its_frame_is_gt_without_an_anchor_mark(t
     lapex = load_table("lapex")
     gt = lapex_clip(tmp_path)
     clip = read_clip(tmp_path / "data", tmp_path / "tracks", TAG, "c", lapex)
-    assert np.array_equal(clip.gt[0], np.where(gt == C.LAPEX_GAP, C.LAPEX_LIVER, gt)) and clip.filled == {0: 20}
+    assert np.array_equal(clip.gt[0], np.where(gt == C.LAPEX_GAP, C.LAPEX_LIVER, gt)) and clip.filled_pixels == {0: 20}
     # No rectangle cut the clip, and the score says so by hashing none.
     assert clip.shas["crop"] == hashlib.sha256(b"null").hexdigest()
 

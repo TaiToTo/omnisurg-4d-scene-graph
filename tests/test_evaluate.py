@@ -16,8 +16,10 @@ import pytest
 
 import clip_dirs as C
 from evalkit.classes import VIEWS, load_table
+from evalkit.clip import ScoredFrame, summarize_clip
 from evalkit.code_sha import eval_code_sha
-from evalkit.evaluate import check_table, main, read_population, score_condition, write_scores
+from evalkit.evaluate import check_table, clip_row, main, read_population, score_condition, write_scores
+from evalkit.frame import score_frame
 from evalkit.keys import CLIP_METRICS, FRAME_METRICS, SIGNS, metric_key
 from evalkit.time_iou import time_iou
 from evalkit.tools.condition_inventory import read_evals
@@ -29,6 +31,9 @@ CLIPS = ["VID01_a", "VID02_b"]
 # ways, and on the first frame, carried forward.
 BOTH_WAYS = {"seed_source": "sam", "seed_frame": 1, "bidir": True, "frames": [0, 1, 2]}
 FORWARD = {"seed_source": "sam", "seed_frame": 0, "bidir": False, "frames": [0, 1, 2]}
+
+# ATLAS-120k's Liver and its marker that takes a whole frame out.
+ATLAS_LIVER, ATLAS_EXCLUDED = 12, 42
 
 
 def write_condition(tmp_path, tag, regions_of=lambda gt: gt.copy(), clips=CLIPS, data="data", seed_info=BOTH_WAYS):
@@ -267,3 +272,16 @@ def test_a_lapex_clip_is_scored_whole_with_its_interstitial_space_filled(tmp_pat
     row = summary["per_clip"][0]
     assert summary["dataset"] == "lapex" and row["F1_50/geometric"] == 1.0 and row["boundary_R_raw/all"] == 1.0
     assert row["filled_pixels"] == 20
+
+
+def test_the_row_sums_the_filled_pixels_of_the_scored_frames_only():
+    # No table has both an `excluded` and a `filled` class, so the row is built from two ATLAS-120k frames.
+    atlas = load_table("atlas120k")
+    gt = np.full((20, 30), ATLAS_LIVER, dtype=np.int32)
+    marked = gt.copy()
+    marked[:2, :2] = ATLAS_EXCLUDED
+    depth, regions = np.ones(gt.shape, dtype=np.float32), np.zeros(gt.shape, dtype=np.int32)
+    scores = summarize_clip([ScoredFrame(1, score_frame(gt, regions, depth, atlas)),
+                             ScoredFrame(2, score_frame(marked, regions, depth, atlas))], time_iou=None)
+    row = clip_row("c", scores, {1: 5, 2: 7})
+    assert row["filled_pixels"] == 5 and [f["filled_pixels"] for f in row["frames"]] == [5, 7]

@@ -34,7 +34,7 @@ def nearest_by_search(mask_ids: np.ndarray, filled_ids: set[int]) -> np.ndarray:
     return out
 
 
-def test_a_line_between_two_regions_takes_the_smaller_id_and_is_marked():
+def test_a_1_px_line_between_two_regions_takes_the_smaller_id_whole_and_is_marked():
     ids = np.full((5, 7), GALLBLADDER, dtype=np.int32)
     ids[:, :3] = LIVER
     ids[:, 3] = LINE

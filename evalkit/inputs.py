@@ -1,8 +1,8 @@
 """Read one clip's inputs: its frames, GT masks, depth and predictions.
 
-- `<data_root>/<clip>/frame_manifest.json` lists the frames in the order
-  the pipeline processed them, and marks the GT frames (`docs/evaluation.md`,
-  "Which frames").
+The inputs sit in three places:
+- `<data_root>/<clip>/frame_manifest.json` lists the frames in processing
+  order and marks the GT frames (`docs/evaluation.md`, "Which frames").
 - `<data_root>/<clip>/exports/mini_npz/results.npz` holds the depth, frame
   `i` as `depth[i]`, and `seg_masks/<i:06d><suffix>` a GT frame's mask.
 - `<tracks_root>/<clip>/<tag>/label_<i>.npy` is the prediction for frame `i`.
@@ -74,8 +74,9 @@ class ClipInputs:
         regions: Each index with a prediction to its (H, W) int32 region
             map, -1 for no region, in the order of the files' names.
             Read-only.
-        filled: Each index with a GT mask to the number of its pixels, at
-            the depth map's shape, whose id the fill gave. Read-only.
+        filled_pixels: Each index with a GT mask to the number of its
+            pixels, at the depth map's shape, whose id the fill gave.
+            Read-only.
         shas: Each input's sha256: `gt_masks`, `depth`, `crop`, `frames`,
             and `predictions`, the one that is the condition's own.
     """
@@ -86,7 +87,7 @@ class ClipInputs:
     depth: np.ndarray
     gt: Mapping[int, np.ndarray]
     regions: Mapping[int, np.ndarray]
-    filled: Mapping[int, int]
+    filled_pixels: Mapping[int, int]
     shas: Mapping[str, str]
 
 
@@ -251,7 +252,7 @@ def read_clip(data_root: str | Path, tracks_root: str | Path, tag: str, clip: st
                                      anchored=table.dataset in ANCHORED_DATASETS)}
     if not mask_paths:
         raise ValueError(f"{clip}: no frame is a GT frame")
-    gt, filled = {}, {}
+    gt, filled_pixels = {}, {}
     for i, p in mask_paths.items():
         with Image.open(p) as image:
             try:
@@ -259,7 +260,7 @@ def read_clip(data_root: str | Path, tracks_root: str | Path, tag: str, clip: st
             except ValueError as e:
                 raise ValueError(f"{clip}: frame {i}: {e}") from None
         gt[i] = _resized(ids, shape)
-        filled[i] = int(_resized(was_filled.astype(np.uint8), shape).sum()) if was_filled.any() else 0
+        filled_pixels[i] = int(_resized(was_filled.astype(np.uint8), shape).sum()) if was_filled.any() else 0
 
     # The predictions, every GT frame among them, resized.
     label_paths = _labels(Path(tracks_root) / clip / tag, len(frames), clip)
@@ -286,6 +287,6 @@ def read_clip(data_root: str | Path, tracks_root: str | Path, tag: str, clip: st
     }
     return ClipInputs(
         clip=clip, order=tuple(order), numbers=MappingProxyType(numbers), depth=depth,
-        gt=MappingProxyType(gt), regions=MappingProxyType(regions), filled=MappingProxyType(filled),
-        shas=MappingProxyType(shas),
+        gt=MappingProxyType(gt), regions=MappingProxyType(regions),
+        filled_pixels=MappingProxyType(filled_pixels), shas=MappingProxyType(shas),
     )
