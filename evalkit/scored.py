@@ -80,12 +80,17 @@ def _mask_id_map(mask_ids: np.ndarray) -> np.ndarray:
     return mask_ids
 
 
-def _excluded_ids_present(mask_ids: np.ndarray, table: ClassTable) -> list[int]:
-    """Return the excluded markers the frame holds; every id present is checked against the table first."""
+def _ids_present(mask_ids: np.ndarray, table: ClassTable) -> list[int]:
+    """Return the ids the frame holds, each checked against the table, so an unknown id raises here."""
     present = np.unique(mask_ids).tolist()
     for v in present:
         table.class_of(v)
-    return sorted(v for v in present if v in table.excluded_mask_ids)
+    return present
+
+
+def _excluded_ids_present(mask_ids: np.ndarray, table: ClassTable) -> list[int]:
+    """Return the excluded markers the frame holds; every id present is checked against the table first."""
+    return sorted(v for v in _ids_present(mask_ids, table) if v in table.excluded_mask_ids)
 
 
 def frame_is_excluded(mask_ids: np.ndarray, table: ClassTable) -> bool:
@@ -150,9 +155,10 @@ def scored_pixels(
         KeyError: A mask id the table does not have, or a view name
             `VIEWS` does not.
         ValueError: An input is not a map of the frame's shape; `valid` has
-            a False in normal mode; or a class of type `excluded` is
-            present: the frame should have been skipped before any pixel of
-            it was scored.
+            a False in normal mode; a class of type `excluded` is present:
+            the frame should have been skipped before any pixel of it was
+            scored; or a class of type `filled` is present, which the reader
+            fills before a frame is scored.
     """
     mask_ids, valid = _mask_id_map(mask_ids), np.asarray(valid)
     if valid.dtype != np.bool_ or valid.shape != mask_ids.shape:
@@ -166,12 +172,19 @@ def scored_pixels(
 
     # On the mask ids, before the mapping: in the benchmark set the marker
     # has become background by the time the classes are typed.
-    excluded = _excluded_ids_present(mask_ids, table)
+    present = _ids_present(mask_ids, table)
+    excluded = sorted(v for v in present if v in table.excluded_mask_ids)
     if excluded:
         raise ValueError(
             f"{table.dataset}: mask id {excluded} marks the frame as excluded; it is skipped "
             f"as a whole, not scored pixel by pixel"
         )
+    # A `filled` id left here was never filled, and no view would score its
+    # pixels or say why.
+    unfilled = sorted(v for v in present if v in table.filled_mask_ids)
+    if unfilled:
+        raise ValueError(f"{table.dataset}: mask id {unfilled} is of a filled class, which the reader fills "
+                         f"before a frame is scored")
     # Every id present is mapped through the table, so one it does not know
     # raises here rather than being scored as something.
     classes = table.classes_of(mask_ids)

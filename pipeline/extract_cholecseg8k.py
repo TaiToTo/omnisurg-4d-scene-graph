@@ -12,7 +12,7 @@ The clip gets `input_images/`, `seg_masks/` and `frame_manifest.json`.
 
 Usage:
     python -m pipeline.extract_cholecseg8k --seg8k-root /path/to/CholecSeg8k --videos-root /path/to/cholec80/videos \\
-        --out /path/to/clips --clips VID01_s15_80 [VID25_s15_162 ...] [--count 30] [--overwrite]
+        --out /path/to/clips --clips VID01_s15_80 [VID25_s15_177 ...] [--count 30] [--overwrite]
 """
 
 import argparse
@@ -32,7 +32,7 @@ SEARCH_BACK = 150
 SEARCH_AHEAD = 60
 
 # The largest mean absolute difference between an annotated image and the video frame it is. The 522 annotated
-# frames of the paper's 27 clips match at 0.45 to 6.4.
+# frames of the pilot's 27 clips match at 0.45 to 6.4.
 MATCH_TOL = 10.0
 
 # The rates CholecSeg8k numbers a video at, as native frames per CholecSeg8k number. A video numbered at its own

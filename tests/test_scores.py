@@ -7,6 +7,8 @@ it, and one case checks that an untouched pair passes.
 """
 import copy
 
+import re
+
 import pytest
 
 from evalkit.tools import scores
@@ -136,9 +138,9 @@ def test_a_pilot_json_records_no_rule_and_two_of_them_compare_as_before():
 
 def test_one_table_holds_one_rule_besides_per_frame():
     pf = evaluator_json(propagation=scores.PER_FRAME)
-    assert scores.check_one_rule({"a": evaluator_json(), "b": pf, "c": evaluator_json()}) == BOTH_WAYS
-    assert scores.check_one_rule({"b": pf}) == scores.PER_FRAME
-    assert scores.check_one_rule({"p": pilot_json(), "q": pilot_json()}) is None
+    assert scores.check_table_rules({"a": evaluator_json(), "b": pf, "c": evaluator_json()}) == BOTH_WAYS
+    assert scores.check_table_rules({"b": pf}) == scores.PER_FRAME
+    assert scores.check_table_rules({"p": pilot_json(), "q": pilot_json()}) is None
 
 
 def test_a_table_whose_pairs_each_pass_but_that_holds_two_rules_is_refused():
@@ -148,8 +150,54 @@ def test_a_table_whose_pairs_each_pass_but_that_holds_two_rules_is_refused():
     check_comparable(tables["pf"], tables["both"])
     check_comparable(tables["pf"], tables["fwd"])
     with pytest.raises(ValueError, match="one table per rule") as e:
-        scores.check_one_rule(tables)
-    assert "['both']" in str(e.value) and "['fwd']" in str(e.value)
+        scores.check_table_rules(tables)
+    assert "['both']" in str(e.value) and "['fwd']" in str(e.value) and "records no track_dir_name" in str(e.value)
+
+
+# The label directories of the conditions that differ in the rule alone, under each rule.
+LABELS = {BOTH_WAYS: "track_rgb_rgb_pps24_sam_centre", FORWARD: "track_rgb_rgb_pps24_sam_forward"}
+TWO_RULES = f"{BOTH_WAYS} and {FORWARD}"
+
+
+def named(rule, labels=None):
+    return dict(evaluator_json(propagation=rule), track_dir_name=LABELS[rule] if labels is None else labels)
+
+
+def test_two_rules_are_compared_on_conditions_that_differ_in_the_rule_alone():
+    chk = check_comparable(named(FORWARD), named(BOTH_WAYS))
+    assert chk["propagation"] == TWO_RULES
+    assert check_comparable(named(BOTH_WAYS), named(FORWARD))["propagation"] == TWO_RULES
+
+
+@pytest.mark.parametrize("labels, said", [
+    ("track_normal_normal_da3_pps24_sam_centre", r"differ in \['input', 'depth'\] too"),
+    ("track_rgb_rgb_pps24_sam_forward",
+     "say the rule 'forward_from_first', and its score records 'both_ways_from_centre'"),
+    ("rgb_pps24_sam_centre", "no label directory"),
+    ("track_rgb_rgb_pps24_sam_center", "no propagation rule"),
+    ("", "records no track_dir_name"),
+])
+def test_two_rules_on_other_conditions_are_refused(labels, said):
+    with pytest.raises(ValueError, match="different rules") as e:
+        check_comparable(named(FORWARD), named(BOTH_WAYS, labels))
+    assert re.search(said, str(e.value)), str(e.value)
+
+
+def test_a_table_of_two_rules_holds_every_condition_with_the_one_that_differs_in_the_rule_alone():
+    pf = evaluator_json(propagation=scores.PER_FRAME)
+    tables = {"fwd": named(FORWARD), "ctr": named(BOTH_WAYS), "pf": pf,
+              "n_fwd": named(FORWARD, "track_rgb_normal_da3_pps24_sam_forward"),
+              "n_ctr": named(BOTH_WAYS, "track_rgb_normal_da3_pps24_sam_centre")}
+    assert scores.check_table_rules(tables) == TWO_RULES
+    # Every two conditions of a table are comparable, so one input's three conditions make a table of two rules.
+    assert scores.check_comparable_table({t: tables[t] for t in ("fwd", "ctr", "pf")})["propagation"] == TWO_RULES
+    del tables["n_ctr"]
+    with pytest.raises(ValueError, match="one table per rule") as e:
+        scores.check_table_rules(tables)
+    assert "['n_fwd'] lack the condition that differs from them in the rule alone" in str(e.value)
+    tables["n_fwd"]["track_dir_name"] = "track_rgb_normal_da3_pps24_sam_centre"
+    with pytest.raises(ValueError, match="n_fwd: its labels .* say the rule 'both_ways_from_centre'"):
+        scores.check_table_rules(tables)
 
 
 # ---------------------------------------------------------------- the sha

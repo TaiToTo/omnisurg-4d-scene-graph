@@ -44,9 +44,14 @@ class ClassType(enum.StrEnum):
 
     # Never scored. Removed from the GT and the prediction alike, so a region
     # there is neither an object nor a false positive.
-    IGNORED = "ignored"        # not part of the scene: the black surround, the annotation tool's line
+    IGNORED = "ignored"        # not part of the scene: the black surround
     BACKGROUND = "background"  # in the scene but labelled as nothing: unlabelled anatomy, not empty space
     EXCLUDED = "excluded"      # an annotators' marker that skips the whole frame
+
+    # Never scored as itself: a line or gap the annotation leaves between two
+    # regions. The reader gives each of its pixels the class of the nearest
+    # region before any view is taken (`evalkit.fill`), and counts them.
+    FILLED = "filled"
 
     # Scored. The views below differ only in which of these they include.
     TOOL = "tool"              # an instrument, or another object that is not anatomy; in the `all` view only
@@ -137,6 +142,8 @@ class ClassTable:
         excluded_mask_ids: The mask ids that take a whole frame out. They are
             checked on the mask's own ids, before the mapping: in `benchmark`
             the mapping turns `Excluded frames` into background.
+        filled_mask_ids: The mask ids of the `filled` classes, which the
+            reader fills on the mask's own ids, before the mapping.
         background_mask_ids: The mask ids the dataset itself labels as
             background, before any mapping. A marker without a colour shares
             one of these colours, so these are the ids a colour mask of one
@@ -153,6 +160,7 @@ class ClassTable:
     colour_to_mask_id: Mapping[Colour, int]
     mask_id_to_class: Mapping[int, int]
     excluded_mask_ids: frozenset[int]
+    filled_mask_ids: frozenset[int]
     background_mask_ids: frozenset[int]
     path: Path
 
@@ -338,10 +346,17 @@ def _entry(dataset: str, raw: dict, extra: set[str]) -> ClassEntry:
 
 
 def _benchmark_entry(dataset: str, raw: dict) -> ClassEntry:
-    """Read one benchmark class. It has no colour: no mask holds it directly."""
+    """Read one benchmark class. It has no colour: no mask holds it directly.
+
+    It is never `filled`: the fill runs on the mask's own ids, before the
+    mapping reaches a benchmark class.
+    """
     _fields(dataset, raw, _BENCHMARK_FIELDS)
     _check_id_and_name(dataset, raw)
-    return ClassEntry(id=raw["id"], name=raw["name"], type=_type(dataset, raw))
+    class_type = _type(dataset, raw)
+    if class_type is ClassType.FILLED:
+        raise ValueError(f"{dataset}: benchmark class {raw['id']} is typed 'filled', which only a mask id can be")
+    return ClassEntry(id=raw["id"], name=raw["name"], type=class_type)
 
 
 def _unique(dataset: str, what: str, values: list) -> None:
@@ -483,6 +498,7 @@ def load_table(dataset: str, class_set: str | None = None, path: Path | None = N
         colour_to_mask_id=MappingProxyType({e.colour: e.id for e in entries if e.colour is not None}),
         mask_id_to_class=MappingProxyType(to_class),
         excluded_mask_ids=frozenset(e.id for e in entries if e.type is ClassType.EXCLUDED),
+        filled_mask_ids=frozenset(e.id for e in entries if e.type is ClassType.FILLED),
         background_mask_ids=frozenset(e.id for e in entries if e.type is ClassType.BACKGROUND),
         path=path,
     )

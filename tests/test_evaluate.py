@@ -16,6 +16,7 @@ import pytest
 
 import clip_dirs as C
 from evalkit.classes import VIEWS, load_table
+from evalkit.code_sha import eval_code_sha
 from evalkit.evaluate import check_table, main, read_population, score_condition, write_scores
 from evalkit.keys import CLIP_METRICS, FRAME_METRICS, SIGNS, metric_key
 from evalkit.time_iou import time_iou
@@ -61,8 +62,11 @@ def test_a_perfect_prediction_scores_one_on_every_key_and_the_tools_read_the_jso
         assert set(row["n_frames"]) == {metric_key(m, v) for v in VIEWS for m in FRAME_METRICS}
         assert [f["frame"] for f in row["frames"]] == [100, 115, 130]
         assert sum(row["pixels"]["all"].values()) == 3 * 20 * 30
+    assert summary["eval_code_sha"] == eval_code_sha()
     assert set(summary["input_shas"]) == set(CLIPS)
     assert set(summary["versions"]) == {"python", "numpy", "opencv", "pillow"}
+    assert all(row["filled_pixels"] == 0 and {f["filled_pixels"] for f in row["frames"]} == {0}
+               for row in summary["per_clip"])
     assert read_evals(str(out.parent))["perfect"]["dir"] == "perfect"
 
 
@@ -227,3 +231,24 @@ def test_pilot_mode_refuses_a_record_it_cannot_parse(tmp_path):
         (tmp_path / "tracks" / clip / "c" / "seed_info.json").write_bytes(b"\xff\xfe{")
     with pytest.raises(ValueError, match="holds no propagation rule: 'utf-8' codec"):
         score(tmp_path, "c", pilot=True)
+
+
+def line_between_organs(cut: int) -> np.ndarray:
+    """Liver left of column `cut`, gallbladder right of it, and CholecSeg8k's region line on column `cut`."""
+    gt = C.two_organs(cut=cut)
+    gt[:, cut] = C.REGION_LINE
+    return gt
+
+
+def test_the_region_line_is_filled_scored_as_its_neighbours_and_counted(tmp_path):
+    # Every frame draws the line between the two organs. Filled, the line is liver on its left half and
+    # gallbladder on its right, so a prediction of the organs alone scores one and its boundary is found.
+    gt = [line_between_organs(cut=8 + 2 * i) for i in range(3)]
+    C.write_clip(tmp_path / "data", "VID01_a", gt)
+    filled = [np.where(g == C.REGION_LINE, C.LIVER, g) for g in gt]
+    C.write_labels(tmp_path / "tracks", "VID01_a", "c", {i: f for i, f in enumerate(filled)}, seed_info=BOTH_WAYS)
+    row = score(tmp_path, "c", clips=["VID01_a"])["per_clip"][0]
+    assert row["F1_50/all"] == 1.0 and row["boundary_R_raw/all"] == 1.0 and row["mIoU/all"] == 1.0
+    # The masks are twice the depth's size: the line is 2 px wide there, and one column of 20 px here.
+    assert [f["filled_pixels"] for f in row["frames"]] == [20, 20, 20] and row["filled_pixels"] == 60
+    assert row["pixels"]["all"]["ignored"] == 0

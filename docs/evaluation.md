@@ -108,7 +108,7 @@ found in the code. A module's docstring says what it returns.
   table the same way for both datasets: the table gives every id a mask can
   hold its colour. CholecSeg8k's masks store colours. ATLAS-120k's store its
   47 original ids, as palette images read by their index, and in 34 clips as
-  colours.
+  colours. The pixels of a `filled` class are then filled ("Class types").
 - **Prediction.** One region id per pixel, from tracking, with no class; −1
   means no region. The evaluator never reads a class from the pipeline. Each
   condition gives one prediction per clip.
@@ -133,8 +133,9 @@ found in the code. A module's docstring says what it returns.
   input size: the longest side scaled to 504 px, then each side rounded to the
   nearest multiple of 14.
 - **Time.** Frames are ordered by their timestamps, not by their file names: in
-  11 of the 27 CholecSeg8k clips the frame numbers do not follow time. A
-  dataset that gives no timestamps, ATLAS-120k, is ordered by frame number.
+  11 of the pilot's 27 CholecSeg8k clips the frame numbers do not follow
+  time. A dataset that gives no timestamps, ATLAS-120k, is ordered by frame
+  number.
   A clip in which two frames share a time, or only some frames have one, is
   refused, since the order of its frames is unknown.
 - **Clips and videos.** Which clips enter a measurement is data, kept in
@@ -226,7 +227,9 @@ scene.
 #### Component objects
 
 `evalkit/tools/component_scores` scores every condition on a second kind of
-object as well, as reference values that decide no claim:
+object as well, and `evalkit/tools/track_metrics` follows it over time
+("The measures of identity"). Both give reference values that decide no
+claim:
 
 - a GT object is one 8-connected piece of one class's scored pixels;
 - a predicted object is one region's scored pixels, whole: a region that
@@ -267,7 +270,8 @@ the end:
 
 | type | meaning | scored |
 |---|---|---|
-| `ignored` | outside the field of view, or not a class at all | never: removed from the GT and the prediction alike, like a pixel without valid depth |
+| `ignored` | outside the field of view | never: removed from the GT and the prediction alike |
+| `filled` | not a class: a line or gap the annotation leaves between two regions | never as itself: each pixel takes the class of the nearest region before any view is taken, and is counted |
 | `background` | inside the view, labelled as nothing: unlabelled anatomy, and in ATLAS-120k's benchmark classes the ids the 30-class mapping drops | never: removed like `ignored`, so a region lying on it is neither an object nor a false positive (see the views below) |
 | `excluded` | a marker that takes the whole frame out of evaluation | the frame is skipped, and counted |
 | `tool` | an instrument, or another object that is not anatomy (ATLAS-120k's catheters and non-anatomical structures) | in the `all` view only |
@@ -279,12 +283,20 @@ the end:
 `expert` and `backdrop` came out of looking at every ATLAS-120k class in the
 masks: many classes were neither shape nor colour, but one of these two.
 
+The fill gives each pixel of a `filled` class the id of the nearest pixel
+whose class is not `filled`. Nearness counts steps between 4-neighbours,
+and of several ids equally near, the pixel takes the smallest. The fill
+runs on the mask as stored, before it is resized, where CholecSeg8k's line
+is 1 px wide. A row of the score counts the filled pixels at the depth
+map's shape, per frame and in all, as `filled_pixels`. Pilot mode does not
+fill: it reads CholecSeg8k's line as background, as the pilot evaluator did.
+
 ### Views
 
 Every metric but `time_IoU` is computed over each of three views, the same
 way:
 
-- `all`: every class that is not `ignored`, `background` or `excluded`
+- `all`: every class that is not `ignored`, `background`, `excluded` or `filled`
 - `tissue`: the same, without `tool`
 - `geometric`: `tissue` classes only
 
@@ -323,6 +335,17 @@ geometric view scores; 6 % of frames have one, and the median spot is 24 px. In 
 6 of 21,093 frames have one, holding 0.008 % of the `appearance` pixels.
 Removing and filling differ on almost no pixel, so nothing is counted for
 the difference.
+
+A `filled` class is filled, not removed, because it is no class at all: a
+line or gap the annotation leaves between two classes, every pixel of which
+lies within 2 px of one. Removed, it would remove the GT boundary it lies
+on, since an edge against a removed pixel is no boundary ("Boundaries").
+The fill is one more rule, and it leans one way: a pixel as near to two
+classes takes the smaller id, so where two classes meet along a line, the
+one with the smaller id is 1 px wider on the mask. That is less than
+`BOUNDARY_TOL_PX` at the depth map's shape, where the masks are scored, but
+a predicted edge at the edge of that tolerance can still change side, and
+no score was measured for the difference.
 
 #### Background
 
@@ -529,37 +552,80 @@ GT, and the workbench measured three faults in it:
 
 `temporal_f1`, built to close the second fault, keeps the first.
 
-The measures of identity against the GT come from the workbench's
-`track_metrics`: hold (whether the region picked on the seed frame still
-covers the same GT thing on the GT frames seconds before or after it), IDF1,
-ID switches, fragmentation and re-entry. The evaluator computes none of
-them. Each needs a GT track, and the datasets carry no ids for individual
-things, so a GT track would be a second object definition, in addition to
-the whole-class object used above. The workbench also measured a fault in
-four of them, and the fifth depends on how the GT track is linked:
+A tool outside the evaluator, `evalkit/tools/track_metrics`, computes the
+measures of identity against the GT: hold, IDF1, ID switches, fragmentation
+and re-entry. They are reported as reference values, in a table without ★
+or ✗. A measure that is to decide a claim would have to be computed by the
+evaluator before the evaluator is frozen, and none is.
 
-- two of hold's pre-registered denominators gave one comparison opposite
-  signs: `hold_mean` averages over the GT tracks the condition picked a
-  region for on the seed frame, and `hold_all_mean` over every GT track
-  present on that frame, counting a track without a region as 0;
+#### The measures of identity
+
+A *GT track* follows one GT object over a clip's GT frames, in one view.
+Frames without GT and excluded frames are left out of the sequence. The
+datasets carry no ids for individual things, so the tool builds the tracks
+in two ways and reports both:
+
+- on whole-class objects ("Objects"), each class is one track;
+- on component objects ("Component objects"), at each of the four sizes, a
+  piece is linked to a track of its class when its IoU with the track's
+  last piece is at least 0.3 and the track has gone at most three GT frames
+  without a piece. The pairs are taken greedily, highest IoU first, each
+  piece and each track once. A piece left over starts a track. These are
+  the workbench's values.
+
+A track is *present* on a frame when it has an object there. On each frame
+the pairing of "Objects" pairs the tracks' objects with the predicted
+objects, and a hit pairs a track with a region. On component tracks a
+predicted object is a region with at least the size's pixels. Each measure
+is computed per clip, per view and per kind of track:
+
+- **hold** follows each track present on the seed frame, the frame
+  `seed_info.json` names. The region *picked* for a track is the one the
+  seed frame's pairing hits it with. On every other frame on which the
+  track is present, the track gives one sample: the IoU of the picked
+  region with the track's object, whatever the region's size, and 0 where
+  the two do not overlap. `hold_mean` averages the picked tracks' samples.
+  `hold_all_mean` averages every sample, a track without a picked region
+  giving 0. `picked_share` is the share of the seed frame's tracks that
+  have a picked region. `hold_curve` bins the samples of `hold_mean` by
+  their distance in seconds from the seed frame.
+- **IDF1** gives each track one region over the clip, and each region one
+  track: the assignment with the most frames on which the pair is a hit.
+  IDF1 = 2 · those frames / (GT objects + predicted objects, summed over
+  the frames).
+- **ID switches** counts the hits by another region than the track's
+  previous hit.
+- **fragmentation** counts each frame on which a track is present and not
+  hit, when its previous frame with the track was a hit.
+- **re-entry**: a gap is a run of frames on which a track is absent,
+  between two on which it is present. `reentry` is the share of the gaps
+  hit by one region at both ends, among the gaps whose two ends are hits.
+  A whole-class track's gap has any length. A component track's gap has
+  at most three frames, since the linking rule waits no longer.
+
+Hold starts on the seed frame. The tool refuses:
+
+- a clip whose seed frame has no GT or is excluded;
+- a `per_frame` condition, which has no seed frame;
+- a condition seeded from GT or from outside the tracking stage, which
+  holds no propagation rule ("Propagation rule");
+- labels without `seed_info.json`;
+- a condition whose clips hold two rules.
+
+Under `both_ways_from_centre` the samples lie before and after the seed
+frame, and under `forward_from_first` after it only; as with every key, the
+two rules are compared only between conditions that differ in the rule alone.
+
+The workbench measured a fault in four of the measures, on component tracks
+of 400 px:
+
+- `hold_mean` and `hold_all_mean` gave one comparison opposite signs;
 - IDF1 rises when regions merge;
 - ID switches cannot tell a tracker from a floor that never moves: one mask
   pasted on every frame scores close to zero;
-- re-entry counts a gap of at most three observations in a GT track, not a
-  return to the field of view, and it leaves out every gap whose two ends
-  are not both matched: about a third of the gaps for a tracker in the
-  workbench, and nine in ten for the pasted floor, which then scored 1.0 on
-  the rest;
-- fragmentation changes with how the GT track is linked, so its value is a
-  property of the track definition as much as of the condition.
-
-So a tool outside the evaluator, `evalkit/tools/track_metrics`, is to compute
-the measures of identity, and they are reported as reference values, in a
-table without ★ or ✗. The tool is not ported yet (`docs/porting.md`,
-"Not ported yet"). The tool's GT track is an open question
-(`docs/porting.md`, "The GT track of `track_metrics`"). A measure that is to
-decide a claim would have to be computed by the evaluator before the
-evaluator is frozen, and none is.
+- re-entry leaves out every gap whose two ends are not both hits: about a
+  third of the gaps for a tracker, and nine in ten for the pasted floor,
+  which then scored 1.0 on the rest.
 
 ## Thresholds, refusals and provenance
 
@@ -598,8 +664,8 @@ instead ("Component objects").
 - The CholecSeg8k table maps (0, 50, 128) to Hepatic Vein. The dataset's
   watershed codes settle it (`docs/pilot_evaluator.md`, "What the pilot
   evaluator's handling changes, measured on the GT").
-- (255, 255, 255), the line CholecSeg8k draws between regions, and
-  CholecSeg8k's Black Background are `ignored`.
+- CholecSeg8k's Black Background is `ignored`. (255, 255, 255), the line
+  CholecSeg8k draws between regions, is `filled`.
 - `Excluded frames` is checked on ATLAS-120k's original ids, before they are
   mapped to the 30 classes, which would turn it into background. In a mask
   stored as colours it cannot be seen: its colour in the dataset's palette is
@@ -608,13 +674,19 @@ instead ("Component objects").
   refused. The marker occurs in no palette mask of the release, and no colour
   mask is background alone.
 - Nothing is dropped without a count: skipped frames, ignored, background and
-  invalid pixels, the pixels each view removes, and the frames a metric is not
-  defined on are counted in the JSON. A removed pixel is counted once, by the
-  first reason that removes it, in this order: invalid depth, then `ignored`,
-  then `background`, then a class the view leaves out. So a frame's counts
-  are disjoint and sum to its pixels, and a black corner without depth counts
-  as invalid depth, not as ignored. The order is a convention: another one
-  would change the counts and no score, but the JSON is read against this one.
+  invalid pixels, the pixels each view removes, and the frames a metric is
+  not defined on are counted in the JSON. The filled pixels are counted too,
+  as `filled_pixels`, though they are not dropped: each is scored under the
+  class the fill gave it, so it is counted again among the frame's pixels.
+  A removed pixel is counted once, by the first reason that removes it, in
+  this order: invalid depth, then `ignored`, then `background`, then a
+  class the view leaves out. So a frame's counts are disjoint and sum to
+  its pixels.
+  Invalid depth is counted in pilot mode only, since normal mode refuses a
+  frame with invalid depth. In pilot mode, a black corner without depth
+  counts as invalid depth, not as ignored. The order is a convention:
+  another one would change the counts and no score, but the JSON is read
+  against this one.
 
 ### Recorded with every score
 
@@ -640,9 +712,10 @@ A score JSON holds those fields, `clips` (the population, in its order),
 and one row per clip under `per_clip`. A row holds the clip's name, every
 key (`metric/view`, then `time_IoU`), and the counts behind them: `n_frames`,
 the frames each key's mean covers, by key; the scored and excluded frames;
-`pixels`, where each view's pixels went; and `objects`, the GT objects,
-predicted objects, hits and hits that entered `inst_BF`, per view. Its
-`frames` keeps every GT frame's values, by frame number, in time order.
+`filled_pixels`, the GT pixels the fill gave a class; `pixels`, where each
+view's pixels went; and `objects`, the GT objects, predicted objects, hits
+and hits that entered `inst_BF`, per view. Its `frames` keeps every GT
+frame's values and `filled_pixels`, by frame number, in time order.
 
 Two scores are comparable only when all of these requirements hold:
 
@@ -652,7 +725,8 @@ Two scores are comparable only when all of these requirements hold:
 - they read the same GT masks, depth maps, crop rectangle and frame order:
   both record a hash of each of these in `input_shas`, and every hash but
   the predictions' is equal;
-- they share a propagation rule, or one of them is `per_frame`.
+- they share a propagation rule, or one of them is `per_frame`, or they
+  differ in the rule alone.
 
 Pilot JSONs record no input hashes and no propagation rule, so between two
 of them only the ruler and the clips are compared.
@@ -660,17 +734,24 @@ of them only the ruler and the clips are compared.
 The same `eval_code_sha` is not enough on its own. Pilot mode and the
 normal mode share it, and so do the views.
 
-Conditions under two different propagation rules are never compared. The
-difference between the rules would look like a difference between the
-methods. A `per_frame` condition is the exception: it may be compared with
-a condition of either rule. The paper compares tracking with per-frame
-segmentation. So one table holds one rule, plus any `per_frame` conditions.
+Conditions under two different propagation rules are compared only when
+they differ in the rule alone: their names (`condition_names`, read from the
+`track_dir_name` each score records) are equal in every other part. In any
+other pair, the difference between the rules would look like a difference
+between the methods. A `per_frame` condition is the exception: it may be
+compared with a condition of either rule. The paper compares tracking with
+per-frame segmentation, and the two rules with each other. So one table
+holds one rule, or two rules where every condition has, in the table, the
+condition that differs from it in the rule alone; `per_frame` conditions
+may go in either. A pair or a table of two rules records both as
+`propagation`, joined by ` and `.
 
 The tools enforce this:
 
 - `compare_eval` refuses a pair that is not comparable.
 - `paired_stats` refuses such a pair too, and a table that holds two rules
-  other than `per_frame`.
+  other than `per_frame` where a condition lacks the one that differs from
+  it in the rule alone.
 - `paired_table` and `arms_paired` refuse a table that holds two
   conditions that are not comparable.
 - `claims_table` refuses a column in which any two score JSONs are not
@@ -767,13 +848,21 @@ Every class was looked at in the masks, as for ATLAS-120k:
 | 10 | Gallbladder | (255, 160, 165) | tissue |
 | 11 | Hepatic Vein | (0, 50, 128) | expert |
 | 12 | Liver Ligament | (111, 74, 0) | tissue |
-| 13 | Region line | (255, 255, 255) | ignored: the line drawn between regions. Not a class of the dataset; the table gives it an id so that a GT id map can hold it, and nothing scores it |
+| 13 | Region line | (255, 255, 255) | filled: the 1 px line drawn between regions. Not a class of the dataset; the table gives it an id so that a GT id map can hold it, and the fill gives each of its pixels the nearest region's class |
 
 Cystic Duct is `expert`, as ATLAS-120k's Cystic duct is: the class ends where
 the anatomical stretch ends. Only ATLAS-120k's benchmark, which merges the
 ducts into Bile/lymph duct, types them `tissue`. Hepatic Vein is `expert` because telling it from other
 vessels takes anatomical knowledge. Neither moves much: Cystic Duct occurs in 3
 of the 17 videos, Hepatic Vein in 1.
+
+Most of the Region line is the image's outer pixel, which the crop removes.
+In the 25 clips of `cholecseg8k_meta/`, what is left lies on 132 of the 495
+GT frames, 82 % of it in video43 and video52. Ignored, the line would remove
+the GT boundary there; filled, it gives 183,560 pixels a class at the depth
+map's shape. On the masks, 65 % of its pixels are as near to two classes and
+take the smaller id: Abdominal Wall, Liver and Fat over Gallbladder and the
+tools, and Black Background, which is `ignored`, over every class.
 
 ### ATLAS-120k: ids, classes and colours
 

@@ -13,14 +13,16 @@ which test refuses a breach.
 |---|---|
 | no `TODO`, `FIXME`, `XXX`, `HACK` in a tracked file, the planning documents and this page excepted | `tests/test_no_todo_in_code.py` |
 | a module's header is at most `HEADER_LINES` lines, and a listed long module is not added after the fact | `tests/test_module_headers_are_short.py` |
-| no mark (`★`, `✗`) printed without borrowing `paired_stats.mark_of`, none decided by a p-value | `tests/test_paired_stats.py` |
+| no mark (`★`, `✗`) printed without borrowing `paired_stats.mark_of`, none decided by a p-value | `tests/test_mark_rule.py` |
 | no personal address in the history or in a tracked file | `tests/test_no_personal_email.py` |
 
 A rule without a test in this table is checked by the reviewer.
 
 In a new clone, set the repository-local `user.email` to the GitHub no-reply
 address before the first commit. A development machine's global config may
-hold a personal one.
+hold a personal one. Under Claude Code, `.claude/hooks/refuse_personal_email.py`
+refuses a git command that names a personal address or sets an identity
+before the command runs; the test and the hook read one rule, the hook's.
 
 ## A module's header
 
@@ -94,9 +96,12 @@ afterwards not a byte of them changes.
   bottom; one line per block, saying what it produces and from what. The
   reason for a choice inside a block is a comment of its own. A function
   short enough to read whole needs none.
-- **A question or a rule is called by what it says**, that is, named by
-  what it asks or states, never by its place in a list ("the second
-  question"): a place means something only to whoever has the list open.
+- **A question, a rule or a section is called by what it says.** Name a
+  question or a rule by what it asks or states, and a section by its title
+  (`docs/pipeline.md`, "The viewer bundle stage"). Never name one by its
+  place ("the second question", "the last section"). A place means
+  something only to whoever has the page open, and it moves when an item
+  is added.
 - **A comment gives the reason, not a reference.** Never a section number, a
   ticket, an audit letter or a task id (`see §2.3`, `audit B7`, `task22`):
   they point at documents this repository does not have, and the reader is

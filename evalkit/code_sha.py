@@ -72,6 +72,7 @@ HASHED_MODULES = (
     "clip.py",
     "code_sha.py",
     "evaluate.py",
+    "fill.py",
     "frame.py",
     "inputs.py",
     "inst_bf.py",

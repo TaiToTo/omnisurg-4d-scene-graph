@@ -172,6 +172,7 @@ def test_a_region_on_unlabelled_tissue_is_no_object_and_a_spill_onto_it_is_count
     lab[:10, :S.HALF] = 0              # region 0 grows over the unlabelled rows on its side
     v = score_frame(atlas_ids(scene.gt), lab, DEPTH, atlas).views["geometric"]
     assert v.f1_50 == 1.0 and v.sq == 1.0
+    assert v.vi_split == pytest.approx(0.0) and v.vi_merge == pytest.approx(0.0)
     assert v.unlabelled_share == pytest.approx(500 / (2500 + 500 + 2500))
 
 

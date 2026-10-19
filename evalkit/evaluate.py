@@ -22,7 +22,7 @@ import dataclasses
 import json
 import os
 import platform
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 import cv2
@@ -92,8 +92,14 @@ def _number(value):
     return None if value is None else float(value)
 
 
-def clip_row(clip: str, scores: ClipScores) -> dict:
-    """Build one clip's row of the score JSON: the means, the counts behind them, and the per-frame values."""
+def clip_row(clip: str, scores: ClipScores, filled: Mapping[int, int]) -> dict:
+    """Build one clip's row of the score JSON: the means, the counts behind them, and the per-frame values.
+
+    Args:
+        clip: The clip's name.
+        scores: The clip's scores, from `score_clip`.
+        filled: Each GT frame's number in the source video to the pixels whose GT the fill gave.
+    """
     views = scores.views
     row: dict = {"clip": clip}
     row.update({metric_key(m, v): _number(views[v].means[m]) for v in VIEWS for m in FRAME_METRICS})
@@ -101,12 +107,13 @@ def clip_row(clip: str, scores: ClipScores) -> dict:
     row["n_frames"] = {metric_key(m, v): int(views[v].n_frames[m]) for v in VIEWS for m in FRAME_METRICS}
     row["n_scored_frames"] = scores.n_scored_frames
     row["n_excluded_frames"] = scores.n_excluded_frames
+    row["filled_pixels"] = sum(int(filled[f.frame]) for f in scores.frames)
     row["pixels"] = {v: {k: int(n) for k, n in dataclasses.asdict(views[v].pixels).items()} for v in VIEWS}
     row["objects"] = {v: {"gt": int(views[v].n_gt_objects), "predicted": int(views[v].n_pred_objects),
                           "hits": int(views[v].n_hits), "inst_bf_hits": int(views[v].n_inst_bf_hits)}
                       for v in VIEWS}
     row["frames"] = [
-        {"frame": f.frame, "excluded": f.scores.excluded,
+        {"frame": f.frame, "excluded": f.scores.excluded, "filled_pixels": int(filled[f.frame]),
          **{metric_key(m, v): _number(value) for v, s in f.scores.views.items() for m, value in s.metrics().items()}}
         for f in scores.frames
     ]
@@ -235,7 +242,8 @@ def score_condition(dataset: str, class_set: str | None, clips: Sequence[str],
             rows.append(row)
             continue
         inputs = read_clip(data_root, tracks_root, tag, clip, table)
-        rows.append(clip_row(clip, score_clip(inputs, table)))
+        filled = {inputs.numbers[i]: n for i, n in inputs.filled.items()}
+        rows.append(clip_row(clip, score_clip(inputs, table), filled))
         shas[clip] = dict(inputs.shas)
     return {
         "eval_code_sha": sha, "dataset": table.dataset, "class_set": table.class_set,

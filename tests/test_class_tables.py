@@ -51,7 +51,23 @@ def test_cholecseg8k_matches_the_specification(cholec):
 def test_the_specification_parser_reads_the_table_it_claims_to():
     spec = cholec_table_of_the_specification()
     assert spec[11] == ("Hepatic Vein", (0, 50, 128), "expert")
-    assert spec[13][1] == (255, 255, 255)
+    assert spec[13] == ("Region line", (255, 255, 255), "filled")
+
+
+def test_the_filled_class_is_cholecseg8k_s_region_line(cholec):
+    assert cholec.filled_mask_ids == {13} and cholec.ids_of_type(ClassType.FILLED) == {13}
+    for class_set in ("original", "benchmark"):
+        assert load_table("atlas120k", class_set).filled_mask_ids == frozenset()
+
+
+def test_a_benchmark_class_typed_filled_is_refused(tmp_path):
+    # The fill runs on the mask's own ids, so a benchmark class typed `filled` would never be filled.
+    raw = json.loads(Path(load_table("atlas120k").path).read_text(encoding="utf-8"))
+    next(c for c in raw["benchmark_classes"] if c["id"] == 0).update(type="filled")
+    path = tmp_path / "atlas120k.json"
+    path.write_text(json.dumps(raw), encoding="utf-8")
+    with pytest.raises(ValueError, match="benchmark class 0 is typed 'filled'"):
+        load_table("atlas120k", path=path)
 
 
 def test_cholecseg8k_reads_hepatic_vein_by_the_colour_the_masks_use(cholec):
@@ -90,7 +106,7 @@ def test_the_views_nest_as_specified():
     assert VIEWS["all"] - VIEWS["tissue"] == {ClassType.TOOL}
     assert VIEWS["geometric"] == {ClassType.TISSUE}
     for view in VIEWS.values():
-        assert not view & {ClassType.IGNORED, ClassType.BACKGROUND, ClassType.EXCLUDED}
+        assert not view & {ClassType.IGNORED, ClassType.BACKGROUND, ClassType.EXCLUDED, ClassType.FILLED}
 
 
 def test_cholecseg8k_views(cholec):

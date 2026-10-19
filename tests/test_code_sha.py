@@ -46,12 +46,15 @@ def test_a_copy_of_the_package_has_the_same_sha_wherever_it_lies(tmp_path, monke
     assert eval_code_sha(Path(PACKAGE_DIR.name)) == eval_code_sha()
 
 
-@pytest.mark.parametrize("name", ["class_tables/cholecseg8k.json", "objects.py", "code_sha.py"])
-def test_one_changed_byte_in_a_table_or_a_module_is_a_new_evaluator(tmp_path, name):
+@pytest.mark.parametrize("name", eval_code_files())
+def test_one_changed_byte_in_any_hashed_file_is_a_new_evaluator(tmp_path, name):
+    # The length stays, so a hash of the lengths alone fails here; a space for the last newline keeps a
+    # module parseable, which the import check needs.
     pkg = copy_package(tmp_path)
     path = pkg / name
     data = path.read_bytes()
-    path.write_bytes(data + b"\n")
+    assert data.endswith(b"\n")
+    path.write_bytes(data[:-1] + b" ")
     assert eval_code_sha(pkg) != eval_code_sha()
     path.write_bytes(data)
     assert eval_code_sha(pkg) == eval_code_sha()
