@@ -362,13 +362,21 @@ def test_an_excluded_frame_with_faulty_depth_is_refused(tmp_path):
 @pytest.mark.parametrize("info, why", [
     ({"seed_source": "per_frame", "frames": "all"}, "segmented frame by frame"),
     ({"seed_source": "gt", "seed_frame": 2, "bidir": True, "frames": [0, 1, 2, 3, 4]},
-     "holds no propagation rule: .*not from the tracker's own masks"),
-    ({"seed_source": "external", "seed_frame": 2, "bidir": True, "frames": [0, 1, 2, 3, 4]},
-     "holds no propagation rule: .*not from the tracker's own masks"),
+     "holds no propagation rule: the seed came from 'gt'"),
 ])
 def test_a_condition_without_a_seed_frame_to_hold_from_is_refused(tmp_path, info, why):
     write_hold_scene(tmp_path, seed_info=info)
     with pytest.raises(ValueError, match=why):
+        measure(tmp_path)
+
+
+@pytest.mark.parametrize("info", [
+    {**BOTH_WAYS, "seed_source": "external"},
+    {**BOTH_WAYS, "kmerge": {"from_tag": "t", "k": 2}},
+])
+def test_a_condition_whose_records_do_not_decide_the_gt_is_refused_since_the_json_does_not_record_it(tmp_path, info):
+    write_hold_scene(tmp_path, seed_info=info)
+    with pytest.raises(ValueError, match="does not say whether the GT informed it"):
         measure(tmp_path)
 
 

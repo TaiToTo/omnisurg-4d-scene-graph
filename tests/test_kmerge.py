@@ -12,7 +12,7 @@ import pytest
 import clip_dirs as C
 import evalkit.tools.kmerge as KM
 from evalkit.evaluate import condition_rule, score_condition
-from evalkit.classes import load_table
+from evalkit.classes import CLASS_SETS, load_table
 from evalkit.inputs import DEPTH_FILE, read_clip
 from evalkit.tools.kmerge import kmerge, merge_condition
 
@@ -95,8 +95,13 @@ def test_the_merged_condition_is_written_at_the_depth_shape_and_scored(tmp_path)
     assert json.loads((out / "kmerge.json").read_text()) == {
         "from_tag": "t", "from_predictions_sha": source.shas["predictions"], "k": 2}
     assert condition_rule(tmp_path / "tracks", "t_k2", clips) == condition_rule(tmp_path / "tracks", "t", clips)
-    summary = score_condition("cholecseg8k", None, clips, tmp_path / "data", tmp_path / "tracks", "t_k2")
-    assert summary["propagation"] == "both_ways_from_centre"
+    # The record does not say whether the GT set K, so the evaluator is told.
+    with pytest.raises(ValueError, match="merged to K by kmerge, and no record says whether the GT informed it"):
+        score_condition("cholecseg8k", None, clips, tmp_path / "data", tmp_path / "tracks", "t_k2")
+    summary = score_condition("cholecseg8k", None, clips, tmp_path / "data", tmp_path / "tracks", "t_k2",
+                              gt_informed=True)
+    assert (summary["propagation"], summary["seed_source"], summary["gt_informed"]) == (
+        "both_ways_from_centre", "sam", True)
 
 
 def test_merged_predictions_left_by_an_earlier_run_are_refused_unless_replaced(tmp_path):
@@ -181,3 +186,14 @@ def test_a_region_id_below_minus_one_is_refused_before_anything_is_written(tmp_p
     with pytest.raises(ValueError, match="VID02_b: frame 0 holds a region id below -1"):
         merge_condition("cholecseg8k", clips, tmp_path / "data", tmp_path / "tracks", "t", "t_k2", k=2)
     assert not (tmp_path / "tracks" / "VID01_a" / "t_k2").exists()
+
+
+def test_the_command_line_takes_every_dataset_the_evaluator_knows_and_refuses_another(tmp_path):
+    rest = ["--clips", str(tmp_path / "missing.txt"), "--data-root", "d", "--tracks-root", "t", "--tag", "t"]
+    with pytest.raises(SystemExit) as refused:
+        KM.main(["--dataset", "cholec", *rest])
+    assert refused.value.code == 2   # argparse's exit, before anything is read
+    for dataset in sorted(CLASS_SETS):
+        with pytest.raises(SystemExit) as taken:
+            KM.main(["--dataset", dataset, *rest])
+        assert "missing.txt" in str(taken.value.code)   # past the parser, the population file is read

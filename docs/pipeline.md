@@ -8,6 +8,43 @@ through time, and export what the viewer reads. Each stage is a module of
 `pipeline` and runs as `python -m pipeline.<stage>`. Each stage reads what
 the earlier stages wrote into the clip.
 
+## Contents
+
+The table lists the stages in the order they run. A stage writes into the
+clip, unless the path names another directory; [A clip](#a-clip) says what
+a clip holds.
+
+| step | stage | runs as | writes |
+|---|---|---|---|
+| 1 · extract the clips | [re-encoding for OpenCV](#a-video-opencv-cannot-decode), only where OpenCV cannot decode an ATLAS-120k video | `pipeline.prepare_atlas120k_videos` | `--dst`: a second root for `--atlas-root`, with `video_root.json` |
+| | [ATLAS-120k](#the-atlas-120k-extraction-stage) | `pipeline.extract_atlas120k` | `input_images/`, `seg_masks/`, `frame_manifest.json` |
+| | [CholecSeg8k](#the-cholecseg8k-extraction-stage) | `pipeline.extract_cholecseg8k` | the same |
+| | [CholecSeg8k's crop](#the-cholecseg8k-crop-stage) | `pipeline.crop_cholecseg8k` | a cropped copy, `<clip>_crop/`, with `crop_info.json` |
+| | [LapEx](#the-lapex-extraction-stage) | `pipeline.extract_lapex` | `input_images/`, `seg_masks/`, `frame_manifest.json`, one frame per clip; `extraction_summary.json` beside the clips |
+| | [StereoMIS](#the-stereomis-extraction-stage) | `pipeline.extract_stereomis` | `input_images/`, `frame_manifest.json`; no GT masks |
+| | [the D4D population](#the-d4d-population) | `pipeline.d4d_census`, then `pipeline.select_d4d_population` | the census; `d4d_meta/population.json` and `clips.txt` |
+| 2 · depth and camera poses | [DA3](#the-depth-stage) | `pipeline.depth` | `exports/mini_npz/results.npz`, `depth_raw/`, `depth_vis/`, `pc_vis/frame_NNNN.glb` |
+| | [DA3 on every clip of a population](#every-clip-of-a-population) | `pipeline.depth_population` | DA3's files without the clouds, for every clip |
+| | [the point clouds](#the-point-cloud-stage) | `pipeline.point_clouds` | `pc_vis/frame_NNNN.glb`, and each frame's cloud centroid and camera in `frame_manifest.json` |
+| | [Pi3X](#the-pi3x-stage) | `pipeline.pi3x` | DA3's names, with `__pi3x` |
+| | [both models on every StereoMIS clip](#every-stereomis-clip-with-both-models) | `pipeline.depth_stereomis` | DA3's and Pi3X's files, for every usable clip |
+| | [D4D: DA3 on the frame nearest to each side's scan](#the-d4d-depth-and-seed-stages) | `pipeline.d4d_depth` | `--out`: `<key, / as __>__<side>.npz`, one per side |
+| 3 · regions | [tracking](#the-tracking-stage): one frame segmented, its regions followed | `pipeline.track` | `<tracks-root>/<clip>/track_<base>_<tag>/`: `label_NNNN.npy`, `seed_info.json` |
+| | [per-frame](#the-per-frame-segmentation-stage): every frame segmented on its own | `pipeline.per_frame` | `<tracks-root>/<clip>/track_rgb_<tag>/`: the same files |
+| | [one condition on every clip](#a-condition-on-every-clip-of-a-population) | `pipeline.condition_population` | the stage's files, for every clip |
+| | [the experiment plan](#the-experiment-plan) | `pipeline.experiment_plan` | nothing: it checks the plan and prints commands |
+| | [the granularity conditions](#the-granularity-conditions) | `pipeline.per_frame`, `evalkit.tools.kmerge`, `pipeline.track` | conditions merged to K regions |
+| | [D4D: the seed regions of the frame nearest to each side's scan](#the-d4d-depth-and-seed-stages) | `pipeline.d4d_seed` | `--out`: the regions, `.npy`, and their record, `.json`, one pair per side |
+| 4 · the scene graphs | the export stage | — ([Status](../README.md#status)) | in `pc_vis/`: each track's regions and scene graph on each frame, and its graph through time; each frame's hierarchy between two tracks |
+| 5 · the viewer | [the viewer bundle](#the-viewer-bundle-stage) | `pipeline.viewer_bundle` | `<out>/catalog.json`, `<out>/<clip>/` |
+
+The evaluator scores the labels of step 3, apart from the D4D seed
+regions, against `seg_masks/` (`docs/evaluation.md`).
+`trajectory_eval.tools.score_stereomis` and `score_d4d` score the camera
+poses of step 2
+([The StereoMIS camera trajectory scores](#the-stereomis-camera-trajectory-scores),
+[The D4D camera trajectory scores](#the-d4d-camera-trajectory-scores)).
+
 ## A clip
 
 A clip is a directory with these files:
@@ -243,7 +280,9 @@ holds:
 - `seg_masks/000000_class.png`: the mask's grey levels, each a class of the
   release's `metadata/segmented_entity.csv`. Interstitial space, level 0,
   is written as 11, a level no class uses. LapEx labels every pixel, and
-  the workbench's evaluators read id 0 as background.
+  the workbench's evaluators read id 0 as background. The evaluator gives
+  each pixel of 11 the class of the nearest region ("Class types" in
+  `docs/evaluation.md`).
 - `frame_manifest.json`: the frame's time and video frame, the class table,
   the moved level, and the levels of the instruments and of the gauze.
 
@@ -258,8 +297,8 @@ the summary an earlier run wrote:
 So a summary always counts the clips of one run over the whole release.
 
 The frames are not cropped. They keep a thin black border, about 1.5 % of
-the frame, whose pixels LapEx labels with classes, and the depth stage
-takes them whole.
+the frame, whose pixels LapEx labels with classes, and the depth stage and
+the evaluator take them whole.
 
 The stage refuses, before any case is extracted:
 
@@ -291,31 +330,41 @@ and no summary is written.
 
 `python -m pipeline.extract_lapex --help` lists the options.
 
+## The StereoMIS clip list
+
+```bash
+python -m pipeline.select_stereomis_clips --root /path/to/StereoMIS --depth-root /path/to/StereoMIS_depth \
+    --out stereomis_meta/clips.json
+```
+
+The step writes the clip list that every StereoMIS stage and score reads.
+`stereomis_meta/README.md` gives the rule and the fields. `--depth-root`
+holds the depth export's `<sequence>/stats.npy`, which this step alone
+reads. The step refuses a list that `surgical_core.stereomis.read_clip_list`
+refuses, and then leaves `--out` as it was.
+
 ## The StereoMIS extraction stage
 
 ```bash
-python -m pipeline.extract_stereomis --root /path/to/StereoMIS --depth-root /path/to/StereoMIS_depth \
+python -m pipeline.extract_stereomis --root /path/to/StereoMIS --clips stereomis_meta/clips.json \
     --out /path/to/clips [--sequences P1 P2_0 ...] [--mask-instruments]
 ```
 
 The stage writes the clips the camera trajectory result is measured on.
-`--root` holds one directory per sequence, as StereoMIS ships it.
-`--depth-root` holds the depth export's `<sequence>/stats.npy`. The stage
-reads it to leave out the clips with no surface in view. The clips are
-those `surgical_core.stereomis.clips` marks usable: 112 frames, 12
-positions apart (0.2 s at the frame rate the video declares), cut from each
-sequence without overlap. Into each clip the stage writes:
+`--root` holds one directory per sequence, as StereoMIS ships it. The clips
+are those the clip list marks usable: 112 frames, 12 positions apart, cut
+from each sequence without overlap. Into each clip the stage writes:
 
 - `input_images/`: the left view of each frame, rectified and at half
   resolution, 640x512, numbered from 0.
 - `frame_manifest.json`: for each image its position in the video
-  (`native_frame`), its ground truth row (`gt_row`) and its time, and for
-  the clip its sequence, stride, stratum and the RMS radius of its true
-  trajectory (`span_mm`).
+  (`native_frame`), its ground truth row (`gt_row`) and its time, as the
+  clip list gives them, and for the clip its sequence, stride, stratum and
+  the RMS radius of its true trajectory (`span_mm`).
 
 With `--mask-instruments`, each image is painted black outside the tissue
-mask nearest its frame, and `instruments_masked` counts the images
-painted. A frame with no mask within two frames keeps its image. The
+mask the clip list gives its frame, and `instruments_masked` counts the
+images painted. A frame the list gives no mask keeps its image. The
 paper's main condition reads the clips extracted without
 `--mask-instruments`.
 
@@ -324,10 +373,12 @@ a clip as `<clip>.partial` and renames it when its manifest is written. A
 clip is not replaced, because the depth stages write into it. The stage
 refuses:
 
+- a clip list that `surgical_core.stereomis.read_clip_list` refuses;
 - a sequence that `--sequences` names twice;
 - a clip whose directory, or `<clip>.partial`, exists already, for every
   sequence named, before anything is decoded;
 - two clips, or two places of one clip, that hold the same frame;
+- a mask the clip list gives that is not there;
 - an image it cannot write.
 
 The stage needs the `stereomis` extra and FFmpeg.
@@ -358,6 +409,85 @@ The second step refuses, before it writes anything:
 - a field the rule reads that is missing or holds a value of the wrong kind,
   such as a `NaN`.
 
+## The D4D depth and seed stages
+
+```bash
+python -m pipeline.d4d_depth --root /path/to/D4D/extracted --population d4d_meta/population.json \
+    --out /path/to/d4d_depth [--clips <key> ...] [--shard 0 --n-shards 1] [--gpu N]
+python -m pipeline.d4d_seed --depth-dir /path/to/d4d_depth --out /path/to/d4d_seed \
+    --sam-ckpt sam_vit_h_4b8939.pth [--keep-edge-ring] [--shard 0 --n-shards 1] [--device cuda] [--gpu N]
+```
+
+The two stages make the inputs of the front/behind relation on the frame
+nearest to each side's scan. The depth stage reads the dataset in place;
+the seed stage reads the depth stage's files alone. Each writes one file per
+side, `<key, / as __>__<side>`.
+
+- The depth stage runs DA3 on 30 frames from that frame into the clip, the
+  whole clip when it is shorter, and keeps the frame's depth, confidence and
+  camera, with the frame's index, path and time less the scan's, as `.npz`.
+  A scan is taken before the clip's first frame or after its last, so the
+  frame is the first or the last, never inside the window.
+- The seed stage cuts the frame into regions, as the tracking stage cuts a
+  seed frame for the condition `normal-edge_da3_pps24_sam_centre`: the
+  `normal_edge` input, edges at full darkness, normals unsmoothed, 24 points
+  per side. It writes the regions as `.npy` and their record as `.json`:
+  the depth file's hash, the settings and the SAM weights' file name.
+
+The depth stage needs the `recon3d` and `d4d` extras and D4D's loader, as
+the README says for the census. The seed stage needs the `track` extra and
+the SAM ViT-H weights.
+
+A run skips a side already made and refuses one made otherwise:
+
+- a depth file whose frame, window or resolution differ from this run's;
+- a seed record whose depth hash, settings or SAM weights' file name differ
+  from this run's.
+
+The depth stage also refuses a clip of `--clips` with no side in the
+population, and a clip of the population that the dataset does not hold.
+
+## The D4D front/behind relation
+
+```bash
+python -m evalkit.tools.d4d_front_behind --root /path/to/D4D/extracted --population d4d_meta/population.json \
+    --answer mono --regions ours --depth-dir /path/to/d4d_depth --seed-dir /path/to/d4d_seed --out mono.json
+python -m evalkit.tools.d4d_front_behind --root /path/to/D4D/extracted --population d4d_meta/population.json \
+    --answer area --regions ours --depth-dir /path/to/d4d_depth --seed-dir /path/to/d4d_seed --out area.json
+python -m evalkit.tools.d4d_front_behind_verdict --answer mono.json --floor area.json \
+    --population d4d_meta/population.json --out verdict.json
+```
+
+The first command scores, on each side, which of two regions is nearer,
+against the region's median depth in the scan. Its module says when a
+region is scored. The regions are `ours` (the seed stage's), `kmeans` or
+`voronoi`. The answers:
+
+- `mono`: the depth stage's depth;
+- `area`: the larger region is nearer, a floor that reads no geometry;
+- `screen`: the region nearer the principal point is nearer, a second
+  floor;
+- `gt_half`: half of the scan's points, a ceiling;
+- `stereo`: the dataset's stereo depth, a reference.
+
+The output records each side's pairs, the share answered right with
+intervals over clips, sessions and specimens, and `front_behind_code_sha`.
+The command refuses a side it cannot score:
+
+- a side without a scan, a pose or a calibration, or whose clip the
+  dataset does not hold;
+- a clip whose instrument masks are not named by its frames, or a frame
+  that cannot be read;
+- a depth file that is missing or was made for another frame;
+- seed regions that are missing, of another shape than their depth, or
+  whose record names another depth file;
+- stereo depth whose file is not the frame's.
+
+The verdict compares two outputs on the same pairs, resampling sessions,
+clips and specimens, and gives `A`, `B`, `C` or `undecided`, as its module
+says. It refuses outputs scored on other regions, over other answer
+pixels, by other code, or on other pairs.
+
 ## The depth stage
 
 ```bash
@@ -381,8 +511,8 @@ longest side (`--process-res`). It writes into the clip:
 
 The stage refuses:
 
-- a clip without `crop_info.json`, unless it is an ATLAS-120k, a StereoMIS
-  or a LapEx clip: a CholecSeg8k clip before the crop stage;
+- a clip without `crop_info.json`, unless it is an ATLAS-120k, a StereoMIS,
+  a D4D or a LapEx clip: a CholecSeg8k clip before the crop stage;
 - a clip that already holds the stage's output. `--overwrite` replaces the
   stage's own files and leaves every other file;
 - an image OpenCV cannot read, unless `--no-glb` is given.
@@ -498,12 +628,12 @@ until every check has passed.
 ### Every StereoMIS clip, with both models
 
 ```bash
-python -m pipeline.depth_stereomis --root /path/to/StereoMIS --depth-root /path/to/StereoMIS_depth \
-    --input-dir /path/to/clips [--gpus 0 1 2 3]
+python -m pipeline.depth_stereomis --clips stereomis_meta/clips.json --input-dir /path/to/clips \
+    [--gpus 0 1 2 3]
 ```
 
-The command runs the depth stage, then the Pi3X stage, on every usable
-StereoMIS clip under `--input-dir`, one process per GPU, on CUDA only. The
+The command runs the depth stage, then the Pi3X stage, on every clip the
+clip list marks usable, under `--input-dir`, one process per GPU, on CUDA only. The
 depth stage writes its point clouds; the Pi3X stage keeps at most 60,000
 points a cloud (`--max-points`), which leaves its poses alone. Each stage
 skips a clip that holds its record (`depth_info`, `geometry_sources.pi3x`),
@@ -539,6 +669,9 @@ the seed:
 
 - `both_ways_from_centre` seeds the middle frame and carries both ways.
 - `forward_from_first` seeds frame 0 and carries forwards.
+
+The evaluator refuses a condition tracked with `--seed-labels`
+("Propagation rule" in `docs/evaluation.md`).
 
 The stage reads the depth stage's bundle, and Pi3X's with
 `--depth-source pi3`. It reads no GT. It writes, for each clip:
@@ -708,7 +841,8 @@ that reads depth, name nothing.
 
 The granularity result tracks seeds merged to K regions. These three commands
 make the tracked condition at K = 10. The output of `kmerge`, the per-frame
-map merged to 10, is scored as a condition too.
+map merged to 10, is scored as a condition too, with `--gt-informed no`:
+its record does not say whether the GT set K.
 
 ```bash
 python -m pipeline.per_frame --input-dir /path/to/clips --tracks-root /path/to/tracks --tag rgb_per_frame \
@@ -733,9 +867,19 @@ python -m pipeline.track --input-dir /path/to/clips --tracks-root /path/to/track
   cholecseg8k_meta/clips.txt`.
 - `kmerge` reads a clip as the evaluator does, so it needs the GT masks and
   valid depth at every pixel of every frame.
-- The evaluator refuses a condition tracked with `--seed-labels` ("Propagation
-  rule" in `docs/evaluation.md`). It scores the floor and the per-frame
-  conditions.
+- The evaluator reads the seeds of a condition tracked with `--seed-labels`
+  from the same directory, given as `--seeds`. It is told whether the GT
+  made or informed them ("Seeds" in `docs/evaluation.md`):
+
+  ```bash
+  python -m evalkit.evaluate --dataset atlas120k --clips atlas120k_meta/clips.txt --data-root /path/to/clips \
+      --tracks-root /path/to/tracks --tag track_rgb_rgb_k10 --out rgb_k10.json \
+      --seeds '/path/to/tracks/{clip}/track_rgb_rgb_per_frame_k10' --gt-informed no
+  ```
+
+- A condition whose seeds or labels are merged to as many regions as the
+  clip has GT objects is GT-informed, so the tools compare it only with
+  other GT-informed conditions.
 
 ## The viewer bundle stage
 
@@ -831,23 +975,26 @@ rewrites `catalog.json`, and exits with an error if one failed.
 ## The StereoMIS camera trajectory scores
 
 ```bash
-python -m trajectory_eval.tools.score_stereomis --root /path/to/StereoMIS --depth-root /path/to/StereoMIS_depth \
+python -m trajectory_eval.tools.score_stereomis --root /path/to/StereoMIS --clips stereomis_meta/clips.json \
     --controls --out controls.json
-python -m trajectory_eval.tools.score_stereomis --root /path/to/StereoMIS --depth-root /path/to/StereoMIS_depth \
+python -m trajectory_eval.tools.score_stereomis --root /path/to/StereoMIS --clips stereomis_meta/clips.json \
     --methods da3 pi3x --clip-root /path/to/clips --shuffled --out methods.json
 ```
 
-The command scores the camera trajectory of each usable StereoMIS clip
-against the ground truth, one row per clip and condition. `--controls`
-scores the static floor, the line floor and the stereo ceiling.
-`--methods` scores the poses the depth stages wrote into each clip, and
-`--shuffled` adds each method's poses in a shuffled order. `--masked`
+The command scores the camera trajectory of each clip the clip list marks
+usable against the ground truth, at the rows and times the list gives, one
+row per clip and condition. `--controls` scores the static floor, the line
+floor and the stereo ceiling; the ceiling reads the tissue masks the list
+gives. `--methods` scores the poses the depth stages wrote into each clip,
+and `--shuffled` adds each method's poses in a shuffled order. `--masked`
 names the conditions `<method>_masked`, for the clips extracted with
 `--mask-instruments`. Every row records `trajectory_code_sha`, the hash of
-the `trajectory_eval` modules that compute it.
+the `trajectory_eval` modules that compute it and the controls'
+trajectories, and `clip_list_sha`, the hash of the clip list.
 
 The command refuses, before anything is scored:
 
+- a clip list that `surgical_core.stereomis.read_clip_list` refuses;
 - a sequence or a method named twice;
 - a clip without a method's bundle, or without its `frame_manifest.json`;
 - a clip whose manifest lists other frames than the ground truth is read at;
@@ -865,13 +1012,51 @@ The table prints each condition's scores, and each condition's paired
 difference from `floor_static` on `ate_rel`, with its interval over
 sequences and its mark. The mark counts each sequence as one video, so a
 pair on fewer than six sequences is read for its sign only. The JSON of
-`--out` records `trajectory_code_sha`.
+`--out` records `trajectory_code_sha` and `clip_list_sha`.
 
 The table refuses:
 
 - rows that record two versions of the scorer, or none;
+- rows that record two clip lists, or none;
 - a clip scored twice under one condition;
 - a base with no row;
 - a condition scored on other clips than the base;
 - a clip whose sequence, stratum or `span_mm` differs between conditions;
 - a pair whose clips come from fewer than two sequences.
+
+## The D4D camera trajectory scores
+
+```bash
+python -m trajectory_eval.tools.score_d4d select --root /path/to/D4D/extracted \
+    --population d4d_meta/clips.txt --out d4d_meta/trajectory_clips.json
+python -m trajectory_eval.tools.score_d4d prepare --root /path/to/D4D/extracted \
+    --clips d4d_meta/trajectory_clips.json --out /path/to/clips
+python -m trajectory_eval.tools.score_d4d score --root /path/to/D4D/extracted \
+    --clips d4d_meta/trajectory_clips.json --clip-root /path/to/clips --methods da3 pi3x --out rows.json
+```
+
+The truth is the camera's pose that D4D's optical tracker logs, under each
+session's `tf/`. The command runs in three steps:
+
+- `select` cuts each clip of the population to 112 frames spread over the
+  whole clip, and writes the clip list. `d4d_meta/README.md` gives the rule
+  that marks a clip usable, and the fields.
+- `prepare` writes each usable clip's frames, through D4D's loader. The
+  depth stages then write their bundles into the clips.
+- `score` scores the static floor, the line floor and each method on the
+  frames the tracker saw, one row per clip and condition. The rows add
+  `n_tracked`, `tracked_frac` and the list's hash, `clip_list_sha`.
+
+The command refuses:
+
+- a population file that lists no clip or a clip twice, or a clip the
+  dataset does not hold;
+- a clip list that `read_clip_list` refuses, or one with no usable clip;
+- a method named twice;
+- with `prepare`, before anything is written: a clip that exists under
+  `--out`, or a frame time the dataset does not give; then an image it
+  cannot read or write;
+- with `score`, before anything is scored: a clip without a method's bundle
+  or its manifest, or whose manifest names another clip or other frames;
+- with `score`, a clip whose session has no tracker log, or whose log marks
+  other frames tracked than the list.

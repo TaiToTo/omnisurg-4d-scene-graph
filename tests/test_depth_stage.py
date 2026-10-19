@@ -145,8 +145,9 @@ def test_a_cholecseg8k_clip_not_cut_to_the_view_is_refused(tmp_path):
 
 
 @pytest.mark.parametrize("dataset, name", [
-    ("atlas120k", "adrenalectomy__x__gt_0001"), ("stereomis", "P1__clip_0001"), ("lapex", "01__gt_0145160")])
-def test_an_atlas120k_stereomis_or_lapex_clip_needs_no_crop_info(tmp_path, dataset, name):
+    ("atlas120k", "adrenalectomy__x__gt_0001"), ("stereomis", "P1__clip_0001"), ("lapex", "01__gt_0145160"),
+    ("d4d", "specimen_2__2025_04_10-16_40_32__Clip_2")])
+def test_an_atlas120k_stereomis_lapex_or_d4d_clip_needs_no_crop_info(tmp_path, dataset, name):
     clip = make_clip(tmp_path, name=name, dataset=dataset, cropped=False)
     check_cropped(clip, json.loads((clip / "frame_manifest.json").read_text()))
 

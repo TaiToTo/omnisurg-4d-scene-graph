@@ -5,9 +5,11 @@ Each refusal has a test that plants its fault:
 - no `d4d` on the path, a `d4d` whose loader differs from the pinned commit's, and one that lacks a file;
 - a dataset root that holds no clip;
 - a clip with no frame, and a clip's masks with one missing in the middle or named by other times than its frames;
-- a mask that is not an image, and a scan with no finite point.
+- a mask that is not an image, and a scan with no finite point;
+- a time outside the tracker log, and a time across a gap in it, which is marked as not tracked.
 """
 
+import json
 import subprocess
 import sys
 from types import SimpleNamespace
@@ -196,3 +198,74 @@ def test_pixel_hits_moves_the_points_into_the_camera_by_the_inverse_pose():
     pose[:3, 3] = [0.01, 0.0, 0.0]  # the camera sits 1 cm along +x in the world
     hits = d4d.pixel_hits(np.array([[0.01, 0.0, 1.0]]), pose, params)
     assert hits[1, 2] == 1 and hits.sum() == 1
+
+
+def write_tracker_file(session, prefix: str, t: float, quat=(0.0, 0.0, 0.0, 1.0), xyz=(0.0, 0.0, 0.0)) -> None:
+    """Write one pose of a tracker log, as D4D names and holds it: a quaternion (x, y, z, w) and metres."""
+    (session / "tf").mkdir(parents=True, exist_ok=True)
+    transform = {"translation": dict(zip("xyz", xyz)), "rotation": dict(zip("xyzw", quat))}
+    (session / "tf" / f"{prefix}_{t:.9f}.json").write_text(json.dumps({"transform": transform}))
+
+
+def test_the_tracker_log_takes_the_prefix_with_more_files_and_sorts_by_time(tmp_path):
+    a, b = d4d.TRACKER_PREFIXES
+    for t in (3.0, 1.0, 2.0):
+        write_tracker_file(tmp_path, b, t)
+    write_tracker_file(tmp_path, a, 0.5)
+    times, files, prefix = d4d.tracker_log(str(tmp_path))
+    assert prefix == b and times.tolist() == [1.0, 2.0, 3.0]
+    assert [f.rsplit("_", 1)[1] for f in files] == ["1.000000000.json", "2.000000000.json", "3.000000000.json"]
+    # On a tie, the first prefix is taken.
+    for t in (4.0, 5.0):
+        write_tracker_file(tmp_path, a, t)
+    assert d4d.tracker_log(str(tmp_path))[2] == a
+
+
+def test_a_session_without_a_tracker_log_has_none(tmp_path):
+    (tmp_path / "tf").mkdir()
+    write_tracker_file(tmp_path, "polaris_to_zivid_optical_frame", 1.0)
+    assert d4d.tracker_log(str(tmp_path)) is None
+
+
+def test_a_tracker_file_is_read_as_a_camera_to_tracker_pose(tmp_path):
+    pytest.importorskip("scipy")
+    s = np.sqrt(0.5)
+    write_tracker_file(tmp_path, d4d.TRACKER_PREFIXES[0], 1.0, quat=(0.0, 0.0, s, s), xyz=(0.1, 0.2, 0.3))
+    _, files, _ = d4d.tracker_log(str(tmp_path))
+    T = d4d.read_tracker_poses(files)
+    # A quarter turn about z, stored as (x, y, z, w).
+    assert np.allclose(T[0, :3, :3], [[0, -1, 0], [1, 0, 0], [0, 0, 1]])
+    assert np.allclose(T[0, :3, 3], [0.1, 0.2, 0.3])
+
+
+def log_with_a_gap(tmp_path) -> tuple[np.ndarray, np.ndarray]:
+    """Write a pose every 0.1 s from 0 to 1 s but for 0.4 to 0.6 s, each turned 0.1 rad about z and moved 10 mm."""
+    for k in (0, 1, 2, 3, 7, 8, 9, 10):
+        quat = (0.0, 0.0, np.sin(0.05 * k), np.cos(0.05 * k))
+        write_tracker_file(tmp_path, d4d.TRACKER_PREFIXES[0], k / 10, quat=quat, xyz=(0.01 * k, 0.0, 0.0))
+    times, files, _ = d4d.tracker_log(str(tmp_path))
+    return times, files
+
+
+def test_a_pose_is_interpolated_between_the_two_poses_around_its_time(tmp_path):
+    pytest.importorskip("scipy")
+    poses, tracked = d4d.tracker_poses(*log_with_a_gap(tmp_path), np.array([0.05, 0.95]))
+    assert tracked.tolist() == [True, True]
+    assert np.allclose(poses[:, 0, 3], [0.005, 0.095])
+    angle = np.arctan2(poses[:, 1, 0], poses[:, 0, 0])
+    assert np.allclose(angle, [0.05, 0.95])
+
+
+def test_a_time_across_a_gap_in_the_log_is_not_tracked(tmp_path):
+    pytest.importorskip("scipy")
+    times, files = log_with_a_gap(tmp_path)
+    # The gap runs from 0.3 to 0.7 s, longer than `TRACKER_MAX_GAP_S`.
+    _, tracked = d4d.tracker_poses(times, files, np.array([0.25, 0.35, 0.5, 0.65, 0.75]))
+    assert tracked.tolist() == [True, False, False, False, True]
+
+
+@pytest.mark.parametrize("want", [[-0.01, 0.5], [0.5, 1.01]])
+def test_a_time_outside_the_tracker_log_is_refused(tmp_path, want):
+    pytest.importorskip("scipy")
+    with pytest.raises(ValueError, match="not inside the tracker log"):
+        d4d.tracker_poses(*log_with_a_gap(tmp_path), np.array(want))

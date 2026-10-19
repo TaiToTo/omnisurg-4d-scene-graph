@@ -6,8 +6,8 @@ writes `depth_raw/depth_NNNNNN.npy`, `depth_vis/NNNN.jpg`,
 world-to-camera extrinsics) and `pc_vis/frame_NNNN.glb`, and adds
 `depth_info` to the manifest. The stage refuses:
 
-- a clip without `crop_info.json`, unless it is an ATLAS-120k, a StereoMIS
-  or a LapEx clip: a CholecSeg8k clip before the crop stage;
+- a clip without `crop_info.json`, unless it is an ATLAS-120k, a StereoMIS,
+  a D4D or a LapEx clip: a CholecSeg8k clip before the crop stage;
 - a clip that already holds the stage's output, unless `--overwrite` is given;
 - an image OpenCV cannot read for the point clouds, unless `--no-glb` is given.
 
@@ -36,10 +36,10 @@ from surgical_core.viewer.glb import write_point_cloud_glb
 DEFAULT_DATASET = "cholec_gt"
 
 # The datasets whose clips need no crop. ATLAS-120k frames have no endoscope border; their extraction removes any
-# letterbox and records it in the manifest's `crop`. StereoMIS frames are rectified views that keep no black border.
-# LapEx frames keep a thin black border, about 1.5 % of the frame, whose pixels LapEx labels with classes. So they
-# are taken whole, border included.
-UNCROPPED_DATASETS = frozenset({"atlas120k", "lapex", "stereomis"})
+# letterbox and records it in the manifest's `crop`. StereoMIS and D4D frames are rectified views that keep no black
+# border. LapEx frames keep a thin black border, about 1.5 % of the frame, whose pixels LapEx labels with classes. So
+# they are taken whole, border included.
+UNCROPPED_DATASETS = frozenset({"atlas120k", "d4d", "lapex", "stereomis"})
 
 # The stage's own files in a clip, by the directory or file that holds them. The later stages and other depth
 # sources write into the same directories, under a `__<source>` suffix (`depth_vis/NNNN__pi3x.jpg`) or another

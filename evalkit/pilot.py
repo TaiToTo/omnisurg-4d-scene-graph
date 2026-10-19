@@ -16,9 +16,8 @@ evaluator's own, shared through `evalkit.objects`.
   in that function's label order; the pairing's tie rule reads the numbers,
   so the order is part of the rule. That order is OpenCV's own, not raster
   order, and it decides a tie at exactly `MATCH_IOU` between two components
-  of one class. The OpenCV version is recorded with every score; whether a
-  hashed file should depend on a library's behaviour at all is decided
-  before the freeze, as it is for the boundary dilation in `evalkit.boundary`.
+  of one class. The OpenCV version is recorded with every score, and pilot
+  mode is removed before the freeze, so no frozen file depends on that order.
 - **Domains.** In place of the views, four masks: `full`, the valid pixels;
   `labeled`, without the GT's background; `tissue`, without the dataset's
   instrument classes; `labeled_tissue`, both. The instrument ids are the

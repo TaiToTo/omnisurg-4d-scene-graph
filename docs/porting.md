@@ -12,11 +12,11 @@ no check is recorded.
 | area | ported | checked |
 |---|---|---|
 | evaluator, `evalkit/` | class tables, metrics, entry point, pilot mode | in pilot mode, every key shared with the pilot evaluator equal on 23 conditions × 315 clips, at `eval_code_sha` `a5d7ea46…` |
-| score tools, `evalkit/tools/` | every tool in the layout of `AGENTS.md` | `paired_table`, `arms_paired`, `claims_table`, `leave_one_video_out`, `print_status_tables`, `kmerge`: the workbench's values on the same inputs. `track_metrics` on component tracks: the values of the workbench's functions on random frames at the four sizes, but where two IoUs tie exactly |
-| camera trajectory scorer, `trajectory_eval/` | `pose_metrics`, the scoring of a clip, `pose_controls`, `scores`, `score_stereomis`, `stereomis_table` | `pose_metrics`: the workbench's values on 1200 random, planar and static trajectories. The scoring of a clip, `pose_controls` and `score_stereomis`: the workbench's 387 StereoMIS rows, every value, scored again from its stored outputs. `stereomis_table`, on those rows: the 24 pairs of the workbench's `summary_20.json`, every field |
+| score tools, `evalkit/tools/` | every tool in the layout of `AGENTS.md` | `paired_table`, `arms_paired`, `claims_table`, `leave_one_video_out`, `print_status_tables`, `kmerge`: the workbench's values on the same inputs. `track_metrics` on component tracks: the values of the workbench's functions on random frames at the four sizes, but where two IoUs tie exactly. `d4d_front_behind`: the workbench's eight front/behind outputs, every field of the 487 sides, the totals and the intervals, scored again from its stored depth and seeds. `d4d_front_behind_verdict`, on the workbench's outputs: its four verdicts, every number |
+| camera trajectory scorer, `trajectory_eval/` | `pose_metrics`, the scoring of a clip, `pose_controls`, `scores`, `score_stereomis`, `stereomis_table`, `score_d4d` | `pose_metrics`: the workbench's values on 1200 random, planar and static trajectories. The scoring of a clip, `pose_controls` and `score_stereomis`: the workbench's 387 StereoMIS rows, every value, scored again from its stored outputs, at the workbench's offsets and times, before `rpe_pairs` let an RPE pair fall `PAIR_TOL_S` short of `dt`. Since then, one RPE pair of `P1__clip_0001` and one of `P1__clip_0005` span 1.0 s, where the workbench's spanned 1.2 s, so the `rpe_*` of their 18 rows can differ. `stereomis_table`, on those rows: the 24 pairs of the workbench's `summary_20.json`, every field. `score_d4d`: the clip list's 9 usable clips are the 9 the workbench scored, at its frames; the other 3 it selected are left out for its reasons. Their 1008 frames, byte for byte, and their manifests. The workbench's 36 D4D rows, scored again from its stored bundles: every value but three unrounded `scale`s, which differ in their last digit. Since `rpe_pairs` let an RPE pair fall `PAIR_TOL_S` short of `dt`, the RPE pair of frame 103 of `specimen_4__2025_06_05-15_51_47__Clip_2` ends at the frame 0.999999 s later, where the workbench's ended at the frame 1.27 s later, so the `rpe_*` of its 4 rows can differ |
 | extraction and crop | ATLAS-120k, CholecSeg8k, LapEx, StereoMIS, the D4D census and population | the CholecSeg8k crop and 13 of the 27 CholecSeg8k clips: the workbench's bytes. LapEx's 735 clips: the workbench's frames and masks, and its manifests apart from `depth_info`. The D4D census: every field it writes equal to the workbench's census on the 271 clips. The D4D population: the same bytes from the ported census as from the workbench's |
-| depth | DA3, Pi3X, point clouds, the population drivers | DA3, point clouds and Pi3X: the workbench's bytes on the GPU machine, on three clips. DA3 also on the 25 LapEx clips whose border the workbench did not fill |
-| segmentation and tracking | `track`, `per_frame`, `condition_population` | `track` and `per_frame`: the workbench's bytes on the GPU machine, on three clips. `condition_population`: the workbench's commands, for 43 conditions. The 40 segmenter inputs that `tests/test_render_outputs_are_pinned.py` pins: the workbench's, rendered with each case's ring setting |
+| depth | DA3, Pi3X, point clouds, the population drivers, the D4D depth stage | DA3, point clouds and Pi3X: the workbench's bytes on the GPU machine, on three clips. DA3 also on the 25 LapEx clips whose border the workbench did not fill. The D4D depth stage: the workbench's bytes on the GPU machine, on the six sides of three clips |
+| segmentation and tracking | `track`, `per_frame`, `condition_population`, the D4D seed stage | `track` and `per_frame`: the workbench's bytes on the GPU machine, on three clips. The D4D seed stage, with `--keep-edge-ring`: the workbench's bytes on the six sides the D4D depth stage was compared on. `condition_population`: the workbench's commands, for 43 conditions. The 40 segmenter inputs that `tests/test_render_outputs_are_pinned.py` pins: the workbench's, rendered with each case's ring setting |
 | viewer | `viewer/`, `pipeline/viewer_bundle` | — (new: the workbench's demo read other files) |
 
 The three depth stages were compared on
@@ -28,6 +28,13 @@ case before the comparison. The depth stage wrote its point clouds. The
 point-cloud stage read the bundle that the workbench's depth stage had
 stored on that machine. Both sides ran DA3 at commit `41736238` and `pi3`
 at commit `9fa3ddb3`.
+
+The D4D depth and seed stages were compared on both sides of
+`specimen_1/2025_03_06-16_49_40/Clip_1`,
+`specimen_1/2025_03_06-17_39_51/Clip_2`, a clip of 21 frames, and
+`specimen_3/2025_05_08-14_24_24/Clip_1`. The workbench's files were made
+before its seed stage wrote a record, so the seeds' records were not
+compared.
 
 The tracking and per-frame stages were compared at the settings of
 `op_edge_center` (under both propagation rules), `rgb_center18`,
@@ -47,11 +54,23 @@ not compared:
   modules they need. Its byte check needs a clip whose tracking labels the
   workbench holds.
 - **The paper's tables**: the claims grid.
-- **D4D**: depth, seeds, the front/behind relation and the camera
-  trajectory.
-- **LapEx's comparisons**. They wait on "How LapEx is scored".
+- **D4D's endpoint displacement check**, which compares the direction and
+  size of each method's camera motion over a clip with the curated poses'.
+- **The D4D trajectory table.** `stereomis_table` computes the workbench's
+  six D4D pairs from the rows of `score_d4d`, every field equal. It records
+  StereoMIS's clip shape with them, though. It also adds the pairs of the
+  `slow` stratum, which holds two clips; the workbench compared no stratum
+  of fewer than four.
+- **The StereoMIS depth export.** `pipeline.select_stereomis_clips` reads
+  its `stats.npy` to mark clips `no_surface`, and no tracked file makes it,
+  so the clip list is made again only from the workbench's export. The
+  rule leaves out no clip of the list.
+- **LapEx's comparisons**. They wait on "How LapEx is compared".
 - **The conditions seeded from GT masks** (`t12_gtseed`, `t12_paste`). They
   wait on "Conditions seeded from GT".
+- **Seeds made outside the tracking stage, and labels `kmerge` merged, in
+  `component_scores` and `track_metrics`.** Both tools refuse them until
+  their JSONs record `gt_informed` as the evaluator's score does.
 - **The identity table from `track_metrics`.** `print_status_tables
   --identity` reads the JSON the workbench's `summarize_track12` wrote;
   nothing builds the table from the JSON `track_metrics` writes.
@@ -96,9 +115,8 @@ not compared:
 3. **The conditions take their names at the re-score.**
    `evalkit/tools/condition_names.tsv` maps each workbench condition that
    the paper's tables read to its name here, or says why its records show
-   none. The `t5_*` rows name the rule their records show, which the
-   evaluator scores only once it accepts a seed made outside the tracking
-   stage. With the re-score, and not before, the label directories and the
+   none. The `t5_*` rows name the rule their records show. With the
+   re-score, and not before, the label directories and the
    score JSONs take these names, and `paired_table`, `claims_table` and
    `arms_paired` read their tags from the table. Until then the tools read
    the workbench's names.
@@ -122,10 +140,11 @@ not compared:
 ## Remaining steps
 
 1. **Re-score.** Score every condition's predictions with the evaluator.
-   `condition_inventory` must then report no condition missing and no two
-   that are not comparable. After any change to a hashed file, the
-   check against the pilot evaluator runs again before anything is
-   re-scored.
+   `condition_inventory --require-scored` must then report no problem.
+   Its header lists the problems it checks. After any change to a hashed
+   file, the check against the pilot evaluator runs again before anything
+   is re-scored. The StereoMIS and D4D trajectories are scored again
+   with `trajectory_eval` too.
 2. **Port what is not ported yet.**
    - A tool prints the workbench's values on the pilot's score JSONs, apart
      from the differences its port lists. A test plants each fault that
@@ -178,6 +197,10 @@ only:
   thousand differs by one level. So frames are compared on one machine.
 - **The ATLAS-120k manifest key `pixel_source`.** The workbench's extractor
   gained it after the GPU machine's clips were extracted.
+- **The names of the D4D trajectory files.** A clip's manifest names its
+  length `duration_sec`, where the workbench wrote `span_sec`. A row writes
+  `n_tracked` for `n_frames`. `span_mm` keeps one meaning, a trajectory's
+  RMS radius.
 - **The D4D population.** The workbench's rule also left out 45 sides as
   `tissue_moving`, from the tissue's motion at the clip's end nearest the
   scan. The rule here keeps them: 532 sides where the workbench kept 487.
@@ -186,6 +209,18 @@ only:
   evaluator refuses a frame with depth 0. The depth stage takes the frames
   whole, so its output on those clips differs. On the other 25 clips it
   equals the workbench's.
+- **A StereoMIS clip's ground truth rows, times and masks.** The clips are
+  read from `stereomis_meta/clips.json`, made with the offsets and the
+  timestamps measured again. Every manifest's `gt_row`, `gt_row_offset` and
+  `span_mm` differ from the workbench's, so do P2's `time_sec`, and so do
+  the images of four masked P1 clips. Each plain clip's images are the
+  workbench's.
+- **Five masked StereoMIS clips of `P2_0`.** The workbench's depth stage
+  took their black paint for a border and filled it (`border_inpaint:
+  true`); the ported stage fills none, so their depth differs.
+- **The Pi3X clouds of `P1__clip_0001`.** The workbench ran Pi3X on it
+  without `--max-points`; the ported driver thins every cloud to 60,000
+  points, which leaves the poses alone.
 
 ## Open questions
 
@@ -193,28 +228,14 @@ Each question says what it blocks and where its answer is written.
 
 ### Before the freeze
 
-- **Boundary dilation.** `evalkit/boundary.py` dilates with `cv2.dilate`.
-  A numpy shift-or agrees on every mask tried, borders included. Should a
-  hashed file depend on OpenCV's behaviour while OpenCV is unpinned?
-  Blocks: the freeze. Answer in: `evalkit/boundary.py`.
-- **CholecSeg8k's Region line.** CholecSeg8k draws a 1 px white line
-  between regions, which the class table types `ignored`. 87 % of its
-  pixels are the image's outer pixel, which the crop removes. The rest
-  sits mostly in video43 and video52, where an edge against it is no
-  boundary, so those videos lose much of their GT boundary. Does the loader
-  fill the line from its neighbours, by a fixed rule with the count
-  recorded, or does the line stay ignored with the loss documented?
-  Blocks: the freeze. Answer in: `docs/evaluation.md`, the CholecSeg8k table.
-- **Seeds made outside the tracking stage.** `rule_of_seed_info` refuses a
-  `seed_source` other than `sam` or `per_frame`. So the evaluator refuses
-  the six `t5_*` conditions of the granularity result, and every condition
-  that `pipeline/track.py --seed-labels` makes. The record names the seeds
-  by the path as given, so one directory given by two paths reads as two
-  conditions. Open: which values of `seed_source` the evaluator scores, how
-  a score records and names its seeds' source, and which comparisons the
-  tools refuse across sources. Blocks: the freeze, and the granularity
-  result. Answer in: `docs/evaluation.md`, which says no such condition is
-  reported.
+- **Mask resize.** `evalkit/inputs.py` resizes a GT mask, and a prediction
+  of another shape, to the depth map's shape with `cv2.resize`, nearest
+  neighbour. It is the one hashed file that still depends on OpenCV's
+  behaviour, and OpenCV is unpinned: a score records its version but cannot
+  fix it. Does the resize move to numpy, checked equal to `cv2.resize` on
+  the frame sizes the datasets have, or does it stay with OpenCV? If OpenCV
+  leaves the evaluator, `RECORDED_LIBRARIES` in `evalkit/code_sha.py` drops
+  `cv2` with it. Blocks: the freeze. Answer in: `evalkit/inputs.py`.
 - **Conditions seeded from GT.** The workbench seeded `t12_gtseed` and
   `t12_paste` from GT masks. On the 151 ATLAS-120k clips with an even
   number of frames, the seed sits one frame before the centre:
@@ -264,15 +285,13 @@ Each question says what it blocks and where its answer is written.
 ### Tools and tables
 
 - **The paired table on the evaluator's scores.** `paired_table` prints the
-  pilot's table only. The six `t5_*` rows wait on "Seeds made outside the
-  tracking stage". `paired_table` holds one propagation rule per table, so
-  it is printed once per rule. The evaluator records `objects.predicted` in place of
+  pilot's table only. `paired_table` holds one propagation rule per table,
+  so it is printed once per rule. The evaluator records `objects.predicted` in place of
   `n_regions_mean`. Open: which block answers which of the paper's three
   questions ("Primary metrics" in `docs/evaluation.md`), and which rows,
   keys and views each table holds. Answer in: `paired_table`'s docstring.
 - **The claims table on the evaluator's scores.** `claims_table` prints the
-  workbench's table from the pilot's scores. Its three rows that read
-  `t5_k10` wait on "Seeds made outside the tracking stage". The workbench
+  workbench's table from the pilot's scores. The workbench
   read every claim on `inst_F1_50_labeled`, whose nearest view here is
   `all`, and on the 13-video ATLAS-120k set, where the port makes the
   conditions on 315 clips. Open: which key or keys the claims are read on,
@@ -298,53 +317,46 @@ Each question says what it blocks and where its answer is written.
   takes a name of its own. Blocks: porting the step that writes them.
   Answer in: `docs/pipeline.md`.
 
-### StereoMIS
+### D4D
 
-- **The times of a StereoMIS clip.** `surgical_core.stereomis.clips` takes
-  a frame's time as its position over the declared frame rate. The P2
-  videos declare 59.94 frames a second, but by their timestamps a clip's
-  frames are 0.217 s apart at the median, not 0.2 s. `rpe` and the
-  constant-motion control read the times; `ate_rel` does not. Open:
-  whether the times come from the timestamps. Blocks: the StereoMIS result.
-  Answer in: `surgical_core/stereomis.py`.
-- **P1's offsets.** The workbench took P1's shipped frame N to be position
-  N; measured against the video, it is N − 1. With a file offset of −1, as
-  P2's is, 504 of the 672 frames of P1's usable clips get a mask of their
-  own number, and the common ground truth offset becomes −3 rather than −4.
-  Every clip then moves one frame, its depth is made again, and its
-  `ate_rel` changes. Open: both offsets, and whether the grid's start is
-  fixed apart from them. Blocks: the StereoMIS result. Answer in:
-  `surgical_core/stereomis.py`.
-- **What fixes the StereoMIS clips.** `surgical_core.stereomis.clips`
-  computes the 86 clips on every run, from the tables of offsets and
-  thresholds and from the `stats.npy` of the workbench's depth export,
-  which no tracked file makes. A change to an offset moves every
-  `ate_rel`, but `trajectory_code_sha` covers the modules of
-  `trajectory_eval` only. Open:
-  whether the clips are kept as data, as ATLAS-120k's population is;
-  whether the hash covers the tables, the clip rule and `pose_controls`;
-  and whether the export is made again here. Blocks: the StereoMIS result.
-- **The StereoMIS depth outputs the ported stages do not reproduce.**
-  `pipeline.depth_stereomis` refuses six of the workbench's clips. Five
-  masked clips of `P2_0` record `border_inpaint: true`: the workbench's
-  stage took their paint for a border and filled it, and the port fills
-  none, so their `da3_masked` will change. `P1__clip_0001` ran Pi3X without
-  `--max-points`, which changes no score. Open: whether the masked
-  condition is measured with the port as it is, and whether it is reported;
-  and whether `P1__clip_0001`'s Pi3X output is made again. Blocks: the StereoMIS result.
+- **The edge ring of the D4D seeds.** The workbench's front/behind scores
+  read seeds cut with the edge ring kept. `pipeline.d4d_seed` writes their
+  bytes with `--keep-edge-ring` only; by default it masks the ring, as the
+  tracking stage does. On the six sides compared, every seed changes.
+  Open: which setting the D4D result is measured with. Blocks: the D4D
+  result. Answer in: `docs/pipeline.md`, the D4D depth and seed stages.
+- **The D4D verdict and the mark rule.** `d4d_front_behind_verdict`
+  gives `A` only when the intervals over sessions, clips and specimens all
+  exclude zero, from 2,000 resamples of the pooled share. `paired_stats`
+  marks a pair when the interval over videos excludes zero on six videos
+  or more, from 10,000 resamples of the mean difference. D4D has five
+  specimens, so an interval that the mark rule reads for its sign only
+  can turn the verdict to `B`. Open: whether the D4D claim is marked by
+  `paired_stats.mark_of` with sessions as the videos, and with which
+  number of resamples. Blocks: the D4D result. Answer in:
+  `d4d_front_behind_verdict`'s docstring.
+- **The size of a D4D region.** `d4d_front_behind` scores a region of
+  `MIN_NODE_PIX`, 400 pixels, at the endoscope's resolution, 640 × 512.
+  Such a region holds 250 pixels at the depth's resolution, 504 × 406,
+  where the tracking stage drops a seed region under 400 pixels. So the
+  relation scores regions that the tracking stage would not carry. Open:
+  whether the threshold is taken at the depth's resolution. Blocks: the
+  D4D result. Answer in: `d4d_front_behind`'s docstring.
+- **A pair the floor ties on.** `d4d_front_behind` leaves out a pair
+  whose answers tie, and `area` ties when two regions hold the same number
+  of pixels. So `area` can leave out a pair that `mono` keeps, and
+  `d4d_front_behind_verdict` then refuses the two outputs. On the 532
+  sides, with the edge ring masked, this happens on one side: 17,955 pairs
+  against 17,956. Open: whether the verdict compares the pairs both
+  outputs hold, or `area` decides a tie. Blocks: the D4D result with the
+  edge ring masked. Answer in: `d4d_front_behind_verdict`'s docstring.
 
 ### LapEx
 
-- **How LapEx is scored.** The evaluator holds no LapEx class table, so
-  neither it nor `kmerge` reads a LapEx clip. Open:
-  - its class table, where level 0, interstitial space, is a class that the
-    extraction writes as 11;
-  - its crop rectangle: the evaluator requires `crop_info` or `crop` in the
-    manifest, and the extraction writes neither;
-  - its comparison: the workbench resampled 30 case means, which weighs
-    the cases unlike `paired_stats`.
-
-  Blocks: scoring LapEx. Answer in: `docs/evaluation.md`.
+- **How LapEx is compared.** The workbench resampled 30 case means, which
+  weighs the cases unlike `paired_stats`. Open: whether LapEx's comparisons
+  resample as `paired_stats` does. Blocks: LapEx's comparisons. Answer in:
+  `docs/evaluation.md`.
 
 ### The public viewer
 
