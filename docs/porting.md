@@ -193,10 +193,14 @@ Each question says what it blocks and where its answer is written.
 
 ### Before the freeze
 
-- **Boundary dilation.** `evalkit/boundary.py` dilates with `cv2.dilate`.
-  A numpy shift-or agrees on every mask tried, borders included. Should a
-  hashed file depend on OpenCV's behaviour while OpenCV is unpinned?
-  Blocks: the freeze. Answer in: `evalkit/boundary.py`.
+- **Mask resize.** `evalkit/inputs.py` resizes a GT mask, and a prediction
+  of another shape, to the depth map's shape with `cv2.resize`, nearest
+  neighbour. It is the one hashed file that still depends on OpenCV's
+  behaviour, and OpenCV is unpinned: a score records its version but cannot
+  fix it. Does the resize move to numpy, checked equal to `cv2.resize` on
+  the frame sizes the datasets have, or does it stay with OpenCV? If OpenCV
+  leaves the evaluator, `RECORDED_LIBRARIES` in `evalkit/code_sha.py` drops
+  `cv2` with it. Blocks: the freeze. Answer in: `evalkit/inputs.py`.
 - **Seeds made outside the tracking stage.** `rule_of_seed_info` refuses a
   `seed_source` other than `sam` or `per_frame`. So the evaluator refuses
   the six `t5_*` conditions of the granularity result, and every condition
