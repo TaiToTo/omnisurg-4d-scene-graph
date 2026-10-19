@@ -413,21 +413,28 @@ The second step refuses, before it writes anything:
 python -m pipeline.d4d_depth --root /path/to/D4D/extracted --population d4d_meta/population.json \
     --out /path/to/d4d_depth [--clips <key> ...] [--shard 0 --n-shards 1] [--gpu N]
 python -m pipeline.d4d_seed --depth-dir /path/to/d4d_depth --out /path/to/d4d_seed \
-    --sam-ckpt sam_vit_h_4b8939.pth [--keep-edge-ring] [--shard 0 --n-shards 1] [--gpu N]
+    --sam-ckpt sam_vit_h_4b8939.pth [--keep-edge-ring] [--shard 0 --n-shards 1] [--device cuda] [--gpu N]
 ```
 
 The two stages make the inputs of the front/behind relation on the frame
-nearest to each side's scan. They read the dataset in place and write one
-file per side, `<key, / as __>__<side>`.
+nearest to each side's scan. The depth stage reads the dataset in place;
+the seed stage reads the depth stage's files alone. Each writes one file per
+side, `<key, / as __>__<side>`.
 
-- The depth stage runs DA3 on 30 frames around that frame, the whole clip
-  when it is shorter, and keeps the frame's depth, confidence and camera,
-  with the frame's index, path and time less the scan's, as `.npz`.
+- The depth stage runs DA3 on 30 frames from that frame into the clip, the
+  whole clip when it is shorter, and keeps the frame's depth, confidence and
+  camera, with the frame's index, path and time less the scan's, as `.npz`.
+  A scan is taken before the clip's first frame or after its last, so the
+  frame is the first or the last, never inside the window.
 - The seed stage cuts the frame into regions, as the tracking stage cuts a
-  seed frame at the settings of `op_edge_center`: the `normal_edge` input,
-  edges at full darkness, normals unsmoothed, 24 points per side. It
-  writes the regions as `.npy` and their record as `.json`: the depth
-  file's hash, the settings and `edge_ring_masked`.
+  seed frame for the condition `normal-edge_da3_pps24_sam_centre`: the
+  `normal_edge` input, edges at full darkness, normals unsmoothed, 24 points
+  per side. It writes the regions as `.npy` and their record as `.json`:
+  the depth file's hash, the settings and the SAM weights' file name.
+
+The depth stage needs the `recon3d` and `d4d` extras and D4D's loader, as
+the README says for the census. The seed stage needs the `track` extra and
+the SAM ViT-H weights.
 
 A run skips a side already made and refuses one made otherwise:
 

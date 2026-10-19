@@ -9,7 +9,7 @@ refuses any other record.
 
 Usage:
     python -m pipeline.d4d_seed --depth-dir /path/to/d4d_depth --out /path/to/d4d_seed \\
-        --sam-ckpt sam_vit_h_4b8939.pth [--keep-edge-ring] [--shard 0 --n-shards 1] [--gpu N]
+        --sam-ckpt sam_vit_h_4b8939.pth [--keep-edge-ring] [--shard 0 --n-shards 1] [--device cuda] [--gpu N]
 """
 
 import argparse
@@ -24,7 +24,8 @@ from pipeline.track import SeedSegmenter
 from recon3d_wrapper import select_gpu
 from surgical_core.geometry.render import sam_input_image
 
-# The seed's input and the segmenter's grid, as the tracking stage's `op_edge_center` condition cuts its seed.
+# The seed's input and the segmenter's grid, as the tracking stage cuts a seed for the condition
+# `normal-edge_da3_pps24_sam_centre`.
 SAM_INPUT = "normal_edge"
 EDGE_GAIN = 1.0
 SMOOTH = False
