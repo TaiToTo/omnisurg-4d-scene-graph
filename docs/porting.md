@@ -12,7 +12,7 @@ no check is recorded.
 | area | ported | checked |
 |---|---|---|
 | evaluator, `evalkit/` | class tables, metrics, entry point, pilot mode | in pilot mode, every key shared with the pilot evaluator equal on 23 conditions × 315 clips, at `eval_code_sha` `a5d7ea46…` |
-| score tools, `evalkit/tools/` | every tool in the layout of `AGENTS.md` | `paired_table`, `arms_paired`, `claims_table`, `leave_one_video_out`, `print_status_tables`, `kmerge`: the workbench's values on the same inputs. `track_metrics` on component tracks: the values of the workbench's functions on random frames at the four sizes, but where two IoUs tie exactly |
+| score tools, `evalkit/tools/` | every tool in the layout of `AGENTS.md` | `paired_table`, `arms_paired`, `claims_table`, `leave_one_video_out`, `print_status_tables`, `kmerge`: the workbench's values on the same inputs. `track_metrics` on component tracks: the values of the workbench's functions on random frames at the four sizes, but where two IoUs tie exactly. `d4d_front_behind`: the workbench's eight front/behind outputs, every field of the 487 sides, the totals and the intervals, scored again from its stored depth and seeds. `d4d_front_behind_verdict`, on the workbench's outputs: its four verdicts, every number |
 | camera trajectory scorer, `trajectory_eval/` | `pose_metrics`, the scoring of a clip, `pose_controls`, `scores`, `score_stereomis`, `stereomis_table`, `score_d4d` | `pose_metrics`: the workbench's values on 1200 random, planar and static trajectories. The scoring of a clip, `pose_controls` and `score_stereomis`: the workbench's 387 StereoMIS rows, every value, scored again from its stored outputs, at the workbench's offsets and times. `stereomis_table`, on those rows: the 24 pairs of the workbench's `summary_20.json`, every field. `score_d4d`: the clip list's 9 usable clips are the 9 the workbench scored, at its frames; the other 3 it selected are left out for its reasons. Their 1008 frames, byte for byte, and their manifests. The workbench's 36 D4D rows, scored again from its stored bundles: every value but three unrounded `scale`s, which differ in their last digit |
 | extraction and crop | ATLAS-120k, CholecSeg8k, LapEx, StereoMIS, the D4D census and population | the CholecSeg8k crop and 13 of the 27 CholecSeg8k clips: the workbench's bytes. LapEx's 735 clips: the workbench's frames and masks, and its manifests apart from `depth_info`. The D4D census: every field it writes equal to the workbench's census on the 271 clips. The D4D population: the same bytes from the ported census as from the workbench's |
 | depth | DA3, Pi3X, point clouds, the population drivers, the D4D depth stage | DA3, point clouds and Pi3X: the workbench's bytes on the GPU machine, on three clips. DA3 also on the 25 LapEx clips whose border the workbench did not fill. The D4D depth stage: the workbench's bytes on the GPU machine, on the six sides of three clips |
@@ -54,7 +54,6 @@ not compared:
   modules they need. Its byte check needs a clip whose tracking labels the
   workbench holds.
 - **The paper's tables**: the claims grid.
-- **D4D**: the front/behind relation.
 - **D4D's endpoint displacement check**, which compares the direction and
   size of each method's camera motion over a clip with the curated poses'.
 - **The D4D trajectory table.** `stereomis_table` computes the workbench's
@@ -325,6 +324,31 @@ Each question says what it blocks and where its answer is written.
   tracking stage does. On the six sides compared, every seed changes.
   Open: which setting the D4D result is measured with. Blocks: the D4D
   result. Answer in: `docs/pipeline.md`, the D4D depth and seed stages.
+- **The D4D verdict and the mark rule.** `d4d_front_behind_verdict`
+  gives `A` only when the intervals over sessions, clips and specimens all
+  exclude zero, from 2,000 resamples of the pooled share. `paired_stats`
+  marks a pair when the interval over videos excludes zero on six videos
+  or more, from 10,000 resamples of the mean difference. D4D has five
+  specimens, so an interval that the mark rule reads for its sign only
+  can turn the verdict to `B`. Open: whether the D4D claim is marked by
+  `paired_stats.mark_of` with sessions as the videos, and with which
+  number of resamples. Blocks: the D4D result. Answer in:
+  `d4d_front_behind_verdict`'s docstring.
+- **The size of a D4D region.** `d4d_front_behind` scores a region of
+  `MIN_NODE_PIX`, 400 pixels, at the endoscope's resolution, 640 × 512.
+  Such a region holds 250 pixels at the depth's resolution, 504 × 406,
+  where the tracking stage drops a seed region under 400 pixels. So the
+  relation scores regions that the tracking stage would not carry. Open:
+  whether the threshold is taken at the depth's resolution. Blocks: the
+  D4D result. Answer in: `d4d_front_behind`'s docstring.
+- **A pair the floor ties on.** `d4d_front_behind` leaves out a pair
+  whose answers tie, and `area` ties when two regions hold the same number
+  of pixels. So `area` can leave out a pair that `mono` keeps, and
+  `d4d_front_behind_verdict` then refuses the two outputs. On the 532
+  sides, with the edge ring masked, this happens on one side: 17,955 pairs
+  against 17,956. Open: whether the verdict compares the pairs both
+  outputs hold, or `area` decides a tie. Blocks: the D4D result with the
+  edge ring masked. Answer in: `d4d_front_behind_verdict`'s docstring.
 
 ### LapEx
 

@@ -447,6 +447,47 @@ A run skips a side already made and refuses one made otherwise:
 The depth stage also refuses a clip of `--clips` with no side in the
 population, and a clip of the population that the dataset does not hold.
 
+## The D4D front/behind relation
+
+```bash
+python -m evalkit.tools.d4d_front_behind --root /path/to/D4D/extracted --population d4d_meta/population.json \
+    --answer mono --regions ours --depth-dir /path/to/d4d_depth --seed-dir /path/to/d4d_seed --out mono.json
+python -m evalkit.tools.d4d_front_behind --root /path/to/D4D/extracted --population d4d_meta/population.json \
+    --answer area --regions ours --depth-dir /path/to/d4d_depth --seed-dir /path/to/d4d_seed --out area.json
+python -m evalkit.tools.d4d_front_behind_verdict --answer mono.json --floor area.json \
+    --population d4d_meta/population.json --out verdict.json
+```
+
+The first command scores, on each side, which of two regions is nearer,
+against the region's median depth in the scan. Its module says when a
+region is scored. The regions are `ours` (the seed stage's), `kmeans` or
+`voronoi`. The answers:
+
+- `mono`: the depth stage's depth;
+- `area`: the larger region is nearer, a floor that reads no geometry;
+- `screen`: the region nearer the principal point is nearer, a second
+  floor;
+- `gt_half`: half of the scan's points, a ceiling;
+- `stereo`: the dataset's stereo depth, a reference.
+
+The output records each side's pairs, the share answered right with
+intervals over clips, sessions and specimens, and `front_behind_code_sha`.
+The command refuses a side it cannot score:
+
+- a side without a scan, a pose or a calibration, or whose clip the
+  dataset does not hold;
+- a clip whose instrument masks are not named by its frames, or a frame
+  that cannot be read;
+- a depth file that is missing or was made for another frame;
+- seed regions that are missing, of another shape than their depth, or
+  whose record names another depth file;
+- stereo depth whose file is not the frame's.
+
+The verdict compares two outputs on the same pairs, resampling sessions,
+clips and specimens, and gives `A`, `B`, `C` or `undecided`, as its module
+says. It refuses outputs scored on other regions, over other answer
+pixels, by other code, or on other pairs.
+
 ## The depth stage
 
 ```bash

@@ -5,8 +5,8 @@ put on `PYTHONPATH`. It refuses a missing `d4d`, and one whose files differ from
 stereo depth maps and instrument masks are files named by their time, `<sec>_<nsec>`, and so is a scan.
 `frame_files` returns a clip's files of one kind and refuses them unless their names are the frames' names.
 `instrument_mask` resizes a mask stored at another size with the nearest neighbour, then dilates it.
-`pixel_hits` counts a scan's points that fall in each pixel of the endoscope's view. `side_stem` names the
-files a stage writes for one side.
+`pixel_hits` counts a scan's points that fall in each pixel of the endoscope's view, and `scan_depth` keeps
+the nearest point's depth there. `side_stem` names the files a stage writes for one side.
 `tracker_poses` interpolates the camera's pose from a session's optical tracker log, which the loader does
 not read. It marks a pose interpolated across a gap in the log as not tracked.
 """
@@ -240,8 +240,10 @@ def read_scan(path: str) -> np.ndarray:
     return points
 
 
-def pixel_hits(points: np.ndarray, pose: np.ndarray, params: dict) -> np.ndarray:
-    """Return how many of `points` fall in each pixel of the endoscope's view, as an (H, W) array.
+def project(points: np.ndarray, pose: np.ndarray, params: dict) -> tuple[np.ndarray, np.ndarray]:
+    """Return the pixel and the depth of each of `points` that falls inside the endoscope's view.
+
+    The pixel is the flat index `row * width + column`. The depth is the point's z in the camera's frame.
 
     Args:
         points: (N, 3) points in the world frame.
@@ -249,15 +251,37 @@ def pixel_hits(points: np.ndarray, pose: np.ndarray, params: dict) -> np.ndarray
         params: the loader's `endoscope_params`: `fx`, `fy`, `cx`, `cy`, `width`, `height`.
     """
     # Move the points into the camera's frame and project those in front of it.
-    h, w = int(params["height"]), int(params["width"])
+    w = int(params["width"])
     cam = (np.linalg.inv(pose) @ np.hstack([points, np.ones((len(points), 1))]).T).T[:, :3]
     z = cam[:, 2]
     front = z > 1e-6
     safe = np.where(front, z, 1.0)
     u = params["fx"] * cam[:, 0] / safe + params["cx"]
     v = params["fy"] * cam[:, 1] / safe + params["cy"]
-    # Count the points that land inside the view, per pixel.
+    # Keep the points that land inside the view.
     inside = front & (u >= 0) & (u < params["width"]) & (v >= 0) & (v < params["height"])
+    return np.floor(v[inside]).astype(np.int64) * w + np.floor(u[inside]).astype(np.int64), z[inside]
+
+
+def pixel_hits(points: np.ndarray, pose: np.ndarray, params: dict) -> np.ndarray:
+    """Return how many of `points` fall in each pixel of the endoscope's view, as an (H, W) array.
+
+    The arguments are those of `project`.
+    """
+    h, w = int(params["height"]), int(params["width"])
     hits = np.zeros(h * w, np.int32)
-    np.add.at(hits, np.floor(v[inside]).astype(np.int64) * w + np.floor(u[inside]).astype(np.int64), 1)
+    np.add.at(hits, project(points, pose, params)[0], 1)
     return hits.reshape(h, w)
+
+
+def scan_depth(points: np.ndarray, pose: np.ndarray, params: dict) -> np.ndarray:
+    """Return the depth of the nearest of `points` in each pixel of the endoscope's view, NaN where none falls.
+
+    The arguments are those of `project`. The result is (H, W) float32, in the points' unit.
+    """
+    h, w = int(params["height"]), int(params["width"])
+    pixels, z = project(points, pose, params)
+    depth = np.full(h * w, np.inf)
+    np.minimum.at(depth, pixels, z)
+    depth[np.isinf(depth)] = np.nan
+    return depth.reshape(h, w).astype(np.float32)
