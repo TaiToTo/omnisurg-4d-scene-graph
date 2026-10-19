@@ -83,10 +83,7 @@ not compared:
    - the entry point's `--pilot`, and the `pilot` argument of
      `score_condition` with the imports it needs;
    - the `pilot` arguments of `evalkit/scored.py` and `evalkit/inst_bf.py`;
-   - every sentence of a hashed module that says what pilot mode does;
-   - the sentences of `evalkit/scored.py`'s header that say
-     `docs/figures/scored_pixels.png` is drawn in pilot mode, with a patch
-     without depth. The figure is drawn in normal mode now.
+   - every sentence of a hashed module that says what pilot mode does.
 
    The normal-mode tests must still pass, and then the evaluator is frozen.
    Moving pilot mode out of `evalkit/` was the alternative. It could then be

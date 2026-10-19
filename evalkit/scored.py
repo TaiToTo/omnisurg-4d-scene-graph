@@ -7,8 +7,7 @@ under the first reason that removes it, so the counts sum to the frame.
 `frame_is_excluded` finds a frame that an `excluded` class takes out, and
 `scored_pixels` refuses such a frame too. `docs/evaluation.md` fixes the
 order of the reasons ("Fail closed") and the refusal of invalid depth
-("Inputs"). `docs/figures/scored_pixels.png` shows this on a drawn scene in
-pilot mode. The scene has a patch without depth, which normal mode refuses.
+("Inputs"). `docs/figures/scored_pixels.png` shows this on a drawn scene.
 """
 from __future__ import annotations
 
