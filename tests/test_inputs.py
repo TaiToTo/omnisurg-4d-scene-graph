@@ -245,7 +245,7 @@ def test_the_region_line_is_filled_on_the_mask_as_stored_and_counted_at_the_dept
     expected = gt.copy()
     expected[:, 12], expected[5, 20] = C.LIVER, C.GALLBLADDER
     assert np.array_equal(clip.gt[0], expected)
-    assert dict(clip.filled) == {0: 21, 1: 0}
+    assert dict(clip.filled_pixels) == {0: 21, 1: 0}
 
 
 def test_a_mask_of_the_region_line_alone_is_refused(tmp_path):

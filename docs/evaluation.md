@@ -286,10 +286,13 @@ masks: many classes were neither shape nor colour, but one of these two.
 The fill gives each pixel of a `filled` class the id of the nearest pixel of
 another class. Nearness counts steps between 4-neighbours, and of several
 ids equally near, the pixel takes the smallest. The fill runs on the mask
-as stored, before it is resized, where CholecSeg8k's line is 1 px wide. A
-row of the score counts the filled pixels at the depth map's shape, per
-frame and in all, as `filled_pixels`. Pilot mode does not fill: it reads
-CholecSeg8k's line as background, as the pilot evaluator did.
+as stored, before it is resized. There CholecSeg8k's line is 1 px wide, so
+each of its pixels is equally near the regions on both sides. The whole
+line takes the smaller id, and the GT boundary moves by at most 1 px of the
+stored mask. A row of the score counts the filled pixels at the depth map's
+shape, per frame and summed over the scored frames, as `filled_pixels`.
+Pilot mode does not fill: it reads CholecSeg8k's line as background, as the
+pilot evaluator did.
 
 ### Views
 
@@ -704,10 +707,11 @@ A score JSON holds those fields, `clips` (the population, in its order),
 and one row per clip under `per_clip`. A row holds the clip's name, every
 key (`metric/view`, then `time_IoU`), and the counts behind them: `n_frames`,
 the frames each key's mean covers, by key; the scored and excluded frames;
-`filled_pixels`, the GT pixels the fill gave a class; `pixels`, where each
-view's pixels went; and `objects`, the GT objects, predicted objects, hits
-and hits that entered `inst_BF`, per view. Its `frames` keeps every GT
-frame's values and `filled_pixels`, by frame number, in time order.
+`filled_pixels`, the GT pixels of the scored frames the fill gave a class;
+`pixels`, where each view's pixels went; and `objects`, the GT objects,
+predicted objects, hits and hits that entered `inst_BF`, per view. Its
+`frames` keeps every GT frame's values and `filled_pixels`, by frame number,
+in time order.
 
 Two scores are comparable only when all of these requirements hold:
 
