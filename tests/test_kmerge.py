@@ -181,3 +181,9 @@ def test_a_region_id_below_minus_one_is_refused_before_anything_is_written(tmp_p
     with pytest.raises(ValueError, match="VID02_b: frame 0 holds a region id below -1"):
         merge_condition("cholecseg8k", clips, tmp_path / "data", tmp_path / "tracks", "t", "t_k2", k=2)
     assert not (tmp_path / "tracks" / "VID01_a" / "t_k2").exists()
+
+
+def test_the_command_line_lists_every_dataset_the_evaluator_knows_and_refuses_another(capsys):
+    with pytest.raises(SystemExit):
+        KM.main(["--dataset", "cholec", "--clips", "c", "--data-root", "d", "--tracks-root", "t", "--tag", "t"])
+    assert "'atlas120k', 'cholecseg8k', 'lapex'" in capsys.readouterr().err

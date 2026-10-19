@@ -130,7 +130,7 @@ def _time_order(frames: list[dict], clip: str) -> list[int]:
 
 
 def gt_frames(frames: list[dict], flag: str, with_mask: set[int], clip: str, anchored: bool = True) -> list[int]:
-    """Return the GT frames: those with the dataset's GT flag, `is_anchor` true and no `seg_provenance`.
+    """Return the GT frames: those with the dataset's GT flag, no `seg_provenance`, and `is_anchor` true when `anchored`.
 
     The mask files cannot decide: the pipeline also writes the viewer's SAM 3 masks into `seg_masks/` under the
     GT's names, and marks those frames with `seg_provenance`.
