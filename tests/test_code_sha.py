@@ -34,7 +34,8 @@ def test_every_module_of_the_package_is_listed_and_the_tools_are_not():
 
 def test_the_hashed_files_are_the_modules_then_the_tables_in_a_fixed_order():
     files = eval_code_files()
-    assert files == sorted(HASHED_MODULES) + ["class_tables/atlas120k.json", "class_tables/cholecseg8k.json"]
+    assert files == sorted(HASHED_MODULES) + ["class_tables/atlas120k.json", "class_tables/cholecseg8k.json",
+                                              "class_tables/lapex.json"]
     assert [p.name for p in hashed_files()] == [Path(f).name for f in files]
 
 

@@ -22,7 +22,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from evalkit.classes import load_table
+from evalkit.classes import CLASS_SETS, load_table
 from evalkit.evaluate import SEED_INFO, read_population
 from evalkit.inputs import ClipInputs, read_clip
 from evalkit.scored import valid_depth
@@ -212,7 +212,7 @@ def merge_condition(dataset: str, clips: Sequence[str], data_root: str | Path, t
 
 def main(argv: Sequence[str] | None = None) -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--dataset", required=True, help="cholecseg8k or atlas120k; the GT is read with its class table.")
+    ap.add_argument("--dataset", required=True, choices=sorted(CLASS_SETS), help="The GT is read with its class table.")
     ap.add_argument("--clips", required=True, help="The population file, one clip per line.")
     ap.add_argument("--data-root", required=True, help="The directory holding one directory per clip.")
     ap.add_argument("--tracks-root", required=True, help="The directory holding each clip's conditions.")

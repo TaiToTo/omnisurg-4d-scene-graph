@@ -35,7 +35,7 @@ from evalkit.code_sha import eval_code_sha, hashed_files
 from evalkit.frame import score_frame
 from evalkit.inputs import ClipInputs, read_clip
 from evalkit.keys import FRAME_METRICS, metric_key
-from evalkit.pilot import PILOT_DOMAINS
+from evalkit.pilot import PILOT_DOMAINS, PILOT_INSTRUMENT_IDS
 from evalkit.pilot_clip import score_pilot_clip
 from evalkit.scored import valid_depth
 from evalkit.time_iou import time_iou
@@ -92,13 +92,13 @@ def _number(value):
     return None if value is None else float(value)
 
 
-def clip_row(clip: str, scores: ClipScores, filled: Mapping[int, int]) -> dict:
+def clip_row(clip: str, scores: ClipScores, filled_pixels: Mapping[int, int]) -> dict:
     """Build one clip's row of the score JSON: the means, the counts behind them, and the per-frame values.
 
     Args:
         clip: The clip's name.
         scores: The clip's scores, from `score_clip`.
-        filled: Each GT frame's number in the source video to the pixels whose GT the fill gave.
+        filled_pixels: Each GT frame's number in the source video to the pixels whose GT the fill gave.
     """
     views = scores.views
     row: dict = {"clip": clip}
@@ -107,13 +107,14 @@ def clip_row(clip: str, scores: ClipScores, filled: Mapping[int, int]) -> dict:
     row["n_frames"] = {metric_key(m, v): int(views[v].n_frames[m]) for v in VIEWS for m in FRAME_METRICS}
     row["n_scored_frames"] = scores.n_scored_frames
     row["n_excluded_frames"] = scores.n_excluded_frames
-    row["filled_pixels"] = sum(int(filled[f.frame]) for f in scores.frames)
+    # Summed over the scored frames, as `pixels` is.
+    row["filled_pixels"] = sum(int(filled_pixels[f.frame]) for f in scores.frames if not f.scores.excluded)
     row["pixels"] = {v: {k: int(n) for k, n in dataclasses.asdict(views[v].pixels).items()} for v in VIEWS}
     row["objects"] = {v: {"gt": int(views[v].n_gt_objects), "predicted": int(views[v].n_pred_objects),
                           "hits": int(views[v].n_hits), "inst_bf_hits": int(views[v].n_inst_bf_hits)}
                       for v in VIEWS}
     row["frames"] = [
-        {"frame": f.frame, "excluded": f.scores.excluded, "filled_pixels": int(filled[f.frame]),
+        {"frame": f.frame, "excluded": f.scores.excluded, "filled_pixels": int(filled_pixels[f.frame]),
          **{metric_key(m, v): _number(value) for v, s in f.scores.views.items() for m, value in s.metrics().items()}}
         for f in scores.frames
     ]
@@ -225,14 +226,17 @@ def score_condition(dataset: str, class_set: str | None, clips: Sequence[str],
         pilot: Score by the pilot evaluator's rules.
 
     Raises:
-        ValueError, KeyError, FileNotFoundError: Pilot mode is asked for a class set other than `original`;
-            the condition's propagation rule is unknown (`condition_rule`); or a clip's inputs cannot be read
-            or scored. Nothing is returned for the others.
+        ValueError, KeyError, FileNotFoundError: Pilot mode is asked for a class set other than `original`,
+            or for a dataset the pilot evaluator never scored; the condition's propagation rule is unknown
+            (`condition_rule`); or a clip's inputs cannot be read or scored. Nothing is returned for the
+            others.
     """
     table = load_table(dataset, class_set)
     check_table(table)
     if pilot and table.class_set != "original":
         raise ValueError("pilot mode scores the original ids, as the pilot evaluator did")
+    if pilot and table.dataset not in PILOT_INSTRUMENT_IDS:
+        raise ValueError(f"the pilot evaluator scored no {table.dataset} clip, so pilot mode has nothing to reproduce")
     rule = condition_rule(tracks_root, tag, clips, propagation)
     sha = eval_code_sha()
     rows, shas = [], {}
@@ -242,8 +246,8 @@ def score_condition(dataset: str, class_set: str | None, clips: Sequence[str],
             rows.append(row)
             continue
         inputs = read_clip(data_root, tracks_root, tag, clip, table)
-        filled = {inputs.numbers[i]: n for i, n in inputs.filled.items()}
-        rows.append(clip_row(clip, score_clip(inputs, table), filled))
+        filled_pixels = {inputs.numbers[i]: n for i, n in inputs.filled_pixels.items()}
+        rows.append(clip_row(clip, score_clip(inputs, table), filled_pixels))
         shas[clip] = dict(inputs.shas)
     return {
         "eval_code_sha": sha, "dataset": table.dataset, "class_set": table.class_set,

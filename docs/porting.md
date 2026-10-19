@@ -49,7 +49,7 @@ not compared:
 - **The paper's tables**: the claims grid.
 - **D4D**: depth, seeds, the front/behind relation and the camera
   trajectory.
-- **LapEx's comparisons**. They wait on "How LapEx is scored".
+- **LapEx's comparisons**. They wait on "How LapEx is compared".
 - **The conditions seeded from GT masks** (`t12_gtseed`, `t12_paste`). They
   wait on "Conditions seeded from GT".
 - **The identity table from `track_metrics`.** `print_status_tables
@@ -331,16 +331,10 @@ Each question says what it blocks and where its answer is written.
 
 ### LapEx
 
-- **How LapEx is scored.** The evaluator holds no LapEx class table, so
-  neither it nor `kmerge` reads a LapEx clip. Open:
-  - its class table, where level 0, interstitial space, is a class that the
-    extraction writes as 11;
-  - its crop rectangle: the evaluator requires `crop_info` or `crop` in the
-    manifest, and the extraction writes neither;
-  - its comparison: the workbench resampled 30 case means, which weighs
-    the cases unlike `paired_stats`.
-
-  Blocks: scoring LapEx. Answer in: `docs/evaluation.md`.
+- **How LapEx is compared.** The workbench resampled 30 case means, which
+  weighs the cases unlike `paired_stats`. Open: whether LapEx's comparisons
+  resample as `paired_stats` does. Blocks: LapEx's comparisons. Answer in:
+  `docs/evaluation.md`.
 
 ### The public viewer
 
