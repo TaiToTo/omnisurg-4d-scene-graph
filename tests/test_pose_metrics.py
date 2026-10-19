@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 
 from trajectory_eval.pose_metrics import (ate, centers_from_cam_to_world, centers_from_world_to_cam, rpe,
-                                         rot_from_world_to_cam, scale_consistency, umeyama)
+                                         rot_from_world_to_cam, rpe_pairs, scale_consistency, umeyama)
 
 N = 120
 TIMES = np.linspace(0, 24, N)
@@ -96,6 +96,23 @@ def test_rpe_rotation_of_a_camera_turning_by_a_fixed_angle_a_frame():
     q = rpe(GT_C, est_R, GT_C, gt_R, TIMES, 1.0, dt=1.0)
     assert q["n_pairs"] == N - 5
     assert abs(q["rpe_rot_deg"] - 5 * theta) < 1e-9
+
+
+def test_rpe_pairs_each_frame_with_the_one_dt_later_whatever_the_rounding_of_the_times():
+    # At 60 fps, `t + 1.0` falls above the frame 60 steps on for some frames and below it for others.
+    for start in range(0, 286, 5):
+        times = (start + np.arange(300)) / 60.0
+        c = np.stack([times, np.zeros(300), np.zeros(300)], 1)
+        R = np.tile(np.eye(3), (300, 1, 1))
+        q = rpe(c, R, c, R, times, 1.0, dt=1.0)
+        assert q["n_pairs"] == 240, start
+
+
+def test_rpe_pairs_a_stereomis_clip_at_60_fps_5_frames_on_from_every_start():
+    # A clip's frames are 12 apart. Without the tolerance, 896 of the 1344 starts pair some frame 6 frames on.
+    for start in range(1344):
+        i, j = rpe_pairs((start + 12 * np.arange(112)) / 60.0, 1.0)
+        assert len(i) == 107 and np.all(j - i == 5), start
 
 
 def test_rpe_with_fewer_than_3_pairs_is_nan():
