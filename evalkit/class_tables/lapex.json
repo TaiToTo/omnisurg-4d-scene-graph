@@ -1,0 +1,16 @@
+{
+  "dataset": "lapex",
+  "classes": [
+    {"id": 11,  "name": "interstitial_space",       "colour": [11, 11, 11],    "type": "filled"},
+    {"id": 18,  "name": "adipose_tissue",           "colour": [18, 18, 18],    "type": "tissue"},
+    {"id": 36,  "name": "diaphragm",                "colour": [36, 36, 36],    "type": "backdrop"},
+    {"id": 109, "name": "abdominal_wall",           "colour": [109, 109, 109], "type": "backdrop"},
+    {"id": 127, "name": "spleen",                   "colour": [127, 127, 127], "type": "tissue"},
+    {"id": 145, "name": "liver_retractor",          "colour": [145, 145, 145], "type": "tool"},
+    {"id": 163, "name": "compress",                 "colour": [163, 163, 163], "type": "tool"},
+    {"id": 182, "name": "flat_grasper",             "colour": [182, 182, 182], "type": "tool"},
+    {"id": 200, "name": "liver",                    "colour": [200, 200, 200], "type": "tissue"},
+    {"id": 218, "name": "stomach",                  "colour": [218, 218, 218], "type": "tissue"},
+    {"id": 236, "name": "electrothermal_biforceps", "colour": [236, 236, 236], "type": "tool"}
+  ]
+}

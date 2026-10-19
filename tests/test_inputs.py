@@ -5,7 +5,7 @@ The refusals include the two faults the real CholecSeg8k clips showed: an
 image that appears twice, at one timestamp, and a stale mask left on a frame
 the manifest says has none. A mask the viewer's step wrote under the GT's
 name, marked by `seg_provenance`, is not GT and is not scored. CholecSeg8k's
-region line is filled and counted.
+region line is filled and counted, and a LapEx clip is read whole.
 """
 import hashlib
 import json
@@ -15,6 +15,7 @@ import pytest
 from PIL import Image
 
 import clip_dirs as C
+from evalkit.classes import load_table
 from evalkit.inputs import DEPTH_FILE, MANIFEST, MASK_DIR, depth_sha, read_clip
 
 TAG = "cond"
@@ -247,7 +248,7 @@ def test_the_region_line_is_filled_on_the_mask_as_stored_and_counted_at_the_dept
     C.write_labels(tmp_path / "tracks", "c", TAG, {0: C.two_organs(), 1: C.two_organs()}, scale=2)
     clip = read(tmp_path)
     assert np.array_equal(clip.gt[0], C.two_organs(cut=13))
-    assert dict(clip.filled) == {0: 21, 1: 0}
+    assert dict(clip.filled_pixels) == {0: 21, 1: 0}
 
 
 def test_a_mask_of_the_region_line_alone_is_refused(tmp_path):
@@ -256,3 +257,28 @@ def test_a_mask_of_the_region_line_alone_is_refused(tmp_path):
     Image.fromarray(np.full((40, 60, 3), 255, dtype=np.uint8)).save(path)
     with pytest.raises(ValueError, match="c: frame 2: every pixel holds a filled id"):
         read(tmp_path)
+
+
+def lapex_clip(tmp_path) -> np.ndarray:
+    gt = np.full((20, 30), C.LAPEX_STOMACH, dtype=np.int32)
+    gt[:, :10] = C.LAPEX_LIVER
+    gt[:, 10] = C.LAPEX_GAP
+    C.write_lapex_clip(tmp_path / "data", "c", gt)
+    C.write_labels(tmp_path / "tracks", "c", TAG, {0: gt.copy()})
+    return gt
+
+
+def test_a_lapex_clip_is_read_whole_and_its_frame_is_gt_without_an_anchor_mark(tmp_path):
+    lapex = load_table("lapex")
+    gt = lapex_clip(tmp_path)
+    clip = read_clip(tmp_path / "data", tmp_path / "tracks", TAG, "c", lapex)
+    assert np.array_equal(clip.gt[0], np.where(gt == C.LAPEX_GAP, C.LAPEX_LIVER, gt)) and clip.filled_pixels == {0: 20}
+    # No rectangle cut the clip, and the score says so by hashing none.
+    assert clip.shas["crop"] == hashlib.sha256(b"null").hexdigest()
+
+
+def test_a_lapex_clip_with_a_crop_rectangle_is_refused(tmp_path):
+    lapex_clip(tmp_path)
+    edit_manifest(tmp_path, lambda m: m.update(crop_info={"x0": 0, "x1": 30, "y0": 0, "y1": 20}))
+    with pytest.raises(ValueError, match=r"a lapex clip is used whole, but its manifest holds \['crop_info'\]"):
+        read_clip(tmp_path / "data", tmp_path / "tracks", TAG, "c", load_table("lapex"))

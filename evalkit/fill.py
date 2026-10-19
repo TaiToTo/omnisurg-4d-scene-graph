@@ -3,11 +3,11 @@
 A `filled` class is no class: a line or gap the annotation leaves between
 two regions (`docs/evaluation.md`, "Class types"). `fill_from_nearest`
 gives each of its pixels the id of the nearest pixel whose class is not
-`filled`.
-Nearness counts steps between 4-neighbours, and of several ids equally
-near, the pixel takes the smallest. The reader fills a mask as stored,
-before it is resized, so that a line drawn 1 px wide is filled from the
-pixels on either side of it.
+`filled`. Nearness counts steps between 4-neighbours. Of several ids
+equally near, the pixel takes the smallest, so a line 1 px wide takes the
+smaller of the ids on its two sides, whole. The reader fills a mask as
+stored, before it is resized, so that the fill depends on the annotation
+alone, not on the depth map's shape.
 """
 from __future__ import annotations
 
@@ -40,9 +40,9 @@ def fill_from_nearest(mask_ids: np.ndarray, filled_ids: frozenset[int]) -> tuple
     if mask_ids.ndim != 2 or not np.issubdtype(mask_ids.dtype, np.integer):
         raise ValueError(f"a mask id map is an (H, W) integer array, got {mask_ids.dtype} of shape {mask_ids.shape}")
     todo = np.isin(mask_ids, sorted(filled_ids))
-    filled = todo.copy()
+    was_filled = todo.copy()
     if not todo.any():
-        return mask_ids.copy(), filled
+        return mask_ids.copy(), was_filled
     if todo.all():
         raise ValueError(f"every pixel holds a filled id {sorted(filled_ids)}, so no region is near to fill it from")
     out = mask_ids.astype(np.int64)
@@ -57,4 +57,4 @@ def fill_from_nearest(mask_ids: np.ndarray, filled_ids: frozenset[int]) -> tuple
         step = todo & (nearest != none)
         out[step] = nearest[step]
         todo &= ~step
-    return out.astype(mask_ids.dtype), filled
+    return out.astype(mask_ids.dtype), was_filled

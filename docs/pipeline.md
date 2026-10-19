@@ -276,7 +276,9 @@ holds:
 - `seg_masks/000000_class.png`: the mask's grey levels, each a class of the
   release's `metadata/segmented_entity.csv`. Interstitial space, level 0,
   is written as 11, a level no class uses. LapEx labels every pixel, and
-  the workbench's evaluators read id 0 as background.
+  the workbench's evaluators read id 0 as background. The evaluator gives
+  each pixel of 11 the class of the nearest region ("Class types" in
+  `docs/evaluation.md`).
 - `frame_manifest.json`: the frame's time and video frame, the class table,
   the moved level, and the levels of the instruments and of the gauze.
 
@@ -291,8 +293,8 @@ the summary an earlier run wrote:
 So a summary always counts the clips of one run over the whole release.
 
 The frames are not cropped. They keep a thin black border, about 1.5 % of
-the frame, whose pixels LapEx labels with classes, and the depth stage
-takes them whole.
+the frame, whose pixels LapEx labels with classes, and the depth stage and
+the evaluator take them whole.
 
 The stage refuses, before any case is extracted:
 

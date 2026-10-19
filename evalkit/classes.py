@@ -79,11 +79,13 @@ VIEWS: Mapping[str, frozenset[ClassType]] = MappingProxyType({
 # palette or greyscale image, or as the id's colour in an RGB image. Most
 # ATLAS-120k masks are palette images, but 34 of its clips store colours.
 # CholecSeg8k's single-channel masks hold the watershed's own codes, not the
-# table's ids, so only its colour masks are read. Also the list of datasets
-# the evaluator knows: exactly their tables are hashed into `eval_code_sha`.
+# table's ids, so only its colour masks are read. LapEx's extraction writes
+# grey levels, which are the ids. Also the list of datasets the evaluator
+# knows: exactly their tables are hashed into `eval_code_sha`.
 _MASK_ENCODINGS: Mapping[str, frozenset[str]] = MappingProxyType({
     "cholecseg8k": frozenset({"colour"}),
     "atlas120k": frozenset({"id", "colour"}),
+    "lapex": frozenset({"id"}),
 })
 
 # The datasets whose file also lists a benchmark's classes.
@@ -101,6 +103,7 @@ _WITH_BENCHMARK = frozenset({"atlas120k"})
 CLASS_SETS: Mapping[str, tuple[str, ...]] = MappingProxyType({
     "cholecseg8k": ("original",),
     "atlas120k": ("original", "benchmark"),
+    "lapex": ("original",),
 })
 
 
@@ -432,7 +435,7 @@ def load_table(dataset: str, class_set: str | None = None, path: Path | None = N
     """Read a dataset's class table.
 
     Args:
-        dataset: `cholecseg8k` or `atlas120k`; the file is
+        dataset: `cholecseg8k`, `atlas120k` or `lapex`; the file is
             `class_tables/<dataset>.json`.
         class_set: One of `CLASS_SETS[dataset]`; None takes `original`, the
             one claims are judged on.
