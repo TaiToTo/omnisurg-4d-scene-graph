@@ -52,9 +52,9 @@ not compared:
 - **LapEx's comparisons**. They wait on "How LapEx is scored".
 - **The conditions seeded from GT masks** (`t12_gtseed`, `t12_paste`). They
   wait on "Conditions seeded from GT".
-- **Seeds made outside the tracking stage in `component_scores` and
-  `track_metrics`.** Both tools refuse them until their JSONs record the
-  seeds as the evaluator's score does.
+- **Seeds made outside the tracking stage, and labels `kmerge` merged, in
+  `component_scores` and `track_metrics`.** Both tools refuse them until
+  their JSONs record `gt_informed` as the evaluator's score does.
 - **The identity table from `track_metrics`.** `print_status_tables
   --identity` reads the JSON the workbench's `summarize_track12` wrote;
   nothing builds the table from the JSON `track_metrics` writes.

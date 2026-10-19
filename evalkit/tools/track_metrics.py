@@ -5,9 +5,9 @@ component objects at each size of `MIN_PX`, linked from frame to frame. It
 reads the clip and pairs the objects with the evaluator's own modules.
 `docs/evaluation.md` defines the tracks and the measures ("The measures of
 identity"). They are reference values and decide no claim. The tool refuses
-a condition without a seed frame on a scored GT frame, and seeds made
-outside the tracking stage. The JSON records `eval_code_sha` and the hashes
-of this file and of `component_scores`.
+a condition without a seed frame on a scored GT frame, and one whose
+records do not decide that the GT informed nothing. The JSON records
+`eval_code_sha` and the hashes of this file and of `component_scores`.
 
 Usage:
     python -m evalkit.tools.track_metrics --dataset atlas120k --clips atlas120k_meta/clips.txt \\
@@ -35,7 +35,7 @@ from evalkit.objects import Objects, gt_objects, intersections, pair
 from evalkit.scored import frame_is_excluded, scored_pixels, valid_depth
 from evalkit.tools import component_scores
 from evalkit.tools.component_scores import (
-    MIN_PX, check_seeds_made_by_the_stage, component_objects, region_objects, tool_sha,
+    MIN_PX, check_not_gt_informed, component_objects, region_objects, tool_sha,
 )
 from evalkit.tools.scores import PER_FRAME
 from surgical_core.clip_time import frame_times
@@ -384,13 +384,13 @@ def measure_condition(dataset: str, class_set: str | None, clips: Sequence[str],
 
     Raises:
         ValueError, KeyError, FileNotFoundError, RuntimeError: The condition's seeds hold no usable rule
-            (`seed_frames`), or were made outside the tracking stage (`check_seeds_made_by_the_stage`); or a clip
-            cannot be read, timed or measured. Nothing is returned for the others.
+            (`seed_frames`); its records do not decide that the GT informed nothing (`check_not_gt_informed`);
+            or a clip cannot be read, timed or measured. Nothing is returned for the others.
     """
     table = load_table(dataset, class_set)
     check_table(table)
     seeds, rule = seed_frames(tracks_root, tag, clips)
-    check_seeds_made_by_the_stage(tracks_root, tag, clips)
+    check_not_gt_informed(tracks_root, tag, clips)
     # Both hashes before any clip is measured: a source file edited during a long run would otherwise label the
     # values of the code in memory with the hash of the code on disk.
     tool, sha = tool_sha(__file__, component_scores.__file__), eval_code_sha()

@@ -63,7 +63,7 @@ def evaluator_scores(propagation="both_ways_from_centre", class_set="original", 
     rows = [dict(clip=c, **{metric_key("F1_50", v): round(rnd.random(), 4) for v in views}) for c in CLIPS]
     return dict(eval_code_sha=SHA, dataset="atlas120k", pilot=pilot, class_set=class_set, views=list(views),
                 clips=list(CLIPS), input_shas={c: {"gt_masks": "g", "depth": "d", "crop": "c", "frames": "f", "predictions": "p"} for c in CLIPS},
-                versions={"numpy": "2.0.0"}, propagation=propagation, seed={"source": "sam", "gt_informed": False},
+                versions={"numpy": "2.0.0"}, propagation=propagation, seed_source="sam", gt_informed=False,
                 per_clip=rows)
 
 

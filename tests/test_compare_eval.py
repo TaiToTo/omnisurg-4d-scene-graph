@@ -46,7 +46,7 @@ def evaluator_scores(pilot=False, class_set="original", views=("all", "tissue", 
                  time_IoU=0.5) for c in clips]
     return dict(eval_code_sha=SHA, dataset="atlas120k", pilot=pilot, class_set=class_set, views=list(views),
                 clips=clips, input_shas={c: {"gt_masks": "g", "depth": "d", "crop": "c", "frames": "f", "predictions": "p"} for c in clips},
-                versions={"numpy": "2.0.0"}, propagation="both_ways_from_centre", seed={"source": "sam", "gt_informed": False}, per_clip=rows)
+                versions={"numpy": "2.0.0"}, propagation="both_ways_from_centre", seed_source="sam", gt_informed=False, per_clip=rows)
 
 
 # What the workbench's compare_eval wrote on `base` (shift 0, seed 5) against

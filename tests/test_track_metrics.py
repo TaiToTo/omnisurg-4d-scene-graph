@@ -370,9 +370,13 @@ def test_a_condition_without_a_seed_frame_to_hold_from_is_refused(tmp_path, info
         measure(tmp_path)
 
 
-def test_seeds_made_outside_the_tracking_stage_are_refused_since_the_json_records_no_seed(tmp_path):
-    write_hold_scene(tmp_path, seed_info={**BOTH_WAYS, "seed_source": "external"})
-    with pytest.raises(ValueError, match="made outside the tracking stage"):
+@pytest.mark.parametrize("info", [
+    {**BOTH_WAYS, "seed_source": "external"},
+    {**BOTH_WAYS, "kmerge": {"from_tag": "t", "k": 2}},
+])
+def test_a_condition_whose_records_do_not_decide_the_gt_is_refused_since_the_json_does_not_record_it(tmp_path, info):
+    write_hold_scene(tmp_path, seed_info=info)
+    with pytest.raises(ValueError, match="does not say whether the GT informed it"):
         measure(tmp_path)
 
 

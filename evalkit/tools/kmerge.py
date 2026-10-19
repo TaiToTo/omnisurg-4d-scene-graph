@@ -5,7 +5,9 @@ compared on instance metrics as they are: more regions lose on them
 whatever their boundaries. Merged to one K, they can be compared. The
 region of least area is merged into the neighbour it shares the longest
 boundary with, until K are left. The merged predictions are scored by the
-evaluator like any other condition, and compared with `compare_eval`.
+evaluator like any other condition, and compared with `compare_eval`. The
+evaluator is told whether the GT set K (`--gt-informed`), since the record
+does not say.
 
 Usage:
     python -m evalkit.tools.kmerge --dataset atlas120k --clips atlas120k_meta/clips.txt \\
@@ -23,7 +25,7 @@ import cv2
 import numpy as np
 
 from evalkit.classes import load_table
-from evalkit.evaluate import SEED_INFO, read_population
+from evalkit.evaluate import MERGED, SEED_INFO, read_population
 from evalkit.inputs import ClipInputs, read_clip
 from evalkit.scored import valid_depth
 
@@ -203,7 +205,7 @@ def merge_condition(dataset: str, clips: Sequence[str], data_root: str | Path, t
             np.save(dst / names[i], kmerge(np.asarray(regions), k))
         if (src / SEED_INFO).is_file():
             info = json.loads((src / SEED_INFO).read_text(encoding="utf-8"))
-            info["kmerge"] = {"from_tag": tag, "k": k}
+            info[MERGED] = {"from_tag": tag, "k": k}
             (dst / SEED_INFO).write_text(json.dumps(info, indent=2), encoding="utf-8")
         record = {"from_tag": tag, "from_predictions_sha": inputs.shas["predictions"], "k": k}
         (dst / RECORD).write_text(json.dumps(record, indent=2), encoding="utf-8")

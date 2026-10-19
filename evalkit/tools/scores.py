@@ -5,7 +5,7 @@ comparable scores (`docs/evaluation.md`, "Recorded with every score") are
 checked in one place. `check_comparable` refuses a pair unless everything
 that must match does: `eval_code_sha`, dataset, class set, views, mode, the
 clip population, the GT and depth each clip was scored against, whether the
-GT informed the seeds, and the propagation rule, which may differ only
+GT informed the condition, and the propagation rule, which may differ only
 between two conditions that differ in the rule alone. Library versions are
 reported instead of refused.
 
@@ -40,7 +40,8 @@ PILOT_EVAL_CODE_SHA = "1f8a813a5be31dd204fe4130a1799053411c41166f19821f80ca30d3a
 
 # What the evaluator records with every score beyond what the pilot did.
 # All or none: a JSON with a part of them is refused.
-EVALUATOR_FIELDS = ("class_set", "views", "pilot", "input_shas", "versions", "propagation", "seed")
+EVALUATOR_FIELDS = ("class_set", "views", "pilot", "input_shas", "versions", "propagation", "seed_source",
+                    "gt_informed")
 
 # The rule of a condition with no tracker; it may be compared with either rule.
 PER_FRAME = "per_frame"
@@ -152,19 +153,19 @@ def propagation_rule_of(summary: Mapping) -> str | None:
 
 
 def gt_informed_of(summary: Mapping) -> bool | None:
-    """Return whether the GT made or informed a JSON's seeds, or None for a pilot JSON, which records no seeds.
+    """Return whether the GT informed a JSON's condition, or None for a pilot JSON, which does not record it.
 
     Raises:
         ValueError: The JSON has some of the evaluator's fields but not
-            all, or its `seed` holds no `gt_informed` that is true or false.
+            all, or its `gt_informed` is not true or false.
     """
     if is_pilot_json(summary):
         return None
-    seed = summary["seed"]
-    if not isinstance(seed, Mapping) or not isinstance(seed.get("gt_informed"), bool):
-        raise ValueError(f"a score JSON records the seed {seed!r}, which says neither that the GT informed it "
-                         "nor that it did not")
-    return seed["gt_informed"]
+    informed = summary["gt_informed"]
+    if not isinstance(informed, bool):
+        raise ValueError(f"a score JSON records gt_informed {informed!r}, which says neither that the GT informed "
+                         "the condition nor that it did not")
+    return informed
 
 
 def name_of_rules(rules: Iterable[str]) -> str:
@@ -425,8 +426,8 @@ def check_comparable(
             views or dataset differ; the pilot domains or a compared clip's
             `extra_ignore` differ; the two were propagated under different
             rules, neither of them `per_frame`, and do not differ in the
-            rule alone; the GT informed the seeds of one and not of the
-            other; a JSON's `clips` and `per_clip` name different clips; the
+            rule alone; the GT informed one condition and not the other; a
+            JSON's `clips` and `per_clip` name different clips; the
             clips differ, no clip is common, or neither JSON holds one; or
             the two read different inputs.
     """
@@ -501,15 +502,15 @@ def check_comparable(
                 f"  the rules.\n  base: propagation={rule_a!r}\n  cond: propagation={rule_b!r}\n  {e}\n"
                 f"  Compare each with a condition of its own rule, or with a {PER_FRAME!r} one"
             ) from None
-    # Seeds the GT made or informed start from what the GT knows, so a difference
+    # A condition the GT informed starts from what the GT knows, so a difference
     # between such a condition and another would include the GT's help.
     informed_a, informed_b = gt_informed_of(a), gt_informed_of(b)
     if informed_a != informed_b:
         raise ValueError(
-            "a condition whose seeds the GT made or informed cannot be compared with one whose seeds\n"
-            "  it did not: the difference between them would include what the GT told the seeds.\n"
+            "a condition the GT informed cannot be compared with one it did not inform:\n"
+            "  the difference between them would include what the GT told the condition.\n"
             f"  base: gt_informed={informed_a}\n  cond: gt_informed={informed_b}\n"
-            "  Compare each with a condition whose seeds were made the same way"
+            "  Compare each with a condition the GT informed alike"
         )
 
     check_rows(a, "base")

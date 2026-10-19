@@ -740,7 +740,8 @@ that reads depth, name nothing.
 
 The granularity result tracks seeds merged to K regions. These three commands
 make the tracked condition at K = 10. The output of `kmerge`, the per-frame
-map merged to 10, is scored as a condition too.
+map merged to 10, is scored as a condition too, with `--gt-informed no`:
+its record does not say whether the GT set K.
 
 ```bash
 python -m pipeline.per_frame --input-dir /path/to/clips --tracks-root /path/to/tracks --tag rgb_per_frame \
@@ -772,12 +773,12 @@ python -m pipeline.track --input-dir /path/to/clips --tracks-root /path/to/track
   ```bash
   python -m evalkit.evaluate --dataset atlas120k --clips atlas120k_meta/clips.txt --data-root /path/to/clips \
       --tracks-root /path/to/tracks --tag track_rgb_rgb_k10 --out rgb_k10.json \
-      --seeds '/path/to/tracks/{clip}/track_rgb_rgb_per_frame_k10' --seeds-gt-informed no
+      --seeds '/path/to/tracks/{clip}/track_rgb_rgb_per_frame_k10' --gt-informed no
   ```
 
-- Seeds merged to as many regions as the clip has GT objects are
-  GT-informed, so the tools compare them only with other GT-informed
-  conditions.
+- A condition whose seeds or labels are merged to as many regions as the
+  clip has GT objects is GT-informed, so the tools compare it only with
+  other GT-informed conditions.
 
 ## The viewer bundle stage
 

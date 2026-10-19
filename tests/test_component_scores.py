@@ -161,10 +161,13 @@ def test_labels_without_a_rule_are_refused(tmp_path):
         measure_condition("atlas120k", None, ["VID01_a"], tmp_path / "data", tmp_path / "tracks", "c", None, SIZES)
 
 
-def test_seeds_made_outside_the_tracking_stage_are_refused_since_the_json_records_no_seed(tmp_path):
-    write_condition(tmp_path, [SPILL] * 3,
-                    seed_info={"seed_source": "external", "seed_frame": 1, "bidir": True, "frames": [0, 1, 2]})
-    with pytest.raises(ValueError, match="made outside the tracking stage"):
+@pytest.mark.parametrize("info", [
+    {"seed_source": "external", "seed_frame": 1, "bidir": True, "frames": [0, 1, 2]},
+    {"seed_source": "per_frame", "frames": "all", "kmerge": {"from_tag": "t", "k": 2}},
+])
+def test_a_condition_whose_records_do_not_decide_the_gt_is_refused_since_the_json_does_not_record_it(tmp_path, info):
+    write_condition(tmp_path, [SPILL] * 3, seed_info=info)
+    with pytest.raises(ValueError, match="does not say whether the GT informed it"):
         measure_condition("atlas120k", None, ["VID01_a"], tmp_path / "data", tmp_path / "tracks", "c", None, SIZES)
 
 

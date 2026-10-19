@@ -50,7 +50,7 @@ def evaluator_scores(tag: str, shift: float = 0.0, seed: int = 1, propagation: s
     rows = [{"clip": c, **{k: round(rnd.gauss(0.5 + shift, 0.05), 4) for k in keys}} for c in clips]
     return dict(tag=tag, eval_code_sha=sha, dataset="atlas120k", pilot=False, class_set=class_set, views=list(views),
                 clips=clips, input_shas={c: {"gt_masks": "g", "depth": "d", "crop": "c", "frames": "f", "predictions": f"p{tag}{c}"} for c in clips},
-                versions={"numpy": "2.0.0"}, propagation=propagation, seed={"source": "sam", "gt_informed": False},
+                versions={"numpy": "2.0.0"}, propagation=propagation, seed_source="sam", gt_informed=False,
                 per_clip=rows)
 
 

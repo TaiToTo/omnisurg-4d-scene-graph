@@ -60,7 +60,7 @@ def evaluator_scores(tag: str, shift: float, seed: int, rule: str = "both_ways_f
                 views=["all"], clips=clips,
                 input_shas={c: {"gt_masks": "g" * 64, "depth": "d" * 64, "crop": "c" * 64, "frames": "f" * 64, "predictions": f"p{c}"} for c in clips},
                 versions={"python": "3.12.0"}, propagation=rule,
-                seed={"source": "sam", "gt_informed": False}, per_clip=rows)
+                seed_source="sam", gt_informed=False, per_clip=rows)
 
 
 # What the workbench's `lovo_verdict.py` wrote on exactly `pilot_pair()`, with

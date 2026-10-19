@@ -5,10 +5,10 @@ or one region, kept at a minimum size on both sides; `docs/evaluation.md`
 defines it ("Component objects"). The tool reads each clip, takes each
 view's scored pixels, and pairs and scores the objects with the
 evaluator's own modules. Only the objects differ from the evaluator's. The
-values are reference values and decide no claim. The tool refuses seeds
-made outside the tracking stage, since its JSON does not record how they
-were made. The JSON records the hash of this file beside `eval_code_sha`,
-since no hash covers a tool.
+values are reference values and decide no claim. The tool refuses a
+condition whose records do not decide that the GT informed nothing, since
+its JSON does not record it. The JSON records the hash of this file beside
+`eval_code_sha`, since no hash covers a tool.
 
 Usage:
     python -m evalkit.tools.component_scores --dataset atlas120k --clips atlas120k_meta/clips.txt \\
@@ -29,7 +29,8 @@ import numpy as np
 from evalkit.classes import CLASS_SETS, VIEWS, ClassTable, load_table
 from evalkit.code_sha import eval_code_sha
 from evalkit.evaluate import (
-    PROPAGATION_RULES, SEED_INFO, check_table, condition_rule, read_population, versions, write_scores,
+    PROPAGATION_RULES, SEED_INFO, check_table, condition_rule, decides_not_gt_informed, read_population, versions,
+    write_scores,
 )
 from evalkit.inputs import ClipInputs, read_clip
 from evalkit.inst_bf import instance_boundary_f
@@ -51,21 +52,23 @@ def tool_sha(*paths: str | Path) -> dict[str, str]:
     return {Path(p).name: hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in paths}
 
 
-def check_seeds_made_by_the_stage(tracks_root: str | Path, tag: str, clips: Sequence[str]) -> None:
-    """Refuse a condition whose seeds were made outside the tracking stage.
+def check_not_gt_informed(tracks_root: str | Path, tag: str, clips: Sequence[str]) -> None:
+    """Refuse a condition whose records do not decide that the GT informed nothing (`decides_not_gt_informed`).
 
-    The evaluator's score of such a condition records how its seeds were made and whether the GT informed them
-    ("Seeds" in `docs/evaluation.md`), so that the tools compare it only with seeds made alike. A tool's JSON
-    that records neither could not be kept from the other comparisons.
+    The evaluator is told whether the GT informed such a condition, and its score records it ("Seeds" in
+    `docs/evaluation.md`), so that the tools compare it only with conditions the GT informed alike. A tool's
+    JSON that does not record it could not be kept from the other comparisons.
 
     Raises:
-        ValueError: A clip's `seed_info.json` names the `seed_source` `external`.
+        ValueError: A clip's `seed_info.json` names seeds made outside the tracking stage, or labels that
+            `kmerge` merged.
     """
     for clip in clips:
         path = Path(tracks_root) / clip / tag / SEED_INFO
-        if path.is_file() and json.loads(path.read_text(encoding="utf-8")).get("seed_source") == "external":
-            raise ValueError(f"{clip}: {tag}'s seeds were made outside the tracking stage, and the JSON would not "
-                             "record whether the GT informed them")
+        if path.is_file() and not decides_not_gt_informed(json.loads(path.read_text(encoding="utf-8"))):
+            raise ValueError(f"{clip}: {tag}'s record does not say whether the GT informed it, as seeds made "
+                             "outside the tracking stage or labels merged to K do not, and the JSON would not "
+                             "record it")
 
 
 def component_objects(classes: np.ndarray, scored: np.ndarray, min_px: int) -> Objects:
@@ -182,13 +185,13 @@ def measure_condition(dataset: str, class_set: str | None, clips: Sequence[str],
 
     Raises:
         ValueError, KeyError, FileNotFoundError: The condition's propagation rule is unknown (`condition_rule`); its
-            seeds were made outside the tracking stage (`check_seeds_made_by_the_stage`); or a clip cannot be read
-            or scored. Nothing is returned for the others.
+            records do not decide that the GT informed nothing (`check_not_gt_informed`); or a clip cannot be
+            read or scored. Nothing is returned for the others.
     """
     table = load_table(dataset, class_set)
     check_table(table)
     rule = condition_rule(tracks_root, tag, clips, propagation)
-    check_seeds_made_by_the_stage(tracks_root, tag, clips)
+    check_not_gt_informed(tracks_root, tag, clips)
     # Both hashes before any clip is scored: a source file edited during a long run would otherwise label the
     # values of the code in memory with the hash of the code on disk.
     tool, sha = tool_sha(__file__), eval_code_sha()
