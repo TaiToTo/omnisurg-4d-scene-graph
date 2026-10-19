@@ -4,8 +4,8 @@ The stage reads each side's file of `pipeline.d4d_depth`, and the frame it names
 input from the depth, with the edges at full darkness and the normals unsmoothed. The tracking stage's
 segmenter then cuts the input at 24 points per side. The stage writes the regions, `<side>.npy`, numbered
 0..K-1 and -1 for none, and their record, `<side>.json`, which holds the depth file's hash and the settings.
-It skips a side whose two files exist once the record matches the depth file and the ring setting, and refuses
-any other record.
+It skips a side whose two files exist once the record holds the depth file's hash and this run's settings, and
+refuses any other record.
 
 Usage:
     python -m pipeline.d4d_seed --depth-dir /path/to/d4d_depth --out /path/to/d4d_seed \\
@@ -41,22 +41,30 @@ def file_sha256(path: Path) -> str:
     return h.hexdigest()
 
 
-def check_done(record_path: Path, depth_path: Path, mask_ring: bool) -> None:
-    """Refuse a side's record that another depth file or another ring setting made.
+def settings(mask_ring: bool, sam_ckpt: str) -> dict:
+    """Return the settings a run with these arguments writes to a side's record."""
+    return dict(sam_input=SAM_INPUT, points_per_side=POINTS_PER_SIDE, edge_gain=EDGE_GAIN, smooth=SMOOTH,
+                edge_ring_masked=mask_ring, sam_ckpt=Path(sam_ckpt).name)
 
-    The regions hold only their shape, so the record alone tells which depth and which ring made them.
+
+def check_done(record_path: Path, depth_path: Path, expected: dict) -> None:
+    """Refuse a side's record that another depth file or other settings made.
+
+    The regions hold only their shape, so the record alone tells which depth and which settings made them.
 
     Raises:
-        ValueError: the record's `depth_sha256` is not the depth file's hash, or its `edge_ring_masked` is not
-            `mask_ring`.
+        ValueError: the record's `depth_sha256` is not the depth file's hash, or a field of `expected` differs
+            from the record's, or is missing.
     """
     record = json.loads(record_path.read_text(encoding="utf-8"))
     if record.get("depth_sha256") != file_sha256(depth_path):
         raise ValueError(f"{record_path.name}: made from another depth than {depth_path.name}; remove the side's "
                          "two files to make them again")
-    if record.get("edge_ring_masked") != mask_ring:
-        raise ValueError(f"{record_path.name}: edge_ring_masked is {record.get('edge_ring_masked')}, where this run "
-                         f"makes {mask_ring}; remove the side's two files, or run with the record's setting")
+    differ = [f"{k} is {record.get(k)!r}, where this run makes {v!r}" for k, v in expected.items()
+              if record.get(k) != v]
+    if differ:
+        raise ValueError(f"{record_path.name}: {'; '.join(differ)}; remove the side's two files, or run with the "
+                         "record's settings")
 
 
 def frame_rgb(path: str, shape: tuple[int, int]) -> np.ndarray:
@@ -96,9 +104,8 @@ def run_side(depth_path: Path, out: Path, segmenter, mask_ring: bool, sam_ckpt: 
     with open(tmp, "wb") as f:
         np.save(f, labels)
     os.replace(tmp, out / f"{stem}.npy")
-    record = dict(depth_file=depth_path.name, depth_sha256=file_sha256(depth_path), **fields, sam_input=SAM_INPUT,
-                  points_per_side=POINTS_PER_SIDE, edge_gain=EDGE_GAIN, smooth=SMOOTH, edge_ring_masked=mask_ring,
-                  sam_ckpt=Path(sam_ckpt).name, n_regions=int(labels.max()) + 1)
+    record = dict(depth_file=depth_path.name, depth_sha256=file_sha256(depth_path), **fields,
+                  **settings(mask_ring, sam_ckpt), n_regions=int(labels.max()) + 1)
     tmp = out / f"{stem}.json.partial"
     tmp.write_text(json.dumps(record, ensure_ascii=False, indent=1), encoding="utf-8")
     os.replace(tmp, out / f"{stem}.json")
@@ -121,6 +128,7 @@ def main(argv: list[str] | None = None) -> None:
     if not 0 <= args.shard < args.n_shards:
         ap.error(f"--shard {args.shard} is not in 0..{args.n_shards - 1}")
     mask_ring = not args.keep_edge_ring
+    expected = settings(mask_ring, args.sam_ckpt)
 
     # List this shard's sides, and skip those already made, once their records are checked.
     depth_files = sorted(Path(args.depth_dir).glob("*.npz"))[args.shard::args.n_shards]
@@ -132,7 +140,7 @@ def main(argv: list[str] | None = None) -> None:
     for path in depth_files:
         stem = path.name[:-len(".npz")]
         if (out / f"{stem}.npy").is_file() and (out / f"{stem}.json").is_file():
-            check_done(out / f"{stem}.json", path, mask_ring)
+            check_done(out / f"{stem}.json", path, expected)
         else:
             todo.append(path)
     print(f"shard {args.shard}/{args.n_shards}: {len(depth_files)} sides, {len(todo)} to run")

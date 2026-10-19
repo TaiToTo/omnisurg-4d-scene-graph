@@ -3,7 +3,8 @@
 The stand-in cuts every image into a left half (region 0) and a right half (1), and keeps the images it is
 given. Each refusal has a test that plants its fault:
 
-- a side's record made from another depth file, or with another ring setting;
+- a side's record made from another depth file, with another ring setting, with another grid, or with other
+  SAM weights;
 - a frame that cannot be read;
 - a depth directory with no side's file.
 """
@@ -102,6 +103,21 @@ def test_main_refuses_a_side_made_with_another_ring_setting(tmp_path, monkeypatc
     run_main(tmp_path, monkeypatch)
     with pytest.raises(ValueError, match="edge_ring_masked is True, where this run makes False"):
         run_main(tmp_path, monkeypatch, extra=["--keep-edge-ring"])
+
+
+def test_main_refuses_a_side_made_with_another_grid(tmp_path, monkeypatch):
+    write_side(tmp_path)
+    run_main(tmp_path, monkeypatch)
+    monkeypatch.setattr(d4d_seed, "POINTS_PER_SIDE", 12)
+    with pytest.raises(ValueError, match="points_per_side is 24, where this run makes 12"):
+        run_main(tmp_path, monkeypatch)
+
+
+def test_main_refuses_a_side_made_with_other_sam_weights(tmp_path, monkeypatch):
+    write_side(tmp_path)
+    run_main(tmp_path, monkeypatch)
+    with pytest.raises(ValueError, match="sam_ckpt is 'sam.pth', where this run makes 'other.pth'"):
+        run_main(tmp_path, monkeypatch, extra=["--sam-ckpt", "other.pth"])
 
 
 def test_main_refuses_a_side_made_from_another_depth(tmp_path, monkeypatch):

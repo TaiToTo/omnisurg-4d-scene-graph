@@ -432,8 +432,8 @@ file per side, `<key, / as __>__<side>`.
 A run skips a side already made and refuses one made otherwise:
 
 - a depth file whose frame, window or resolution differ from this run's;
-- a seed record whose depth hash or `edge_ring_masked` differ from this
-  run's.
+- a seed record whose depth hash, settings or SAM weights' file name differ
+  from this run's.
 
 The depth stage also refuses a clip of `--clips` with no side in the
 population, and a clip of the population that the dataset does not hold.
