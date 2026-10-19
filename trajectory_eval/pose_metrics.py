@@ -12,8 +12,9 @@ of order, and values that are not finite.
 import numpy as np
 
 
-# How far short of `dt` the second frame of an RPE pair may fall, in seconds: well under any frame
-# interval, and well over the rounding of a time in seconds.
+# How far short of `dt` the second frame of an RPE pair may fall, in seconds. It is well under any frame
+# interval, and four times the gap between neighbouring float64 numbers near D4D's times, which count
+# seconds since 1970.
 PAIR_TOL_S = 1e-6
 
 
@@ -118,14 +119,37 @@ def _angle_deg(R: np.ndarray) -> np.ndarray:
     return np.degrees(np.arccos(tr))
 
 
+def rpe_pairs(times: np.ndarray, dt: float) -> tuple[np.ndarray, np.ndarray]:
+    """Return the RPE pairs: each frame `i`, and the first frame `j` at least `dt - PAIR_TOL_S` seconds after it.
+
+    Without the tolerance, the rounding of the times decides some pairs: the time of a frame `dt` after `i` can
+    round to just below `times[i] + dt`, and `i` is then paired with the frame after that one. A frame `i` with
+    no frame that late has no pair.
+
+    Args:
+        times: (N,) each frame's time in seconds, never decreasing.
+        dt: the time between the two frames of a pair.
+
+    Returns:
+        The frames `i` and the frames `j`, one of each per pair.
+
+    Raises:
+        ValueError: `times` decreases somewhere.
+    """
+    if np.any(np.diff(times) < 0):
+        raise ValueError("times decrease somewhere; the pairs are found by searching them in order")
+    j = np.searchsorted(times, times + dt - PAIR_TOL_S)
+    i = np.arange(len(times))
+    ok = j < len(times)
+    return i[ok], j[ok]
+
+
 def rpe(est_c: np.ndarray, est_R: np.ndarray, gt_c: np.ndarray, gt_R: np.ndarray, times: np.ndarray,
         scale: float, dt: float = 1.0) -> dict:
     """Return the error of the relative poses `dt` seconds apart, a local measure of the trajectory.
 
     ATE follows one large failure; RPE does not. The translations take the one scale `ate`'s fit found.
-    Frame `i` is paired with the first frame at least `dt` seconds after it, less `PAIR_TOL_S`. Without the
-    tolerance the rounding of the times decides a pair: at 60 fps, `t + 1.0` lands above the frame 60 steps
-    on for some frames and below it for others, and those frames are paired 61 steps on.
+    The pairs are the ones `rpe_pairs` returns.
 
     Args:
         est_c: (N, 3) estimated camera centres.
@@ -150,12 +174,7 @@ def rpe(est_c: np.ndarray, est_R: np.ndarray, gt_c: np.ndarray, gt_R: np.ndarray
         if arr.shape != shapes[name]:
             raise ValueError(f"{name} has shape {arr.shape}; {shapes[name]} is needed for {n} frames")
         _finite(name, arr)
-    if np.any(np.diff(times) < 0):
-        raise ValueError("times decrease somewhere; the pairs are found by searching them in order")
-    j = np.searchsorted(times, times + dt - PAIR_TOL_S)
-    i = np.arange(n)
-    ok = j < n
-    i, j = i[ok], j[ok]
+    i, j = rpe_pairs(times, dt)
     if len(i) < 3:
         return dict(rpe_trans_rel=float("nan"), rpe_rot_deg=float("nan"), n_pairs=len(i))
     # Frame j's position in frame i's camera axes: the world difference rotated by the transpose of i's rotation.
