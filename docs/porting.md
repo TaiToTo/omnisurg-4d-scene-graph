@@ -13,7 +13,7 @@ no check is recorded.
 |---|---|---|
 | evaluator, `evalkit/` | class tables, metrics, entry point, pilot mode | in pilot mode, every key shared with the pilot evaluator equal on 23 conditions × 315 clips, at `eval_code_sha` `a5d7ea46…` |
 | score tools, `evalkit/tools/` | every tool in the layout of `AGENTS.md` | `paired_table`, `arms_paired`, `claims_table`, `leave_one_video_out`, `print_status_tables`, `kmerge`: the workbench's values on the same inputs. `track_metrics` on component tracks: the values of the workbench's functions on random frames at the four sizes, but where two IoUs tie exactly |
-| camera trajectory scorer, `trajectory_eval/` | `pose_metrics`, the scoring of a clip, `pose_controls`, `scores`, `score_stereomis`, `stereomis_table` | `pose_metrics`: the workbench's values on 1200 random, planar and static trajectories. The scoring of a clip, `pose_controls` and `score_stereomis`: the workbench's 387 StereoMIS rows, every value, scored again from its stored outputs. `stereomis_table`, on those rows: the 24 pairs of the workbench's `summary_20.json`, every field |
+| camera trajectory scorer, `trajectory_eval/` | `pose_metrics`, the scoring of a clip, `pose_controls`, `scores`, `score_stereomis`, `stereomis_table` | `pose_metrics`: the workbench's values on 1200 random, planar and static trajectories. The scoring of a clip, `pose_controls` and `score_stereomis`: the workbench's 387 StereoMIS rows, every value, scored again from its stored outputs, at the workbench's offsets and times. `stereomis_table`, on those rows: the 24 pairs of the workbench's `summary_20.json`, every field |
 | extraction and crop | ATLAS-120k, CholecSeg8k, LapEx, StereoMIS, the D4D census and population | the CholecSeg8k crop and 13 of the 27 CholecSeg8k clips: the workbench's bytes. LapEx's 735 clips: the workbench's frames and masks, and its manifests apart from `depth_info`. The D4D census: every field it writes equal to the workbench's census on the 271 clips. The D4D population: the same bytes from the ported census as from the workbench's |
 | depth | DA3, Pi3X, point clouds, the population drivers | DA3, point clouds and Pi3X: the workbench's bytes on the GPU machine, on three clips. DA3 also on the 25 LapEx clips whose border the workbench did not fill |
 | segmentation and tracking | `track`, `per_frame`, `condition_population` | `track` and `per_frame`: the workbench's bytes on the GPU machine, on three clips. `condition_population`: the workbench's commands, for 43 conditions. The 40 segmenter inputs that `tests/test_render_outputs_are_pinned.py` pins: the workbench's, rendered with each case's ring setting |
@@ -49,6 +49,10 @@ not compared:
 - **The paper's tables**: the claims grid.
 - **D4D**: depth, seeds, the front/behind relation and the camera
   trajectory.
+- **The StereoMIS depth export.** `pipeline.select_stereomis_clips` reads
+  its `stats.npy` to mark clips `no_surface`, and no tracked file makes it,
+  so the clip list is made again only from the workbench's export. The
+  rule leaves out no clip of the list.
 - **LapEx's comparisons**. They wait on "How LapEx is compared".
 - **The conditions seeded from GT masks** (`t12_gtseed`, `t12_paste`). They
   wait on "Conditions seeded from GT".
@@ -188,6 +192,18 @@ only:
   evaluator refuses a frame with depth 0. The depth stage takes the frames
   whole, so its output on those clips differs. On the other 25 clips it
   equals the workbench's.
+- **A StereoMIS clip's ground truth rows, times and masks.** The clips are
+  read from `stereomis_meta/clips.json`, made with the offsets and the
+  timestamps measured again. Every manifest's `gt_row`, `gt_row_offset` and
+  `span_mm` differ from the workbench's, so do P2's `time_sec`, and so do
+  the images of four masked P1 clips. Each plain clip's images are the
+  workbench's.
+- **Five masked StereoMIS clips of `P2_0`.** The workbench's depth stage
+  took their black paint for a border and filled it (`border_inpaint:
+  true`); the ported stage fills none, so their depth differs.
+- **The Pi3X clouds of `P1__clip_0001`.** The workbench ran Pi3X on it
+  without `--max-points`; the ported driver thins every cloud to 60,000
+  points, which leaves the poses alone.
 
 ## Open questions
 
@@ -283,41 +299,6 @@ Each question says what it blocks and where its answer is written.
   as having none. Open: whether such a mask moves out of `seg_masks/` or
   takes a name of its own. Blocks: porting the step that writes them.
   Answer in: `docs/pipeline.md`.
-
-### StereoMIS
-
-- **The times of a StereoMIS clip.** `surgical_core.stereomis.clips` takes
-  a frame's time as its position over the declared frame rate. The P2
-  videos declare 59.94 frames a second, but by their timestamps a clip's
-  frames are 0.217 s apart at the median, not 0.2 s. `rpe` and the
-  constant-motion control read the times; `ate_rel` does not. Open:
-  whether the times come from the timestamps. Blocks: the StereoMIS result.
-  Answer in: `surgical_core/stereomis.py`.
-- **P1's offsets.** The workbench took P1's shipped frame N to be position
-  N; measured against the video, it is N − 1. With a file offset of −1, as
-  P2's is, 504 of the 672 frames of P1's usable clips get a mask of their
-  own number, and the common ground truth offset becomes −3 rather than −4.
-  Every clip then moves one frame, its depth is made again, and its
-  `ate_rel` changes. Open: both offsets, and whether the grid's start is
-  fixed apart from them. Blocks: the StereoMIS result. Answer in:
-  `surgical_core/stereomis.py`.
-- **What fixes the StereoMIS clips.** `surgical_core.stereomis.clips`
-  computes the 86 clips on every run, from the tables of offsets and
-  thresholds and from the `stats.npy` of the workbench's depth export,
-  which no tracked file makes. A change to an offset moves every
-  `ate_rel`, but `trajectory_code_sha` covers the modules of
-  `trajectory_eval` only. Open:
-  whether the clips are kept as data, as ATLAS-120k's population is;
-  whether the hash covers the tables, the clip rule and `pose_controls`;
-  and whether the export is made again here. Blocks: the StereoMIS result.
-- **The StereoMIS depth outputs the ported stages do not reproduce.**
-  `pipeline.depth_stereomis` refuses six of the workbench's clips. Five
-  masked clips of `P2_0` record `border_inpaint: true`: the workbench's
-  stage took their paint for a border and filled it, and the port fills
-  none, so their `da3_masked` will change. `P1__clip_0001` ran Pi3X without
-  `--max-points`, which changes no score. Open: whether the masked
-  condition is measured with the port as it is, and whether it is reported;
-  and whether `P1__clip_0001`'s Pi3X output is made again. Blocks: the StereoMIS result.
 
 ### LapEx
 

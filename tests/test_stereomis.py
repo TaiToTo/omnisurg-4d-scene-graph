@@ -9,7 +9,9 @@ The video tests skip where FFmpeg is not installed. Each refusal has a test
 that plants its fault.
 """
 
+import json
 import math
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -33,10 +35,11 @@ N_VIDEO_FRAMES = 8
 @pytest.fixture(autouse=True)
 def _fresh_caches():
     """Clear the reader's caches, since every test writes a dataset of its own under the same name."""
-    for f in (S.calib, S.video_path, S.video_info, S.load_gt, S.gt_jump_rows):
+    caches = (S.calib, S.video_path, S.video_info, S.frame_times, S.load_gt, S.gt_jump_rows, S.mask_numbers)
+    for f in caches:
         f.cache_clear()
     yield
-    for f in (S.calib, S.video_path, S.video_info, S.load_gt, S.gt_jump_rows):
+    for f in caches:
         f.cache_clear()
 
 
@@ -207,6 +210,56 @@ def test_the_video_is_probed_for_its_size_count_and_rate(video_seq):
     assert S.clip_stride(video_seq, "P1") == 12
 
 
+@needs_ffmpeg
+def test_each_frame_s_time_is_its_timestamp(video_seq):
+    np.testing.assert_array_equal(S.frame_times(video_seq, "P1"), np.arange(N_VIDEO_FRAMES) / 60.0)
+
+
+def paused_video(tmp_path: Path, monkeypatch) -> Path:
+    """Write a video of 6 frames at 60 a second whose last 3 come 7 frames late, as where a recording paused.
+
+    Its B-frames make the packets' order, the order they are decoded in, differ from the order of their timestamps.
+    """
+    seq_dir = tmp_path / "P1"
+    seq_dir.mkdir()
+    subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i",
+                    "testsrc=size=64x48:rate=60", "-frames:v", "6", "-vf", "setpts=N+gte(N\\,3)*7",
+                    "-fps_mode", "passthrough", "-pix_fmt", "yuv420p", str(seq_dir / "video.mp4")], check=True)
+    monkeypatch.setattr(S, "video_info", lambda root, seq: dict(width=1280, height=2048, n_frames=6, fps=60.0))
+    return tmp_path
+
+
+@needs_ffmpeg
+def test_a_pause_in_the_recording_stays_in_the_times_and_the_times_come_in_order(tmp_path, monkeypatch):
+    root = paused_video(tmp_path, monkeypatch)
+    np.testing.assert_array_equal(S.frame_times(root, "P1"), np.array([0, 1, 2, 10, 11, 12]) / 60.0)
+    with pytest.raises(ValueError, match="read-only"):
+        S.frame_times(root, "P1")[0] = 1.0
+
+
+@needs_ffmpeg
+def test_timestamps_of_another_number_of_frames_are_refused(tmp_path, monkeypatch):
+    root = paused_video(tmp_path, monkeypatch)
+    monkeypatch.setattr(S, "video_info", lambda root, seq: dict(width=1280, height=2048, n_frames=7, fps=60.0))
+    with pytest.raises(ValueError, match="6 timestamps for 7 frames"):
+        S.frame_times(root, "P1")
+
+
+@pytest.mark.parametrize("packets, refusal", [
+    ([{"pts": 0}, {"pts": 256}, {"pts": 256}], "1 frames share a timestamp"),
+    ([{"pts": 0}, {}, {"pts": 512}], "1 frames have no timestamp"),
+])
+def test_frames_without_a_timestamp_of_their_own_are_refused(tmp_path, monkeypatch, packets, refusal):
+    """The planted fault: what ffprobe reports is replaced."""
+    (tmp_path / "P1").mkdir()
+    (tmp_path / "P1" / "video.mp4").write_bytes(b"")
+    probe = json.dumps({"packets": packets, "streams": [{"time_base": "1/15360"}]})
+    monkeypatch.setattr(S.subprocess, "run", lambda *a, **k: subprocess.CompletedProcess(a, 0, stdout=probe))
+    monkeypatch.setattr(S, "video_info", lambda root, seq: dict(width=1280, height=2048, n_frames=3, fps=60.0))
+    with pytest.raises(ValueError, match=refusal):
+        S.frame_times(tmp_path, "P1")
+
+
 def test_no_frame_wanted_decodes_nothing(tmp_path):
     assert list(S.iter_frame_set(tmp_path, "P1", [])) == []
 
@@ -275,28 +328,33 @@ def test_a_quarter_turn_about_z_and_a_translation_in_m_are_read_as_a_matrix_and_
     np.testing.assert_array_equal(t, [[1.0, 0.0, -2.0], [0.0, 0.0, 0.0]])
 
 
-def test_a_frame_takes_the_ground_truth_row_four_before_its_position(tmp_path):
+def test_every_sequence_numbers_its_files_one_ahead_and_its_rows_three_behind_its_frames():
+    # P1's shipped frame N is the video's frame N - 1, as P2's files are; the common row offset follows from it.
+    assert S.DEPTH_FILE_OFFSET == {s: -1 for s in S.SEQUENCES}
+    assert S.GT_ROW_OFFSET == {s: -3 for s in S.SEQUENCES}
+
+
+def test_the_poses_of_ground_truth_rows_are_read_in_mm(tmp_path):
     write_gt(tmp_path / "P2_0", np.arange(30.0)[:, None] * [0.001, 0.0, 0.0])
-    assert S.gt_row("P2_0", 10) == 6
-    T = S.gt_pose(tmp_path, "P2_0", [4, 10, 33])
+    T = S.gt_pose(tmp_path, "P2_0", [0, 6, 29])
     assert T.shape == (3, 4, 4)
     np.testing.assert_array_equal(T[:, :3, 3], [[0.0, 0, 0], [6.0, 0, 0], [29.0, 0, 0]])
     np.testing.assert_array_equal(T[:, 3], np.tile([0.0, 0, 0, 1], (3, 1)))
 
 
-def test_a_frame_without_a_ground_truth_row_is_refused(tmp_path):
+def test_a_row_outside_the_ground_truth_is_refused(tmp_path):
     write_gt(tmp_path / "P1", np.zeros((30, 3)))
     with pytest.raises(IndexError):
-        S.gt_pose(tmp_path, "P1", [3])
+        S.gt_pose(tmp_path, "P1", [-1])
     with pytest.raises(IndexError):
-        S.gt_pose(tmp_path, "P1", [34])
-    with pytest.raises(ValueError, match="no frame"):
+        S.gt_pose(tmp_path, "P1", [30])
+    with pytest.raises(ValueError, match="no row"):
         S.gt_pose(tmp_path, "P1", [])
 
 
 def test_a_sequence_without_a_measured_offset_is_refused():
     with pytest.raises(KeyError, match="ground truth's rows has not been measured"):
-        S.gt_row("P3", 10)
+        S.measured_offset(S.GT_ROW_OFFSET, "P3")
 
 
 def test_a_sequence_without_a_measured_offset_has_no_break_read(tmp_path):
@@ -311,11 +369,11 @@ def test_a_sequence_without_a_measured_offset_is_not_cut_into_clips(tmp_path):
         S.clips(tmp_path, tmp_path, "P3")
 
 
-def test_a_sequence_without_a_measured_file_offset_has_no_mask_read(tmp_path, monkeypatch):
-    monkeypatch.setitem(S.GT_ROW_OFFSET, "P3", -4)
+def test_a_sequence_without_a_measured_file_offset_has_no_mask_found(tmp_path, monkeypatch):
+    monkeypatch.setitem(S.GT_ROW_OFFSET, "P3", -3)
     write_mask(tmp_path / "P3", 10)
     with pytest.raises(KeyError, match="P3: the offset between its frames and the file numbers of its masks"):
-        S.load_mask(tmp_path, "P3", 10)
+        S.nearest_mask(tmp_path, "P3", 10)
     with pytest.raises(KeyError, match="the file numbers of its masks and depth maps has not been measured"):
         S.clips(tmp_path, tmp_path, "P3")
 
@@ -368,10 +426,10 @@ def test_a_step_above_five_mm_or_five_degrees_is_a_break_and_five_mm_is_not(tmp_
     np.testing.assert_array_equal(S.gt_jump_rows(tmp_path, "P1"), [3, 4])
 
 
-@pytest.mark.parametrize("jump_row, expected", [(5, False), (6, True), (16, True), (17, False)])
+@pytest.mark.parametrize("jump_row, expected", [(6, False), (7, True), (17, True), (18, False)])
 def test_a_break_counts_for_a_clip_from_the_step_into_its_first_row_to_the_step_out_of_its_last(
         tmp_path, jump_row, expected):
-    """Positions 11 to 20 take rows 7 to 16; a break is the step from its row to the next."""
+    """Positions 11 to 20 take rows 8 to 17; a break is the step from its row to the next."""
     t = np.zeros((30, 3))
     t[jump_row + 1:] += [0.01, 0.0, 0.0]
     write_gt(tmp_path / "P1", t)
@@ -388,22 +446,32 @@ def write_mask(seq_dir: Path, number: int, tissue: bool = True, size: tuple[int,
     cv2.imwrite(str(seq_dir / "masks" / ("%06dl.png" % number)), a)
 
 
-def test_a_mask_is_read_at_its_file_number_with_tissue_true(tmp_path):
+def test_a_mask_is_read_by_its_file_number_with_tissue_true(tmp_path):
     write_mask(tmp_path / "P2_0", 10)
-    m = S.load_mask(tmp_path, "P2_0", 9)
+    m = S.load_mask(tmp_path, "P2_0", 10)
     assert m.shape == (S.HALF_SIZE[1], S.HALF_SIZE[0]) and m.dtype == bool
     assert m[:, :320].all() and not m[:, 320:].any()
-    assert S.load_mask(tmp_path, "P2_0", 10) is None
+    with pytest.raises(FileNotFoundError):
+        S.load_mask(tmp_path, "P2_0", 9)
+
+
+def test_a_frame_s_own_mask_is_one_file_number_ahead_of_it(tmp_path):
+    write_mask(tmp_path / "P1", 11)
+    assert S.nearest_mask(tmp_path, "P1", 10) == 11
 
 
 def test_the_nearest_mask_within_two_frames_is_taken_the_earlier_on_a_tie(tmp_path):
-    write_mask(tmp_path / "P1", 10, tissue=True)
-    write_mask(tmp_path / "P1", 12, tissue=False)
-    assert S.load_mask_nearest(tmp_path, "P1", 11)[:, :320].all()
-    assert not S.load_mask_nearest(tmp_path, "P1", 13)[:, :320].any()
-    assert not S.load_mask_nearest(tmp_path, "P1", 14)[:, :320].any()
-    assert S.load_mask_nearest(tmp_path, "P1", 15) is None
-    assert S.load_mask_nearest(tmp_path, "P1", 7) is None
+    """Masks 11 and 13 are those of frames 10 and 12."""
+    write_mask(tmp_path / "P1", 11)
+    write_mask(tmp_path / "P1", 13)
+    assert [S.nearest_mask(tmp_path, "P1", f) for f in (7, 8, 11, 13, 14, 15)] == [None, 11, 11, 13, 13, None]
+
+
+def test_a_file_that_is_not_a_mask_is_not_found_as_one(tmp_path):
+    write_mask(tmp_path / "P1", 11)
+    (tmp_path / "P1" / "masks" / "000013r.png").write_bytes(b"")
+    (tmp_path / "P1" / "masks" / "13l.png").write_bytes(b"")
+    assert S.mask_numbers(tmp_path, "P1") == {11}
 
 
 def test_a_mask_that_cannot_be_read_is_refused(tmp_path):
@@ -424,7 +492,7 @@ def test_a_mask_of_another_size_is_refused(tmp_path):
 FPS = 60.0
 STRIDE = 12
 SPAN = S.CLIP_FRAMES * STRIDE
-# Seven grid places from position 4; the ground truth ends inside the seventh, so six clips are returned.
+# Seven grid places from `CLIP_GRID_START`; the ground truth ends inside the seventh, so six clips are returned.
 N_FRAMES = 4 + 7 * SPAN
 N_ROWS = 6 * SPAN + 600
 RADII_MM = (20.0, 5.0, 0.5, 20.0, 0.5, 0.5)
@@ -455,6 +523,7 @@ def clip_seq(tmp_path, monkeypatch):
 
     P2_0's depth files are numbered one ahead of their positions. A map every 30 positions shows a surface,
     but for the first 15 of clip 1 and every map of clip 4. One more map, on clip 0's last position, shows none.
+    Each frame's time is its position over the frame rate, and no frame has a mask.
     """
     root, depth_root = tmp_path / "StereoMIS", tmp_path / "StereoMIS_depth"
     write_gt(root / "P2_0", *circle_gt())
@@ -468,6 +537,7 @@ def clip_seq(tmp_path, monkeypatch):
     (depth_root / "P2_0").mkdir(parents=True)
     np.save(depth_root / "P2_0" / "stats.npy", stats)
     monkeypatch.setattr(S, "video_info", lambda r, s: dict(width=1280, height=2048, n_frames=N_FRAMES, fps=FPS))
+    monkeypatch.setattr(S, "frame_times", lambda r, s: np.arange(N_FRAMES) / FPS)
     return root, depth_root
 
 
@@ -482,9 +552,12 @@ def test_a_sequence_is_cut_into_clips_and_each_is_marked_by_its_inputs(clip_seq)
     # Clip 0 holds 45 maps, the one on its last position among them; clip 1 holds 45, 15 without surface.
     assert [c["depth_ok"] for c in cl] == [0.978, 0.667, 1.0, 1.0, 0.0, 1.0]
     first = cl[0]
-    assert first["seq"] == "P2_0" and first["stride"] == STRIDE
+    assert tuple(first) == S.CLIP_KEYS
+    assert first["seq"] == "P2_0" and first["stride"] == STRIDE and first["gt_row_offset"] == -3
     assert first["frames"] == list(range(4, 4 + SPAN, STRIDE))
+    assert S.gt_rows(first) == list(range(1, 1 + SPAN, STRIDE))
     assert first["times"] == [f / FPS for f in first["frames"]]
+    assert first["masks"] == [None] * S.CLIP_FRAMES
     assert cl[1]["frames"][0] == 4 + SPAN
 
 
@@ -495,12 +568,33 @@ def test_a_video_at_59_94_frames_a_second_takes_every_12th_frame(clip_seq, monke
     assert S.clip_stride(clip_seq[0], "P2_0") == 12
     first = S.clips(*clip_seq, "P2_0")[0]
     assert first["stride"] == 12 and first["frames"][:3] == [4, 16, 28]
-    assert first["times"] == [f / fps for f in first["frames"]]
 
 
-def test_the_grid_starts_at_the_first_position_with_a_ground_truth_row(clip_seq, monkeypatch):
-    monkeypatch.setitem(S.GT_ROW_OFFSET, "P2_0", 0)
-    assert S.clips(*clip_seq, "P2_0")[0]["frames"][0] == 0
+def test_a_clip_takes_its_times_from_the_timestamps_not_from_the_frame_rate(clip_seq, monkeypatch):
+    """The planted fault of the P2 videos: they declare 59.94 frames a second, and their frames come slower."""
+    monkeypatch.setattr(S, "frame_times", lambda r, s: np.arange(N_FRAMES) * 0.0181)
+    first = S.clips(*clip_seq, "P2_0")[0]
+    assert first["times"] == [f * 0.0181 for f in first["frames"]]
+
+
+@pytest.mark.parametrize("offset, first_name", [(0, "P2_0__clip_0000"), (-3, "P2_0__clip_0000"),
+                                                (-6, "P2_0__clip_0001")])
+def test_the_grid_starts_at_its_fixed_position_whatever_the_ground_truth_offset(clip_seq, monkeypatch, offset,
+                                                                                   first_name):
+    """At an offset of -6, the first place's first rows would be -2 and -1, so its clip is not returned."""
+    monkeypatch.setitem(S.GT_ROW_OFFSET, "P2_0", offset)
+    first = S.clips(*clip_seq, "P2_0")[0]
+    assert first["name"] == first_name
+    assert first["frames"][0] == S.CLIP_GRID_START + SPAN * int(first_name[-4:])
+    assert first["gt_row_offset"] == offset
+
+
+def test_a_clip_records_the_mask_nearest_each_frame(clip_seq):
+    """Frame 4 has the mask of its own number, 5; frame 16 takes the one of frame 15; frame 28 has none near."""
+    root, depth_root = clip_seq
+    for number in (5, 16, 25):
+        write_mask(root / "P2_0", number)
+    assert S.clips(root, depth_root, "P2_0")[0]["masks"][:3] == [5, 16, None]
 
 
 def test_a_clip_whose_rows_run_past_the_ground_truth_is_not_returned(clip_seq):
@@ -573,3 +667,87 @@ def test_a_depth_export_with_a_file_number_given_twice_is_refused(clip_seq):
     np.save(depth_root / "P2_0" / "stats.npy", np.vstack([stats, [stats[3, 0], 10.0, 0.9]]))
     with pytest.raises(ValueError, match="more than once"):
         S.clips(root, depth_root, "P2_0")
+
+
+# --------------------------------------------------------------------------- the clip list
+
+
+def test_a_clip_list_is_read_back_as_it_was_written_one_clip_a_line(clip_seq, tmp_path):
+    cl = S.clips(*clip_seq, "P2_0")
+    S.write_clip_list(cl, tmp_path / "clips.json")
+    text = (tmp_path / "clips.json").read_text()
+    assert text.startswith('[\n{"name": "P2_0__clip_0000", "seq": "P2_0", "usable": true,')
+    assert text.endswith("}\n]\n") and len(text.splitlines()) == len(cl) + 2
+    assert S.read_clip_list(tmp_path / "clips.json") == cl
+
+
+def test_the_usable_clips_are_those_of_the_sequences_named_sequence_by_sequence():
+    cl = [dict(name=f"{s}__clip_{k:04d}", seq=s, usable=u)
+          for s, k, u in (("P2_0", 0, True), ("P1", 0, True), ("P1", 1, False), ("P2_1", 0, True))]
+    assert [c["name"] for c in S.usable_clips(cl, ["P1", "P2_0"])] == ["P1__clip_0000", "P2_0__clip_0000"]
+    assert [c["name"] for c in S.usable_clips(cl)] == ["P1__clip_0000", "P2_0__clip_0000", "P2_1__clip_0000"]
+
+
+def planted(clip: dict, fault: str) -> dict:
+    """Return a copy of `clip` with one fault planted."""
+    c = json.loads(json.dumps(clip))
+    if fault == "key missing":
+        del c["masks"]
+    elif fault == "keys out of order":
+        c = {k: c[k] for k in reversed(S.CLIP_KEYS)}
+    elif fault == "another sequence's name":
+        c["name"] = "P2_1__clip_0000"
+    elif fault == "unknown sequence":
+        c["seq"], c["name"] = "P3", "P3__clip_0000"
+    elif fault == "a frame short":
+        c["frames"], c["times"], c["masks"] = c["frames"][:-1], c["times"][:-1], c["masks"][:-1]
+    elif fault == "a time short":
+        c["times"] = c["times"][:-1]
+    elif fault == "a mask short":
+        c["masks"] = c["masks"][:-1]
+    elif fault == "a frame off the stride":
+        c["frames"][5] += 1
+    elif fault == "times that stall":
+        c["times"][5] = c["times"][4]
+    elif fault == "usable with a reason":
+        c["drop"] = "gt_jump"
+    elif fault == "left out without a reason":
+        c["usable"] = False
+    elif fault == "usable as a number":
+        c["usable"] = 1
+    return c
+
+
+@pytest.mark.parametrize("fault, refusal", [
+    ("key missing", "not a list of clips with the keys"),
+    ("keys out of order", "not a list of clips with the keys"),
+    ("another sequence's name", "is not <sequence>__clip_NNNN of a sequence"),
+    ("unknown sequence", "is not <sequence>__clip_NNNN of a sequence"),
+    ("a frame short", "has 111 frames, 111 times and 111 masks"),
+    ("a time short", "has 112 frames, 111 times and 112 masks"),
+    ("a mask short", "has 112 frames, 112 times and 111 masks"),
+    ("a frame off the stride", "frames are not 12 apart, or its times do not increase"),
+    ("times that stall", "frames are not 12 apart, or its times do not increase"),
+    ("usable with a reason", "records usable True and the reason 'gt_jump'"),
+    ("left out without a reason", "records usable False and the reason ''"),
+    ("usable as a number", "records usable 1 and the reason ''"),
+])
+def test_a_clip_list_the_measurements_cannot_trust_is_refused(clip_seq, tmp_path, fault, refusal):
+    cl = list(S.clips(*clip_seq, "P2_0"))
+    cl[0] = planted(cl[0], fault)
+    (tmp_path / "clips.json").write_text(json.dumps(cl))
+    with pytest.raises(ValueError, match=re.escape(refusal)):
+        S.read_clip_list(tmp_path / "clips.json")
+
+
+def test_a_clip_list_that_names_a_clip_twice_is_refused(clip_seq, tmp_path):
+    cl = S.clips(*clip_seq, "P2_0")
+    (tmp_path / "clips.json").write_text(json.dumps([cl[0], cl[1], cl[0]]))
+    with pytest.raises(ValueError, match="'P2_0__clip_0000' of 'P2_0' is not .* or comes twice"):
+        S.read_clip_list(tmp_path / "clips.json")
+
+
+def test_a_clip_list_that_is_not_a_list_is_refused(tmp_path):
+    (tmp_path / "clips.json").write_text(json.dumps({"clips": []}))
+    with pytest.raises(ValueError, match="not a list of clips"):
+        S.read_clip_list(tmp_path / "clips.json")

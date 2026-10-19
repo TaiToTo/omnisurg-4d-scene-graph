@@ -1,7 +1,7 @@
 """Print the StereoMIS table: each condition's camera trajectory scores, and each condition against a base.
 
 The rows come through `scores.read_rows`, so from one version of the
-scorer. Each condition must hold the base's clips, with the same sequence,
+scorer and one clip list. Each condition must hold the base's clips, with the same sequence,
 stratum and `span_mm` for each clip. A pair is the paired difference
 `cond - base` on `ate_rel`, where less is better. Its interval is the
 bootstrap of `paired_stats.boot_ci` over sequences, since the clips of one
@@ -33,13 +33,13 @@ from evalkit.tools.paired_stats import (
     round_keeping_sign,
     sign_only_note,
 )
-from trajectory_eval.tools.scores import HASH_KEY, read_rows
+from trajectory_eval.tools.scores import HASH_KEY, LIST_KEY, read_rows
 
 # The key that decides the result. Less is better.
 KEY = "ate_rel"
 SIGN = -1
 # The shape of every clip, printed with each table, since a score depends on it.
-CLIP_SHAPE = "112 frames 0.2 s apart, 22.4 s, not overlapping"
+CLIP_SHAPE = "112 frames 12 positions apart, not overlapping"
 
 
 def check_population(rows: list[dict], base: str) -> None:
@@ -60,7 +60,7 @@ def check_population(rows: list[dict], base: str) -> None:
     if other:
         raise ValueError(f"conditions scored on other clips than the base {base!r}: {other}")
 
-    # Refuse a clip cut in two ways. `trajectory_code_sha` does not cover how StereoMIS is cut into clips.
+    # Refuse a clip cut in two ways. Neither recorded hash covers what a row says about its clip.
     cuts = {}
     for r in rows:
         cuts.setdefault(r["clip"], set()).add((r["seq"], r["stratum"], r["span_mm"]))
@@ -139,15 +139,15 @@ def summarize(rows: list[dict], base: str) -> dict:
     """Print the tables and the pairs, and return the pairs with the scorer's hash and the bootstrap's settings.
 
     Args:
-        rows: the rows `read_rows` returns, which record one `trajectory_code_sha`.
+        rows: the rows `read_rows` returns, which record one `trajectory_code_sha` and one `clip_list_sha`.
         base: the condition every other one is compared with.
 
     Raises:
         ValueError: `check_population` refuses the rows, or `compare` a pair.
     """
     check_population(rows, base)
-    out = {HASH_KEY: rows[0][HASH_KEY], "clip_shape": CLIP_SHAPE, "n_boot": N_BOOT, "seed": SEED,
-           "seed_scheme": SEED_SCHEME, "pairs": []}
+    out = {HASH_KEY: rows[0][HASH_KEY], LIST_KEY: rows[0][LIST_KEY], "clip_shape": CLIP_SHAPE, "n_boot": N_BOOT,
+           "seed": SEED, "seed_scheme": SEED_SCHEME, "pairs": []}
     others = sorted({r["cond"] for r in rows} - {base})
     table(rows)
     print(f"\n===== pairs with {base} (negative is better; ★ better, ✗ worse, each sequence one video: "
