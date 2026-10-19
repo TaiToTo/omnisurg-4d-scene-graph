@@ -16,7 +16,7 @@ from evalkit.classes import load_table
 from evalkit.inputs import DEPTH_FILE, GT_FLAG, MANIFEST, MASK_DIR, MASK_SUFFIX
 
 TABLE = load_table("cholecseg8k")
-LIVER, GALLBLADDER, FAT, GRASPER = 2, 10, 4, 5
+LIVER, GALLBLADDER, FAT, GRASPER, REGION_LINE = 2, 10, 4, 5, 13
 
 
 def two_organs(h: int = 20, w: int = 30, cut: int = 15) -> np.ndarray:

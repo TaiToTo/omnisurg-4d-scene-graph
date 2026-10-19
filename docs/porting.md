@@ -201,14 +201,6 @@ Each question says what it blocks and where its answer is written.
   the frame sizes the datasets have, or does it stay with OpenCV? If OpenCV
   leaves the evaluator, `RECORDED_LIBRARIES` in `evalkit/code_sha.py` drops
   `cv2` with it. Blocks: the freeze. Answer in: `evalkit/inputs.py`.
-- **CholecSeg8k's Region line.** CholecSeg8k draws a 1 px white line
-  between regions, which the class table types `ignored`. 87 % of its
-  pixels are the image's outer pixel, which the crop removes. The rest
-  sits mostly in video43 and video52, where an edge against it is no
-  boundary, so those videos lose much of their GT boundary. Does the loader
-  fill the line from its neighbours, by a fixed rule with the count
-  recorded, or does the line stay ignored with the loss documented?
-  Blocks: the freeze. Answer in: `docs/evaluation.md`, the CholecSeg8k table.
 - **Seeds made outside the tracking stage.** `rule_of_seed_info` refuses a
   `seed_source` other than `sam` or `per_frame`. So the evaluator refuses
   the six `t5_*` conditions of the granularity result, and every condition
