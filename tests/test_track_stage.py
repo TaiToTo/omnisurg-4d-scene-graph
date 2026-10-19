@@ -261,6 +261,8 @@ def test_seed_regions_are_read_from_a_condition_and_numbered_from_0(tmp_path):
     (0, np.zeros((H, W), int), FileNotFoundError, "made for seed frame 2"),
     (2, np.zeros((H, W + 1), int), ValueError, "not the depth's"),
     (2, np.full((H, W), -1), ValueError, "holds no region"),
+    (2, np.zeros((H, W), np.float32), ValueError, "holds float32, not region ids of an integer type"),
+    (2, np.zeros((H, W), bool), ValueError, "holds bool, not region ids of an integer type"),
 ])
 def test_seed_regions_made_outside_that_do_not_fit_are_refused(tmp_path, frame, labels, err, match):
     clip = _clip(tmp_path)

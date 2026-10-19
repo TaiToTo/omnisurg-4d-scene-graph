@@ -1,16 +1,17 @@
-"""The reader of camera trajectory score files compares only rows of one scorer, each clip once per condition."""
+"""The reader of camera trajectory score files compares only rows of one scorer and one clip list, each clip once
+per condition."""
 
 import json
 
 import pytest
 
-from trajectory_eval.tools.scores import HASH_KEY, read_rows
+from trajectory_eval.tools.scores import HASH_KEY, LIST_KEY, read_rows
 
 SHA_A, SHA_B = "a" * 64, "b" * 64
 
 
-def row(clip: str, cond: str, sha: str | None = SHA_A) -> dict:
-    return {"clip": clip, "seq": clip.split("__")[0], "cond": cond, "ate_rel": 0.5, HASH_KEY: sha}
+def row(clip: str, cond: str, sha: str | None = SHA_A, list_sha: str | None = SHA_A) -> dict:
+    return {"clip": clip, "seq": clip.split("__")[0], "cond": cond, "ate_rel": 0.5, HASH_KEY: sha, LIST_KEY: list_sha}
 
 
 def write(path, rows) -> str:
@@ -32,21 +33,32 @@ def test_rows_of_two_versions_of_the_scorer_are_refused(tmp_path):
         read_rows([a, b])
 
 
-def test_a_row_without_the_hash_is_refused(tmp_path):
-    # The workbench's rows record no hash.
+def test_rows_of_two_clip_lists_are_refused(tmp_path):
+    # A list made again after an offset is measured again gives each clip other rows of the ground truth.
+    a = write(tmp_path / "controls.json", [row("P1__clip_0001", "floor_static")])
+    b = write(tmp_path / "methods.json", [row("P1__clip_0001", "da3", list_sha=SHA_B)])
+    with pytest.raises(ValueError, match=r"the rows record 2 clip lists, which are not compared: "
+                                         r"aaaaaaaaaaaa in \[.*controls.json'\]; bbbbbbbbbbbb in \[.*methods.json'\]"):
+        read_rows([a, b])
+
+
+@pytest.mark.parametrize("key", [HASH_KEY, LIST_KEY])
+def test_a_row_without_either_hash_is_refused(tmp_path, key):
+    # The workbench's rows record neither.
     bad = row("P1__clip_0001", "pi3x")
-    del bad[HASH_KEY]
+    del bad[key]
     a = write(tmp_path / "methods.json", [row("P1__clip_0001", "da3"), bad])
-    with pytest.raises(ValueError, match=r"methods.json: row 1 records no trajectory_code_sha"):
+    with pytest.raises(ValueError, match=rf"methods.json: row 1 records no {key}"):
         read_rows([a])
 
 
+@pytest.mark.parametrize("key", [HASH_KEY, LIST_KEY])
 @pytest.mark.parametrize("sha", [None, "", "a" * 12, "A" * 64, 7])
-def test_a_hash_that_is_not_a_sha256_hex_digest_is_refused(tmp_path, sha):
-    # Rows that all record one such value would otherwise pass as one version of the scorer.
-    a = write(tmp_path / "methods.json", [row("P1__clip_0001", "da3", sha), row("P1__clip_0002", "da3", sha)])
-    with pytest.raises(ValueError, match=r"methods.json: row 0 records no trajectory_code_sha"):
-        read_rows([a])
+def test_a_hash_that_is_not_a_sha256_hex_digest_is_refused(tmp_path, sha, key):
+    # Rows that all record one such value would otherwise pass as one version of the scorer or one clip list.
+    rows = [dict(row("P1__clip_0001", "da3"), **{key: sha}), dict(row("P1__clip_0002", "da3"), **{key: sha})]
+    with pytest.raises(ValueError, match=rf"methods.json: row 0 records no {key}"):
+        read_rows([write(tmp_path / "methods.json", rows)])
 
 
 @pytest.mark.parametrize("key", ["clip", "cond"])

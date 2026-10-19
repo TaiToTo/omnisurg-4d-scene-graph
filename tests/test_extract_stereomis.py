@@ -1,8 +1,8 @@
 """Test the StereoMIS extraction on clips and frames made up for the test.
 
-The reader's `clips`, `iter_frame_set` and `video_info` are replaced by
-stand-ins, so no video is decoded; the masks are real files, read by the
-reader. Each refusal has a test that plants its fault.
+The clips are a clip list's, and the reader's `iter_frame_set` and `video_info`
+are replaced by stand-ins, so no video is decoded; the masks are real files,
+read by the reader. Each refusal has a test that plants its fault.
 """
 
 import json
@@ -22,18 +22,17 @@ W, H = stereomis.HALF_SIZE
 FPS = 60000 / 1001
 
 
-def make_clip(seq: str, k: int, frames: list[int], usable: bool = True) -> dict:
-    return dict(name=f"{seq}__clip_{k:04d}", seq=seq, frames=frames, times=[f / FPS for f in frames], stride=12,
-                span_mm=12.345, depth_ok=1.0, usable=usable, drop="" if usable else "gt_static",
-                stratum="moving")
+def make_clip(seq: str, k: int, frames: list[int], usable: bool = True, masks=None) -> dict:
+    return dict(name=f"{seq}__clip_{k:04d}", seq=seq, usable=usable, drop="" if usable else "gt_static",
+                stratum="moving", span_mm=12.345, depth_ok=1.0, stride=12, gt_row_offset=-3, frames=frames,
+                times=[f / FPS for f in frames], masks=masks or [None] * len(frames))
 
 
-CLIPS = {
-    "P1": (make_clip("P1", 0, [4, 16]), make_clip("P1", 1, [1348, 1360], usable=False),
-           make_clip("P1", 2, [2692, 2704, 2716])),
-    "P2_0": (make_clip("P2_0", 0, [4, 16]),),
-    "P2_3": (make_clip("P2_3", 0, [4, 16], usable=False),),
-}
+# Clip 2 of P1 gives its first frame the mask of its own number and its second the one two frames later; its
+# third frame has none.
+CLIP_LIST = (make_clip("P1", 0, [4, 16]), make_clip("P1", 1, [1348, 1360], usable=False),
+             make_clip("P1", 2, [2692, 2704, 2716], masks=[2693, 2707, None]),
+             make_clip("P2_0", 0, [4, 16]), make_clip("P2_3", 0, [4, 16], usable=False))
 
 
 def left_view(f: int) -> np.ndarray:
@@ -45,7 +44,7 @@ def left_view(f: int) -> np.ndarray:
 
 @pytest.fixture
 def decoded(monkeypatch, tmp_path):
-    """Replace the reader's clips, decoding and probe; return the dataset's root and the frames decoded."""
+    """Replace the reader's decoding and probe; return the dataset's root and the frames decoded."""
     calls = []
 
     def iter_frame_set(root, seq, frames):
@@ -53,7 +52,6 @@ def decoded(monkeypatch, tmp_path):
         for f in sorted(set(frames)):
             yield f, left_view(f), np.zeros((H, W, 3), np.uint8)
 
-    monkeypatch.setattr(stereomis, "clips", lambda root, depth_root, seq: CLIPS.get(seq, ()))
     monkeypatch.setattr(stereomis, "iter_frame_set", iter_frame_set)
     monkeypatch.setattr(stereomis, "video_info", lambda root, seq: dict(width=1280, height=2048, n_frames=9000,
                                                                        fps=FPS))
@@ -67,7 +65,7 @@ def read_rgb(path) -> np.ndarray:
 def test_each_usable_clip_gets_its_left_views_and_the_workbench_manifest(decoded, tmp_path):
     root, calls = decoded
     out = tmp_path / "clips"
-    made = E.extract_sequence(root, tmp_path / "depth", "P1", out, mask_instruments=False)
+    made = E.extract_sequence(root, CLIP_LIST, "P1", out, mask_instruments=False)
     assert made == [out / "P1__clip_0000", out / "P1__clip_0002"]
     assert calls == [("P1", [4, 16, 2692, 2704, 2716])]
     assert sorted(p.name for p in out.iterdir()) == ["P1__clip_0000", "P1__clip_0002"]
@@ -81,11 +79,21 @@ def test_each_usable_clip_gets_its_left_views_and_the_workbench_manifest(decoded
                                       "frames"]
     assert json.loads(text) == {
         "dataset": "stereomis", "sequence": "P1", "clip_kind": "fixed_grid", "fps_native": FPS, "stride": 12,
-        "out_size": [640, 512], "n_frames": 2, "gt_row_offset": -4, "instruments_masked": 0, "span_mm": 12.345,
+        "out_size": [640, 512], "n_frames": 2, "gt_row_offset": -3, "instruments_masked": 0, "span_mm": 12.345,
         "stratum": "moving",
-        "frames": [{"seq_idx": 0, "native_frame": 4, "gt_row": 0, "time_sec": 0.0667},
-                   {"seq_idx": 1, "native_frame": 16, "gt_row": 12, "time_sec": 0.2669}]}
+        "frames": [{"seq_idx": 0, "native_frame": 4, "gt_row": 1, "time_sec": 0.0667},
+                   {"seq_idx": 1, "native_frame": 16, "gt_row": 13, "time_sec": 0.2669}]}
     assert text.startswith('{\n "dataset": "stereomis",') and not text.endswith("\n")
+
+
+def test_the_manifest_takes_the_rows_and_times_the_clip_list_gives(decoded, tmp_path):
+    """The planted fault: rows and times that the tables and the frame rate would not give."""
+    root, _ = decoded
+    clip = dict(CLIP_LIST[0], gt_row_offset=-7, times=[1.5, 1.75])
+    E.extract_sequence(root, [clip], "P1", tmp_path / "clips", mask_instruments=False)
+    manifest = json.loads((tmp_path / "clips" / "P1__clip_0000" / "frame_manifest.json").read_text())
+    assert manifest["gt_row_offset"] == -7
+    assert [(f["gt_row"], f["time_sec"]) for f in manifest["frames"]] == [(-3, 1.5), (9, 1.75)]
 
 
 def write_mask(root, seq: str, number: int) -> None:
@@ -96,14 +104,13 @@ def write_mask(root, seq: str, number: int) -> None:
     cv2.imwrite(str(root / seq / "masks" / ("%06dl.png" % number)), a)
 
 
-def test_instruments_are_painted_black_outside_the_nearest_mask_and_counted(decoded, tmp_path):
-    """Frame 2692 has its own mask, 2704 the one two frames later, 2716 none within two frames."""
+def test_instruments_are_painted_black_outside_the_mask_the_list_gives_and_counted(decoded, tmp_path):
+    """Mask 2719 lies within two frames of frame 2716, but the list gives that frame none."""
     root, _ = decoded
-    write_mask(root, "P1", 2692)
-    write_mask(root, "P1", 2706)
-    write_mask(root, "P1", 2719)
+    for number in (2693, 2707, 2719):
+        write_mask(root, "P1", number)
     out = tmp_path / "clips"
-    E.extract_sequence(root, tmp_path / "depth", "P1", out, mask_instruments=True)
+    E.extract_sequence(root, CLIP_LIST, "P1", out, mask_instruments=True)
     images = sorted((out / "P1__clip_0002" / "input_images").iterdir())
     for p, f, masked in zip(images, [2692, 2704, 2716], [True, True, False]):
         got, want = read_rgb(p), left_view(f)
@@ -114,11 +121,20 @@ def test_instruments_are_painted_black_outside_the_nearest_mask_and_counted(deco
     assert json.loads((out / "P1__clip_0000" / "frame_manifest.json").read_text())["instruments_masked"] == 0
 
 
+def test_a_mask_the_list_gives_that_is_not_there_leaves_no_clip(decoded, tmp_path):
+    root, _ = decoded
+    write_mask(root, "P1", 2693)
+    out = tmp_path / "clips"
+    with pytest.raises(FileNotFoundError, match="002707l.png"):
+        E.extract_sequence(root, CLIP_LIST, "P1", out, mask_instruments=True)
+    assert list(out.iterdir()) == []
+
+
 def test_a_sequence_without_a_usable_clip_writes_nothing(decoded, tmp_path):
     root, calls = decoded
     out = tmp_path / "clips"
     out.mkdir()
-    assert E.extract_sequence(root, tmp_path / "depth", "P2_3", out, mask_instruments=False) == []
+    assert E.extract_sequence(root, CLIP_LIST, "P2_3", out, mask_instruments=False) == []
     assert calls == [] and list(out.iterdir()) == []
 
 
@@ -128,7 +144,7 @@ def test_a_clip_that_exists_is_refused_before_anything_is_decoded(decoded, tmp_p
     out = tmp_path / "clips"
     (out / left_behind).mkdir(parents=True)
     with pytest.raises(FileExistsError, match=left_behind):
-        E.extract_sequence(root, tmp_path / "depth", "P1", out, mask_instruments=False)
+        E.extract_sequence(root, CLIP_LIST, "P1", out, mask_instruments=False)
     assert calls == [] and [p.name for p in out.iterdir()] == [left_behind]
 
 
@@ -142,15 +158,25 @@ def test_a_decode_that_fails_leaves_no_clip(decoded, tmp_path, monkeypatch):
     monkeypatch.setattr(stereomis, "iter_frame_set", failing)
     out = tmp_path / "clips"
     with pytest.raises(RuntimeError, match="1 decoded"):
-        E.extract_sequence(root, tmp_path / "depth", "P1", out, mask_instruments=False)
+        E.extract_sequence(root, CLIP_LIST, "P1", out, mask_instruments=False)
     assert list(out.iterdir()) == []
 
 
-def test_the_command_refuses_a_clip_of_any_sequence_before_decoding_the_first(decoded, tmp_path, monkeypatch):
+@pytest.fixture
+def clip_list_file(monkeypatch, tmp_path):
+    """Write `CLIP_LIST` as a clip list, and read it back without the checks, whose clips are 112 frames long."""
+    path = tmp_path / "clips.json"
+    stereomis.write_clip_list(CLIP_LIST, path)
+    monkeypatch.setattr(stereomis, "read_clip_list", lambda p: tuple(json.loads(p.read_text())))
+    return path
+
+
+def test_the_command_refuses_a_clip_of_any_sequence_before_decoding_the_first(decoded, tmp_path, monkeypatch,
+                                                                              clip_list_file):
     root, calls = decoded
     out = tmp_path / "clips"
     (out / "P2_0__clip_0000").mkdir(parents=True)
-    argv = ["extract_stereomis", "--root", str(root), "--depth-root", str(tmp_path / "depth"), "--out", str(out),
+    argv = ["extract_stereomis", "--root", str(root), "--clips", str(clip_list_file), "--out", str(out),
             "--sequences", "P1", "P2_0"]
     monkeypatch.setattr(sys, "argv", argv)
     with pytest.raises(FileExistsError, match="P2_0__clip_0000"):
@@ -158,10 +184,11 @@ def test_the_command_refuses_a_clip_of_any_sequence_before_decoding_the_first(de
     assert calls == []
 
 
-def test_the_command_refuses_a_sequence_named_twice_before_decoding_the_first(decoded, tmp_path, monkeypatch):
+def test_the_command_refuses_a_sequence_named_twice_before_decoding_the_first(decoded, tmp_path, monkeypatch,
+                                                                             clip_list_file):
     root, calls = decoded
     out = tmp_path / "clips"
-    argv = ["extract_stereomis", "--root", str(root), "--depth-root", str(tmp_path / "depth"), "--out", str(out),
+    argv = ["extract_stereomis", "--root", str(root), "--clips", str(clip_list_file), "--out", str(out),
             "--sequences", "P1", "P1", "P2_0"]
     monkeypatch.setattr(sys, "argv", argv)
     with pytest.raises(ValueError, match="names P1 twice"):
@@ -169,10 +196,12 @@ def test_the_command_refuses_a_sequence_named_twice_before_decoding_the_first(de
     assert calls == [] and not out.exists()
 
 
-def test_the_command_extracts_the_sequences_named(decoded, tmp_path, monkeypatch, capsys):
+def test_the_command_extracts_the_sequences_named(decoded, tmp_path, monkeypatch, capsys, clip_list_file):
     root, calls = decoded
+    for number in (2693, 2707):
+        write_mask(root, "P1", number)
     out = tmp_path / "clips"
-    argv = ["extract_stereomis", "--root", str(root), "--depth-root", str(tmp_path / "depth"), "--out", str(out),
+    argv = ["extract_stereomis", "--root", str(root), "--clips", str(clip_list_file), "--out", str(out),
             "--sequences", "P1", "P2_0", "--mask-instruments"]
     monkeypatch.setattr(sys, "argv", argv)
     E.main()
@@ -181,14 +210,13 @@ def test_the_command_extracts_the_sequences_named(decoded, tmp_path, monkeypatch
     assert capsys.readouterr().out.splitlines()[-1] == f"3 clips in {out}"
 
 
-def test_two_clips_that_share_a_frame_are_refused_before_anything_is_decoded(decoded, tmp_path, monkeypatch):
+def test_two_clips_that_share_a_frame_are_refused_before_anything_is_decoded(decoded, tmp_path):
     root, calls = decoded
     shared = (make_clip("P1", 0, [4, 16]), make_clip("P1", 1, [16, 28]))
-    monkeypatch.setattr(stereomis, "clips", lambda root, depth_root, seq: shared)
     out = tmp_path / "clips"
     out.mkdir()
     with pytest.raises(ValueError, match="hold the same frame"):
-        E.extract_sequence(root, tmp_path / "depth", "P1", out, mask_instruments=False)
+        E.extract_sequence(root, shared, "P1", out, mask_instruments=False)
     assert calls == [] and list(out.iterdir()) == []
 
 
@@ -197,5 +225,5 @@ def test_an_image_that_cannot_be_written_leaves_no_clip(decoded, tmp_path, monke
     monkeypatch.setattr(E.cv2, "imwrite", lambda path, img: False)
     out = tmp_path / "clips"
     with pytest.raises(RuntimeError, match="cannot write"):
-        E.extract_sequence(root, tmp_path / "depth", "P1", out, mask_instruments=False)
+        E.extract_sequence(root, CLIP_LIST, "P1", out, mask_instruments=False)
     assert list(out.iterdir()) == []

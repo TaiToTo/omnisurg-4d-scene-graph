@@ -4,7 +4,10 @@ A web page that shows a surgical clip's 4D scene graph: each frame's point
 cloud, the regions of each track on it, the scene graph of the frame, and the
 graph through time. The page is static. It reads the files that
 `python -m pipeline.viewer_bundle` writes (`docs/pipeline.md`, "The viewer
-bundle stage") and needs no server of its own.
+bundle stage") and needs no server of its own. The bundle stage reads the
+regions and scene graphs that the export stage writes into each clip; the
+root README's [Status](../README.md#status) says which stages this
+repository runs.
 
 What a reader can do on it:
 

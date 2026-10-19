@@ -9,29 +9,47 @@ from PIL import Image
 
 from evalkit import classes
 from evalkit.classes import VIEWS, ClassType, load_table, table_paths
+from pipeline import extract_lapex
 
 REPO = Path(__file__).resolve().parent.parent
 EVALUATION_MD = REPO / "docs" / "evaluation.md"
+
+
+def _rows_of_the_specification(heading: str) -> list[tuple[str, list[str]]]:
+    """Read the four-column table under `### <heading>` out of docs/evaluation.md: each row's line and cells."""
+    text = EVALUATION_MD.read_text(encoding="utf-8")
+    section = text.split(f"### {heading}\n", 1)[1].split("\n### ", 1)[0]
+    rows = []
+    for line in section.splitlines():
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) != 4 or cells[0] in ("id", "---:") or set(cells[0]) <= {"-", ":"}:
+            continue
+        if not cells[0].isdigit():
+            raise AssertionError(f"the document gives {cells[1]!r} no id: {line!r}")
+        rows.append((line, cells))
+    return rows
 
 
 def cholec_table_of_the_specification() -> dict[int, tuple[str, tuple[int, int, int], str]]:
     """Read the CholecSeg8k table out of docs/evaluation.md, so that the JSON
     and the document are checked against each other and not against a third
     copy typed by hand."""
-    text = EVALUATION_MD.read_text(encoding="utf-8")
-    section = text.split("### CholecSeg8k", 1)[1].split("\n### ", 1)[0]
     rows = {}
-    for line in section.splitlines():
-        cells = [c.strip() for c in line.strip().strip("|").split("|")]
-        if len(cells) != 4 or cells[0] in ("id", "---:") or set(cells[0]) <= {"-", ":"}:
-            continue
-        cid, name, colour, type_cell = cells
-        if not cid.isdigit():
-            raise AssertionError(f"the document gives {name!r} no id: {line!r}")
+    for line, (cid, name, colour, type_cell) in _rows_of_the_specification("CholecSeg8k"):
         m = re.fullmatch(r"\((\d+), (\d+), (\d+)\)", colour)
         assert m, line
         rows[int(cid)] = (name, tuple(int(v) for v in m.groups()), re.match(r"[a-z]+", type_cell).group())
     assert len(rows) >= 13, "the CholecSeg8k table was not found in docs/evaluation.md"
+    return rows
+
+
+def lapex_table_of_the_specification() -> dict[int, tuple[str, int, str]]:
+    """Read the LapEx table out of docs/evaluation.md: each id's class, the release's grey level and the type."""
+    rows = {}
+    for line, (cid, name, level, type_cell) in _rows_of_the_specification("LapEx"):
+        assert level.isdigit(), line
+        rows[int(cid)] = (name, int(level), re.match(r"[a-z]+", type_cell).group())
+    assert len(rows) >= 11, "the LapEx table was not found in docs/evaluation.md"
     return rows
 
 
@@ -51,7 +69,53 @@ def test_cholecseg8k_matches_the_specification(cholec):
 def test_the_specification_parser_reads_the_table_it_claims_to():
     spec = cholec_table_of_the_specification()
     assert spec[11] == ("Hepatic Vein", (0, 50, 128), "expert")
-    assert spec[13][1] == (255, 255, 255)
+    assert spec[13] == ("Region line", (255, 255, 255), "filled")
+    assert lapex_table_of_the_specification()[11] == ("interstitial_space", 0, "filled")
+
+
+def test_lapex_matches_the_specification():
+    lapex = load_table("lapex")
+    spec = lapex_table_of_the_specification()
+    assert set(lapex.entries) == set(spec)
+    for cid, (name, _, class_type) in spec.items():
+        e = lapex.entries[cid]
+        # A LapEx mask is read by its grey levels, which are the ids; the colour is that grey.
+        assert (e.name, e.colour, e.type) == (name, (cid, cid, cid), ClassType(class_type)), cid
+
+
+def test_lapex_has_an_id_for_every_level_the_extraction_writes():
+    # The release's levels, moved as the extraction moves them, under the release's names.
+    written = {extract_lapex.REMAP.get(level, level): name for level, name in extract_lapex.CLASS_TABLE.items()}
+    assert {e.id: e.name for e in load_table("lapex").entries.values()} == written
+    assert {cid: level for cid, (_, level, _) in lapex_table_of_the_specification().items()} == {
+        extract_lapex.REMAP.get(level, level): level for level in extract_lapex.CLASS_TABLE}
+
+
+def test_a_lapex_mask_is_read_by_its_grey_levels_and_never_as_colours():
+    lapex = load_table("lapex")
+    levels = np.array([[11, 18], [236, 200]], dtype=np.uint8)
+    assert (lapex.mask_ids(Image.fromarray(levels)) == levels).all()
+    with pytest.raises(ValueError, match="store only \\['id'\\]"):
+        lapex.mask_ids(Image.fromarray(np.stack([levels] * 3, axis=-1)))
+    with pytest.raises(KeyError, match="mask id 0"):
+        lapex.mask_ids(Image.fromarray(np.zeros((2, 2), dtype=np.uint8)))
+
+
+def test_the_filled_classes_are_cholecseg8k_s_region_line_and_lapex_s_interstitial_space(cholec):
+    assert cholec.filled_mask_ids == {13} and cholec.ids_of_type(ClassType.FILLED) == {13}
+    assert load_table("lapex").filled_mask_ids == {11}
+    for class_set in ("original", "benchmark"):
+        assert load_table("atlas120k", class_set).filled_mask_ids == frozenset()
+
+
+def test_a_benchmark_class_typed_filled_is_refused(tmp_path):
+    # The fill runs on the mask's own ids, so a benchmark class typed `filled` would never be filled.
+    raw = json.loads(Path(load_table("atlas120k").path).read_text(encoding="utf-8"))
+    next(c for c in raw["benchmark_classes"] if c["id"] == 0).update(type="filled")
+    path = tmp_path / "atlas120k.json"
+    path.write_text(json.dumps(raw), encoding="utf-8")
+    with pytest.raises(ValueError, match="benchmark class 0 is typed 'filled'"):
+        load_table("atlas120k", path=path)
 
 
 def test_cholecseg8k_reads_hepatic_vein_by_the_colour_the_masks_use(cholec):
@@ -90,7 +154,7 @@ def test_the_views_nest_as_specified():
     assert VIEWS["all"] - VIEWS["tissue"] == {ClassType.TOOL}
     assert VIEWS["geometric"] == {ClassType.TISSUE}
     for view in VIEWS.values():
-        assert not view & {ClassType.IGNORED, ClassType.BACKGROUND, ClassType.EXCLUDED}
+        assert not view & {ClassType.IGNORED, ClassType.BACKGROUND, ClassType.EXCLUDED, ClassType.FILLED}
 
 
 def test_cholecseg8k_views(cholec):
@@ -102,7 +166,7 @@ def test_cholecseg8k_views(cholec):
 
 
 def test_the_hashed_files_are_exactly_the_tables_the_loader_reads(cholec):
-    assert table_paths() == [load_table("atlas120k").path, cholec.path]
+    assert table_paths() == [load_table("atlas120k").path, cholec.path, load_table("lapex").path]
 
 
 def test_a_stray_file_in_the_table_directory_is_refused(tmp_path, monkeypatch):
@@ -110,7 +174,7 @@ def test_a_stray_file_in_the_table_directory_is_refused(tmp_path, monkeypatch):
     for p in table_paths():
         (tmp_path / p.name).write_bytes(p.read_bytes())
     monkeypatch.setattr(classes, "TABLE_DIR", tmp_path)
-    assert table_paths() == [tmp_path / "atlas120k.json", tmp_path / "cholecseg8k.json"]
+    assert table_paths() == [tmp_path / "atlas120k.json", tmp_path / "cholecseg8k.json", tmp_path / "lapex.json"]
     (tmp_path / "notes.json").write_text("{}", encoding="utf-8")
     with pytest.raises(ValueError, match="notes.json"):
         table_paths()
@@ -182,10 +246,10 @@ def test_the_planted_copy_loads_when_nothing_is_planted(tmp_path):
 
 
 def test_a_dataset_without_a_table_format_is_refused(tmp_path):
-    path = tmp_path / "lapex.json"
-    path.write_text(json.dumps({"dataset": "lapex", "classes": []}), encoding="utf-8")
+    path = tmp_path / "stereomis.json"
+    path.write_text(json.dumps({"dataset": "stereomis", "classes": []}), encoding="utf-8")
     with pytest.raises(ValueError, match="no table format"):
-        load_table("lapex", path=path)
+        load_table("stereomis", path=path)
 
 
 def test_a_class_set_of_another_dataset_is_refused():
