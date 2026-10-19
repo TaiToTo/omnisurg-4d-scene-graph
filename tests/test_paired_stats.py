@@ -229,7 +229,8 @@ def evaluator_scores(tag: str, shift: float, seed: int, views=("all",)) -> dict:
     return dict(tag=tag, eval_code_sha="a" * 64, dataset="atlas", pilot=False, class_set="original",
                 views=list(views), clips=clips,
                 input_shas={c: {"gt_masks": "g" * 64, "depth": "d" * 64, "crop": "c" * 64, "frames": "f" * 64, "predictions": f"p{c}"} for c in clips},
-                versions={"python": "3.12.0", "numpy": "2.0.0"}, propagation="both_ways_from_centre", per_clip=rows)
+                versions={"python": "3.12.0", "numpy": "2.0.0"}, propagation="both_ways_from_centre",
+                seed_source="sam", gt_informed=False, per_clip=rows)
 
 
 # What the workbench's paired_stats wrote on exactly these two JSONs

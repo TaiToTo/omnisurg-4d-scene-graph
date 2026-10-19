@@ -18,7 +18,7 @@ import clip_dirs as C
 import scenes as S
 from evalkit.evaluate import score_condition
 from evalkit.classes import load_table
-from evalkit.inputs import MANIFEST
+from evalkit.inputs import MANIFEST, read_clip
 from evalkit.keys import CLIP_METRICS, FRAME_METRICS, metric_key
 from evalkit.pilot import PILOT_DOMAINS, PILOT_MIN_CC_PX
 from evalkit.pilot_clip import _pilot_colours, pilot_frame, pilot_row, pilot_time_iou, score_pilot_clip
@@ -163,7 +163,8 @@ def pilot_clip_dir(tmp_path, names):
 
 
 def score(tmp_path, table=CHOLEC):
-    return score_pilot_clip(tmp_path / "data", tmp_path / "tracks", "t", "c", table)
+    inputs = read_clip(tmp_path / "data", tmp_path / "tracks", "t", "c", table)
+    return score_pilot_clip(inputs, tmp_path / "data", table), dict(inputs.shas)
 
 
 def edit_manifest(tmp_path, change):
@@ -263,9 +264,10 @@ def test_an_atlas120k_clip_reads_its_id_masks_and_its_one_tool_class(tmp_path):
 def test_a_pilot_mode_json_says_so_and_scores_the_pilot_s_domains(tmp_path):
     pilot_clip_dir(tmp_path, [f"label_{i:04d}.npy" for i in range(3)])
     summary = score_condition("cholecseg8k", None, ["c"], tmp_path / "data", tmp_path / "tracks", "t",
-                              "both_ways_from_centre", pilot=True)
+                              "both_ways_from_centre", gt_informed=False, pilot=True)
     assert summary["pilot"] is True and summary["views"] == list(PILOT_DOMAINS)
     assert summary["propagation"] == "both_ways_from_centre"
+    assert (summary["seed_source"], summary["gt_informed"]) == (None, False)
     assert summary["per_clip"][0]["F1_50/labeled_tissue"] == 1.0
 
 

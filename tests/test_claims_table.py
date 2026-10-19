@@ -57,7 +57,8 @@ def evaluator_json(column: str, tag: str, vals: dict[str, float], rule: str) -> 
     return dict(tag=tag, eval_code_sha="a" * 64, dataset=column, pilot=False, class_set="original",
                 views=["all"], clips=list(vals),
                 input_shas={c: {"gt_masks": "g" * 64, "depth": "d" * 64, "crop": "c" * 64, "frames": "f" * 64, "predictions": f"p{tag}{c}"} for c in vals},
-                versions={"python": "3.12.0"}, propagation=rule, per_clip=rows)
+                versions={"python": "3.12.0"}, propagation=rule,
+                seed_source="sam", gt_informed=False, per_clip=rows)
 
 
 def rule_of(tag: str, tracked: str = "both_ways_from_centre") -> str:

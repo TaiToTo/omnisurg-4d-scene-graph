@@ -46,6 +46,9 @@ two scores are compared only when they are comparable ("Terms").
   other run is in *normal mode*.
 - A *condition* is one configuration of the pipeline that the paper
   compares. It gives one prediction per clip.
+- A condition is *GT-informed* when the GT made its seeds or set one of
+  its settings. A condition whose seeds or labels are merged to as many
+  regions as the clip has GT objects is GT-informed.
 - A *video* is one recording in a dataset. A *clip* is a stretch of one
   video that the pipeline processes as a unit; a video can supply several.
 - A *class set* is the list of classes a score reads the GT in. `original`
@@ -154,10 +157,26 @@ found in the code. A module's docstring says what it returns.
   carries forward; it is the causal setting. A condition segmented frame by
   frame has no seed, and its rule is `per_frame`. The tracker records its
   seed frame and its direction beside its labels, in `seed_info.json`, and
-  the evaluator reads the rule from there. A seed from anywhere else, the
-  GT for one, holds neither rule: such a condition is a comparison of its
-  own, and is not scored under either. A score records the rule as
-  `propagation`, and a condition whose rule is unknown is not scored.
+  the evaluator reads the rule from there. The rule depends on where the
+  seed sits, not on where its regions came from: the tracking stage's own
+  cut (`seed_source` `sam`) or files made outside the stage (`external`),
+  such as seeds merged to K regions. A record whose `seed_source` is `gt`,
+  as the workbench's GT-seeded conditions write it, is not scored yet
+  ("Conditions seeded from GT" in `docs/porting.md`). A score records the
+  rule as `propagation`, and a condition whose rule is unknown is not
+  scored.
+- **Seeds.** A score records the `seed_source` of every clip's record, and
+  whether the condition is GT-informed (Terms), as `gt_informed`. A
+  condition whose seeds the tracking stage cut, or that has no seeds, is
+  not GT-informed, unless `kmerge` merged its labels. No record says
+  whether the GT made seeds outside the stage or set the K that `kmerge`
+  merged to, so the evaluator is told (`--gt-informed`). The files of seeds
+  made outside the stage are read from the directory the tracking stage
+  read them from (`--seeds`). Each clip's file must be an integer map of
+  the clip's depth shape, and hold the number of regions the tracker's
+  record says it kept. The file is hashed into `input_shas` as `seeds`, so
+  the score names the seeds by their content, whatever path they were
+  given by.
 
 A clip is a directory. Frame i is `frames[i]` of the frame manifest, counted
 from 0, and every input of that frame sits at index i. The index is the
@@ -246,6 +265,12 @@ is a piece the frame shows, not a thing: a liver cut in two by an
 instrument is two objects, and two touching instruments are one. The pilot
 evaluator's objects were component objects of 300 pixels, in its own
 domains.
+
+Both tools refuse a condition whose records do not say whether it is
+GT-informed: seeds made outside the tracking stage, and labels that
+`kmerge` merged. Their JSONs do not record `gt_informed` ("Seeds"), so the
+tools could not keep a GT-informed condition from a comparison with
+others.
 
 ### Naming the regions: the class map
 
@@ -614,8 +639,10 @@ Hold starts on the seed frame. The tool refuses:
 
 - a clip whose seed frame has no GT or is excluded;
 - a `per_frame` condition, which has no seed frame;
-- a condition seeded from GT or from outside the tracking stage, which
-  holds no propagation rule ("Propagation rule");
+- a condition seeded from GT, which holds no propagation rule
+  ("Propagation rule");
+- a condition whose records do not say whether it is GT-informed
+  ("Component objects");
 - labels without `seed_info.json`;
 - a condition whose clips hold two rules.
 
@@ -704,17 +731,19 @@ instead ("Component objects").
   `benchmark`), the views, and whether the score was made in pilot mode
 - a sha256 hash of every input read, per clip, as `input_shas`: the GT
   masks, the depth maps (as `atlas120k_meta/depth_manifest.json`
-  fingerprints them), the crop rectangle, the frames in time order, and the
-  predictions
+  fingerprints them), the crop rectangle, the frames in time order, the
+  predictions, and the files of seeds made outside the tracking stage
 - the name of the directory the predictions were read from, as
   `track_dir_name`, which is how `condition_inventory` matches a score to
   its labels; a score that does not say what it scored cannot be inventoried
 - the condition's propagation rule, as `propagation` ("Propagation rule"
   above)
+- the seeds' source, as `seed_source`, and whether the condition is
+  GT-informed, as `gt_informed` ("Seeds" above)
 - the Python, numpy, OpenCV and Pillow versions
 
-The pilot evaluator's JSONs recorded no input hashes, propagation rule or
-versions.
+The pilot evaluator's JSONs recorded no input hashes, propagation rule,
+seed source, `gt_informed` or versions.
 
 A score JSON holds those fields, `clips` (the population, in its order),
 and one row per clip under `per_clip`. A row holds the clip's name, every
@@ -733,12 +762,14 @@ Two scores are comparable only when all of these requirements hold:
   common clips instead, and records the population as `intersection`;
 - they read the same GT masks, depth maps, crop rectangle and frame order:
   both record a hash of each of these in `input_shas`, and every hash but
-  the predictions' is equal;
+  the predictions' and the seeds' is equal;
 - they share a propagation rule, or one of them is `per_frame`, or they
-  differ in the rule alone.
+  differ in the rule alone;
+- both conditions are GT-informed, or neither is.
 
-Pilot JSONs record no input hashes and no propagation rule, so between two
-of them only the ruler and the clips are compared.
+Pilot JSONs record no input hashes, no propagation rule and no
+`gt_informed`, so between two of them only the ruler and the clips are
+compared.
 
 The same `eval_code_sha` is not enough on its own. Pilot mode and the
 normal mode share it, and so do the views.
@@ -754,6 +785,10 @@ holds one rule, or two rules where every condition has, in the table, the
 condition that differs from it in the rule alone; `per_frame` conditions
 may go in either. A pair or a table of two rules records both as
 `propagation`, joined by ` and `.
+
+A GT-informed condition is never compared with one that is not, whatever
+their rules. The difference between them would include what the GT told
+the condition. GT-informed conditions are compared with one another.
 
 The tools enforce this:
 
@@ -824,10 +859,10 @@ pilot evaluator's numbers.
   changes, and is listed.
 - A score made in pilot mode is marked as such and never enters a comparison
   with a normal one.
-- Pilot mode reads a condition's propagation rule as normal mode does. So it
-  refuses a condition that holds neither rule, a condition seeded from GT
-  among them, and the check leaves such a condition out by name. The paper
-  reports none of them, and the other conditions run the same metric code.
+- Pilot mode reads a condition's propagation rule and seeds as normal mode
+  does. So it refuses a condition that holds neither rule, one whose record
+  names a GT seed among them, and the check leaves such a condition out by
+  name. The other conditions run the same metric code.
 - Pilot mode exists for this check alone. It is removed from the evaluator
   once the check has passed and before the evaluator is frozen, so the
   frozen evaluator has one mode.

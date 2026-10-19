@@ -95,8 +95,13 @@ def test_the_merged_condition_is_written_at_the_depth_shape_and_scored(tmp_path)
     assert json.loads((out / "kmerge.json").read_text()) == {
         "from_tag": "t", "from_predictions_sha": source.shas["predictions"], "k": 2}
     assert condition_rule(tmp_path / "tracks", "t_k2", clips) == condition_rule(tmp_path / "tracks", "t", clips)
-    summary = score_condition("cholecseg8k", None, clips, tmp_path / "data", tmp_path / "tracks", "t_k2")
-    assert summary["propagation"] == "both_ways_from_centre"
+    # The record does not say whether the GT set K, so the evaluator is told.
+    with pytest.raises(ValueError, match="merged to K by kmerge, and no record says whether the GT informed it"):
+        score_condition("cholecseg8k", None, clips, tmp_path / "data", tmp_path / "tracks", "t_k2")
+    summary = score_condition("cholecseg8k", None, clips, tmp_path / "data", tmp_path / "tracks", "t_k2",
+                              gt_informed=True)
+    assert (summary["propagation"], summary["seed_source"], summary["gt_informed"]) == (
+        "both_ways_from_centre", "sam", True)
 
 
 def test_merged_predictions_left_by_an_earlier_run_are_refused_unless_replaced(tmp_path):
