@@ -17,6 +17,7 @@ Usage:
 
 import argparse
 import json
+import re
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
@@ -416,6 +417,33 @@ def check_temporal(tg: dict, graph_frames: list[int], where: str) -> None:
                              "ends, a word and rising frames the graph lists")
 
 
+def check_overlay_names(clip_dir: Path, n: int, tracks: list[str]) -> None:
+    """Refuse an overlay in `pc_vis/` that no frame of the clip reads.
+
+    `_overlay` reads `<kind>_NNNN.json` or `<kind>_NNNN__<track>.json` for the frames 0 to n - 1. An overlay
+    numbered from 1 would otherwise be published one frame late, and one not numbered with four digits not
+    at all, and nothing would say so. An overlay of a track left out of the bundle is not read, so it is left
+    alone.
+
+    Raises:
+        ValueError: regions or a scene graph of one of `tracks`, or a hierarchy, is numbered outside the
+            clip's frames or not as `_overlay` names it.
+    """
+    overlay = re.compile(r"(seg_frame|graph_frame|hierarchy_frame)_(\d+)(?:__(.+))?\.json")
+    bad = []
+    for p in sorted((clip_dir / "pc_vis").iterdir()):
+        m = overlay.fullmatch(p.name)
+        if m is None:
+            continue
+        kind, i, track = m.group(1), int(m.group(2)), m.group(3)
+        if (track is None) != (kind == "hierarchy_frame") or (track is not None and track not in tracks):
+            continue
+        if i >= n or p.name != _overlay(clip_dir, kind, i, track).name:
+            bad.append(p.name)
+    if bad:
+        raise ValueError(f"{clip_dir.name}: no frame of the clip, 0000 to {n - 1:04d}, reads {', '.join(bad)}")
+
+
 def track_record(clip_dir: Path, track: str, n: int, dataset: str) -> dict:
     """Describe one track of a clip for `clip.json`: its words and the frames it has files for.
 
@@ -449,9 +477,9 @@ def bundle_clip(clip_dir: Path, out: Path, tracks: list[str], geometry: str = "d
     Raises:
         FileNotFoundError: a file the clip needs is missing.
         ValueError: the geometry source or the dataset is unknown, the clip is already under `out` and
-            `overwrite` is false, or a check of `read_clip`, `regions_of`, `check_graph`, `check_hierarchy`,
-            `check_temporal`, `track_record` or of a cloud fails. A cloud must hold one point per pixel of its
-            grid, since the labels and the viewer's depth filter are read by pixel.
+            `overwrite` is false, or a check of `read_clip`, `check_overlay_names`, `regions_of`, `check_graph`,
+            `check_hierarchy`, `check_temporal`, `track_record` or of a cloud fails. A cloud must hold one point
+            per pixel of its grid, since the labels and the viewer's depth filter are read by pixel.
     """
     # Check the settings and every file that does not need the overlays read.
     if geometry not in GEOMETRY_NAMES:
@@ -464,6 +492,7 @@ def bundle_clip(clip_dir: Path, out: Path, tracks: list[str], geometry: str = "d
     dataset = manifest.get("dataset", "cholecseg8k")
     if dataset not in DATASET_NAMES:
         raise ValueError(f"{clip_dir.name}: unknown dataset {dataset!r}")
+    check_overlay_names(clip_dir, n, tracks)
     records = [track_record(clip_dir, t, n, dataset) for t in tracks]
     remap = (None if clip["cloud_grid"] == clip["overlay_grid"]
              else grid_remap_index(*clip["overlay_grid"], *clip["cloud_grid"]))

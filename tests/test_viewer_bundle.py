@@ -287,6 +287,22 @@ def test_a_track_covers_only_the_frames_it_has_files_for(tmp_path):
     assert sorted(p.name for p in (tmp_path / "out" / CLIP / "regions" / "sam3d").iterdir()) == ["0000.json", "0002.json"]
 
 
+@pytest.mark.parametrize("stray", ["seg_frame_0003__sam3d.json", "graph_frame_0003__sam3d.json",
+                                   "hierarchy_frame_0003.json", "seg_frame_1__sam3d.json",
+                                   "seg_frame_00001__sam3d.json"])
+def test_an_overlay_that_no_frame_of_the_clip_reads_is_refused(tmp_path, stray):
+    # Overlays numbered from 1 were published one frame late; one numbered without four digits is never read.
+    clip = make_clip(tmp_path / "in")
+    (clip / "pc_vis" / stray).write_text(json.dumps(graph() if "graph" in stray else seg(two_regions(W, H))))
+    _fails(tmp_path, rf"no frame of the clip, 0000 to 0002, reads {stray}")
+
+
+def test_a_stray_overlay_of_a_track_left_out_is_left_alone(tmp_path):
+    clip = make_clip(tmp_path / "in")
+    (clip / "pc_vis" / "seg_frame_0003__cholecseg8k.json").write_text(json.dumps(seg(two_regions(W, H))))
+    assert vb.bundle_clip(clip, tmp_path / "out", ["sam3d"])["n_frames"] == 3
+
+
 def test_a_hierarchy_with_a_track_left_out_is_not_copied(tmp_path):
     clip = make_clip(tmp_path / "in", tracks=("cholecseg8k", "sam3d"))
     (clip / "pc_vis" / "hierarchy_frame_0000.json").write_text(

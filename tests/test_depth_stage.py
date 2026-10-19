@@ -220,6 +220,17 @@ def test_a_run_that_fails_after_overwrite_was_asked_leaves_the_earlier_output(tm
     assert sorted(p.relative_to(clip) for p in clip.rglob("*") if p.is_file()) == before
 
 
+def test_a_run_that_cannot_read_an_image_for_the_clouds_leaves_the_earlier_output(tmp_path):
+    pytest.importorskip("matplotlib")
+    clip = make_clip(tmp_path, n=3)
+    run_depth(clip, StandIn(), process_res=504, write_glb=False)
+    (clip / "input_images" / "000001.png").write_bytes(b"not an image")
+    before = {p.relative_to(clip): p.read_bytes() for p in clip.rglob("*") if p.is_file()}
+    with pytest.raises(ValueError, match="000001.png cannot be read as an image"):
+        run_depth(clip, StandIn(), process_res=504, write_glb=True, overwrite=True)
+    assert {p.relative_to(clip): p.read_bytes() for p in clip.rglob("*") if p.is_file()} == before
+
+
 OTHERS = ("depth_vis/{:04d}__pi3x.jpg", "pc_vis/frame_{:04d}__pi3x.glb", "pc_vis/seg_frame_{:04d}__sam3d.glb",
           "pc_vis/graph_frame_{:04d}.json", "pc_vis/hierarchy_index.json", "exports/mini_npz/results__pi3x.npz")
 

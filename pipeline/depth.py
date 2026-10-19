@@ -2,14 +2,14 @@
 
 The stage reads a clip's `frame_manifest.json` and `input_images/`. It
 writes `depth_raw/depth_NNNNNN.npy`, `depth_vis/NNNN.jpg`,
-`exports/mini_npz/results.npz` and `pc_vis/frame_NNNN.glb`, and adds
-`depth_info` to the manifest. The bundle `results.npz` holds depth,
-confidence, intrinsics and world-to-camera extrinsics. The stage refuses:
+`exports/mini_npz/results.npz` (depth, confidence, intrinsics and
+world-to-camera extrinsics) and `pc_vis/frame_NNNN.glb`, and adds
+`depth_info` to the manifest. The stage refuses:
 
 - a clip without `crop_info.json`, unless it is an ATLAS-120k, a StereoMIS,
   a D4D or a LapEx clip: a CholecSeg8k clip before the crop stage;
-- a clip that already holds the stage's output, unless `--overwrite` is
-  given, which removes that output first.
+- a clip that already holds the stage's output, unless `--overwrite` is given;
+- an image OpenCV cannot read for the point clouds, unless `--no-glb` is given.
 
 Usage:
     python -m pipeline.depth --input-dir /path/to/clips [--clips <clip> ...] [--device auto] [--gpu N]
@@ -114,12 +114,14 @@ def run_depth(clip_dir: Path, model: Reconstructor, process_res: int, write_glb:
         process_res: the resolution the model was built with. `depth_info` records it.
         write_glb: write the point clouds. Only the viewer reads them, and they take about 20 MB a frame.
         overwrite: replace the stage's output when the clip already holds it. The output is removed only after
-            the model has run, so a run that fails leaves the clip as it was.
+            the model has run and every image has been read, so a run that fails before it writes leaves the
+            clip as it was.
 
     Raises:
         FileNotFoundError: the clip has no manifest or no image.
         ValueError: `check_cropped` refuses the clip, the clip already holds the stage's output and `overwrite`
-            is false, or the model returns a number of frames other than the number of images.
+            is false, the model returns a number of frames other than the number of images, or an image cannot
+            be read for the point clouds.
     """
     # Read the clip's manifest and images, and refuse an uncropped endoscope clip.
     manifest_path = clip_dir / "frame_manifest.json"
@@ -147,7 +149,17 @@ def run_depth(clip_dir: Path, model: Reconstructor, process_res: int, write_glb:
     H, W = depth.shape[1], depth.shape[2]
     print(f"  depth shape {depth.shape}")
 
-    # Remove the earlier output, now that the model has run.
+    # Read the images the point clouds are coloured with, at the depth's size. OpenCV returns None for an
+    # image it cannot read, and the earlier output must not be removed before every image is read.
+    colours = []
+    if write_glb:
+        for p in image_paths:
+            img = cv2.imread(str(p))
+            if img is None:
+                raise ValueError(f"{clip_dir.name}: {p.name} cannot be read as an image")
+            colours.append(cv2.cvtColor(cv2.resize(img, (W, H), interpolation=cv2.INTER_LINEAR), cv2.COLOR_BGR2RGB))
+
+    # Remove the earlier output, now that the model has run and the images are read.
     if held:
         remove_output(clip_dir)
 
@@ -170,8 +182,7 @@ def run_depth(clip_dir: Path, model: Reconstructor, process_res: int, write_glb:
         (clip_dir / "pc_vis").mkdir(exist_ok=True)
         for i in range(n_frames):
             R, t = rec.extrinsics[i][:3, :3], rec.extrinsics[i][:3, 3]
-            img = cv2.cvtColor(cv2.resize(cv2.imread(str(image_paths[i])), (W, H), interpolation=cv2.INTER_LINEAR),
-                               cv2.COLOR_BGR2RGB)
+            img = colours[i]
             gltf_pts = world_to_gltf(cam_to_world(backproject_depth(depth[i], rec.intrinsics[i]), R, t))
             valid = valid_depth_mask(depth[i].reshape(-1))
             if not valid.any():
