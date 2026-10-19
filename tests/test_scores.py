@@ -7,6 +7,8 @@ it, and one case checks that an untouched pair passes.
 """
 import copy
 
+import re
+
 import pytest
 
 from evalkit.tools import scores
@@ -45,7 +47,7 @@ def evaluator_json(sha=SHA, clips=CLIPS, dataset="cholecseg8k", pilot=False, cla
                    views=("all", "tissue", "geometric"), propagation=BOTH_WAYS):
     return dict(
         eval_code_sha=sha, dataset=dataset, pilot=pilot, class_set=class_set, views=list(views),
-        clips=list(clips), propagation=propagation,
+        clips=list(clips), propagation=propagation, seed_source="sam", gt_informed=False,
         input_shas={c: {"gt_masks": "g" * 64, "depth": "d" * 64, "crop": "c" * 64, "frames": "f" * 64, "predictions": f"p{c}"} for c in clips},
         versions={"python": "3.12.0", "numpy": "2.0.0"},
         per_clip=[dict(clip=c, **{metric_key("F1_50", v): 0.5 for v in views}) for c in clips],
@@ -134,11 +136,55 @@ def test_a_pilot_json_records_no_rule_and_two_of_them_compare_as_before():
     assert "propagation" not in check_comparable(pilot_json(), pilot_json())
 
 
+# ---------------------------------------------------------------- conditions the GT informed
+
+
+def informed(source="external", gt_informed=True, **kw):
+    j = evaluator_json(**kw)
+    j["seed_source"], j["gt_informed"] = source, gt_informed
+    return j
+
+
+def test_a_condition_the_gt_informed_is_compared_only_with_another():
+    with pytest.raises(ValueError, match="a condition the GT informed cannot be compared") as e:
+        check_comparable(evaluator_json(), informed())
+    assert "gt_informed=False" in str(e.value) and "gt_informed=True" in str(e.value)
+    with pytest.raises(ValueError, match="a condition the GT informed cannot be compared"):
+        check_comparable(informed(propagation=scores.PER_FRAME), evaluator_json(propagation=scores.PER_FRAME))
+    assert check_comparable(informed(), informed(source=None))["clips"] == sorted(CLIPS)
+    assert check_comparable(evaluator_json(), informed(gt_informed=False))["clips"] == sorted(CLIPS)
+
+
+def test_a_table_never_holds_a_condition_the_gt_informed_beside_one_it_did_not():
+    with pytest.raises(ValueError, match="(?s)a and c cannot share a table: .*a condition the GT informed"):
+        scores.check_comparable_table({"a": informed(), "b": informed(), "c": evaluator_json()})
+
+
+@pytest.mark.parametrize("gt_informed", [None, "yes", 0, {"gt_informed": False}])
+def test_a_json_that_does_not_say_whether_the_gt_informed_it_is_refused(gt_informed):
+    j = evaluator_json()
+    j["gt_informed"] = gt_informed
+    with pytest.raises(ValueError, match="says neither that the GT informed the condition nor that it did not"):
+        check_comparable(evaluator_json(), j)
+
+
+@pytest.mark.parametrize("field", ["seed_source", "gt_informed"])
+def test_an_evaluator_json_without_a_seed_field_is_neither_kind(field):
+    j = evaluator_json()
+    del j[field]
+    with pytest.raises(ValueError, match="neither"):
+        check_comparable(evaluator_json(), j)
+
+
+def test_a_pilot_json_does_not_record_whether_the_gt_informed_it():
+    assert scores.gt_informed_of(pilot_json()) is None
+
+
 def test_one_table_holds_one_rule_besides_per_frame():
     pf = evaluator_json(propagation=scores.PER_FRAME)
-    assert scores.check_one_rule({"a": evaluator_json(), "b": pf, "c": evaluator_json()}) == BOTH_WAYS
-    assert scores.check_one_rule({"b": pf}) == scores.PER_FRAME
-    assert scores.check_one_rule({"p": pilot_json(), "q": pilot_json()}) is None
+    assert scores.check_table_rules({"a": evaluator_json(), "b": pf, "c": evaluator_json()}) == BOTH_WAYS
+    assert scores.check_table_rules({"b": pf}) == scores.PER_FRAME
+    assert scores.check_table_rules({"p": pilot_json(), "q": pilot_json()}) is None
 
 
 def test_a_table_whose_pairs_each_pass_but_that_holds_two_rules_is_refused():
@@ -148,8 +194,54 @@ def test_a_table_whose_pairs_each_pass_but_that_holds_two_rules_is_refused():
     check_comparable(tables["pf"], tables["both"])
     check_comparable(tables["pf"], tables["fwd"])
     with pytest.raises(ValueError, match="one table per rule") as e:
-        scores.check_one_rule(tables)
-    assert "['both']" in str(e.value) and "['fwd']" in str(e.value)
+        scores.check_table_rules(tables)
+    assert "['both']" in str(e.value) and "['fwd']" in str(e.value) and "records no track_dir_name" in str(e.value)
+
+
+# The label directories of the conditions that differ in the rule alone, under each rule.
+LABELS = {BOTH_WAYS: "track_rgb_rgb_pps24_sam_centre", FORWARD: "track_rgb_rgb_pps24_sam_forward"}
+TWO_RULES = f"{BOTH_WAYS} and {FORWARD}"
+
+
+def named(rule, labels=None):
+    return dict(evaluator_json(propagation=rule), track_dir_name=LABELS[rule] if labels is None else labels)
+
+
+def test_two_rules_are_compared_on_conditions_that_differ_in_the_rule_alone():
+    chk = check_comparable(named(FORWARD), named(BOTH_WAYS))
+    assert chk["propagation"] == TWO_RULES
+    assert check_comparable(named(BOTH_WAYS), named(FORWARD))["propagation"] == TWO_RULES
+
+
+@pytest.mark.parametrize("labels, said", [
+    ("track_normal_normal_da3_pps24_sam_centre", r"differ in \['input', 'depth'\] too"),
+    ("track_rgb_rgb_pps24_sam_forward",
+     "say the rule 'forward_from_first', and its score records 'both_ways_from_centre'"),
+    ("rgb_pps24_sam_centre", "no label directory"),
+    ("track_rgb_rgb_pps24_sam_center", "no propagation rule"),
+    ("", "records no track_dir_name"),
+])
+def test_two_rules_on_other_conditions_are_refused(labels, said):
+    with pytest.raises(ValueError, match="different rules") as e:
+        check_comparable(named(FORWARD), named(BOTH_WAYS, labels))
+    assert re.search(said, str(e.value)), str(e.value)
+
+
+def test_a_table_of_two_rules_holds_every_condition_with_the_one_that_differs_in_the_rule_alone():
+    pf = evaluator_json(propagation=scores.PER_FRAME)
+    tables = {"fwd": named(FORWARD), "ctr": named(BOTH_WAYS), "pf": pf,
+              "n_fwd": named(FORWARD, "track_rgb_normal_da3_pps24_sam_forward"),
+              "n_ctr": named(BOTH_WAYS, "track_rgb_normal_da3_pps24_sam_centre")}
+    assert scores.check_table_rules(tables) == TWO_RULES
+    # Every two conditions of a table are comparable, so one input's three conditions make a table of two rules.
+    assert scores.check_comparable_table({t: tables[t] for t in ("fwd", "ctr", "pf")})["propagation"] == TWO_RULES
+    del tables["n_ctr"]
+    with pytest.raises(ValueError, match="one table per rule") as e:
+        scores.check_table_rules(tables)
+    assert "['n_fwd'] lack the condition that differs from them in the rule alone" in str(e.value)
+    tables["n_fwd"]["track_dir_name"] = "track_rgb_normal_da3_pps24_sam_centre"
+    with pytest.raises(ValueError, match="n_fwd: its labels .* say the rule 'both_ways_from_centre'"):
+        scores.check_table_rules(tables)
 
 
 # ---------------------------------------------------------------- the sha
@@ -312,6 +404,14 @@ def test_two_scores_that_read_a_different_depth_map_are_refused():
     b["input_shas"][CLIPS[1]]["depth"] = "x" * 64
     with pytest.raises(ValueError, match="different depth"):
         check_comparable(evaluator_json(), b)
+
+
+def test_different_seed_files_are_the_condition_s_own_and_pass():
+    a, b = informed(), informed()
+    a["input_shas"][CLIPS[0]]["seeds"] = "s" * 64
+    b["input_shas"][CLIPS[0]]["seeds"] = "t" * 64
+    assert check_comparable(a, b)["clips"] == sorted(CLIPS)
+    assert check_comparable(evaluator_json(), informed(gt_informed=False) | {"input_shas": a["input_shas"]})
 
 
 def test_different_predictions_are_the_point_and_pass():

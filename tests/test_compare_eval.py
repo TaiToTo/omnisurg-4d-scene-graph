@@ -46,7 +46,7 @@ def evaluator_scores(pilot=False, class_set="original", views=("all", "tissue", 
                  time_IoU=0.5) for c in clips]
     return dict(eval_code_sha=SHA, dataset="atlas120k", pilot=pilot, class_set=class_set, views=list(views),
                 clips=clips, input_shas={c: {"gt_masks": "g", "depth": "d", "crop": "c", "frames": "f", "predictions": "p"} for c in clips},
-                versions={"numpy": "2.0.0"}, propagation="both_ways_from_centre", per_clip=rows)
+                versions={"numpy": "2.0.0"}, propagation="both_ways_from_centre", seed_source="sam", gt_informed=False, per_clip=rows)
 
 
 # What the workbench's compare_eval wrote on `base` (shift 0, seed 5) against
@@ -150,6 +150,15 @@ def test_the_command_lists_only_the_clips_where_the_primary_metric_is_defined(tm
     assert "rose: 4/4   [F1_50/geometric undefined on 1 clips]" in r.stdout
     # The clip's name appears nowhere but the per-clip list.
     assert a["per_clip"][0]["clip"] not in r.stdout
+
+
+def test_the_command_takes_scores_without_a_sha_only_when_told(tmp_path):
+    a, b = pilot_scores("base", 0.0, 5), pilot_scores("cond", 0.03, 6)
+    del a["eval_code_sha"], b["eval_code_sha"]
+    r = run(tmp_path, a, b)
+    assert r.returncode != 0 and "pass --allow-legacy-code knowingly" in r.stderr
+    r = run(tmp_path, a, b, "--allow-legacy-code")
+    assert r.returncode == 0 and "eval_code=legacy-unverified" in r.stdout
 
 
 def test_an_evaluator_json_without_the_geometric_view_has_no_default_key():

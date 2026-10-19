@@ -1,15 +1,14 @@
 """Read one clip's inputs: its frames, GT masks, depth and predictions.
 
-The inputs sit in three places:
-- `<data_root>/<clip>/frame_manifest.json` lists the frames in the order
-  the pipeline processed them, and marks the GT frames (`docs/evaluation.md`,
-  "Which frames").
+The inputs are read from three places:
+- `<data_root>/<clip>/frame_manifest.json` lists the frames in the pipeline's
+  order and marks the GT frames (`docs/evaluation.md`, "Which frames").
 - `<data_root>/<clip>/exports/mini_npz/results.npz` holds the depth, frame
-  `i` as `depth[i]`. `seg_masks/<i:06d><suffix>` beside it holds a GT
-  frame's mask, already cut to the endoscope's rectangle.
+  `i` as `depth[i]`, and `seg_masks/<i:06d><suffix>` a GT frame's mask.
 - `<tracks_root>/<clip>/<tag>/label_<i>.npy` is the prediction for frame `i`.
-A mask or prediction of another shape is resized to the depth map's, with
-nearest neighbour. Every input is fingerprinted, so a score says what it read.
+A mask's `filled` classes are filled first (`evalkit.fill`). A mask or
+prediction of another shape is then resized to the depth map's, with nearest
+neighbour. Every input is fingerprinted, so a score says what it read.
 """
 from __future__ import annotations
 
@@ -27,23 +26,35 @@ import numpy as np
 from PIL import Image
 
 from evalkit.classes import ClassTable
+from evalkit.fill import fill_from_nearest
 
 MANIFEST = "frame_manifest.json"
 DEPTH_FILE = Path("exports", "mini_npz", "results.npz")
 MASK_DIR = "seg_masks"
 
 # The file a GT mask is stored in, after the frame's index. CholecSeg8k's
-# colour masks; ATLAS-120k's id masks, as the extraction wrote them.
+# colour masks; ATLAS-120k's and LapEx's id masks, as the extraction wrote them.
 MASK_SUFFIX: Mapping[str, str] = MappingProxyType({
     "cholecseg8k": "_color_mask.png",
     "atlas120k": "_class.png",
+    "lapex": "_class.png",
 })
 
 # The manifest's flag for a frame with a mask under `seg_masks/`, per dataset.
 GT_FLAG: Mapping[str, str] = MappingProxyType({
     "cholecseg8k": "has_seg_mask",
     "atlas120k": "has_gt",
+    "lapex": "has_gt",
 })
+
+# The datasets whose extraction marks each GT frame `is_anchor`. LapEx's
+# writes one GT frame per clip, and no such mark.
+ANCHORED_DATASETS = frozenset({"cholecseg8k", "atlas120k"})
+
+# The datasets whose clips are used whole. Their manifest holds no crop
+# rectangle, and the score hashes `null` in its place.
+WHOLE_FRAME_DATASETS = frozenset({"lapex"})
+
 # The manifest's crop rectangle, per dataset.
 _CROP_KEYS = ("crop_info", "crop")
 _LABEL = re.compile(r"label_(\d+)\.npy")
@@ -63,6 +74,9 @@ class ClipInputs:
         regions: Each index with a prediction to its (H, W) int32 region
             map, -1 for no region, in the order of the files' names.
             Read-only.
+        filled_pixels: Each index with a GT mask to the number of its
+            pixels, at the depth map's shape, whose id the fill gave.
+            Read-only.
         shas: Each input's sha256: `gt_masks`, `depth`, `crop`, `frames`,
             and `predictions`, the one that is the condition's own.
     """
@@ -73,6 +87,7 @@ class ClipInputs:
     depth: np.ndarray
     gt: Mapping[int, np.ndarray]
     regions: Mapping[int, np.ndarray]
+    filled_pixels: Mapping[int, int]
     shas: Mapping[str, str]
 
 
@@ -114,8 +129,8 @@ def _time_order(frames: list[dict], clip: str) -> list[int]:
     return sorted(range(len(frames)), key=lambda i: times[i])
 
 
-def gt_frames(frames: list[dict], flag: str, with_mask: set[int], clip: str) -> list[int]:
-    """Return the GT frames: those with the dataset's GT flag, `is_anchor` true and no `seg_provenance`.
+def gt_frames(frames: list[dict], flag: str, with_mask: set[int], clip: str, anchored: bool = True) -> list[int]:
+    """Return the GT frames: those with the dataset's GT flag, no `seg_provenance`, and `is_anchor` true when `anchored`.
 
     The mask files cannot decide: the pipeline also writes the viewer's SAM 3 masks into `seg_masks/` under the
     GT's names, and marks those frames with `seg_provenance`.
@@ -125,6 +140,8 @@ def gt_frames(frames: list[dict], flag: str, with_mask: set[int], clip: str) -> 
         flag: The dataset's GT flag, from `GT_FLAG`.
         with_mask: The indexes that have a mask file.
         clip: The clip's name, for the messages.
+        anchored: The dataset marks its GT frames `is_anchor` (`ANCHORED_DATASETS`). When it does not, a
+            flagged frame without `seg_provenance` is a GT frame.
 
     Raises:
         ValueError: A frame has no GT flag; a mask file has no GT flag; a GT flag has no mask file; or a
@@ -140,7 +157,7 @@ def gt_frames(frames: list[dict], flag: str, with_mask: set[int], clip: str) -> 
                              f"{'there' if i in with_mask else 'missing'}")
         if not flagged or f.get("seg_provenance"):
             continue
-        if not f.get("is_anchor"):
+        if anchored and not f.get("is_anchor"):
             raise ValueError(f"{clip}: frame {i} has a mask but is neither an anchor nor marked by "
                              "seg_provenance, so whether it is GT is unknown")
         out.append(i)
@@ -192,10 +209,12 @@ def read_clip(data_root: str | Path, tracks_root: str | Path, tag: str, clip: st
         FileNotFoundError: The manifest, the depth or the prediction
             directory is missing.
         ValueError: The manifest disagrees with the depth or the masks on
-            disk, or leaves a frame's GT unknown (`gt_frames`); the frames'
-            order in time is unknown; the clip has no GT frame; a GT frame
-            has no prediction; or a prediction is not an (H, W) integer map,
-            or holds an id outside int32.
+            disk, or leaves a frame's GT unknown (`gt_frames`); it holds no
+            crop rectangle, or two, or one for a clip used whole; the
+            frames' order in time is unknown; the clip has no GT frame; a
+            mask is of `filled` ids alone; a GT frame has no prediction; or
+            a prediction is not an (H, W) integer map, or holds an id
+            outside int32.
         KeyError: A GT mask holds an id or a colour the table does not have.
     """
     clip_dir = Path(data_root) / clip
@@ -209,8 +228,14 @@ def read_clip(data_root: str | Path, tracks_root: str | Path, tag: str, clip: st
     order = _time_order(frames, clip)
     numbers = {i: int(f["native_frame"]) for i, f in enumerate(frames)}
     crops = [k for k in _CROP_KEYS if k in manifest]
-    if len(crops) != 1:
+    if table.dataset in WHOLE_FRAME_DATASETS:
+        if crops:
+            raise ValueError(f"{clip}: a {table.dataset} clip is used whole, but its manifest holds {crops}")
+        crop = None
+    elif len(crops) != 1:
         raise ValueError(f"{clip}: the manifest holds {crops or 'no'} crop rectangle; one of {_CROP_KEYS} is needed")
+    else:
+        crop = manifest[crops[0]]
 
     # The depth of every frame, which sets the shape everything is scored at.
     with np.load(clip_dir / DEPTH_FILE) as z:
@@ -219,17 +244,24 @@ def read_clip(data_root: str | Path, tracks_root: str | Path, tag: str, clip: st
         raise ValueError(f"{clip}: depth has shape {depth.shape}, the manifest lists {len(frames)} frames")
     shape = depth.shape[1:]
 
-    # The GT frames, as the manifest's flags say, and their masks, read through the table and resized.
+    # The GT frames, as the manifest's flags say, and their masks, read through the table, filled and resized.
     suffix = MASK_SUFFIX[table.dataset]
     with_mask = {i for i in range(len(frames)) if (clip_dir / MASK_DIR / f"{i:06d}{suffix}").is_file()}
     mask_paths = {i: clip_dir / MASK_DIR / f"{i:06d}{suffix}"
-                  for i in gt_frames(frames, GT_FLAG[table.dataset], with_mask, clip)}
+                  for i in gt_frames(frames, GT_FLAG[table.dataset], with_mask, clip,
+                                     anchored=table.dataset in ANCHORED_DATASETS)}
     if not mask_paths:
         raise ValueError(f"{clip}: no frame is a GT frame")
-    gt = {}
+    gt, filled_pixels = {}, {}
     for i, p in mask_paths.items():
         with Image.open(p) as image:
-            gt[i] = _resized(table.mask_ids(image), shape)
+            ids = table.mask_ids(image)
+        try:
+            ids, was_filled = fill_from_nearest(ids, table.filled_mask_ids)
+        except ValueError as e:
+            raise ValueError(f"{clip}: frame {i}: {e}") from None
+        gt[i] = _resized(ids, shape)
+        filled_pixels[i] = int(_resized(was_filled.astype(np.uint8), shape).sum()) if was_filled.any() else 0
 
     # The predictions, every GT frame among them, resized.
     label_paths = _labels(Path(tracks_root) / clip / tag, len(frames), clip)
@@ -250,11 +282,12 @@ def read_clip(data_root: str | Path, tracks_root: str | Path, tag: str, clip: st
     shas = {
         "gt_masks": sha_of_files([mask_paths[i] for i in sorted(mask_paths)]),
         "depth": depth_sha(depth),
-        "crop": _sha_of_json(manifest[crops[0]]),
+        "crop": _sha_of_json(crop),
         "frames": _sha_of_json([[i, numbers[i]] for i in order]),
         "predictions": sha_of_files([label_paths[i] for i in sorted(label_paths)]),
     }
     return ClipInputs(
         clip=clip, order=tuple(order), numbers=MappingProxyType(numbers), depth=depth,
-        gt=MappingProxyType(gt), regions=MappingProxyType(regions), shas=MappingProxyType(shas),
+        gt=MappingProxyType(gt), regions=MappingProxyType(regions),
+        filled_pixels=MappingProxyType(filled_pixels), shas=MappingProxyType(shas),
     )

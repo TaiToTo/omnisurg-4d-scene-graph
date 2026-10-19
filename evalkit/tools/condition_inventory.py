@@ -2,11 +2,14 @@
 
 Reads the provenance the pipeline writes beside each clip's labels
 (`seed_info.json`) and the score JSONs, prints a table per root, and
-exits non-zero on a problem: a tag whose clips were made under more than
-one condition; a condition missing clips or labels the others have; a
-score whose labels are gone, or with `--require-scored` labels nobody
-scored; and scores in one directory that `scores.check_comparable` would
-not compare with one another. Terms as in `docs/evaluation.md`.
+exits non-zero on any of these problems:
+- a tag whose clips were made under more than one condition, or whose provenance is missing or unreadable;
+- a condition missing clips or labels the others have;
+- a score whose label directory is gone, or that scored other clips than that directory holds;
+- two scores in one score root that name one label directory;
+- scores in one score root that `scores.check_comparable` would not compare with one another;
+- with `--require-scored`, a label directory nobody scored.
+Terms as in `docs/evaluation.md`.
 
 Usage:
     python -m evalkit.tools.condition_inventory \\
@@ -25,7 +28,7 @@ import os
 import sys
 from collections.abc import Mapping, Sequence
 
-from evalkit.tools.scores import check_comparable, check_one_rule, clips_of, load_scores, ruler
+from evalkit.tools.scores import check_comparable, check_table_rules, clips_of, load_scores, ruler
 
 # The provenance file the pipeline writes beside a clip's labels.
 PROV_NAME = "seed_info.json"
@@ -97,9 +100,9 @@ def check_root_exists(track_root: str, eval_root: str = "") -> None:
         ValueError: `track_root`, or a non-empty `eval_root`, is not a directory.
     """
     if not os.path.isdir(track_root):
-        raise ValueError(f"the --root label directory does not exist (a typo?): {track_root}")
+        raise ValueError(f"the label root of --root does not exist (a typo?): {track_root}")
     if eval_root and not os.path.isdir(eval_root):
-        raise ValueError(f"the --root score directory does not exist (a typo?): {eval_root}")
+        raise ValueError(f"the score root of --root does not exist (a typo?): {eval_root}")
 
 
 def frames_kind(v) -> str:
@@ -258,7 +261,7 @@ def read_evals(eval_root: str) -> dict:
         except (OSError, ValueError) as e:
             raise ValueError(f"{p}: not a readable JSON: {e}") from e
         if not isinstance(d, dict) or "per_clip" not in d:
-            raise ValueError(f"{p}: not a score JSON (no per_clip); a score directory holds scores only")
+            raise ValueError(f"{p}: not a score JSON (no per_clip); a score root holds scores only")
         ruler(d)
         if not d.get("track_dir_name"):
             raise ValueError(f"{p}: records no track_dir_name, so which labels it scored is unknown "
@@ -322,7 +325,7 @@ def describe_group(summaries: Mapping[str, dict]) -> str:
     # The members are comparable with one another, so the first one's ruler
     # and clips stand for the group.
     first = next(iter(summaries.values()))
-    r, rule = ruler(first), check_one_rule(summaries)
+    r, rule = ruler(first), check_table_rules(summaries)
     # A pilot JSON records no rule, so none is printed.
     return (f"sha={str(r.eval_code_sha)[:8]} pilot={r.pilot} class_set={r.class_set} "
             f"views={list(r.views)} dataset={r.dataset} n_clips={len(clips_of(first))}"
@@ -478,24 +481,28 @@ def inventory(roots: Sequence[tuple[str, str, str]], require_scored: bool = Fals
 
     Raises:
         ValueError: A label root or a score root does not exist, or a
-            score directory holds something that is not a score JSON.
+            score root holds something that is not a score JSON.
     """
     # The roots, refused before anything is counted when one is missing.
     for tr, ev, _ in roots:
         check_root_exists(tr, ev)
 
     # The scores of every root, read once: a score can name labels under another root.
+    # Each is kept by its path: two score roots can each hold a JSON of one name.
     evals = {ev: read_evals(ev) for _, ev, _ in roots if ev}
-    all_evals = {k: e["dir"] for evs in evals.values() for k, e in evs.items()}
-    scored_dirs = set(all_evals.values())
+    scores = [(os.path.join(ev, f"{t}.json"), e) for ev, evs in evals.items() for t, e in sorted(evs.items())]
+    scored_dirs = {e["dir"] for _, e in scores}
 
-    # Each root's table and problems, and its label counts per clip and tag.
+    # Each root's table and problems, its label counts per clip and tag, and
+    # the clips with a label under each tag.
     problems, seen_tags, cover = [], set(), collections.defaultdict(dict)
+    label_clips = collections.defaultdict(set)
     for tr, ev, title in roots:
         probs, labels = report(tr, evals.get(ev, {}), title, scored_dirs)
         problems += probs
         for t, per_clip in labels.items():
             seen_tags.add(t)
+            label_clips[t] |= {clip for clip, n in per_clip.items() if n}
             # A tag with no label at all is already reported by `report`;
             # counting its zeros here would report every clip of it again.
             if not any(per_clip.values()):
@@ -504,9 +511,31 @@ def inventory(roots: Sequence[tuple[str, str, str]], require_scored: bool = Fals
                 cover[clip][f"{title}/{t}"] = n
 
     # Scores whose labels are gone, matched by directory name across roots.
-    orphan = sorted(t for t, d in all_evals.items() if d not in seen_tags)
+    orphan = [p for p, e in scores if e["dir"] not in seen_tags]
     if orphan:
         problems.append(f"{len(orphan)} scores have no labels: {orphan}")
+    # Two scores in one score root that name one label directory: one of them is stale or misnamed.
+    # Two score roots may each score one label directory, as a second class set or pilot mode does.
+    by_dir = collections.defaultdict(list)
+    for ev, evs in evals.items():
+        for t, e in sorted(evs.items()):
+            by_dir[(ev, e["dir"])].append(t)
+    for (ev, d), tags in sorted(by_dir.items()):
+        if len(tags) > 1:
+            problems.append(f"{ev}: {len(tags)} scores name the label directory {d}: {tags}; "
+                            "one score root holds one score per label directory")
+    # A score on other clips than its label directory holds: a re-score that
+    # stopped half-way, or one run on a stale population, reads as complete otherwise.
+    for p, e in scores:
+        if e["dir"] not in label_clips:
+            continue
+        scored, held = set(clips_of(e["summary"])), label_clips[e["dir"]]
+        if scored != held:
+            missing, extra = sorted(held - scored), sorted(scored - held)
+            problems.append(f"{p}: scored {len(scored)} clips where the label directory {e['dir']} holds labels "
+                            f"on {len(held)}"
+                            f"{' (unscored ' + str(missing) + ')' if missing else ''}"
+                            f"{' (without labels ' + str(extra) + ')' if extra else ''}")
     # Labels nobody scored.
     unscored = sorted(t for t in seen_tags if t not in scored_dirs and t != VIZ_DIR)
     if unscored:
@@ -556,7 +585,7 @@ def main() -> None:
         for p in problems:
             print(f"  - {p}")
         sys.exit(1)
-    print("no problem: no mixed condition, no missing clip, every score comparable with the others")
+    print("no problem: none of the problems --help lists was found")
 
 
 if __name__ == "__main__":

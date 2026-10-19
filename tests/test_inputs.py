@@ -4,7 +4,8 @@ The clips are written by `tests/clip_dirs.py` as the pipeline lays them out.
 The refusals include the two faults the real CholecSeg8k clips showed: an
 image that appears twice, at one timestamp, and a stale mask left on a frame
 the manifest says has none. A mask the viewer's step wrote under the GT's
-name, marked by `seg_provenance`, is not GT and is not scored.
+name, marked by `seg_provenance`, is not GT and is not scored. CholecSeg8k's
+region line is filled and counted, and a LapEx clip is read whole.
 """
 import hashlib
 import json
@@ -14,6 +15,7 @@ import pytest
 from PIL import Image
 
 import clip_dirs as C
+from evalkit.classes import load_table
 from evalkit.inputs import DEPTH_FILE, MANIFEST, MASK_DIR, depth_sha, read_clip
 
 TAG = "cond"
@@ -52,15 +54,47 @@ def test_without_timestamps_the_frames_are_ordered_by_their_number(tmp_path):
     assert read(tmp_path).order == (1, 3, 0, 2)
 
 
-def test_each_fingerprint_moves_with_its_own_input_only(tmp_path):
-    clip_with_labels(tmp_path)
+def another_gt_mask(tmp_path):
+    big = np.kron(C.two_organs(cut=3), np.ones((2, 2), dtype=np.int32))
+    Image.fromarray(C.colour_mask(big)).save(tmp_path / "data" / "c" / MASK_DIR / f"000002{C.MASK_SUFFIX['cholecseg8k']}")
+
+
+def another_depth(tmp_path):
+    np.savez(tmp_path / "data" / "c" / DEPTH_FILE, depth=np.full((4, 20, 30), 2.0, dtype=np.float32))
+
+
+def another_crop(tmp_path):
+    path = tmp_path / "data" / "c" / MANIFEST
+    m = json.loads(path.read_text())
+    m["crop_info"]["x0"] += 1
+    path.write_text(json.dumps(m))
+
+
+def another_time_order(tmp_path):
+    path = tmp_path / "data" / "c" / MANIFEST
+    m = json.loads(path.read_text())
+    m["frames"][1]["timestamp_sec"], m["frames"][2]["timestamp_sec"] = (
+        m["frames"][2]["timestamp_sec"], m["frames"][1]["timestamp_sec"])
+    path.write_text(json.dumps(m))
+
+
+def another_prediction_on_a_frame_without_gt(tmp_path):
+    np.save(tmp_path / "tracks" / "c" / TAG / "label_0001.npy", np.zeros((40, 60), dtype=np.int16))
+
+
+@pytest.mark.parametrize("name, plant", [
+    ("gt_masks", another_gt_mask), ("depth", another_depth), ("crop", another_crop),
+    ("frames", another_time_order), ("predictions", another_prediction_on_a_frame_without_gt),
+])
+def test_each_fingerprint_moves_with_its_own_input_only(tmp_path, name, plant):
+    clip_with_labels(tmp_path, gt_frames=[0, 2, 3])
     before = dict(read(tmp_path).shas)
     assert set(before) == {"gt_masks", "depth", "crop", "frames", "predictions"}
     with np.load(tmp_path / "data" / "c" / DEPTH_FILE) as z:
         assert before["depth"] == hashlib.sha256(z["depth"].astype(np.float32).tobytes()).hexdigest()
-    np.save(tmp_path / "tracks" / "c" / TAG / "label_0001.npy", np.zeros((40, 60), dtype=np.int16))
+    plant(tmp_path)
     after = dict(read(tmp_path).shas)
-    assert {k for k in before if before[k] != after[k]} == {"predictions"}
+    assert {k for k in before if before[k] != after[k]} == {name}
 
 
 def test_the_depth_fingerprint_is_the_depth_manifest_s():
@@ -198,3 +232,53 @@ def test_a_gt_flag_without_a_mask_file_is_refused(tmp_path):
     (tmp_path / "data" / "c" / MASK_DIR / f"{2:06d}_color_mask.png").unlink()
     with pytest.raises(ValueError, match="frame 2 is flagged has_seg_mask=True but its mask is missing"):
         read(tmp_path)
+
+
+def test_the_region_line_is_filled_on_the_mask_as_stored_and_counted_at_the_depth_s_shape(tmp_path):
+    # The mask is twice the depth's size, and the line is drawn on it from an odd column, so that the
+    # resize keeps the line's right half only. Filled on the mask, that half is gallbladder, from the
+    # pixel beside it. Filled after the resize, the line would be 1 px wide, as near to both organs,
+    # and take the liver's smaller id: the orders differ on column 13.
+    gt = C.two_organs(cut=12)
+    C.write_clip(tmp_path / "data", "c", [gt, C.two_organs()])
+    big = np.kron(gt, np.ones((2, 2), dtype=np.int32))
+    big[:, 24], big[:, 25:27] = C.LIVER, C.REGION_LINE
+    big[10:12, 40:42] = C.REGION_LINE          # a dot inside the gallbladder, 1 px at the depth's shape
+    Image.fromarray(C.colour_mask(big)).save(tmp_path / "data" / "c" / MASK_DIR / f"{0:06d}_color_mask.png")
+    C.write_labels(tmp_path / "tracks", "c", TAG, {0: C.two_organs(), 1: C.two_organs()}, scale=2)
+    clip = read(tmp_path)
+    assert np.array_equal(clip.gt[0], C.two_organs(cut=13))
+    assert dict(clip.filled_pixels) == {0: 21, 1: 0}
+
+
+def test_a_mask_of_the_region_line_alone_is_refused(tmp_path):
+    clip_with_labels(tmp_path)
+    path = tmp_path / "data" / "c" / MASK_DIR / f"{2:06d}_color_mask.png"
+    Image.fromarray(np.full((40, 60, 3), 255, dtype=np.uint8)).save(path)
+    with pytest.raises(ValueError, match="c: frame 2: every pixel holds a filled id"):
+        read(tmp_path)
+
+
+def lapex_clip(tmp_path) -> np.ndarray:
+    gt = np.full((20, 30), C.LAPEX_STOMACH, dtype=np.int32)
+    gt[:, :10] = C.LAPEX_LIVER
+    gt[:, 10] = C.LAPEX_GAP
+    C.write_lapex_clip(tmp_path / "data", "c", gt)
+    C.write_labels(tmp_path / "tracks", "c", TAG, {0: gt.copy()})
+    return gt
+
+
+def test_a_lapex_clip_is_read_whole_and_its_frame_is_gt_without_an_anchor_mark(tmp_path):
+    lapex = load_table("lapex")
+    gt = lapex_clip(tmp_path)
+    clip = read_clip(tmp_path / "data", tmp_path / "tracks", TAG, "c", lapex)
+    assert np.array_equal(clip.gt[0], np.where(gt == C.LAPEX_GAP, C.LAPEX_LIVER, gt)) and clip.filled_pixels == {0: 20}
+    # No rectangle cut the clip, and the score says so by hashing none.
+    assert clip.shas["crop"] == hashlib.sha256(b"null").hexdigest()
+
+
+def test_a_lapex_clip_with_a_crop_rectangle_is_refused(tmp_path):
+    lapex_clip(tmp_path)
+    edit_manifest(tmp_path, lambda m: m.update(crop_info={"x0": 0, "x1": 30, "y0": 0, "y1": 20}))
+    with pytest.raises(ValueError, match=r"a lapex clip is used whole, but its manifest holds \['crop_info'\]"):
+        read_clip(tmp_path / "data", tmp_path / "tracks", TAG, "c", load_table("lapex"))

@@ -1,16 +1,16 @@
 """Extract the StereoMIS clips into the clip directories the depth stages read.
 
-The clips are those `surgical_core.stereomis.clips` marks usable. Each clip
-gets the rectified left view of its frames at half resolution, as
-`input_images/NNNNNN.png` numbered from 0, and a `frame_manifest.json` that
-gives each image's position in the video, its ground truth row and its time.
-With `--mask-instruments`, each image is painted black outside the tissue
-mask nearest its frame; a frame with no mask within two frames keeps its
-image. A sequence's frames are decoded in one pass. A clip that already
-exists is refused before anything is decoded.
+The clips are those the clip list marks usable. Each clip gets the rectified
+left view of its frames at half resolution, as `input_images/NNNNNN.png`
+numbered from 0, and a `frame_manifest.json` that gives each image's position
+in the video, its ground truth row and its time, as the list gives them. With
+`--mask-instruments`, each image is painted black outside the tissue mask the
+list gives its frame; a frame the list gives no mask keeps its image. A
+sequence's frames are decoded in one pass. A clip that already exists is
+refused before anything is decoded.
 
 Usage:
-    python -m pipeline.extract_stereomis --root /path/to/StereoMIS --depth-root /path/to/StereoMIS_depth \\
+    python -m pipeline.extract_stereomis --root /path/to/StereoMIS --clips stereomis_meta/clips.json \\
         --out /path/to/clips [--sequences P1 P2_0 ...] [--mask-instruments]
 """
 
@@ -31,17 +31,16 @@ def manifest(clip: dict, fps: float, n_masked: int) -> dict:
     The keys and their order are the workbench's, so that a clip extracted here equals one extracted there.
 
     Args:
-        clip: one of the dicts `stereomis.clips` returns.
+        clip: a clip of the clip list.
         fps: the video's frame rate, as `stereomis.video_info` gives it.
         n_masked: how many of the clip's images were painted outside their tissue mask.
     """
-    seq = clip["seq"]
-    return dict(dataset="stereomis", sequence=seq, clip_kind="fixed_grid", fps_native=fps, stride=clip["stride"],
-                out_size=list(stereomis.HALF_SIZE), n_frames=len(clip["frames"]),
-                gt_row_offset=stereomis.GT_ROW_OFFSET[seq], instruments_masked=n_masked,
+    return dict(dataset="stereomis", sequence=clip["seq"], clip_kind="fixed_grid", fps_native=fps,
+                stride=clip["stride"], out_size=list(stereomis.HALF_SIZE), n_frames=len(clip["frames"]),
+                gt_row_offset=clip["gt_row_offset"], instruments_masked=n_masked,
                 span_mm=clip["span_mm"], stratum=clip["stratum"],
-                frames=[dict(seq_idx=i, native_frame=f, gt_row=stereomis.gt_row(seq, f), time_sec=round(t, 4))
-                        for i, (f, t) in enumerate(zip(clip["frames"], clip["times"]))])
+                frames=[dict(seq_idx=i, native_frame=f, gt_row=r, time_sec=round(t, 4))
+                        for i, (f, r, t) in enumerate(zip(clip["frames"], stereomis.gt_rows(clip), clip["times"]))])
 
 
 def refuse_existing(clips: list[dict], out: Path) -> None:
@@ -57,17 +56,17 @@ def refuse_existing(clips: list[dict], out: Path) -> None:
                 raise FileExistsError(f"{d} exists; remove it to extract {c['name']} again")
 
 
-def extract_sequence(root: Path, depth_root: Path, seq: str, out: Path, mask_instruments: bool) -> list[Path]:
+def extract_sequence(root: Path, clip_list, seq: str, out: Path, mask_instruments: bool) -> list[Path]:
     """Write every usable clip of a sequence under `out`, and return the clip directories.
 
     Each clip is written as `<clip>.partial` and renamed when its manifest is written.
 
     Args:
         root: the StereoMIS directory, which holds one directory per sequence.
-        depth_root: the depth export, which holds `<sequence>/stats.npy`.
+        clip_list: the clips, as `stereomis.read_clip_list` returns them.
         seq: the sequence.
         out: the directory the clips are written to.
-        mask_instruments: whether each image is painted black outside the tissue mask nearest its frame.
+        mask_instruments: whether each image is painted black outside the tissue mask the list gives its frame.
 
     Raises:
         FileExistsError: a clip's directory, or its `<clip>.partial`, exists already.
@@ -75,7 +74,7 @@ def extract_sequence(root: Path, depth_root: Path, seq: str, out: Path, mask_ins
         RuntimeError: an image cannot be written.
     """
     # Find the clips, and refuse before decoding if a clip is there already.
-    clips = [c for c in stereomis.clips(root, depth_root, seq) if c["usable"]]
+    clips = stereomis.usable_clips(clip_list, [seq])
     refuse_existing(clips, out)
     if not clips:
         return []
@@ -92,11 +91,10 @@ def extract_sequence(root: Path, depth_root: Path, seq: str, out: Path, mask_ins
             (out / f"{c['name']}.partial" / "input_images").mkdir(parents=True)
         for f, left, _ in stereomis.iter_frame_set(root, seq, sorted(owner)):
             c, i = owner[f]
-            if mask_instruments:
-                m = stereomis.load_mask_nearest(root, seq, f)
-                if m is not None:
-                    left = np.where(m[:, :, None], left, 0)
-                    n_masked[c["name"]] += 1
+            if mask_instruments and c["masks"][i] is not None:
+                m = stereomis.load_mask(root, seq, c["masks"][i])
+                left = np.where(m[:, :, None], left, 0)
+                n_masked[c["name"]] += 1
             path = out / f"{c['name']}.partial" / "input_images" / ("%06d.png" % i)
             if not cv2.imwrite(str(path), left[:, :, ::-1]):
                 raise RuntimeError(f"cannot write {path}")
@@ -118,26 +116,27 @@ def extract_sequence(root: Path, depth_root: Path, seq: str, out: Path, mask_ins
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--root", required=True, help="The StereoMIS directory, which holds one directory per sequence.")
-    ap.add_argument("--depth-root", required=True, help="The depth export, which holds <sequence>/stats.npy.")
+    ap.add_argument("--clips", required=True, help="The clip list, stereomis_meta/clips.json.")
     ap.add_argument("--out", required=True, help="The directory the clips are written to.")
     ap.add_argument("--sequences", nargs="+", default=list(stereomis.SEQUENCES), choices=stereomis.SEQUENCES,
                     help="The sequences to extract; every sequence by default.")
     ap.add_argument("--mask-instruments", action="store_true",
-                    help="Paint each image black outside the tissue mask nearest its frame.")
+                    help="Paint each image black outside the tissue mask the clip list gives its frame.")
     args = ap.parse_args()
     # A sequence named twice would be extracted once, then refused for the clips its first extraction wrote.
     for seq in args.sequences:
         if args.sequences.count(seq) > 1:
             raise ValueError(f"--sequences names {seq} twice")
 
-    root, depth_root, out = Path(args.root), Path(args.depth_root), Path(args.out)
+    root, out = Path(args.root), Path(args.out)
+    clip_list = stereomis.read_clip_list(Path(args.clips))
     out.mkdir(parents=True, exist_ok=True)
     # Refuse a clip that exists before any sequence is decoded.
     for seq in args.sequences:
-        refuse_existing([c for c in stereomis.clips(root, depth_root, seq) if c["usable"]], out)
+        refuse_existing(stereomis.usable_clips(clip_list, [seq]), out)
     total = 0
     for seq in args.sequences:
-        made = extract_sequence(root, depth_root, seq, out, args.mask_instruments)
+        made = extract_sequence(root, clip_list, seq, out, args.mask_instruments)
         total += len(made)
         print(f"{seq}: {len(made)} clips", flush=True)
     print(f"{total} clips in {out}")

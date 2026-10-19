@@ -1,31 +1,38 @@
-"""Make the camera trajectories the StereoMIS result is compared with: two floors and a ceiling.
+"""Make the camera trajectories the StereoMIS result is compared with: two floors, a ceiling and a shuffle.
 
 - `static_floor`: a camera that never moves. Its `ate_rel` is exactly 1.0.
 - `line_floor`: a camera that moves in a straight line at the true mean speed.
   It looks plausible but has none of the true trajectory's shape.
 - `StereoVO`: stereo visual odometry, from disparity, sparse tracks and PnP.
   It shows what an estimate with true scale reaches.
+- `shuffled`: a method's poses in a fixed shuffled order, which keeps the
+  trajectory's shape and loses its order.
 
 The ceiling is not cut from the ground truth, because the similarity fit of
-`ate` would fit the truth to itself at no error. The ceiling reads the tissue
-masks, which a method may not read.
+`ate` would fit the truth to itself at no error.
 """
-
-from pathlib import Path
 
 import cv2
 import numpy as np
 
-import surgical_core.stereomis as stereomis
 from trajectory_eval.pose_metrics import centers_from_cam_to_world
 
 # The depth range a disparity is kept in, in mm. The clips see tissue from 30 to 400 mm.
 DEPTH_RANGE_MM = (20.0, 500.0)
+# The seed of the shuffled order. One generator is made for each trajectory, so every trajectory of one length is
+# shuffled the same way.
+SHUFFLE_SEED = 0
 
 
 def static_floor(n: int) -> tuple[np.ndarray, np.ndarray]:
     """Return `n` camera centres at the origin and `n` identity rotations."""
     return np.zeros((n, 3)), np.tile(np.eye(3), (n, 1, 1))
+
+
+def shuffled(c: np.ndarray, R: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Return the camera centres `c` and rotations `R` in the fixed order `SHUFFLE_SEED` draws for their length."""
+    order = np.random.default_rng(SHUFFLE_SEED).permutation(len(c))
+    return c[order], R[order]
 
 
 def line_floor(gt_c: np.ndarray, times: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -163,47 +170,3 @@ class StereoVO:
         T = np.stack(self.poses)
         return centers_from_cam_to_world(T), T[:, :3, :3]
 
-
-def run_sequence(root: Path, depth_root: Path, seq: str) -> dict[str, tuple[np.ndarray, np.ndarray, int]]:
-    """Run the ceiling on every usable clip of a sequence, decoding the sequence once.
-
-    Each frame takes the tissue mask nearest it, as `stereomis.load_mask_nearest` finds it.
-
-    Args:
-        root: the StereoMIS directory, which holds one directory per sequence.
-        depth_root: the depth export, which holds `<sequence>/stats.npy`.
-        seq: the sequence.
-
-    Returns:
-        For each clip's name, its camera centres, its camera-to-world rotations and how many steps failed.
-
-    Raises:
-        ValueError: a clip is empty or its frames do not increase, or a clip does not end before the next
-            one starts.
-    """
-    # Find the clips, and map each frame to its clip.
-    clips = [c for c in stereomis.clips(root, depth_root, seq) if c["usable"]]
-    if not clips:
-        return {}
-    owner = {f: c["name"] for c in clips for f in c["frames"]}
-
-    # Refuse clips one decode cannot feed in turn. The decode yields each frame once and in increasing order, so
-    # each clip's frames must increase, and each clip must end before the next one starts.
-    runs = sorted(list(c["frames"]) for c in clips)
-    if (not all(len(f) and np.all(np.diff(f) > 0) for f in runs)
-            or any(a[-1] >= b[0] for a, b in zip(runs, runs[1:]))):
-        raise ValueError(f"{seq}: a clip is empty, its frames do not increase, or it does not end before the "
-                         "next clip starts, so one decode cannot feed the clips in turn")
-
-    # Decode the sequence once, and chain each clip's poses from its first frame.
-    c = stereomis.calib(root, seq)
-    vo, cur, out = StereoVO(c.K_half, c.baseline_mm), None, {}
-    for f, left, right in stereomis.iter_frame_set(root, seq, sorted(owner)):
-        if owner[f] != cur:
-            if cur is not None:
-                out[cur] = vo.result() + (vo.n_fail,)
-            vo.reset()
-            cur = owner[f]
-        vo.add(left, right, stereomis.load_mask_nearest(root, seq, f))
-    out[cur] = vo.result() + (vo.n_fail,)
-    return out

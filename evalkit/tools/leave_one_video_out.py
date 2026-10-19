@@ -37,7 +37,7 @@ from evalkit.tools.paired_stats import (
     round_keeping_sign,
     video_of,
 )
-from evalkit.tools.scores import check_comparable, check_one_rule, defined_clips, rows_of, sign_of_key
+from evalkit.tools.scores import check_comparable, check_table_rules, defined_clips, rows_of, sign_of_key
 
 
 def _ci(ci: Sequence[float]) -> str:
@@ -190,9 +190,9 @@ def main() -> None:
     except (ValueError, OSError) as e:
         raise SystemExit(f"--pairs: {e}") from e
 
-    # One rule for the whole run, because all its pairs go into one JSON.
+    # One rule for the whole run, or two rules in their pairs, because all its pairs go into one JSON.
     try:
-        rule = check_one_rule(loaded)
+        rule = check_table_rules(loaded)
     except ValueError as e:
         raise SystemExit(f"--pairs: {e}") from e
 

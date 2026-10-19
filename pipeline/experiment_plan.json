@@ -1,0 +1,334 @@
+{
+ "make": [
+  {
+   "what": "Stage 1. Each input on each depth model, tracked forward from the first frame, the default rule, at the grids 4 and 24.",
+   "stage": 1,
+   "datasets": [
+    "atlas120k",
+    "cholecseg8k"
+   ],
+   "inputs": [
+    "rgb",
+    "rgb-edge",
+    "normal",
+    "normal-edge",
+    "depth"
+   ],
+   "depths": [
+    "da3",
+    "pi3x"
+   ],
+   "points_per_side": [
+    4,
+    24
+   ],
+   "seed": "sam",
+   "rule": "forward"
+  },
+  {
+   "what": "Stage 1. Each input on each depth model, tracked both ways from the centre frame at the grid 24: the other rule.",
+   "stage": 1,
+   "datasets": [
+    "atlas120k",
+    "cholecseg8k"
+   ],
+   "inputs": [
+    "rgb",
+    "rgb-edge",
+    "normal",
+    "normal-edge",
+    "depth"
+   ],
+   "depths": [
+    "da3",
+    "pi3x"
+   ],
+   "points_per_side": [
+    24
+   ],
+   "seed": "sam",
+   "rule": "centre"
+  },
+  {
+   "what": "Stage 1. Each input on each depth model, segmented frame by frame at the grid 24: no propagation.",
+   "stage": 1,
+   "datasets": [
+    "atlas120k",
+    "cholecseg8k"
+   ],
+   "inputs": [
+    "rgb",
+    "rgb-edge",
+    "normal",
+    "normal-edge",
+    "depth"
+   ],
+   "depths": [
+    "da3",
+    "pi3x"
+   ],
+   "points_per_side": [
+    24
+   ],
+   "seed": null,
+   "rule": "perframe"
+  },
+  {
+   "what": "Stage 2. The rest of the forward sweep, so that the inputs are compared at a matched number of regions.",
+   "stage": 2,
+   "datasets": [
+    "atlas120k",
+    "cholecseg8k"
+   ],
+   "inputs": [
+    "rgb",
+    "rgb-edge",
+    "normal",
+    "normal-edge",
+    "depth"
+   ],
+   "depths": [
+    "da3",
+    "pi3x"
+   ],
+   "points_per_side": [
+    8,
+    12,
+    48
+   ],
+   "seed": "sam",
+   "rule": "forward"
+  },
+  {
+   "what": "Stage 3. The coarsest grid of the forward sweep, made last: a seed frame may hold no region of 400 pixels at it.",
+   "stage": 3,
+   "datasets": [
+    "atlas120k",
+    "cholecseg8k"
+   ],
+   "inputs": [
+    "rgb",
+    "rgb-edge",
+    "normal",
+    "normal-edge",
+    "depth"
+   ],
+   "depths": [
+    "da3",
+    "pi3x"
+   ],
+   "points_per_side": [
+    2
+   ],
+   "seed": "sam",
+   "rule": "forward"
+  }
+ ],
+ "compare": [
+  {
+   "what": "The propagation rule: forward from the first frame against both ways from the centre.",
+   "varies": [
+    "rule"
+   ],
+   "datasets": [
+    "atlas120k",
+    "cholecseg8k"
+   ],
+   "pairs": [
+    [
+     "rgb_pps24_sam_forward",
+     "rgb_pps24_sam_centre"
+    ],
+    [
+     "rgb-edge_da3_pps24_sam_forward",
+     "rgb-edge_da3_pps24_sam_centre"
+    ],
+    [
+     "rgb-edge_pi3x_pps24_sam_forward",
+     "rgb-edge_pi3x_pps24_sam_centre"
+    ],
+    [
+     "normal_da3_pps24_sam_forward",
+     "normal_da3_pps24_sam_centre"
+    ],
+    [
+     "normal_pi3x_pps24_sam_forward",
+     "normal_pi3x_pps24_sam_centre"
+    ],
+    [
+     "normal-edge_da3_pps24_sam_forward",
+     "normal-edge_da3_pps24_sam_centre"
+    ],
+    [
+     "normal-edge_pi3x_pps24_sam_forward",
+     "normal-edge_pi3x_pps24_sam_centre"
+    ],
+    [
+     "depth_da3_pps24_sam_forward",
+     "depth_da3_pps24_sam_centre"
+    ],
+    [
+     "depth_pi3x_pps24_sam_forward",
+     "depth_pi3x_pps24_sam_centre"
+    ]
+   ]
+  },
+  {
+   "what": "Tracking against segmenting each frame alone, under the default rule.",
+   "varies": [
+    "seed",
+    "rule"
+   ],
+   "datasets": [
+    "atlas120k",
+    "cholecseg8k"
+   ],
+   "pairs": [
+    [
+     "rgb_pps24_perframe",
+     "rgb_pps24_sam_forward"
+    ],
+    [
+     "rgb-edge_da3_pps24_perframe",
+     "rgb-edge_da3_pps24_sam_forward"
+    ],
+    [
+     "rgb-edge_pi3x_pps24_perframe",
+     "rgb-edge_pi3x_pps24_sam_forward"
+    ],
+    [
+     "normal_da3_pps24_perframe",
+     "normal_da3_pps24_sam_forward"
+    ],
+    [
+     "normal_pi3x_pps24_perframe",
+     "normal_pi3x_pps24_sam_forward"
+    ],
+    [
+     "normal-edge_da3_pps24_perframe",
+     "normal-edge_da3_pps24_sam_forward"
+    ],
+    [
+     "normal-edge_pi3x_pps24_perframe",
+     "normal-edge_pi3x_pps24_sam_forward"
+    ],
+    [
+     "depth_da3_pps24_perframe",
+     "depth_da3_pps24_sam_forward"
+    ],
+    [
+     "depth_pi3x_pps24_perframe",
+     "depth_pi3x_pps24_sam_forward"
+    ]
+   ]
+  },
+  {
+   "what": "The depth model the geometric inputs are drawn from, under the default rule, at every grid.",
+   "varies": [
+    "depth"
+   ],
+   "datasets": [
+    "atlas120k",
+    "cholecseg8k"
+   ],
+   "pairs": [
+    [
+     "rgb-edge_da3_pps2_sam_forward",
+     "rgb-edge_pi3x_pps2_sam_forward"
+    ],
+    [
+     "normal_da3_pps2_sam_forward",
+     "normal_pi3x_pps2_sam_forward"
+    ],
+    [
+     "normal-edge_da3_pps2_sam_forward",
+     "normal-edge_pi3x_pps2_sam_forward"
+    ],
+    [
+     "depth_da3_pps2_sam_forward",
+     "depth_pi3x_pps2_sam_forward"
+    ],
+    [
+     "rgb-edge_da3_pps4_sam_forward",
+     "rgb-edge_pi3x_pps4_sam_forward"
+    ],
+    [
+     "normal_da3_pps4_sam_forward",
+     "normal_pi3x_pps4_sam_forward"
+    ],
+    [
+     "normal-edge_da3_pps4_sam_forward",
+     "normal-edge_pi3x_pps4_sam_forward"
+    ],
+    [
+     "depth_da3_pps4_sam_forward",
+     "depth_pi3x_pps4_sam_forward"
+    ],
+    [
+     "rgb-edge_da3_pps8_sam_forward",
+     "rgb-edge_pi3x_pps8_sam_forward"
+    ],
+    [
+     "normal_da3_pps8_sam_forward",
+     "normal_pi3x_pps8_sam_forward"
+    ],
+    [
+     "normal-edge_da3_pps8_sam_forward",
+     "normal-edge_pi3x_pps8_sam_forward"
+    ],
+    [
+     "depth_da3_pps8_sam_forward",
+     "depth_pi3x_pps8_sam_forward"
+    ],
+    [
+     "rgb-edge_da3_pps12_sam_forward",
+     "rgb-edge_pi3x_pps12_sam_forward"
+    ],
+    [
+     "normal_da3_pps12_sam_forward",
+     "normal_pi3x_pps12_sam_forward"
+    ],
+    [
+     "normal-edge_da3_pps12_sam_forward",
+     "normal-edge_pi3x_pps12_sam_forward"
+    ],
+    [
+     "depth_da3_pps12_sam_forward",
+     "depth_pi3x_pps12_sam_forward"
+    ],
+    [
+     "rgb-edge_da3_pps24_sam_forward",
+     "rgb-edge_pi3x_pps24_sam_forward"
+    ],
+    [
+     "normal_da3_pps24_sam_forward",
+     "normal_pi3x_pps24_sam_forward"
+    ],
+    [
+     "normal-edge_da3_pps24_sam_forward",
+     "normal-edge_pi3x_pps24_sam_forward"
+    ],
+    [
+     "depth_da3_pps24_sam_forward",
+     "depth_pi3x_pps24_sam_forward"
+    ],
+    [
+     "rgb-edge_da3_pps48_sam_forward",
+     "rgb-edge_pi3x_pps48_sam_forward"
+    ],
+    [
+     "normal_da3_pps48_sam_forward",
+     "normal_pi3x_pps48_sam_forward"
+    ],
+    [
+     "normal-edge_da3_pps48_sam_forward",
+     "normal-edge_pi3x_pps48_sam_forward"
+    ],
+    [
+     "depth_da3_pps48_sam_forward",
+     "depth_pi3x_pps48_sam_forward"
+    ]
+   ]
+  }
+ ]
+}
