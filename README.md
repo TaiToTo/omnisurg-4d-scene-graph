@@ -19,15 +19,19 @@ pipeline combines existing ones.
 
 ## From a clip to a scene graph
 
-![From a clip to a 4D scene graph, on a drawn scene: 1, the clip's frames; 2, a depth map and a point cloud per frame, and the camera's path; 3, regions that keep their ids from frame to frame and have no names; 4, a scene graph per frame, a node per region and a word per pair such as right, front or above; 5, the same relations through time, each holding for a run of frames, and the viewer that shows them. Below, what is scored: the camera poses against StereoMIS's ground truth by trajectory_eval, and the regions against the hand-labelled GT masks by evalkit.](docs/figures/scene_graph_overview.png)
+![From a clip to a 4D scene graph, on ATLAS-120k: the clip; its depth and camera poses; regions seeded on the first frame and tracked; a graph per frame, a node per region; the graphs through time. Below, the three layers that are scored, each prediction against its ground truth. Geometry: the camera trajectory by ATE, with depth and label reprojection faded. Nodes: the regions of one frame by F1 and boundary recall, and one structure tracked through the clip by IoU. Graph: which of two regions is in front, against D4D's scans, with classification and the other statements faded. Last, a point cloud and a camera path for one clip each of Cholec80, HeiCo and four ATLAS-120k procedures.](docs/figures/scene_graph_overview.png)
 
-The figure draws the steps on a made-up scene. Two scorers check the
-results, not the scene graphs:
+The top row shows the steps on a clip of ATLAS-120k. The boxes below
+show the three layers that are scored, each against the ground truth that
+exists for it. The faded parts are not scored in this repository yet. What
+this repository scores, layer by layer:
 
-- `evalkit`, the evaluator, compares the regions with masks drawn by hand,
-  in ATLAS-120k, CholecSeg8k and LapEx.
-- `trajectory_eval`, the camera trajectory scorer, compares the camera's
-  path with the true path, in StereoMIS.
+- Geometry: `trajectory_eval`, the camera trajectory scorer, compares the
+  camera's path with the true path, in StereoMIS and D4D.
+- Nodes: `evalkit`, the evaluator, compares the regions with masks drawn
+  by hand, in ATLAS-120k, CholecSeg8k and LapEx.
+- Graph: `evalkit.tools.d4d_front_behind` checks, for each pair of
+  regions, which one is in front, against D4D's scans.
 
 ## Where to start
 
