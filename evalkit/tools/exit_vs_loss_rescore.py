@@ -91,9 +91,16 @@ def reference(kind: str, t: int, present: Mapping[int, np.ndarray], gt_frames: s
 
 
 def boundary2d(kind: str, t: int, present: Mapping[int, np.ndarray], shape: tuple[int, int], border_px: float) -> str:
-    """The pose-free baseline's label: the tracked mask's box on its last frame (exit) or first frame (enter)."""
-    f = max(f for f in present if f < t) if kind == "exit" else t
+    """The pose-free baseline's label: the tracked mask's box on its last frame (exit) or first frame (enter).
+
+    The frame is the last one before `t` (exit) or the first one from `t` (enter) where the mask is present at
+    this tool's threshold; a node that has none is called in view, since no box can place it at the border.
+    """
+    frames = [f for f in present if f < t] if kind == "exit" else [f for f in present if f >= t]
     out, in_ = LABELS[kind][1], LABELS[kind][0]
+    if not frames:
+        return in_
+    f = max(frames) if kind == "exit" else min(frames)
     return out if touches(box(present[f]), shape, border_px) else in_
 
 
