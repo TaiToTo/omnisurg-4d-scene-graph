@@ -307,9 +307,12 @@ def analyse_clip(dataset: str, clip: str, data_root: str, tracks_root: str, tag:
     frames = list(range(len(depth)))
     if inputs.order != tuple(frames):
         raise ValueError(f"{clip}: the frames are not in time order by index: {inputs.order[:8]}")
+    # A node is a GT object of the seed frame; its region id is its place plus one. The tracking stage drops a
+    # seed region under its minimum area and keeps the others' ids, so such a node has no region and no event.
     classes = seed_classes(inputs, table, seed)
-    if len(classes) != n_nodes:
-        raise ValueError(f"{clip}: {len(classes)} GT objects on the seed frame, seed_info says {n_nodes} regions")
+    n_tracked, n_nodes = n_nodes, len(classes)
+    if n_tracked > n_nodes:
+        raise ValueError(f"{clip}: seed_info says {n_tracked} regions, the seed frame has {n_nodes} GT objects")
     ids = {int(v) for t in inputs.regions for v in np.unique(inputs.regions[t]) if v >= 0}
     if not ids <= set(range(1, n_nodes + 1)):
         raise ValueError(f"{clip}: region ids {sorted(ids - set(range(1, n_nodes + 1)))} are not seed regions 1..{n_nodes}")
@@ -396,7 +399,8 @@ def analyse_clip(dataset: str, clip: str, data_root: str, tracks_root: str, tag:
                             "truncated": truncated, "matched": j in matched_gt})
 
     return {
-        "clip": clip, "n_nodes": n_nodes, "n_frames": len(frames), "seed": seed, "classes": classes,
+        "clip": clip, "n_nodes": n_nodes, "n_tracked": n_tracked, "n_frames": len(frames), "seed": seed,
+        "classes": classes,
         "n_gt_frames": len(gt_frames), "convention": {"w2c": share, "c2w": share_inv, "pairs": pairs},
         "events": rows, "gt_events": gt_rows,
     }
@@ -427,15 +431,17 @@ def shares(rows: Sequence[dict], kind: str, pose_set: str, margin: float) -> dic
     return out
 
 
-def precision_recall(rows: Sequence[dict], gt_rows: Sequence[dict], kind: str, margin: float) -> dict:
-    """The event precision and recall before and after the test, on the verifiable events under the poses.
+def precision_recall(rows: Sequence[dict], gt_rows: Sequence[dict], kind: str, margin: float,
+                     pose_set: str = WITH_POSES) -> dict:
+    """The event precision and recall before and after the test, on the verifiable events under one pose set.
 
     `before` takes every predicted event, `after` the true events only (`left_view` or `entered_view`), and
     `after_plus_window` those and the window's events as well. `tp_removed` counts the matched events the test
-    called losses. `gt_true_only` restricts the GT side to the GT events the same test calls true.
+    called losses. `gt_true_only` restricts the GT side to the GT events the same test calls true under the
+    poses. A control pose set changes which predicted events `after` keeps, and nothing else.
     """
     still, true_, window = LABELS[kind]
-    pred = [r for r in rows if r["kind"] == kind and r["pose_set"] == WITH_POSES and r["margin"] == margin
+    pred = [r for r in rows if r["kind"] == kind and r["pose_set"] == pose_set and r["margin"] == margin
             and r["verifiable"]]
     gt = [r for r in gt_rows if r["kind"] == kind and r["margin"] == margin]
     gt_true = {(r["clip"], r["node"], r["t"]) for r in gt if r["label"] == true_}
@@ -477,7 +483,7 @@ def summarise(results: Sequence[dict], settings: Settings) -> dict:
     out = {
         "settings": asdict(settings),
         "clips": len(results), "videos": len({video_of(res["clip"]) for res in results}),
-        "nodes": sum(res["n_nodes"] for res in results),
+        "nodes": sum(res["n_nodes"] for res in results), "nodes_tracked": sum(res["n_tracked"] for res in results),
         "events": {kind: sum(r["kind"] == kind for r in rows if r["pose_set"] == WITH_POSES and r["margin"] == settings.margins[0])
                    for kind in KINDS},
         "convention_check": {"share_in_next_box": hits, "pairs": pairs, "min": CONVENTION_MIN, "read_as": "w2c"},
@@ -489,6 +495,9 @@ def summarise(results: Sequence[dict], settings: Settings) -> dict:
                             for kind in KINDS}
         out["precision_recall"] = {kind: {str(m): precision_recall(rows, gt_rows, kind, m) for m in settings.margins}
                                    for kind in KINDS}
+        out["precision_recall_controls"] = {
+            name: {kind: {str(m): precision_recall(rows, gt_rows, kind, m, name) for m in settings.margins}
+                   for kind in KINDS} for name in pose_sets if name != WITH_POSES}
     return out
 
 
@@ -539,15 +548,21 @@ def main(argv: Sequence[str] | None = None) -> None:
     ap.add_argument("--shuffles", type=int, default=Settings.shuffles)
     ap.add_argument("--seed", type=int, default=Settings.seed)
     ap.add_argument("--workers", type=int, default=8)
+    ap.add_argument("--summarise-only", action="store_true",
+                    help="read `clip_results.json` under --out instead of the clips, and write the summary again")
     a = ap.parse_args(argv)
     settings = Settings(k=a.k, h=a.h, margins=tuple(float(m) for m in a.margins.split(",")),
                         min_present_px=a.min_present_px, shuffles=a.shuffles, seed=a.seed)
-    clips = read_population(a.clips)
-    jobs = [(a.dataset, c, a.data_root, a.tracks_root, a.tag, a.geometry, settings, a.gt_events) for c in clips]
-    with Pool(a.workers) as pool:
-        results = pool.map(_job, jobs, chunksize=1)
     out = Path(a.out)
-    out.mkdir(parents=True, exist_ok=True)
+    if a.summarise_only:
+        results = json.loads((out / "clip_results.json").read_text())
+    else:
+        clips = read_population(a.clips)
+        jobs = [(a.dataset, c, a.data_root, a.tracks_root, a.tag, a.geometry, settings, a.gt_events) for c in clips]
+        with Pool(a.workers) as pool:
+            results = pool.map(_job, jobs, chunksize=1)
+        out.mkdir(parents=True, exist_ok=True)
+        (out / "clip_results.json").write_text(json.dumps(results))
     summary = summarise(results, settings)
     summary.update({"dataset": a.dataset, "tag": a.tag, "geometry": a.geometry, "tool_sha": tool_sha(__file__),
                     "clips_skipped": []})

@@ -587,6 +587,13 @@ and re-entry. They are reported as reference values, in a table without ★
 or ✗. A measure that is to decide a claim would have to be computed by the
 evaluator before the evaluator is frozen, and none is.
 
+A second tool outside the evaluator, `evalkit/tools/exit_vs_loss`, reads
+where a node's region ends or begins again and asks the camera poses whether
+the node's last 3D position was still in the frustum: still in view is a
+loss, out of view an exit. On a dataset with GT on consecutive frames it
+sorts the GT events the same way and matches the two within one frame. Its
+numbers are reference values as well.
+
 #### The measures of identity
 
 A *GT track* follows one GT object over a clip's GT frames, in one view.
