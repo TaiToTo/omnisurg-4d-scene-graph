@@ -385,6 +385,31 @@ def analyse_clip(dataset: str, clip: str, data_root: str, tracks_root: str, tag:
                     else node.area[e.t],
                 })
 
+    # The frames around each event under the poses, for a reader of the examples: the known position projected
+    # into each frame of the window and the two frames before it, and the camera's step onto the deciding frame.
+    frame_rows = []
+    for i, e in enumerate(events):
+        node = nodes[e.node]
+        p = known_position(world_centroids(node, E, presents[e.node]), e.t, settings.k, e.kind)
+        decisive = e.t if e.kind == "exit" else e.t - 1
+        window = range(e.t - 2, e.t + settings.h + 1) if e.kind == "exit" else range(e.t - settings.h, e.t + 2)
+        step = camera_step(E, decisive - 1, decisive, float(np.median(depth[decisive])))
+        for f in window:
+            if f not in frames:
+                continue
+            u, v, z = project_world_to_frame(p[None], K[f], E[f])
+            ok = np.isfinite(u[0] + v[0])
+            frame_rows.append({
+                "clip": clip, "kind": e.kind, "node": e.node, "t": e.t, "frame": f,
+                "u": round(float(u[0]), 1), "v": round(float(v[0]), 1), "z": round(float(z[0]), 4),
+                "inside_m0": inside(p, K[f], E[f], size, 0.0),
+                "present": f in presents[e.node], "area": node.area.get(f, 0),
+                "region_under": int(regions_at[f].reshape(-1)[_pixel(u[0], v[0], shape)]) if ok else -1,
+                "gt_class_under": int(gt_at[f].reshape(-1)[_pixel(u[0], v[0], shape)]) if f in gt_set and ok else None,
+                "p_x": round(float(p[0]), 5), "p_y": round(float(p[1]), 5), "p_z": round(float(p[2]), 5),
+                "step_translation_over_depth": step[0], "step_rotation_deg": step[1],
+            })
+
     # Every GT event, sorted by the same test on the GT masks' centroids, under the poses.
     gt_rows = []
     matched_gt = set(matches.values())
@@ -402,8 +427,19 @@ def analyse_clip(dataset: str, clip: str, data_root: str, tracks_root: str, tag:
         "clip": clip, "n_nodes": n_nodes, "n_tracked": n_tracked, "n_frames": len(frames), "seed": seed,
         "classes": classes,
         "n_gt_frames": len(gt_frames), "convention": {"w2c": share, "c2w": share_inv, "pairs": pairs},
-        "events": rows, "gt_events": gt_rows,
+        "events": rows, "gt_events": gt_rows, "event_frames": frame_rows,
     }
+
+
+def camera_step(E: np.ndarray, a: int, b: int, depth_scale: float) -> tuple[float | None, float | None]:
+    """The camera's move from frame `a` to frame `b`: translation over `depth_scale`, and rotation in degrees."""
+    if not (0 <= a < len(E) and 0 <= b < len(E)):
+        return None, None
+    Ra, ta, Rb, tb = E[a][:, :3], E[a][:, 3], E[b][:, :3], E[b][:, 3]
+    ca, cb = -Ra.T @ ta, -Rb.T @ tb
+    rel = Rb @ Ra.T
+    angle = float(np.degrees(np.arccos(np.clip((np.trace(rel) - 1) / 2, -1.0, 1.0))))
+    return round(float(np.linalg.norm(cb - ca) / depth_scale), 4), round(angle, 3)
 
 
 def _pixel(u: float, v: float, shape: tuple[int, int]) -> int:
@@ -570,6 +606,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     _write_csv(out / "per_clip.csv", per_clip_rows(results))
     _write_csv(out / "events.csv", [r for res in results for r in res["events"]])
     _write_csv(out / "gt_events.csv", [r for res in results for r in res["gt_events"]])
+    _write_csv(out / "events_frames.csv", [r for res in results for r in res.get("event_frames", [])])
     print(json.dumps({k: summary[k] for k in ("clips", "videos", "nodes", "events", "convention_check")}, indent=1))
 
 
