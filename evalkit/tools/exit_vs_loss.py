@@ -7,13 +7,15 @@ the frames before the event, and projects it through the poses that follow:
 still inside the frustum is a loss, not an exit. The same test sorts the GT
 events where a dataset has GT on consecutive frames, and predicted events
 are matched to GT events within one sample frame. A still camera and
-shuffled poses repeat the test as controls. The tool reads saved outputs
-only and refuses a clip whose regions are not the seed's.
+shuffled poses repeat the test as controls. `--gt-tracks` gives the nodes
+and their GT masks as maps made outside the tool, for seeds that are not
+one GT object per class. The tool reads saved outputs only and refuses a
+clip whose regions are not the seed's.
 
 Usage:
     python -m evalkit.tools.exit_vs_loss --dataset cholecseg8k --clips LIST --data-root DIR --tracks-root DIR \\
         --tag track_rgb_rgb_gt_forward --out DIR [--geometry da3] [--gt-events] [--k 3] [--h 3] \\
-        [--margins 0,0.05,0.1] [--min-present-px 100] [--shuffles 5] [--seed 0] [--workers 8]
+        [--margins 0,0.05,0.1] [--min-present-px 100] [--shuffles 5] [--seed 0] [--workers 8] [--gt-tracks DIR]
 """
 from __future__ import annotations
 
@@ -275,6 +277,39 @@ def gt_presence(inputs: ClipInputs, table: ClassTable, classes: Sequence[int], s
     return frames, masks
 
 
+def read_gt_tracks(track_dir: Path, shape: tuple[int, int],
+                   min_px: int) -> tuple[list[int], list[int], list[dict[int, np.ndarray]]]:
+    """The nodes made outside the tool: each node's class, the GT frames, and per node its GT mask on each GT frame.
+
+    `nodes.json` holds `class_ids`, one per node; `label_<frame:04d>.npy` holds each GT frame's map of node
+    indices, -1 outside every node. A mask counts on a frame where it has `min_px` pixels or more at `shape`.
+
+    Raises:
+        FileNotFoundError: `nodes.json` or every map is missing.
+        ValueError: a map is not a 2-D integer map, or holds an index outside -1..n-1.
+    """
+    nodes = json.loads((track_dir / "nodes.json").read_text())
+    classes = [int(c) for c in nodes["class_ids"]]
+    paths = sorted(track_dir.glob("label_*.npy"))
+    if not paths:
+        raise FileNotFoundError(f"no label_<frame>.npy under {track_dir}")
+    frames: list[int] = []
+    masks: list[dict[int, np.ndarray]] = [{} for _ in classes]
+    for p in paths:
+        ids = np.load(p)
+        if ids.ndim != 2 or not np.issubdtype(ids.dtype, np.integer):
+            raise ValueError(f"{p} is not a 2-D integer map")
+        if ids.size and (int(ids.min()) < -1 or int(ids.max()) >= len(classes)):
+            raise ValueError(f"{p} holds node indices outside -1..{len(classes) - 1}")
+        t = int(p.stem.split("_")[1])
+        frames.append(t)
+        for n in range(len(classes)):
+            m = _resized(ids == n, shape)
+            if int(m.sum()) >= min_px:
+                masks[n][t] = m
+    return classes, frames, masks
+
+
 def gt_events_of(present: set[int], gt_frames: Sequence[int], seed: int) -> list[Event]:
     """The GT events: a change of presence between two GT frames that are consecutive sample frames, after the seed."""
     out = []
@@ -289,7 +324,7 @@ def gt_events_of(present: set[int], gt_frames: Sequence[int], seed: int) -> list
 
 
 def analyse_clip(dataset: str, clip: str, data_root: str, tracks_root: str, tag: str, geometry: str,
-                 settings: Settings, gt_events: bool) -> dict:
+                 settings: Settings, gt_events: bool, gt_tracks: str | None = None) -> dict:
     """Run every part of the test on one clip, and return its records.
 
     Raises:
@@ -307,9 +342,15 @@ def analyse_clip(dataset: str, clip: str, data_root: str, tracks_root: str, tag:
     frames = list(range(len(depth)))
     if inputs.order != tuple(frames):
         raise ValueError(f"{clip}: the frames are not in time order by index: {inputs.order[:8]}")
-    # A node is a GT object of the seed frame; its region id is its place plus one. The tracking stage drops a
-    # seed region under its minimum area and keeps the others' ids, so such a node has no region and no event.
-    classes = seed_classes(inputs, table, seed)
+    # A node is a GT object of the seed frame, or a node of `gt_tracks`; its region id is its place plus one. The
+    # tracking stage drops a seed region under its minimum area and keeps the others' ids, so such a node has no
+    # region and no event.
+    track_frames: list[int] = []
+    track_masks: list[dict[int, np.ndarray]] = []
+    if gt_tracks is None:
+        classes = seed_classes(inputs, table, seed)
+    else:
+        classes, track_frames, track_masks = read_gt_tracks(Path(gt_tracks) / clip, shape, settings.min_present_px)
     n_tracked, n_nodes = n_nodes, len(classes)
     if n_tracked > n_nodes:
         raise ValueError(f"{clip}: seed_info says {n_tracked} regions, the seed frame has {n_nodes} GT objects")
@@ -347,8 +388,11 @@ def analyse_clip(dataset: str, clip: str, data_root: str, tracks_root: str, tag:
     gt_masks: list[dict[int, np.ndarray]] = [{} for _ in classes]
     gt_evts: list[Event] = []
     matches: dict[int, int] = {}
-    if gt_events:
+    if gt_events and gt_tracks is None:
         gt_frames, gt_masks = gt_presence(inputs, table, classes, shape, settings.min_present_px)
+    elif gt_events:
+        gt_frames, gt_masks = track_frames, track_masks
+    if gt_events:
         for n in range(n_nodes):
             gt_evts.extend(Event(e.kind, n, e.t) for e in gt_events_of(set(gt_masks[n]), gt_frames, seed))
         matches = match_events(events, gt_evts, settings.tol)
@@ -584,6 +628,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     ap.add_argument("--shuffles", type=int, default=Settings.shuffles)
     ap.add_argument("--seed", type=int, default=Settings.seed)
     ap.add_argument("--workers", type=int, default=8)
+    ap.add_argument("--gt-tracks", help="per clip, `nodes.json` and the GT frames' maps of node indices (`read_gt_tracks`)")
     ap.add_argument("--summarise-only", action="store_true",
                     help="read `clip_results.json` under --out instead of the clips, and write the summary again")
     a = ap.parse_args(argv)
@@ -594,14 +639,15 @@ def main(argv: Sequence[str] | None = None) -> None:
         results = json.loads((out / "clip_results.json").read_text())
     else:
         clips = read_population(a.clips)
-        jobs = [(a.dataset, c, a.data_root, a.tracks_root, a.tag, a.geometry, settings, a.gt_events) for c in clips]
+        jobs = [(a.dataset, c, a.data_root, a.tracks_root, a.tag, a.geometry, settings, a.gt_events, a.gt_tracks)
+                for c in clips]
         with Pool(a.workers) as pool:
             results = pool.map(_job, jobs, chunksize=1)
         out.mkdir(parents=True, exist_ok=True)
         (out / "clip_results.json").write_text(json.dumps(results))
     summary = summarise(results, settings)
-    summary.update({"dataset": a.dataset, "tag": a.tag, "geometry": a.geometry, "tool_sha": tool_sha(__file__),
-                    "clips_skipped": []})
+    summary.update({"dataset": a.dataset, "tag": a.tag, "geometry": a.geometry, "gt_tracks": a.gt_tracks,
+                    "tool_sha": tool_sha(__file__), "clips_skipped": []})
     (out / "summary.json").write_text(json.dumps(summary, indent=1))
     _write_csv(out / "per_clip.csv", per_clip_rows(results))
     _write_csv(out / "events.csv", [r for res in results for r in res["events"]])

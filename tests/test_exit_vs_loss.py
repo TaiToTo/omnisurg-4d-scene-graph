@@ -1,8 +1,11 @@
 """Exit against loss: the frustum test, the sorting rules, the events, the matching and the controls."""
+import json
+
 import numpy as np
 import pytest
 
 from evalkit.tools.exit_vs_loss import (
+    gt_events_of, read_gt_tracks,
     Event, classify, events_of, inside, inverted, known_position, match_events, shuffled_poses, static_poses,
 )
 
@@ -106,3 +109,24 @@ def test_the_inverted_reading_is_the_pose_s_inverse():
     E = np.hstack([np.linalg.qr(rng.normal(size=(3, 3)))[0], rng.normal(size=(3, 1))])[None]
     full = np.vstack([E[0], [0, 0, 0, 1]])
     assert np.allclose(np.vstack([inverted(E)[0], [0, 0, 0, 1]]) @ full, np.eye(4))
+
+
+def test_read_gt_tracks_gives_each_node_its_frames_and_refuses_a_stray_index(tmp_path):
+    """Two nodes on three GT frames: node 1 leaves on frame 2; a map with index 2 is refused."""
+    d = tmp_path / "clip"
+    d.mkdir()
+    (d / "nodes.json").write_text(json.dumps({"class_ids": [3, 7]}))
+    for t in range(3):
+        ids = np.full((8, 8), -1, dtype=np.int32)
+        ids[:4] = 0
+        if t < 2:
+            ids[4:] = 1
+        np.save(d / f"label_{t:04d}.npy", ids)
+    classes, frames, masks = read_gt_tracks(d, (8, 8), 1)
+    assert classes == [3, 7] and frames == [0, 1, 2]
+    assert sorted(masks[0]) == [0, 1, 2] and sorted(masks[1]) == [0, 1]
+    assert [(e.kind, e.t) for e in gt_events_of(set(masks[1]), frames, 0)] == [("exit", 2)]
+    bad = np.full((8, 8), 2, dtype=np.int32)
+    np.save(d / "label_0003.npy", bad)
+    with pytest.raises(ValueError, match="outside -1..1"):
+        read_gt_tracks(d, (8, 8), 1)
