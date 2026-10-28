@@ -87,7 +87,7 @@ omnisurg-4d-scene-graph/
 │                      check_benchmark_mapping pilot_check kmerge paired_table
 │                      arms_paired leave_one_video_out claims_table
 │                      print_status_tables condition_names component_scores
-│                      region_counts region_curves track_metrics
+│                      region_counts region_curves track_metrics exit_vs_loss
 │                      d4d_front_behind d4d_front_behind_verdict
 ├── trajectory_eval/   the camera trajectory scorer and the controls' trajectories,
 │                      hashed into trajectory_code_sha
