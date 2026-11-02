@@ -14,8 +14,8 @@ no check is recorded.
 | evaluator, `evalkit/` | class tables, metrics, entry point, pilot mode | in pilot mode, every key shared with the pilot evaluator equal on 23 conditions × 315 clips, at `eval_code_sha` `a5d7ea46…` |
 | score tools, `evalkit/tools/` | every tool in the layout of `AGENTS.md` | `paired_table`, `arms_paired`, `claims_table`, `leave_one_video_out`, `print_status_tables`, `kmerge`: the workbench's values on the same inputs. `track_metrics` on component tracks: the values of the workbench's functions on random frames at the four sizes, but where two IoUs tie exactly. `d4d_front_behind`: the workbench's eight front/behind outputs, every field of the 487 sides, the totals and the intervals, scored again from its stored depth and seeds. `d4d_front_behind_verdict`, on the workbench's outputs: its four verdicts, every number |
 | camera trajectory scorer, `trajectory_eval/` | `pose_metrics`, the scoring of a clip, `pose_controls`, `scores`, `score_stereomis`, `stereomis_table`, `score_d4d` | `pose_metrics`: the workbench's values on 1200 random, planar and static trajectories. The scoring of a clip, `pose_controls` and `score_stereomis`: the workbench's 387 StereoMIS rows, every value, scored again from its stored outputs, at the workbench's offsets and times, before `rpe_pairs` let an RPE pair fall `PAIR_TOL_S` short of `dt`. Since then, one RPE pair of `P1__clip_0001` and one of `P1__clip_0005` span 1.0 s, where the workbench's spanned 1.2 s, so the `rpe_*` of their 18 rows can differ. `stereomis_table`, on those rows: the 24 pairs of the workbench's `summary_20.json`, every field. `score_d4d`: the clip list's 9 usable clips are the 9 the workbench scored, at its frames; the other 3 it selected are left out for its reasons. Their 1008 frames, byte for byte, and their manifests. The workbench's 36 D4D rows, scored again from its stored bundles: every value but three unrounded `scale`s, which differ in their last digit. Since `rpe_pairs` let an RPE pair fall `PAIR_TOL_S` short of `dt`, the RPE pair of frame 103 of `specimen_4__2025_06_05-15_51_47__Clip_2` ends at the frame 0.999999 s later, where the workbench's ended at the frame 1.27 s later, so the `rpe_*` of its 4 rows can differ |
-| extraction and crop | ATLAS-120k, CholecSeg8k, LapEx, StereoMIS, the D4D census and population | the CholecSeg8k crop and 13 of the 27 CholecSeg8k clips: the workbench's bytes. LapEx's 735 clips: the workbench's frames and masks, and its manifests apart from `depth_info`. The D4D census: every field it writes equal to the workbench's census on the 271 clips. The D4D population: the same bytes from the ported census as from the workbench's |
-| depth | DA3, Pi3X, point clouds, the population drivers, the D4D depth stage | DA3, point clouds and Pi3X: the workbench's bytes on the GPU machine, on three clips. DA3 also on the 25 LapEx clips whose border the workbench did not fill. The D4D depth stage: the workbench's bytes on the GPU machine, on the six sides of three clips |
+| extraction and crop | ATLAS-120k, CholecSeg8k, LapEx, StereoMIS, the D4D census and population | ATLAS-120k's 339 clips: the names and frames of the workbench's replay of the split at the cuts. Its 276 clips without a cut: the workbench's frames and masks, byte for byte. The CholecSeg8k crop and 13 of the 27 CholecSeg8k clips: the workbench's bytes. LapEx's 735 clips: the workbench's frames and masks, and its manifests apart from `depth_info`. The D4D census: every field it writes equal to the workbench's census on the 271 clips. The D4D population: the same bytes from the ported census as from the workbench's |
+| depth | DA3, Pi3X, point clouds, the population drivers, the D4D depth stage | DA3, point clouds and Pi3X: the workbench's bytes on the GPU machine, on three clips. DA3 also on the 25 LapEx clips whose border the workbench did not fill, and on the 276 ATLAS-120k clips without a cut: the workbench's depth fingerprints (`atlas120k_meta/depth_manifest.json`). The D4D depth stage: the workbench's bytes on the GPU machine, on the six sides of three clips |
 | segmentation and tracking | `track`, `per_frame`, `condition_population`, the D4D seed stage | `track` and `per_frame`: the workbench's bytes on the GPU machine, on three clips. The D4D seed stage, with `--keep-edge-ring`: the workbench's bytes on the six sides the D4D depth stage was compared on. `condition_population`: the workbench's commands, for 43 conditions. The 40 segmenter inputs that `tests/test_render_outputs_are_pinned.py` pins: the workbench's, rendered with each case's ring setting |
 | viewer | `viewer/`, `pipeline/viewer_bundle` | — (new: the workbench's demo read other files) |
 
@@ -201,6 +201,10 @@ only:
   length `duration_sec`, where the workbench wrote `span_sec`. A row writes
   `n_tracked` for `n_frames`. `span_mm` keeps one meaning, a trajectory's
   RMS radius.
+- **The ATLAS-120k clips with a cut.** The workbench's extraction kept the
+  39 clips that hold a judged cut whole. The extraction here ends a run at
+  each cut, so 17 of them keep other frames under the same name, 16 give
+  46 pieces, and 6 give none (`atlas120k_meta/README.md`).
 - **The ATLAS-120k manifest key `n_frames`.** The extraction writes it, as
   the other extractions do, since the point cloud and Pi3X stages read it.
   In the workbench, the point cloud stage writes it.
@@ -258,20 +262,11 @@ Each question says what it blocks and where its answer is written.
   scores it. Blocks: measuring the `t12_*` conditions again, with the
   evaluator and with `track_metrics`. Answer in:
   `docs/evaluation.md` and `docs/pipeline.md`.
-- **Cuts inside GT clips.** Every candidate whose spot differs by more
-  than 30 inside the population is judged, and 39 clips hold a cut
-  (`atlas120k_meta/cuts.csv`). After a cut, a tracking condition's scores
-  measure the scene change, not the input. Decided on 2026-10-12: split
-  each clip at its cuts. The extraction rule ends a run of consecutive
-  frames at a cut as well, and keeps the runs that still have at least 8
-  frames after thinning; replayed in the workbench, the 315 clips become
-  339. Open: the
-  extraction stage reads `cuts.csv`; the population is extracted again; and
-  the clips that replace the 39 get depth, camera poses and every tracking
-  condition. Not resolved, and not blocking: most candidates between 20
-  and 30 were not judged, and two of those judged are cuts (the
-  README says so). Blocks: extracting the population again, and the freeze.
-  Answer in: `atlas120k_meta/README.md`.
+- **Cut candidates not judged.** The 1,073 candidates whose spot differs
+  by 20 to 30 were not judged, and two cuts turned up among the candidates
+  below 30 (`atlas120k_meta/README.md`). Open: whether they are judged.
+  Blocks: nothing, but a cut found among them would change `clips.txt` and
+  every measurement on it. Answer in: `atlas120k_meta/README.md`.
 
 ### Conditions
 
@@ -297,7 +292,7 @@ Each question says what it blocks and where its answer is written.
   workbench's table from the pilot's scores. The workbench
   read every claim on `inst_F1_50_labeled`, whose nearest view here is
   `all`, and on the 13-video ATLAS-120k set, where the port makes the
-  conditions on 315 clips. Open: which key or keys the claims are read on,
+  conditions on 339 clips. Open: which key or keys the claims are read on,
   whether the granularity result answers a question whose primary metrics
   are fixed, and which population the ATLAS-120k column reads. Answer in:
   `claims_table`'s docstring.

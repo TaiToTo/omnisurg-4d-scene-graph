@@ -69,11 +69,9 @@ CholecSeg8k:
 - at least 8 frames, at the dataset's step between frames (0.52 s on
   ATLAS-120k, 15 CholecSeg8k frame numbers on CholecSeg8k).
 
-Whether a clip with a cut in its recording is used whole is open
-(`docs/porting.md`, "Cuts inside GT clips"). The two ATLAS-120k clips with a
-judged cut are used whole for now (`atlas120k_meta/README.md`); CholecSeg8k's
-windows were not judged, since cholec80 is one continuous recording per
-video.
+An ATLAS-120k clip with a judged cut in its recording is split at the cut
+("The ATLAS-120k extraction stage" below). CholecSeg8k's windows were not
+judged, since cholec80 is one continuous recording per video.
 
 The unit of independence is the video: the bootstrap that decides a claim
 resamples videos, never clips. Two clips of one video may overlap in time.
@@ -98,11 +96,13 @@ the way the paper's 339 clips were cut. `--atlas-root` holds the release's
 `clip_index.json`, the stage splits the clip into runs of consecutive
 annotated frames and ends a run at each cut of `atlas120k_meta/cuts.csv`
 as well. It thins each run to one frame every 0.52 s, counted from the
-run's first frame, and writes each run that still has 8 frames or more as
-`<procedure>__<video>__gt_<n>`. A clip with two such runs becomes two
-clips, `s1` and `s2`. A cut is a scene change of the mp4, so every clip of
-the video is split at it, whichever clip it is listed for. A run with the
-frames and rectangle of one already written is not written again. Into each clip it writes:
+run's first frame; the step is 0.50 to 0.54 s, as the video's frame rate
+allows. It writes each run that still has 8 frames or more as
+`<procedure>__<video>__gt_<n>`. A clip with several such runs becomes
+several clips, `s1`, `s2` and so on. A cut is a scene change of the mp4,
+so every clip of the video is split at it, whichever clip it is listed
+for. A run with the frames and rectangle of one already written is not
+written again. Into each clip it writes:
 
 - `input_images/`: the release's JPEGs, cropped to the clip's confirmed
   rectangle (`atlas120k_meta/crop_rects.json`) and resized to a long side
