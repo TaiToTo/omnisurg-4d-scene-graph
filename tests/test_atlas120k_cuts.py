@@ -4,12 +4,13 @@ The first tests read the committed table and check that it holds what the
 README says: every row is a candidate inside a clip of the population, a
 cut is one pair of adjacent frames at its candidate's boundary, no cut is
 listed twice, the rows are in the population's order, and the counts are
-the README's. The others plant each fault `load_cuts` refuses in a table
-made up for the test.
+the README's, those of the split at the cuts included. The others plant
+each fault `load_cuts` refuses in a table made up for the test.
 """
 
 import csv
-import re
+import json
+from collections import Counter
 from pathlib import Path
 
 import pytest
@@ -25,7 +26,6 @@ DROPPED_AT_CUTS = frozenset({
     "hemicolectomy__5YDMlxTl0k8__gt_0026", "hemicolectomy__6qb-oFqRjbE__gt_0019",
     "hemicolectomy__SbqubK1FX50__gt_0001", "hemicolectomy__SbqubK1FX50__gt_0008",
 })
-
 
 
 @pytest.fixture(scope="module")
@@ -140,10 +140,19 @@ def test_the_committed_table_holds_72_cuts_in_39_clips():
     assert set(cuts) <= _whole_clips() | DROPPED_AT_CUTS
 
 
-def test_each_dropped_clip_has_a_cut_and_left_the_population():
-    cuts = load_cuts(str(META / "cuts.csv"))
-    assert DROPPED_AT_CUTS <= set(cuts)
-    assert not DROPPED_AT_CUTS & _whole_clips()
+def test_the_split_at_the_cuts_gives_the_readmes_counts():
+    clips = (META / "clips.txt").read_text().split()
+    pieces = Counter(whole_clip(c) for c in clips)
+    with_cut = set(load_cuts(str(META / "cuts.csv")))
+    split = [pieces[c] for c in with_cut if pieces[c] > 1]
+    # Of the 315 clips before the split: 276 hold no cut and stay whole, 17 keep one piece, 16 give 46 pieces,
+    # and 6 lose every piece.
+    assert [n for c, n in pieces.items() if c not in with_cut] == [1] * 276
+    assert sum(pieces[c] == 1 for c in with_cut) == 17
+    assert (len(split), sum(split)) == (16, 46)
+    assert with_cut - set(pieces) == DROPPED_AT_CUTS
+    manifest = json.loads((META / "depth_manifest.json").read_text())
+    assert (len(clips), len({tuple(c.split("__")[:2]) for c in clips}), manifest["n_frames"]) == (339, 91, 7547)
 
 
 def test_whole_clip_names_the_clip_a_piece_came_from():
