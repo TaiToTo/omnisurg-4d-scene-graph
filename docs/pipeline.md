@@ -1,7 +1,7 @@
 # The pipeline
 
 The pipeline turns a clip of surgical video into the geometry that a 4D
-scene graph is built on. It runs in stages. An extraction stage cuts the
+scene graph is built on. It runs in stages. An extraction stage takes the
 clips from a dataset's release, one stage per dataset. The depth stage
 estimates depth and camera poses for every frame. Later stages segment the frames, track the segments
 through time, and export what the viewer reads. Each stage is a module of
@@ -55,7 +55,7 @@ A clip is a directory with these files:
   A CholecSeg8k mask holds the class colour of each pixel, as
   `NNNNNN_color_mask.png`. A LapEx mask holds the grey level of each
   pixel's class, as `NNNNNN_class.png`.
-- `frame_manifest.json`: the clip's record, written by the stage that cut
+- `frame_manifest.json`: the clip's record, written by the stage that took
   the clip from its dataset. Its `dataset` key names the dataset; a
   manifest without one belongs to CholecSeg8k.
 - `crop_info.json`, for a CholecSeg8k clip only: the rectangle inside the
@@ -90,8 +90,8 @@ python -m pipeline.extract_atlas120k --atlas-root /path/to/ATLAS --out /path/to/
     [--population atlas120k_meta/clips.txt] [--overwrite]
 ```
 
-The stage cuts the annotated clips of ATLAS-120k videos from the release,
-the way the paper's 339 clips were cut. `--atlas-root` holds the release's
+The stage takes the annotated clips of ATLAS-120k videos from the release,
+as the paper's 339 clips were taken. `--atlas-root` holds the release's
 `atlas120k/` and the videos' `raw_data/`. For each clip of a video's
 `clip_index.json`, the stage splits the clip into runs of consecutive
 annotated frames and ends a run at each cut of `atlas120k_meta/cuts.csv`
@@ -357,7 +357,7 @@ python -m pipeline.extract_stereomis --root /path/to/StereoMIS --clips stereomis
 
 The stage writes the clips the camera trajectory result is measured on.
 `--root` holds one directory per sequence, as StereoMIS ships it. The clips
-are those the clip list marks usable: 112 frames, 12 positions apart, cut
+are those the clip list marks usable: 112 frames, 12 positions apart, taken
 from each sequence without overlap. Into each clip the stage writes:
 
 - `input_images/`: the left view of each frame, rectified and at half
@@ -408,7 +408,7 @@ The second step refuses, before it writes anything:
 - a list of clips that is empty, holds a clip twice, or holds a line that is
   not `<specimen>/<session>/<clip>`;
 - a census that does not hold each clip of the list once and in its order,
-  such as a census cut short;
+  such as a census that stopped early;
 - a side that carries an `error`, which the census wrote when it failed to
   measure the side;
 - a field the rule reads that is missing or holds a value of the wrong kind,
@@ -433,11 +433,12 @@ side, `<key, / as __>__<side>`.
   camera, with the frame's index, path and time less the scan's, as `.npz`.
   A scan is taken before the clip's first frame or after its last, so the
   frame is the first or the last, never inside the window.
-- The seed stage cuts the frame into regions, as the tracking stage cuts a
-  seed frame for the condition `normal-edge_da3_pps24_sam_centre`: the
-  `normal_edge` input, edges at full darkness, normals unsmoothed, 24 points
-  per side. It writes the regions as `.npy` and their record as `.json`:
-  the depth file's hash, the settings and the SAM weights' file name.
+- The seed stage segments the frame into regions, as the tracking stage
+  segments a seed frame for the condition
+  `normal-edge_da3_pps24_sam_centre`: the `normal_edge` input, edges at full
+  darkness, normals unsmoothed, 24 points per side. It writes the regions
+  as `.npy` and their record as `.json`: the depth file's hash, the
+  settings and the SAM weights' file name.
 
 The depth stage needs the `recon3d` and `d4d` extras and D4D's loader, as
 the README says for the census. The seed stage needs the `track` extra and
@@ -666,10 +667,11 @@ python -m pipeline.track --input-dir /path/to/clips --tracks-root /path/to/track
     [--clips <clip> ...] [--seed-labels DIR] [--depth-source pi3] [--keep-edge-ring] [--state-on-cpu] [--overwrite]
 ```
 
-The stage cuts one frame of each clip into regions and carries them through
-the clip with SAM 3's video tracker (`sam3_wrapper`). SAM's automatic mask
-generator cuts the seed frame, prompted with the `--sam-input` image;
-`--seed-labels` reads the regions from a directory instead. The rule places
+The stage segments one frame of each clip into regions and carries them
+through the clip with SAM 3's video tracker (`sam3_wrapper`). SAM's
+automatic mask generator segments the seed frame, prompted with the
+`--sam-input` image; `--seed-labels` reads the regions from a directory
+instead. The rule places
 the seed:
 
 - `both_ways_from_centre` seeds the middle frame and carries both ways.
@@ -688,8 +690,8 @@ The stage reads the depth stage's bundle, and Pi3X's with
   seed was made with. Its `seed_source` is `sam`, or `external` when the
   seed was read with `--seed-labels`. Its `edge_ring_masked` says whether
   the stage masked the edges' ring in each input it built with burnt-in
-  edges: the seed's, when the stage cut the seed, and the tracker's. The
-  ring is the edges along the image border and around invalid depth,
+  edges: the seed's, when the stage segmented the seed, and the tracker's.
+  The ring is the edges along the image border and around invalid depth,
   which `--keep-edge-ring` keeps. The key is null when the stage built no
   input with burnt-in edges.
 - `<tracks-root>/<clip>/viz/montage_track_<track-base>_<tag>.png`: every
@@ -736,10 +738,10 @@ python -m pipeline.per_frame --input-dir /path/to/clips --tracks-root /path/to/t
     [--clips <clip> ...] [--depth-source pi3] [--keep-edge-ring] [--overwrite]
 ```
 
-The stage cuts every frame of each clip into regions with SAM's automatic
-mask generator, prompted with the `--sam-input` image. It carries nothing
-from one frame to the next, so an id does not follow an object between
-frames. Regions under `--seed-min-area` pixels are dropped.
+The stage segments every frame of each clip into regions with SAM's
+automatic mask generator, prompted with the `--sam-input` image. It
+carries nothing from one frame to the next, so an id does not follow an
+object between frames. Regions under `--seed-min-area` pixels are dropped.
 
 The stage reads the depth stage's bundle, and Pi3X's with
 `--depth-source pi3`. It reads no GT. It writes, for each clip:
@@ -1043,8 +1045,8 @@ python -m trajectory_eval.tools.score_d4d score --root /path/to/D4D/extracted \
 The truth is the camera's pose that D4D's optical tracker logs, under each
 session's `tf/`. The command runs in three steps:
 
-- `select` cuts each clip of the population to 112 frames spread over the
-  whole clip, and writes the clip list. `d4d_meta/README.md` gives the rule
+- `select` takes 112 frames spread over the whole of each clip of the
+  population, and writes the clip list. `d4d_meta/README.md` gives the rule
   that marks a clip usable, and the fields.
 - `prepare` writes each usable clip's frames, through D4D's loader. The
   depth stages then write their bundles into the clips.

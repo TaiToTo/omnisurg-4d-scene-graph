@@ -4,7 +4,7 @@ Each clip of a video's `clip_index.json` is split into runs of consecutive
 annotated frames, ended also at every cut of `--cuts`, and each run is
 thinned to one frame every `--step-sec` seconds. A run left with at least
 `--min-frames` frames is written as `<procedure>__<video>__gt_<n>`: the
-release's JPEGs cut to the clip's confirmed rectangle and resized to
+release's JPEGs cropped to the clip's confirmed rectangle and resized to
 `--long-side`, the class id of each pixel, and `frame_manifest.json`. A run
 with the frames and rectangle of one already written is not written again.
 `<procedure>__<video>__extract_report.json` says what became of every clip
@@ -212,7 +212,7 @@ def write_frame(dst: Path, jpg: Path, rect: Rect, size: tuple[int, int]) -> None
 
 
 def write_mask(dst: Path, png: Path, rect: Rect, size: tuple[int, int], table: ClassTable) -> None:
-    """Read a mask as class ids, cut it to the rectangle, resize it with the nearest neighbour and write it.
+    """Read a mask as class ids, crop it to the rectangle, resize it with the nearest neighbour and write it.
 
     The release stores most masks as ids and some as colours, both within one video; the class table reads
     either, as the evaluator reads them. Nearest neighbour keeps every pixel a class the mask holds.
