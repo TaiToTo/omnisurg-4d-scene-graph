@@ -18,7 +18,7 @@ IPCAI 2027.
 - [Where to start](#where-to-start): which page to read for what
 - [What is where](#what-is-where): the folders, by what they do
 - [Install](#install) and [Tests](#tests)
-- [Status](#status): what has been moved here so far
+- [Paper](#paper) and [What this release holds](#what-this-release-holds)
 - [License](#license)
 
 ## From a clip to a scene graph
@@ -36,8 +36,8 @@ it; no dataset has a reference for a whole 4D graph.
 - Graph: the 2D and temporal statements counted on the annotated masks,
   and the exits a graph reports against the annotated disappearances.
 
-[Status](#status) says which of these analyses run from this repository
-today.
+[What this release holds](#what-this-release-holds) lists the stages and
+scorers behind them.
 
 ## Where to start
 
@@ -161,23 +161,29 @@ pip install -e ".[render,tools,stereomis]" pytest
 pytest
 ```
 
-## Status
+## Paper
 
-The code is being moved here from the research workbench where the
-measurements were made. The evaluator is not frozen yet, so its scores are
-not final.
+Yasuto Tamura, Masakazu Iwamura and Koichi Kise. *Toward 4D Surgical Scene
+Understanding Beyond Cholecystectomy: An Assessment of 4D Scene Graph
+Construction and Validation.* Submitted to IPCAI 2027.
 
-- Ported: the extraction stages and the D4D census, depth and camera
-  poses, segmentation and tracking, the evaluator and its tools, the camera
-  trajectory scorer, and the viewer.
-- Not ported yet: the export stage, which builds the scene graphs; the
-  paper's tables; and the D4D measurements after the census.
+## What this release holds
 
-This repository alone takes a clip as far as tracked regions and their
-scores. The viewer bundle stage reads scene graphs that the workbench's
-export stage wrote. [`docs/porting.md`](docs/porting.md) says what each
-part was checked against, what is left, and the decisions still to carry
-out.
+- The pipeline's stages: the extraction of ATLAS-120k, CholecSeg8k,
+  StereoMIS and D4D clips; depth and camera poses from Depth Anything 3 and
+  Pi3X; and the tracking of the first frame's regions with SAM 3.
+- The two scorers: `evalkit` for the tracked regions and
+  `trajectory_eval` for the camera paths. Each score records the hash of
+  the code that made it, `eval_code_sha` or `trajectory_code_sha`, and two
+  scores are compared only when their hashes match.
+- The clip lists of the four datasets, with the crop rectangles and cut
+  table of ATLAS-120k, so that a measurement reads the same clips.
+- The viewer, a web page that steps through a clip's point clouds, regions
+  and scene graphs.
+
+The scripts that turn the pipeline's outputs into the paper's tables are
+being released under `paper/ipcai2027/`. [`docs/porting.md`](docs/porting.md) says
+what each part was checked against.
 
 ## License
 
