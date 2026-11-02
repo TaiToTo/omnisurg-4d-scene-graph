@@ -6,8 +6,8 @@ graph through time. The page is static. It reads the files that
 `python -m pipeline.viewer_bundle` writes (`docs/pipeline.md`, "The viewer
 bundle stage") and needs no server of its own. The bundle stage reads the
 regions and scene graphs that the export stage writes into each clip; the
-root README's [Status](../README.md#status) says which stages this
-repository runs.
+root README's [What this release holds](../README.md#what-this-release-holds)
+says which stages this repository runs.
 
 What a reader can do on it:
 
