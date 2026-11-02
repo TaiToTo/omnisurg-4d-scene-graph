@@ -85,8 +85,8 @@ two scores are compared only when they are comparable ("Terms").
 - A condition's *regions per frame* is the number of region ids a frame's
   label map holds, every pixel read and every region counted whatever its
   size, averaged over the frames with a prediction and then over the
-  clips. It reads no GT, view or depth. `evalkit/tools/region_counts`
-  counts it, and `evalkit/tools/region_curves` lays each input's scores
+  clips. It reads no GT, view or depth. `legacy/htl/region_counts`
+  counts it, and `legacy/htl/region_curves` lays each input's scores
   along it.
 
 ## The evaluator at a glance

@@ -33,7 +33,7 @@ a clip holds.
 | | [per-frame](#the-per-frame-segmentation-stage): every frame segmented on its own | `pipeline.per_frame` | `<tracks-root>/<clip>/track_rgb_<tag>/`: the same files |
 | | [one condition on every clip](#a-condition-on-every-clip-of-a-population) | `pipeline.condition_population` | the stage's files, for every clip |
 | | [the experiment plan](#the-experiment-plan) | `pipeline.experiment_plan` | nothing: it checks the plan and prints commands |
-| | [the granularity conditions](#the-granularity-conditions) | `pipeline.per_frame`, `evalkit.tools.kmerge`, `pipeline.track` | conditions merged to K regions |
+| | [the granularity conditions](#the-granularity-conditions) | `pipeline.per_frame`, `legacy.htl.kmerge`, `pipeline.track` | conditions merged to K regions |
 | | [D4D: the seed regions of the frame nearest to each side's scan](#the-d4d-depth-and-seed-stages) | `pipeline.d4d_seed` | `--out`: the regions, `.npy`, and their record, `.json`, one pair per side |
 | 4 · the scene graphs | the export stage | — ([Status](../README.md#status)) | in `pc_vis/`: each track's regions and scene graph on each frame, and its graph through time; each frame's hierarchy between two tracks |
 | 5 · the viewer | [the viewer bundle](#the-viewer-bundle-stage) | `pipeline.viewer_bundle` | `<out>/catalog.json`, `<out>/<clip>/` |
@@ -449,44 +449,8 @@ population, and a clip of the population that the dataset does not hold.
 
 ## The D4D front/behind relation
 
-```bash
-python -m evalkit.tools.d4d_front_behind --root /path/to/D4D/extracted --population d4d_meta/population.json \
-    --answer mono --regions ours --depth-dir /path/to/d4d_depth --seed-dir /path/to/d4d_seed --out mono.json
-python -m evalkit.tools.d4d_front_behind --root /path/to/D4D/extracted --population d4d_meta/population.json \
-    --answer area --regions ours --depth-dir /path/to/d4d_depth --seed-dir /path/to/d4d_seed --out area.json
-python -m evalkit.tools.d4d_front_behind_verdict --answer mono.json --floor area.json \
-    --population d4d_meta/population.json --out verdict.json
-```
-
-The first command scores, on each side, which of two regions is nearer,
-against the region's median depth in the scan. Its module says when a
-region is scored. The regions are `ours` (the seed stage's), `kmeans` or
-`voronoi`. The answers:
-
-- `mono`: the depth stage's depth;
-- `area`: the larger region is nearer, a floor that reads no geometry;
-- `screen`: the region nearer the principal point is nearer, a second
-  floor;
-- `gt_half`: half of the scan's points, a ceiling;
-- `stereo`: the dataset's stereo depth, a reference.
-
-The output records each side's pairs, the share answered right with
-intervals over clips, sessions and specimens, and `front_behind_code_sha`.
-The command refuses a side it cannot score:
-
-- a side without a scan, a pose or a calibration, or whose clip the
-  dataset does not hold;
-- a clip whose instrument masks are not named by its frames, or a frame
-  that cannot be read;
-- a depth file that is missing or was made for another frame;
-- seed regions that are missing, of another shape than their depth, or
-  whose record names another depth file;
-- stereo depth whose file is not the frame's.
-
-The verdict compares two outputs on the same pairs, resampling sessions,
-clips and specimens, and gives `A`, `B`, `C` or `undecided`, as its module
-says. It refuses outputs scored on other regions, over other answer
-pixels, by other code, or on other pairs.
+The front/behind tools of the earlier study are listed in
+[`legacy/README.md`](../legacy/README.md), with how to run them.
 
 ## The depth stage
 
@@ -847,7 +811,7 @@ its record does not say whether the GT set K.
 ```bash
 python -m pipeline.per_frame --input-dir /path/to/clips --tracks-root /path/to/tracks --tag rgb_per_frame \
     --sam-input rgb --points-per-side 24 --sam-ckpt sam_vit_h_4b8939.pth
-python -m evalkit.tools.kmerge --dataset atlas120k --clips atlas120k_meta/clips.txt --data-root /path/to/clips \
+python -m legacy.htl.kmerge --dataset atlas120k --clips atlas120k_meta/clips.txt --data-root /path/to/clips \
     --tracks-root /path/to/tracks --tag track_rgb_rgb_per_frame --k 10
 python -m pipeline.track --input-dir /path/to/clips --tracks-root /path/to/tracks --tag rgb_k10 \
     --rule both_ways_from_centre --sam-input rgb --track-base rgb \
