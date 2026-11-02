@@ -1,16 +1,20 @@
 # omnisurg-4d-scene-graph
 
 This repository turns a clip, a stretch of a video of minimally invasive
-surgery, into a **4D** (3D + time) scene graph. The pipeline cuts each
-frame into regions, places them in 3D and follows them through time. A
-frame's scene graph lists its regions and says where each lies from the
-others: right, above, in front, and so on. No model is trained; the
-pipeline combines existing ones.
+surgery, into a **4D** (3D + time) scene graph. The pipeline places each
+frame in 3D, follows the regions of the first frame through time, and lists
+how the regions lie and move relative to each other. No model is trained;
+the pipeline combines existing ones. The repository accompanies the paper
+*Toward 4D Surgical Scene Understanding Beyond Cholecystectomy: An
+Assessment of 4D Scene Graph Construction and Validation*, submitted to
+IPCAI 2027.
+
+![Fig. 1 of the paper. Top: prior work built 4D scene graphs on one procedure, cholecystectomy, shown by eight CholecSeg8k clips. Below: this work builds them on the 14 procedures of ATLAS-120k, cholecystectomy among them; the other 13 are cells on a drawing of the body: esophagectomy, liver resection, colectomy, hemicolectomy, appendectomy, radical prostatectomy, adrenalectomy, splenectomy, gastric surgery, gastrojejunostomy, sigmoid colectomy, low anterior resection and rectopexy; each cell shows three frames of a clip and its point cloud with the camera path.](docs/figures/paper_procedures.png)
 
 ## Contents
 
-- [From a clip to a scene graph](#from-a-clip-to-a-scene-graph): the
-  steps in one figure, and what is scored
+- [From a clip to a scene graph](#from-a-clip-to-a-scene-graph): how a
+  graph is built, and how each part of it is scored
 - [Where to start](#where-to-start): which page to read for what
 - [What is where](#what-is-where): the folders, by what they do
 - [Install](#install) and [Tests](#tests)
@@ -19,15 +23,21 @@ pipeline combines existing ones.
 
 ## From a clip to a scene graph
 
-![From a clip to a 4D scene graph, on a drawn scene: 1, the clip's frames; 2, a depth map and a point cloud per frame, and the camera's path; 3, regions that keep their ids from frame to frame and have no names; 4, a scene graph per frame, a node per region and a word per pair such as right, front or above; 5, the same relations through time, each holding for a run of frames, and the viewer that shows them. Below, what is scored: the camera poses against StereoMIS's ground truth by trajectory_eval, and the regions against the hand-labelled GT masks by evalkit.](docs/figures/scene_graph_overview.png)
+![Fig. 2 of the paper. (a) How a graph is built: a clip; its depth and camera poses; the first frame's regions, here the reference masks, tracked through the clip; a graph per frame; and the graphs linked through time. (b) How each part is scored, without reprojection in the upper row and with it in the lower row. Geometry: depth against stereo depth and scans, and the camera path against kinematics and an optical tracker, on StereoMIS and D4D; reprojection consistency without ground truth. Nodes: tracking one class mask against the reference masks of ATLAS-120k and CholecSeg8k; reference masks reprojected 2.7 s later, by class group. Graph: the graph read as 2D, temporal, 3D and camera statements; exits told from tracking losses by projecting a node's last position with the camera poses.](docs/figures/paper_method.png)
 
-The figure draws the steps on a made-up scene. Two scorers check the
-results, not the scene graphs:
+Each part of the graph is scored against the reference that exists for
+it; no dataset has a reference for a whole 4D graph.
 
-- `evalkit`, the evaluator, compares the regions with masks drawn by hand,
-  in ATLAS-120k, CholecSeg8k and LapEx.
-- `trajectory_eval`, the camera trajectory scorer, compares the camera's
-  path with the true path, in StereoMIS.
+- Geometry: depth and camera paths against two porcine datasets, StereoMIS
+  and D4D. `trajectory_eval`, the camera trajectory scorer, compares the
+  camera's path with the true path.
+- Nodes: the tracked regions against the masks drawn by hand in
+  ATLAS-120k and CholecSeg8k. `evalkit`, the evaluator, compares them.
+- Graph: the 2D and temporal statements counted on the annotated masks,
+  and the exits a graph reports against the annotated disappearances.
+
+[Status](#status) says which of these analyses run from this repository
+today.
 
 ## Where to start
 
