@@ -68,6 +68,7 @@ def _frame(classes: np.ndarray) -> SimpleNamespace:
 
 
 def test_a_seed_component_under_the_minimum_area_is_no_node(area):
+    pytest.importorskip("scipy", reason="the component seeds need the `tools` extra")
     cs = area("component_seeds")
     c = np.zeros((10, 20), dtype=int)
     c[1:5, 1:5] = 2   # 16 px
@@ -78,6 +79,7 @@ def test_a_seed_component_under_the_minimum_area_is_no_node(area):
 
 
 def test_a_component_two_nodes_claim_goes_to_the_larger_overlap(area):
+    pytest.importorskip("scipy", reason="the component seeds need the `tools` extra")
     cs = area("component_seeds")
     seed = np.zeros((10, 30), dtype=int)
     seed[2:8, 2:8] = 4
