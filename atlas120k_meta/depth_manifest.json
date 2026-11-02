@@ -40,12 +40,22 @@
     504
    ]
   },
-  "appendectomy__41RKDh3INiU__gt_0001": {
-   "depth_sha256": "419775ee28acb43e55563f0cd2531276c4de7db72e42b961a6c5210beb0dc0a7",
-   "intrinsics_sha256": "accb5ecd56592584f4d03933ee4ff67b7b6a09ca09a96911cdcf1bfc5cf40264",
-   "n_frames": 34,
+  "appendectomy__41RKDh3INiU__gt_0001s1": {
+   "depth_sha256": "19d741a98c99c9176a75d5cbefd351134c3e321f90fa819468d7340cfcb668f5",
+   "intrinsics_sha256": "2e38ad2094c281a5615658b3f661d46cccb3dbf6037677f58b5b9a6bbfe63ab6",
+   "n_frames": 10,
    "shape": [
-    34,
+    10,
+    322,
+    504
+   ]
+  },
+  "appendectomy__41RKDh3INiU__gt_0001s2": {
+   "depth_sha256": "96873012a9fa53567ed0663b168e0477ded1469c23eba015e5952e8d6972e853",
+   "intrinsics_sha256": "17e74828f39ff3b7c35e847f87d6ef0491dfeb143961d3d569b1645ba718ffee",
+   "n_frames": 24,
+   "shape": [
+    24,
     322,
     504
    ]
@@ -191,21 +201,81 @@
    ]
   },
   "cholecystectomy__1trsPYQ7rmg__gt_0005": {
-   "depth_sha256": "71c092170c94e44e5a54521c6c8f88d273f19c5026264f2e937013678dcbad58",
-   "intrinsics_sha256": "2ee3d32099df0425c6a1a5dbb61463ac02fafe9902e8767405f14699ade4e315",
-   "n_frames": 37,
+   "depth_sha256": "d0e88597f00e7aff6955b0a6dedb45aa0e4a57d893be7806e3c8dd18d1f4ba08",
+   "intrinsics_sha256": "dc9dfd6a371548bdd8d6baa7bdc12aba7d4823db3738e9b1db7d7e371812ee62",
+   "n_frames": 35,
    "shape": [
-    37,
+    35,
     280,
     504
    ]
   },
-  "cholecystectomy__1ud3syYKD3A__gt_0001": {
-   "depth_sha256": "8f9043686d2d9202f33239d89bd7da42d00a4c750158e647d230602b875c87bf",
-   "intrinsics_sha256": "ed84166da90ae75adf6e7ccdf5e95475ff1d9987d7018ab2687c69704d445894",
-   "n_frames": 105,
+  "cholecystectomy__1ud3syYKD3A__gt_0001s1": {
+   "depth_sha256": "90e3db057e5bd73776546590dc407fa631fe03a128a6958a58dd824b0f769fad",
+   "intrinsics_sha256": "a3a4c0ad8d6ca0004de4f256640bf6a7480c8a7f7b4fcd5f8697337e6589dd2a",
+   "n_frames": 11,
    "shape": [
-    105,
+    11,
+    378,
+    504
+   ]
+  },
+  "cholecystectomy__1ud3syYKD3A__gt_0001s2": {
+   "depth_sha256": "bd225d5fa905231b0b50dd751ec4ad28d7a5ef9429f581e955cb023084dbd993",
+   "intrinsics_sha256": "134ee972e0b3ba49f46edceb6ad7bf736b744242cecaffff5fe8340dfaa503cf",
+   "n_frames": 8,
+   "shape": [
+    8,
+    378,
+    504
+   ]
+  },
+  "cholecystectomy__1ud3syYKD3A__gt_0001s3": {
+   "depth_sha256": "2dfc9e858a6b60afd958b4c04184c8555be7109a7dbadaba832091aa7eae6274",
+   "intrinsics_sha256": "7ed3fa6b2dc453267fb0355d20ecb859002cf611f8060537bef5a485bbf868c7",
+   "n_frames": 10,
+   "shape": [
+    10,
+    378,
+    504
+   ]
+  },
+  "cholecystectomy__1ud3syYKD3A__gt_0001s4": {
+   "depth_sha256": "1000b5c584590ee2801e53b256124027566d313e6a9dfd65f94907fd65f32e25",
+   "intrinsics_sha256": "57ff8f8ca5b81c1cff5ddd87bb3b62862219be0f0ee9e211cd324c6cafc1864c",
+   "n_frames": 18,
+   "shape": [
+    18,
+    378,
+    504
+   ]
+  },
+  "cholecystectomy__1ud3syYKD3A__gt_0001s5": {
+   "depth_sha256": "812712cfbb3ac9ef33df5cd47661312f048be2e23660df68bbb306537123af32",
+   "intrinsics_sha256": "bc7a502852750d8119560e1139ba81e7f8970606bb8f39b8e7cb14288a6a399a",
+   "n_frames": 13,
+   "shape": [
+    13,
+    378,
+    504
+   ]
+  },
+  "cholecystectomy__1ud3syYKD3A__gt_0001s6": {
+   "depth_sha256": "d3eebe56ded1a9295c11d02865c0864a91dc0c90747ee2069645949d9b407f50",
+   "intrinsics_sha256": "58aa16638dea9ea51b4bafe344f7183b7506418ecc42b07f9aa343f06fdea5ae",
+   "n_frames": 8,
+   "shape": [
+    8,
+    378,
+    504
+   ]
+  },
+  "cholecystectomy__1ud3syYKD3A__gt_0001s7": {
+   "depth_sha256": "45cae9f9ebc4dc47755fc9bc32ec1b74715d491d5278b7cf32cb3b9b5cee42db",
+   "intrinsics_sha256": "8bf411a6d06f952b4daaaed29aa0647043704cfe759848c1c1d5f84efe8620c6",
+   "n_frames": 11,
+   "shape": [
+    11,
     378,
     504
    ]
@@ -410,22 +480,52 @@
     504
    ]
   },
-  "cholecystectomy__Bj13QcLRCVc__gt_0001": {
-   "depth_sha256": "3eefb0e2f22c984e24599e463d03d88c115a69b45a99e36928e08cdd979f6efd",
-   "intrinsics_sha256": "6b464e6bfefd0c0937bdffee7b8ac7f81138e7ba70b4e33040ec3a606c839e52",
-   "n_frames": 86,
+  "cholecystectomy__Bj13QcLRCVc__gt_0001s1": {
+   "depth_sha256": "62d37b4d3f06284ca19f4ef3ba07c1fb2170e49c231e36737ed58439edc5d08a",
+   "intrinsics_sha256": "4ee2fcbba6780dd0ea86ce8740809e2a2e03fb1b520c0f5eaf17936ab018e6a1",
+   "n_frames": 21,
    "shape": [
-    86,
+    21,
+    280,
+    504
+   ]
+  },
+  "cholecystectomy__Bj13QcLRCVc__gt_0001s2": {
+   "depth_sha256": "6ff0df0eb8158f93d8857c62b13edffffb06f3e99017cd77f9050b49b6cb5f4c",
+   "intrinsics_sha256": "50fc32b747375f96cd93dfccea9e21d6e18d0083d2d9a861d9ff5fc5bdbd8f9b",
+   "n_frames": 27,
+   "shape": [
+    27,
+    280,
+    504
+   ]
+  },
+  "cholecystectomy__Bj13QcLRCVc__gt_0001s3": {
+   "depth_sha256": "7a91f82e02514aaa1aaca74e5d9977407149480032c77500304c8881bcc2eeb7",
+   "intrinsics_sha256": "b7557cd0a5f100a5c06c3e3d462dba56ac4ee2687c311e3f595ffabbea93d928",
+   "n_frames": 27,
+   "shape": [
+    27,
+    280,
+    504
+   ]
+  },
+  "cholecystectomy__Bj13QcLRCVc__gt_0001s4": {
+   "depth_sha256": "c8952149fe1b6d41a10ff80e9337f9e5441372883ac763ff14926b8aa11922a7",
+   "intrinsics_sha256": "7eef6894af7151747c7a5940e6814eb98650abe0e190d37dcbff2d69e64f79cb",
+   "n_frames": 12,
+   "shape": [
+    12,
     280,
     504
    ]
   },
   "cholecystectomy__Bj13QcLRCVc__gt_0002": {
-   "depth_sha256": "a90767c4c1b87dd4e14a3c09f49ee4a5d171c2eabefcfbf79de28d0181632970",
-   "intrinsics_sha256": "73a2403230083b40a4b1e2db9c836d06522734b6f592263e0667e9246697436b",
-   "n_frames": 11,
+   "depth_sha256": "c3d5529f6543688144e66366bd31175387021e2fd9b6c6a442755da6587a60ab",
+   "intrinsics_sha256": "3d1cb75f1993c5befc790281583d8ea1f6ae672354d3dd92f20e8f93d64d60d3",
+   "n_frames": 8,
    "shape": [
-    11,
+    8,
     280,
     504
    ]
@@ -470,12 +570,22 @@
     504
    ]
   },
-  "cholecystectomy__EKQDBj7u0-c__gt_0001": {
-   "depth_sha256": "393a64987e8de2df3edc46811486e82be8880ba893bade901ac76bb85416383d",
-   "intrinsics_sha256": "e3444084c71a898aa5e03f8aeb0b04836c1f7e0285b01ea052d042cb9f1bf8d2",
-   "n_frames": 23,
+  "cholecystectomy__EKQDBj7u0-c__gt_0001s1": {
+   "depth_sha256": "40a039f5a418ed0a84dbb3ba6843d5f850e7995ceb549e81826741729a1ef83a",
+   "intrinsics_sha256": "abd7cd54a493fcaf41bfd0db22d3e1e35560764c53c49e44972d558d1bdf0a44",
+   "n_frames": 16,
    "shape": [
-    23,
+    16,
+    490,
+    504
+   ]
+  },
+  "cholecystectomy__EKQDBj7u0-c__gt_0001s2": {
+   "depth_sha256": "f7c3eeb87cd31d239f0718ec1bf6edc2270a1cc012c6d910f2ffcc0c3992ab9a",
+   "intrinsics_sha256": "2c47ae421228d9d02dc51bcd34218861a3addd21a4dd938eab4070fb2d52a5d8",
+   "n_frames": 8,
+   "shape": [
+    8,
     490,
     504
    ]
@@ -571,8 +681,8 @@
    ]
   },
   "cholecystectomy__JedzslyadF8__gt_0001": {
-   "depth_sha256": "3faac3ee7903625e32d535d1db37c7a281a51e06ca81b45b601922843138c4e6",
-   "intrinsics_sha256": "fa1569f26898cb3aeb281117dede79a81c4803c1a14006d6f064edeacdbcafa2",
+   "depth_sha256": "864e96ad929dba3336309ca79bb73e2c04defaec6460c928f4c3f45efc606d31",
+   "intrinsics_sha256": "ba0b8748740d388a1d9e9fe8a3802e1959bd6015b116fb7f24a8b3a6291b170f",
    "n_frames": 23,
    "shape": [
     23,
@@ -596,16 +706,6 @@
    "n_frames": 14,
    "shape": [
     14,
-    266,
-    504
-   ]
-  },
-  "cholecystectomy__JedzslyadF8__gt_0004": {
-   "depth_sha256": "abb97449b0442c3d20a788069fc8729190cbe070fe13491f48fcdf0bf2a61134",
-   "intrinsics_sha256": "ab2f31b2eac1b5e7e32cdfba5b405d2998244ab63d22666bd7984554f6a594c6",
-   "n_frames": 10,
-   "shape": [
-    10,
     266,
     504
    ]
@@ -641,31 +741,71 @@
    ]
   },
   "cholecystectomy__N9VnLoUpEgw__gt_0001": {
-   "depth_sha256": "2d2ec83bb8515e404addf62bd1a0e9fc93aae7677a28cf452679921247cc2176",
-   "intrinsics_sha256": "b7b1fbd7540a59f8c2a682649a80440b258fce7d6cd504b24583491f0391ada0",
-   "n_frames": 17,
+   "depth_sha256": "38bf2a08cc980de820c4884ebd39ad1b4c49370db6fdbc54d05da899bd385d84",
+   "intrinsics_sha256": "e6a859853a747b4d36b9f3213096d3cc68d513f9dce983cfbbca3ccec4989065",
+   "n_frames": 12,
    "shape": [
-    17,
+    12,
     280,
     504
    ]
   },
-  "cholecystectomy__N9VnLoUpEgw__gt_0003": {
-   "depth_sha256": "af0a6857c0667a0b6e3967a2e888690874eafb03eaec5acf89572e9a5a11029d",
-   "intrinsics_sha256": "817ee94c477a8a42899a1c1b2b1db5d45f57b2cb909dc1c68c86317eaf8fa626",
-   "n_frames": 32,
+  "cholecystectomy__N9VnLoUpEgw__gt_0003s1": {
+   "depth_sha256": "44565c3b213577fa8a52f9385a752bd7abca25cefc3cb2e1a47af5c15394c490",
+   "intrinsics_sha256": "b2a1b46c164ded18cc6b16aeec48b1615150b2c733ea2fb28cee7df288eb99f6",
+   "n_frames": 8,
    "shape": [
-    32,
+    8,
     280,
     504
    ]
   },
-  "cholecystectomy__Va3QomCEaTE__gt_0001": {
-   "depth_sha256": "e01d37c11be56546d06d2d1ee6ab2a7d6a7ce73d9bc4a69a5d1b4452a4ac75d0",
-   "intrinsics_sha256": "bb4209291e847aafaba43b7761bc281713d7b62d329db29bd0d34177f194e3fe",
-   "n_frames": 67,
+  "cholecystectomy__N9VnLoUpEgw__gt_0003s2": {
+   "depth_sha256": "14d965ad626dfe693f8297d9d19f2ef6f7f793fad3a976c803cdc7758a5e0751",
+   "intrinsics_sha256": "8bcef6f55885f32fe81228152b8651aca0a992119e9abd71ff6fce711dcd835b",
+   "n_frames": 23,
    "shape": [
-    67,
+    23,
+    280,
+    504
+   ]
+  },
+  "cholecystectomy__Va3QomCEaTE__gt_0001s1": {
+   "depth_sha256": "d50e796c1721deee68fd78aac687552c318e2f2090a7a9005d2b4aa03e402b6c",
+   "intrinsics_sha256": "d42f7a61c1e28b1896c601627e338277548ed8db5c8ad44b9a43cd4a0f2ce487",
+   "n_frames": 12,
+   "shape": [
+    12,
+    378,
+    504
+   ]
+  },
+  "cholecystectomy__Va3QomCEaTE__gt_0001s2": {
+   "depth_sha256": "841ca1b1b8540f5ab922ff9642b72ef40c052b8daac29b92f87e3a5875c134b1",
+   "intrinsics_sha256": "4f858177f5e06f89bb572f5691fa5d35494b2682dfcaf1cd6e032c4c80036e65",
+   "n_frames": 14,
+   "shape": [
+    14,
+    378,
+    504
+   ]
+  },
+  "cholecystectomy__Va3QomCEaTE__gt_0001s3": {
+   "depth_sha256": "0214c643b45fcf92a32d01bc0fba1e7b2e9fffb86ed5ccbac7fbffb499ef74a4",
+   "intrinsics_sha256": "459890f9c72a897e98d7926347bc2fafff290ccba6fcbe1b9d67623c45f4f4ac",
+   "n_frames": 28,
+   "shape": [
+    28,
+    378,
+    504
+   ]
+  },
+  "cholecystectomy__Va3QomCEaTE__gt_0001s4": {
+   "depth_sha256": "19b92a4373df99a9796d16b6796ce9eca932d958c9c45ef4457ecd81f795d681",
+   "intrinsics_sha256": "778e558f84d7ca610b959435e2b64b649ad9f014ee3d36ddaaa7cd013e46d55c",
+   "n_frames": 14,
+   "shape": [
+    14,
     378,
     504
    ]
@@ -700,12 +840,22 @@
     504
    ]
   },
-  "cholecystectomy__fWucwHRt4UA__gt_0001": {
-   "depth_sha256": "e47fb564233acb081f6a9830f64d428d380d49b803188b219dfd79bd0288df0a",
-   "intrinsics_sha256": "9254dd3f182a78f2a1ef8ef4df7d0bf8617cb5c9af8456331ddb346021719546",
-   "n_frames": 36,
+  "cholecystectomy__fWucwHRt4UA__gt_0001s1": {
+   "depth_sha256": "3a6e6847b1b3139d184c6a19664c10ef86b9990ae54336d4b865604caa7bcf7e",
+   "intrinsics_sha256": "3f595323585c685d18ead419af7f0cc13bf8926ecfa246c829a34087aacb9533",
+   "n_frames": 10,
    "shape": [
-    36,
+    10,
+    392,
+    504
+   ]
+  },
+  "cholecystectomy__fWucwHRt4UA__gt_0001s2": {
+   "depth_sha256": "1f95959f6db780cf6e20370cdd110ad457ecc0b8a3106f34d186ffe9987a0b55",
+   "intrinsics_sha256": "4fe62d4b7b0419d14da73121e4440a0d0dafa9854ba4d8023131b093a60d947c",
+   "n_frames": 26,
+   "shape": [
+    26,
     392,
     504
    ]
@@ -730,22 +880,22 @@
     504
    ]
   },
-  "cholecystectomy__m0j9Us_4zR8__gt_0001": {
-   "depth_sha256": "4064409f92d336cebd26b3af8d2541b645830e99756663ef781c6c15698b6fbd",
-   "intrinsics_sha256": "a4ee871f036dc188a2bf96cfcc1c191ec084af82e0e3f701341bd8903adb8cf1",
-   "n_frames": 28,
+  "cholecystectomy__m0j9Us_4zR8__gt_0001s1": {
+   "depth_sha256": "d92e1808a88afe08674080db90998b9ab23f251441c25ac5319620627e4122ad",
+   "intrinsics_sha256": "2ed51ce70d0028c7dfe72cff727d4565ab69e457eaefeff34a8b0b981049d4e0",
+   "n_frames": 21,
    "shape": [
-    28,
+    21,
     266,
     504
    ]
   },
-  "cholecystectomy__m0j9Us_4zR8__gt_0003": {
-   "depth_sha256": "81dd67f127684ea390f9c8207f5e4568d0beaedbdc7dfdc9853b3ce286923347",
-   "intrinsics_sha256": "91a3b37eb5292523f5fffd22c19e4d49fa56410a9719ce7c60d6b3d0f1248c1c",
-   "n_frames": 15,
+  "cholecystectomy__m0j9Us_4zR8__gt_0001s2": {
+   "depth_sha256": "0614acafe790df8a71500debf639c1177069269109a1652463df1ea4ef13dc98",
+   "intrinsics_sha256": "e44f67bd9ade239a23c813a1a668cc34fd03ab8bb856446641823f93d4f0b0f9",
+   "n_frames": 8,
    "shape": [
-    15,
+    8,
     266,
     504
    ]
@@ -781,11 +931,11 @@
    ]
   },
   "cholecystectomy__oAz3BaHSsJc__gt_0002": {
-   "depth_sha256": "44ba0a18c56ae241e56ecfed86a3343243d9540fca224bb7b37ab12df42969e0",
-   "intrinsics_sha256": "bb99deb5e2d023f3b6710bfaecb3c0b2c964ae4d627f9b1ea9cbaf77b552cf5a",
-   "n_frames": 21,
+   "depth_sha256": "b8f00048e21fa7af48ac24d94f3100ef70826d6daa1cf80420171f29ef24e234",
+   "intrinsics_sha256": "e65b4ef300dac94c010e5fba63449b722ceb53f1211e84fa090ac1098ace2611",
+   "n_frames": 15,
    "shape": [
-    21,
+    15,
     280,
     504
    ]
@@ -850,22 +1000,52 @@
     476
    ]
   },
-  "cholecystectomy__xEps8nqblY0__gt_0001": {
-   "depth_sha256": "bb61b836e50873bc521c4c1ddd659d957d43d9ee62b98f11bce278eb5cd04542",
-   "intrinsics_sha256": "6d642c402680f104eeaefd902341d4634e547fd8a8aa3479e992501639d5a65a",
-   "n_frames": 97,
+  "cholecystectomy__xEps8nqblY0__gt_0001s1": {
+   "depth_sha256": "7c9d142179f862a93520db2e2bfc6900d04e50d1fbe869167cd99fdcf131a74e",
+   "intrinsics_sha256": "153c8944e01e86f88782eca58c4861fbcfd2152da3951897c55a8c8779fcf766",
+   "n_frames": 55,
    "shape": [
-    97,
+    55,
     266,
     504
    ]
   },
-  "cholecystectomy__xEps8nqblY0__gt_0002": {
-   "depth_sha256": "4b47318eb2e8df351edc943ed1cda2bb8a1a369eabbcb790f219c2fa7389bb80",
-   "intrinsics_sha256": "1e447359499030af116896f0982a2839d6f41e6c1f013df8dc510f08ed5b6730",
-   "n_frames": 30,
+  "cholecystectomy__xEps8nqblY0__gt_0001s2": {
+   "depth_sha256": "98c2420379822228faa97749db177b2bda596012931c9b15735dc74245d9d111",
+   "intrinsics_sha256": "6865b51cd110eb27411e6ea4980aad17640c4d2e5cc19a5edab673d89dec2867",
+   "n_frames": 26,
    "shape": [
-    30,
+    26,
+    266,
+    504
+   ]
+  },
+  "cholecystectomy__xEps8nqblY0__gt_0001s3": {
+   "depth_sha256": "ad6b513fd01a7636e84db508d73964f339415a2005baf50a3c880abb383100d0",
+   "intrinsics_sha256": "4d3cca86f873797c7e4cfddfe6aa2cb53ad0b335f1e55b32e0588cae5b8d2b4d",
+   "n_frames": 17,
+   "shape": [
+    17,
+    266,
+    504
+   ]
+  },
+  "cholecystectomy__xEps8nqblY0__gt_0002s1": {
+   "depth_sha256": "9bcae3cd98a8892e5c0858b669ef90f163711cf0e326ff5909ec9cface1523ee",
+   "intrinsics_sha256": "741ddddcc8cea416590417111b11dc723f816e9bfd542f80ed628b9f9509f093",
+   "n_frames": 12,
+   "shape": [
+    12,
+    266,
+    504
+   ]
+  },
+  "cholecystectomy__xEps8nqblY0__gt_0002s2": {
+   "depth_sha256": "77a032b108d99f72919674d259ec54a50649190eadeaf53d9aa584833641a4b4",
+   "intrinsics_sha256": "0d40f78452e53fd839660204bfd28b1da33653f3be9a51456351eb6965397752",
+   "n_frames": 19,
+   "shape": [
+    19,
     266,
     504
    ]
@@ -1790,12 +1970,32 @@
     504
    ]
   },
-  "hemicolectomy__5YDMlxTl0k8__gt_0024": {
-   "depth_sha256": "3555567bbe211cf1f9e9370d87be42dbb874ae0831c7db954d791e075308de7f",
-   "intrinsics_sha256": "785688681d9f68f89746dd3326f82f8830b88ac6009078cb04595c40723c93ef",
-   "n_frames": 45,
+  "hemicolectomy__5YDMlxTl0k8__gt_0024s1": {
+   "depth_sha256": "d77c843ad7b27dfd65c9225e287f475eb9b862a2a0066eadde63f51c6763c485",
+   "intrinsics_sha256": "a860089b93ee9be59c63a15a1cc4eef86b56a129ebf1f384704b9b19de31da62",
+   "n_frames": 18,
    "shape": [
-    45,
+    18,
+    476,
+    504
+   ]
+  },
+  "hemicolectomy__5YDMlxTl0k8__gt_0024s2": {
+   "depth_sha256": "ce47e3f49f6f49e8785c10d52345414f15d5089212b34a1c68491d9c8cd29eea",
+   "intrinsics_sha256": "81217dd114e8471c070e3b0fc1e94328a331c30249e9a23f53e73e7adbde12bb",
+   "n_frames": 21,
+   "shape": [
+    21,
+    476,
+    504
+   ]
+  },
+  "hemicolectomy__5YDMlxTl0k8__gt_0024s3": {
+   "depth_sha256": "ce7e6cefb14df4896c295aa1ed2587c1dfd54c003f0d59db393d772105676a2d",
+   "intrinsics_sha256": "8055b58cde9f2ae7c633080a0a766ac91113fe420138638d66721058fe8b3d68",
+   "n_frames": 8,
+   "shape": [
+    8,
     476,
     504
    ]
@@ -1806,16 +2006,6 @@
    "n_frames": 11,
    "shape": [
     11,
-    476,
-    504
-   ]
-  },
-  "hemicolectomy__5YDMlxTl0k8__gt_0026": {
-   "depth_sha256": "02f8e4d22bda335683af94d39263256644ac947cd6902e7826a5447d93156233",
-   "intrinsics_sha256": "3768f94b0340256e8c3077ca3bb701d338a01bd14d30a1a3672d9375d87627c4",
-   "n_frames": 10,
-   "shape": [
-    10,
     476,
     504
    ]
@@ -1840,22 +2030,42 @@
     504
    ]
   },
-  "hemicolectomy__5YDMlxTl0k8__gt_0029": {
-   "depth_sha256": "9e96c168441ed441ce0a7fded699e05eaff5c9f12cbfc3a32f07f490608e5acd",
-   "intrinsics_sha256": "798f8d58fb7fdb880fd1440ea247ec1ce80157555236a7691d609388249ea3f9",
-   "n_frames": 56,
+  "hemicolectomy__5YDMlxTl0k8__gt_0029s1": {
+   "depth_sha256": "d7539bf68385c7e4bdf59293c6803671b2a671bd6dbb56989864aa0d060b1c42",
+   "intrinsics_sha256": "343119cf1f1a76d714b57b5a0bf37b0abf404b2974368d30d7260b4c8a65133a",
+   "n_frames": 10,
    "shape": [
-    56,
+    10,
+    476,
+    504
+   ]
+  },
+  "hemicolectomy__5YDMlxTl0k8__gt_0029s2": {
+   "depth_sha256": "d7c272e73f7e7b1a27ec356311c6c9d21f47c75c6e851c66530341cde979e817",
+   "intrinsics_sha256": "14eadcb8d438d0626590c5b19f0340a7e2745c0d2ecdeecbe7d4c8e619ea654e",
+   "n_frames": 10,
+   "shape": [
+    10,
+    476,
+    504
+   ]
+  },
+  "hemicolectomy__5YDMlxTl0k8__gt_0029s3": {
+   "depth_sha256": "5a33683de15020e5cb412404a33f53fcc25b812efb3a1de766d5e2f371028fe4",
+   "intrinsics_sha256": "7b459827b77612069cae35d74e93b30e447419c34749861673c072593aaf1e03",
+   "n_frames": 27,
+   "shape": [
+    27,
     476,
     504
    ]
   },
   "hemicolectomy__5YDMlxTl0k8__gt_0030": {
-   "depth_sha256": "326162c9ed8fa23f2e0c236e16aaf2b482ba437b81cf12d7a622b1bdbffdc12f",
-   "intrinsics_sha256": "6ef34ceeaa9d195a6e535395acd50494f676569c8a3dce431269bc02c79665d8",
-   "n_frames": 11,
+   "depth_sha256": "f66dab0f813cbd6277d681050c83441cbf7b6d0e9adb51f44a4b01a6bc32c495",
+   "intrinsics_sha256": "4f7a0dc37e1018304196d5728235ae39d390e4dc5721abb2453a4c19410a7b66",
+   "n_frames": 9,
    "shape": [
-    11,
+    9,
     476,
     504
    ]
@@ -1880,12 +2090,22 @@
     504
    ]
   },
-  "hemicolectomy__5YDMlxTl0k8__gt_0040": {
-   "depth_sha256": "86ecc221bd48d0755daf8c62e5903550d6d9169a3a2df4bf1c4b772f993a48bd",
-   "intrinsics_sha256": "c270b91228a4c7dafd12257fbe8bf3a88e38d2cedaf85f71674154216c6f1f72",
-   "n_frames": 31,
+  "hemicolectomy__5YDMlxTl0k8__gt_0040s1": {
+   "depth_sha256": "e2d42e9757935c96d53d7e6006ef1baa2b6a35c9a9b7aa636d9df50b8a078a0a",
+   "intrinsics_sha256": "c182b6ff9c7f808ddfaea83b02dddf744e6dfc31bef2c5c991f3b628528907da",
+   "n_frames": 15,
    "shape": [
-    31,
+    15,
+    476,
+    504
+   ]
+  },
+  "hemicolectomy__5YDMlxTl0k8__gt_0040s2": {
+   "depth_sha256": "15a7887b15e1fd7693aae73b92edcf34b88542494022800954fe78ef927aba05",
+   "intrinsics_sha256": "0bf4e94870d78ada59e3a03b70b9ef94c867843a18fa8aa4de288912856ddfe7",
+   "n_frames": 17,
+   "shape": [
+    17,
     476,
     504
    ]
@@ -1931,21 +2151,21 @@
    ]
   },
   "hemicolectomy__5YDMlxTl0k8__gt_0045": {
-   "depth_sha256": "7c675cdc6ff9a980a89498af006f5577fe2e40b1bd1800900d5030f9d499df4d",
-   "intrinsics_sha256": "2f179adc22d69d71f89fe9144df6d1366577f28d0ab54b0c3ffc075432ce8a80",
-   "n_frames": 10,
+   "depth_sha256": "cf0648cb4f2c2961903c0d2ed252bd6a7aa311f9960b499b1efdc89930760b8e",
+   "intrinsics_sha256": "10b58f88175d39f2596f8d284da7bf7005640e03c0f4a08a6467aaf2e2cff6d0",
+   "n_frames": 8,
    "shape": [
-    10,
+    8,
     476,
     504
    ]
   },
   "hemicolectomy__5YDMlxTl0k8__gt_0046": {
-   "depth_sha256": "d69d14b1dcd828f9a6a37b098111f6f40b688ec169566d59de3703dd964f7dd9",
-   "intrinsics_sha256": "1365b39e80299b4023349b1f562f3fa323262996c1f256d86bc5a07d5e0c7237",
-   "n_frames": 22,
+   "depth_sha256": "89f22f01d3edfa088207b6c32992838b45e53a0620fe4602d41958c96b7abbb8",
+   "intrinsics_sha256": "0c2c734d13630bcaeb89284bf7688519a6e6138ffe2fb590d77376b33affb02d",
+   "n_frames": 20,
    "shape": [
-    22,
+    20,
     476,
     504
    ]
@@ -1961,41 +2181,61 @@
    ]
   },
   "hemicolectomy__5YDMlxTl0k8__gt_0049": {
-   "depth_sha256": "4eebbf5d71581ea32637fbf5e3c32bbce9cc2b5c08a8c74ef65dd8390e0c87b7",
-   "intrinsics_sha256": "27ae0967f571da4216f68e8acee2b90fc086763c318bc9a9a6f454d73c5b42e6",
-   "n_frames": 18,
+   "depth_sha256": "17ae4a737599d7f4a66d85f8fe0c9ab06f835fe4b9772b063c5e993153ce4dab",
+   "intrinsics_sha256": "4c30a43321b23c5f877f2413134033868d2d9a3077dd0245ca0808c1df904956",
+   "n_frames": 11,
    "shape": [
-    18,
+    11,
     476,
     504
    ]
   },
-  "hemicolectomy__5YDMlxTl0k8__gt_0051": {
-   "depth_sha256": "72bdfd59567ddf946307bf2c6ba332e467f7e1a0805841c79563e2f8a7ec94dd",
-   "intrinsics_sha256": "f9049f265df64699864d52cd4213f931d515fa40dd4f07b7b032cfa812124cc2",
-   "n_frames": 36,
+  "hemicolectomy__5YDMlxTl0k8__gt_0051s1": {
+   "depth_sha256": "4598de3704f3d05768ad60a56fbf30799e170808073feb36e846c6744bcd1d9b",
+   "intrinsics_sha256": "ff04d544f5eca4f7f8d9a2b01ae242d10f919c46bc22d3a3524dff3bcbc1521f",
+   "n_frames": 10,
    "shape": [
-    36,
+    10,
+    476,
+    504
+   ]
+  },
+  "hemicolectomy__5YDMlxTl0k8__gt_0051s2": {
+   "depth_sha256": "ab36b6687a58fbebf9abe9aed76434c475abb8d6c41cfa3a54fefb30cebd5e4f",
+   "intrinsics_sha256": "2a0ae50144b92e817631c13247437a6daf38d59c526d71cbc697c696852aaf5c",
+   "n_frames": 8,
+   "shape": [
+    8,
+    476,
+    504
+   ]
+  },
+  "hemicolectomy__5YDMlxTl0k8__gt_0051s3": {
+   "depth_sha256": "c0c57534eaedd3598a502972850e39b2b4162c5a406801a1b1c38eb9aebc58c5",
+   "intrinsics_sha256": "e2250066a039dfba556e00caabfb2d22765ab05bbf85027fea620ac32981080f",
+   "n_frames": 17,
+   "shape": [
+    17,
     476,
     504
    ]
   },
   "hemicolectomy__5YDMlxTl0k8__gt_0055": {
-   "depth_sha256": "310942a2ab2eb0e941603ad0f56d197b0d9213e9cdbb3620e83fa030fcc63422",
-   "intrinsics_sha256": "7a0175a0ca25aa8239ce26a3d5a140412b2e259d82b4e633b80895ad74e866e4",
-   "n_frames": 22,
+   "depth_sha256": "15bf793ae1af4e92d032a50da4281304fb6e43827c98e926a772fee52cb8bc51",
+   "intrinsics_sha256": "01e2b477027d87b1edd085a05b03ddba254f665a1552c0bdd0b6149bda9f2882",
+   "n_frames": 10,
    "shape": [
-    22,
+    10,
     476,
     504
    ]
   },
   "hemicolectomy__5YDMlxTl0k8__gt_0058": {
-   "depth_sha256": "300c979d5afc28a578a5d1ac90ca1a9a216d9064a6a9d5c1bd575887d10d147b",
-   "intrinsics_sha256": "5cb5ca6e09d3dcb651993f7eaaaee3c426cbb79d17f04a2d67535caad82760c1",
-   "n_frames": 11,
+   "depth_sha256": "d562f78ad3ef34084764e8f53358fab67ecb56c89baef08e6f0a24e457430605",
+   "intrinsics_sha256": "79e748b8d48e9e197b21d02b4823f04d08531a233f512708153dd47698ce8be6",
+   "n_frames": 9,
    "shape": [
-    11,
+    9,
     476,
     504
    ]
@@ -2021,11 +2261,11 @@
    ]
   },
   "hemicolectomy__6qb-oFqRjbE__gt_0001": {
-   "depth_sha256": "16c094dd49e7b9dffc1670c948ac2a124a72ef819f7d77f2c451d01044c7ab0c",
-   "intrinsics_sha256": "b3386bdcb3de8a4686fd6f38780b85c581b036c590a094d9add89171c874626d",
-   "n_frames": 18,
+   "depth_sha256": "5ed59cc9e6c4f7e0df0d7c3e5df76816dd662b80daa4b1b3be73208288c41ed5",
+   "intrinsics_sha256": "32ed33c5cd5cda234e32d4f4e494f289a6163664697149d7df7c50265a93d055",
+   "n_frames": 12,
    "shape": [
-    18,
+    12,
     280,
     504
    ]
@@ -2041,11 +2281,11 @@
    ]
   },
   "hemicolectomy__6qb-oFqRjbE__gt_0004": {
-   "depth_sha256": "657d292fa61ebb0724e125201fef426a1cc5519fbcbc4130a0c321ef5d04654c",
-   "intrinsics_sha256": "e53b2208a775109e209cecaa5a66d06bfeec8d06cb89f8b7a158560a093fbee0",
-   "n_frames": 33,
+   "depth_sha256": "be39ab69afe5af141b7ae6d90d5384f7bde37786693adc381fba7ca842b77e5a",
+   "intrinsics_sha256": "0fe7a60f3461d820dbba0e19c7e84652cb63284ac786867a88b68f7aada4dac9",
+   "n_frames": 31,
    "shape": [
-    33,
+    31,
     280,
     504
    ]
@@ -2071,11 +2311,11 @@
    ]
   },
   "hemicolectomy__6qb-oFqRjbE__gt_0007": {
-   "depth_sha256": "a027e455808253bc11b33eacf22fb330e599027ba48f76d8890f162a74cd0ec5",
-   "intrinsics_sha256": "1477f465a0194ab62ebb4ba831aaddc2898f7d520bb310f6c43ab99d2f38976f",
-   "n_frames": 24,
+   "depth_sha256": "6f4bf8ad46b50425b1b0178bb78202240c1391543141ebf7df4afe0db6ebdb6b",
+   "intrinsics_sha256": "14a9b679253bb431c15e89abb6c4864b1395d73f97b5634a980c3d6ce5b33907",
+   "n_frames": 21,
    "shape": [
-    24,
+    21,
     280,
     504
    ]
@@ -2120,16 +2360,6 @@
     504
    ]
   },
-  "hemicolectomy__6qb-oFqRjbE__gt_0019": {
-   "depth_sha256": "4e3a7444b44b9efc929429166d1f5f4f99cdae1630f5df2dfdf64d153570dc65",
-   "intrinsics_sha256": "7a6dd122a0cfee651708f6640f0ed563b8e63f439b9f05873847f33406f6ee2b",
-   "n_frames": 8,
-   "shape": [
-    8,
-    280,
-    504
-   ]
-  },
   "hemicolectomy__6qb-oFqRjbE__gt_0021": {
    "depth_sha256": "ef0624fff453b82df603d24b07ff6ce2ce6ff0a36833c2ada6de6e44c4cac010",
    "intrinsics_sha256": "1373c57c9d38c2835750770c1dda7cd201d22e3d9435f75cc5b98d75bcac66e9",
@@ -2141,11 +2371,11 @@
    ]
   },
   "hemicolectomy__6qb-oFqRjbE__gt_0022": {
-   "depth_sha256": "eb8eda9a0360c4050acabb26ceed9f936074921c99e6e04fb6d67f70778d496f",
-   "intrinsics_sha256": "ac7cfac5f1486c7ddc0565e46986a4d5722fe5a05a1c083228e5ec9bfd1f4964",
-   "n_frames": 16,
+   "depth_sha256": "48d85fdbbf7d66bc3b26b68f9cacbcdc994a91ac74f3d34e005c4bf08e194260",
+   "intrinsics_sha256": "6961582a2f1e9de08db69e4e4ab23291bf4ad3b171c0b9402902196cd69b081d",
+   "n_frames": 11,
    "shape": [
-    16,
+    11,
     280,
     504
    ]
@@ -2161,11 +2391,11 @@
    ]
   },
   "hemicolectomy__6qb-oFqRjbE__gt_0025": {
-   "depth_sha256": "f7c1aafee694af6f321ca98e4bc5ffccd24066ca99895783ab113ee0878cba91",
-   "intrinsics_sha256": "ad92e26b9d7ee2453f0f115a4085b3f14189bea0deaa7cc45f25e2ff7901a970",
-   "n_frames": 13,
+   "depth_sha256": "fa77902225ea982805ffec4225215d8554ca5ed2ea36748e4ed3190c7d7e7e99",
+   "intrinsics_sha256": "3b109fe721a4a154a2c64b046f1f790e6baa328277b646b3c4b86adf0f6d5a45",
+   "n_frames": 12,
    "shape": [
-    13,
+    12,
     280,
     504
    ]
@@ -2220,22 +2450,32 @@
     504
    ]
   },
-  "hemicolectomy__SbqubK1FX50__gt_0001": {
-   "depth_sha256": "c01989debf21702b29648d7d9c058351076f98693a65724d5039fe1d6946f459",
-   "intrinsics_sha256": "b0d7c04abe77cfa81055e38f1d7ea7dfa3152227df05ec08517ae7a8cab7c35a",
-   "n_frames": 9,
+  "hemicolectomy__SbqubK1FX50__gt_0002s1": {
+   "depth_sha256": "f1c104bd0ba6414172a28f3823417fe01cda4227e79dcfa579be29473a5ce176",
+   "intrinsics_sha256": "7b15d14452e30930249db6348c24844c24b27c67b5b3449b71f0c4521e4a7db3",
+   "n_frames": 14,
    "shape": [
-    9,
+    14,
     280,
     504
    ]
   },
-  "hemicolectomy__SbqubK1FX50__gt_0002": {
-   "depth_sha256": "5a2bc6bf7f2fc5c65ae3ba8ad256396b6f54c41921feaf5e6095796af2499020",
-   "intrinsics_sha256": "d2aad55fa296f7ce1a87cebbfe8d67f4cba5a7239d8ba23057396e6c6fe4e24e",
-   "n_frames": 35,
+  "hemicolectomy__SbqubK1FX50__gt_0002s2": {
+   "depth_sha256": "93c692e97053c3678d796b49443e792b6017c5a51fcc9c85dd0e60e483b8aa8d",
+   "intrinsics_sha256": "34961d7576c5e9c58d1caa0c25b9b65c6eb0a0531f9ceb1aae032cd56123b1a4",
+   "n_frames": 14,
    "shape": [
-    35,
+    14,
+    280,
+    504
+   ]
+  },
+  "hemicolectomy__SbqubK1FX50__gt_0002s3": {
+   "depth_sha256": "1da41f94b4010bf4af1991795663e2dd75b4b08c63ed9e093be252f6a4e1b177",
+   "intrinsics_sha256": "318aee1603030a9284d7884e301da94cb650c5e635c9fd896d2a6f89c21cf7a2",
+   "n_frames": 8,
+   "shape": [
+    8,
     280,
     504
    ]
@@ -2247,16 +2487,6 @@
    "shape": [
     10,
     406,
-    504
-   ]
-  },
-  "hemicolectomy__SbqubK1FX50__gt_0008": {
-   "depth_sha256": "1e43dbdd9c82f949249646dc2563e87f7d00699571753caafbca62cd72b87aa9",
-   "intrinsics_sha256": "5e87e601a810f532ce9118eb183a8ac1083ac54cc3f2955a58021af9723edcdb",
-   "n_frames": 8,
-   "shape": [
-    8,
-    280,
     504
    ]
   },
@@ -2901,11 +3131,11 @@
    ]
   },
   "sigmoidcolectomy__4gmGWvP-XwU__gt_0011": {
-   "depth_sha256": "340fc1475aaf0ddf26fd9864db258c0f21a0a801d7b062968e5cbc570365e99e",
-   "intrinsics_sha256": "88c5471ad77b60bf733d321ce1241c50390a86f4dbd0ce2f42b71228a22c0640",
-   "n_frames": 14,
+   "depth_sha256": "5519b761a09d66d8f17576002d1f1463e537b9ce11340305554efa78f1d2f49b",
+   "intrinsics_sha256": "3388775541c8bef55605d135127be0a99a7d5b2799053b253d7d6b22b80c32d1",
+   "n_frames": 9,
    "shape": [
-    14,
+    9,
     308,
     504
    ]
@@ -2940,12 +3170,22 @@
     504
    ]
   },
-  "sigmoidcolectomy__S3S_3GDc3dA__gt_0001": {
-   "depth_sha256": "4bd3f80bc5c62cfa0c0ad4e664ea23cf359a2aedd8fe2b928acea925fa0472f4",
-   "intrinsics_sha256": "172683eacb0fd1962fc0c2069933324055a829ba9ce1c360f8296fc806ce6638",
-   "n_frames": 21,
+  "sigmoidcolectomy__S3S_3GDc3dA__gt_0001s1": {
+   "depth_sha256": "309ebb3a5e8f77b728f7178f0916631715ac1bc0d40dcc20de93149817c5f394",
+   "intrinsics_sha256": "ddcecc3a99f5254a3c0cde9e70b45570c69cdb91f78590176bc10d1bfe30c371",
+   "n_frames": 12,
    "shape": [
-    21,
+    12,
+    280,
+    504
+   ]
+  },
+  "sigmoidcolectomy__S3S_3GDc3dA__gt_0001s2": {
+   "depth_sha256": "2ecd99e65522232713e0ab58285471a3f12becf8aa22f8d015be94245482eaaa",
+   "intrinsics_sha256": "2bff6a668ba998a0658697e602e8eb78fe628fe577c31396693442619e456e81",
+   "n_frames": 10,
+   "shape": [
+    10,
     280,
     504
    ]
@@ -3151,6 +3391,6 @@
    ]
   }
  },
- "n_clips": 315,
- "n_frames": 7698
+ "n_clips": 339,
+ "n_frames": 7547
 }

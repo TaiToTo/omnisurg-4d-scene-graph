@@ -14,10 +14,17 @@ from pathlib import Path
 
 import pytest
 
-from surgical_core.atlas120k.cuts import COLUMNS, load_cuts
+from surgical_core.atlas120k.cuts import COLUMNS, load_cuts, whole_clip
 
 META = Path(__file__).resolve().parent.parent / "atlas120k_meta"
 CLIP = "proc__vid__gt_0001"
+# The clips whose every piece fell below eight frames when split at their
+# cuts, so that the population holds none of them.
+DROPPED_AT_CUTS = frozenset({
+    "cholecystectomy__JedzslyadF8__gt_0004", "cholecystectomy__m0j9Us_4zR8__gt_0003",
+    "hemicolectomy__5YDMlxTl0k8__gt_0026", "hemicolectomy__6qb-oFqRjbE__gt_0019",
+    "hemicolectomy__SbqubK1FX50__gt_0001", "hemicolectomy__SbqubK1FX50__gt_0008",
+})
 
 
 
@@ -30,9 +37,15 @@ def rows() -> list:
     return table
 
 
+def _whole_clips() -> set[str]:
+    """The clips of the population before the split: each clip, or the clip each piece came from."""
+    return {whole_clip(c) for c in (META / "clips.txt").read_text().split()}
+
+
 @pytest.fixture(scope="module")
 def order() -> dict:
-    return {clip: i for i, clip in enumerate((META / "clips.txt").read_text().split())}
+    # The table judged the clips before the split, the dropped ones included, in name order.
+    return {clip: i for i, clip in enumerate(sorted(_whole_clips() | DROPPED_AT_CUTS))}
 
 
 def test_every_row_is_a_candidate_inside_a_clip_of_the_population(rows, order):
@@ -123,7 +136,19 @@ def test_a_cut_listed_twice_is_refused(tmp_path):
 
 def test_the_committed_table_holds_72_cuts_in_39_clips():
     cuts = load_cuts(str(META / "cuts.csv"))
-    # The table names the clips before any is split; a split clip's name adds `s<j>`.
-    unsplit = {re.sub(r"s\d+$", "", c) for c in (META / "clips.txt").read_text().split()}
     assert sum(map(len, cuts.values())) == 72 and len(cuts) == 39
-    assert set(cuts) <= unsplit
+    assert set(cuts) <= _whole_clips() | DROPPED_AT_CUTS
+
+
+def test_each_dropped_clip_has_a_cut_and_left_the_population():
+    cuts = load_cuts(str(META / "cuts.csv"))
+    assert DROPPED_AT_CUTS <= set(cuts)
+    assert not DROPPED_AT_CUTS & _whole_clips()
+
+
+def test_whole_clip_names_the_clip_a_piece_came_from():
+    assert whole_clip("proc__vid__gt_0001") == "proc__vid__gt_0001"
+    assert whole_clip("proc__vid__gt_0001s2") == "proc__vid__gt_0001"
+    for name in ("proc__vid__clip_0001", "proc__vid__gt_0001s", "proc__vid__gt_0001x2"):
+        with pytest.raises(ValueError, match="not a clip of the population"):
+            whole_clip(name)

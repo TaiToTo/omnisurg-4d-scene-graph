@@ -93,7 +93,7 @@ python -m pipeline.extract_atlas120k --atlas-root /path/to/ATLAS --out /path/to/
 ```
 
 The stage cuts the annotated clips of ATLAS-120k videos from the release,
-the way the paper's 315 clips were cut. `--atlas-root` holds the release's
+the way the paper's 339 clips were cut. `--atlas-root` holds the release's
 `atlas120k/` and the videos' `raw_data/`. For each clip of a video's
 `clip_index.json`, the stage splits the clip into runs of consecutive
 annotated frames and ends a run at each cut of `atlas120k_meta/cuts.csv`

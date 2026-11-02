@@ -1,14 +1,14 @@
-"""Read the cuts judged inside the ATLAS-120k clips, `atlas120k_meta/cuts.csv`.
+"""Read the cuts judged inside the ATLAS-120k clips, `atlas120k_meta/cuts.csv`, and name a clip's pieces.
 
-A cut is a scene change inside a video's mp4. The table lists every judged
-candidate, one row each, and `load_cuts` returns the rows judged a cut: per
-clip, the mp4 frames after which its cuts fall; the frame after each,
-`cut_after`, starts the new scene. `load_cuts` refuses a table it cannot
+A cut is a scene change inside a video's mp4. `load_cuts` returns the rows
+judged a cut: per clip, the mp4 frames after which its cuts fall; the frame
+after each, `cut_after`, starts the new scene. It refuses a table it cannot
 read for certain: other columns, a judgement other than `yes` or `no`, a
 cut whose two frames are missing or not adjacent, a row that is not a cut
 yet names a cut's frames, a cut listed twice, and a clip name that is not a
-clip's. The extraction stage checks that each cut falls inside its clip,
-where the clip's frames are read.
+clip's. The extraction stage checks that each cut falls inside its clip.
+A clip split at its cuts gives pieces named `<clip>s<j>`; `whole_clip`
+returns the clip a piece came from.
 """
 
 import csv
@@ -20,6 +20,20 @@ COLUMNS = ("clip", "spot_first", "spot_last", "d_pix", "boundary_before", "bound
 
 # `<procedure>__<video>__gt_<n>`, the name of a clip of the population before any is split.
 CLIP_NAME = re.compile(r"[a-z_]+__[A-Za-z0-9_-]+__gt_\d{4}")
+# A clip of the population: a whole clip, or the `j`th piece of one split at its cuts.
+PIECE_NAME = re.compile(rf"({CLIP_NAME.pattern})(?:s\d+)?")
+
+
+def whole_clip(name: str) -> str:
+    """Return the clip before any split that the population clip `name` is, or is a piece of.
+
+    Raises:
+        ValueError: `name` is neither `<procedure>__<video>__gt_<n>` nor that name followed by `s<j>`.
+    """
+    m = PIECE_NAME.fullmatch(name)
+    if m is None:
+        raise ValueError(f"{name!r} is not a clip of the population, <procedure>__<video>__gt_<n>[s<j>]")
+    return m.group(1)
 
 
 def _frame(value: str, where: str, column: str) -> int:
