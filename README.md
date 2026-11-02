@@ -181,8 +181,9 @@ Construction and Validation.* Submitted to IPCAI 2027.
 - The viewer, a web page that steps through a clip's point clouds, regions
   and scene graphs.
 
-The scripts that turn the pipeline's outputs into the paper's tables are
-being released under `paper/ipcai2027/`. [`docs/porting.md`](docs/porting.md) says
+[`paper/ipcai2027/README.md`](paper/ipcai2027/README.md) lists each of
+the paper's numbers with the command that prints it from the pipeline's
+outputs. [`docs/porting.md`](docs/porting.md) says
 what each part was checked against.
 
 ## License
