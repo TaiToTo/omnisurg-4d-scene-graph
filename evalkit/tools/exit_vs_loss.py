@@ -1,16 +1,13 @@
 """Sort a tracked node's exit and enter events into left-view and lost-in-view, by its 3D position and the camera poses.
 
-A node is one seed region the tracker carries. Where its mask ends the
-tracker says it exited, and where a mask begins again, that it entered. The
-tool takes the node's last known 3D position, the mean of its centroids on
-the frames before the event, and projects it through the poses that follow:
-still inside the frustum is a loss, not an exit. The same test sorts the GT
-events where a dataset has GT on consecutive frames, and predicted events
-are matched to GT events within one sample frame. A still camera and
-shuffled poses repeat the test as controls. `--gt-tracks` gives the nodes
-and their GT masks as maps made outside the tool, for seeds that are not
-one GT object per class. The tool reads saved outputs only and refuses a
-clip whose regions are not the seed's.
+A node is one seed region the tracker carries. Where its mask ends the tracker
+says it exited, and where a mask begins again, that it entered. The tool
+projects the node's last known 3D position, the mean of its centroids before the
+event, through the poses that follow: still inside the frame is a loss, not an
+exit. The same test sorts the GT events where GT is on consecutive frames, and a
+predicted event matches a GT event within one sample frame. A still camera and
+shuffled poses repeat the test as controls. `--gt-tracks` gives nodes and GT
+masks made outside the tool. The tool refuses a clip whose regions are not the seed's.
 
 Usage:
     python -m evalkit.tools.exit_vs_loss --dataset cholecseg8k --clips LIST --data-root DIR --tracks-root DIR \\
