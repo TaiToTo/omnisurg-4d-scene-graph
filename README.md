@@ -2,9 +2,10 @@
 
 This repository turns a clip, a stretch of a video of minimally invasive
 surgery, into a **4D** (3D + time) scene graph. The pipeline places each
-frame in 3D, follows the regions of the first frame through time, and lists
-how the regions lie and move relative to each other. No model is trained;
-the pipeline combines existing ones. The repository accompanies the paper
+frame in 3D and follows the regions of the first frame through time. A
+frame's scene graph lists its regions and says where each lies from the
+others: right, above, in front, and so on. No model is trained; the
+pipeline combines existing ones. The repository accompanies the paper
 *Toward 4D Surgical Scene Understanding Beyond Cholecystectomy: An
 Assessment of 4D Scene Graph Construction and Validation*, submitted to
 IPCAI 2027.
@@ -14,7 +15,7 @@ IPCAI 2027.
 ## Contents
 
 - [From a clip to a scene graph](#from-a-clip-to-a-scene-graph): how a
-  graph is built, and how each part of it is scored
+  graph is built, and how each component of it is scored
 - [Where to start](#where-to-start): which page to read for what
 - [What is where](#what-is-where): the folders, by what they do
 - [Install](#install) and [Tests](#tests)
@@ -23,21 +24,20 @@ IPCAI 2027.
 
 ## From a clip to a scene graph
 
-![Fig. 2 of the paper. (a) How a graph is built: a clip; its depth and camera poses; the first frame's regions, here the reference masks, tracked through the clip; a graph per frame; and the graphs linked through time. (b) How each part is scored, without reprojection in the upper row and with it in the lower row. Geometry: depth against stereo depth and scans, and the camera path against kinematics and an optical tracker, on StereoMIS and D4D; reprojection consistency without ground truth. Nodes: tracking one class mask against the reference masks of ATLAS-120k and CholecSeg8k; reference masks reprojected 2.7 s later, by class group. Graph: the graph read as 2D, temporal, 3D and camera statements; exits told from tracking losses by projecting a node's last position with the camera poses.](docs/figures/paper_method.png)
+![Fig. 2 of the paper. (a) How a graph is built: a clip; its depth and camera poses; the first frame's regions, here the reference masks, tracked through the clip; a graph per frame; and the graphs linked through time, drawn with schematic grey cameras that are not the estimated path. (b) How each component is scored, without reprojection in the upper row and with it in the lower row. Geometry: depth against stereo depth and scans, and the camera path against kinematics and an optical tracker, on StereoMIS and D4D; reprojection consistency without ground truth. Nodes: tracking one class mask against the reference masks of ATLAS-120k and CholecSeg8k; reference masks reprojected 2.7 s later, by class group. Graph: the graph read as 2D, temporal, 3D and camera statements; exits told from tracking losses by projecting a node's last position with the camera poses.](docs/figures/paper_method.png)
 
-Each part of the graph is scored against the reference that exists for
-it; no dataset has a reference for a whole 4D graph.
+The figure is the paper's. Its panel (b) shows how the paper scores each
+component. Each component is scored against the reference that exists for
+it; no dataset has a reference for a whole 4D graph. Two of those scorers
+run in this repository:
 
-- Geometry: depth and camera paths against two porcine datasets, StereoMIS
-  and D4D. `trajectory_eval`, the camera trajectory scorer, compares the
-  camera's path with the true path.
-- Nodes: the tracked regions against the masks drawn by hand in
-  ATLAS-120k and CholecSeg8k. `evalkit`, the evaluator, compares them.
-- Graph: the 2D and temporal statements counted on the annotated masks,
-  and the exits a graph reports against the annotated disappearances.
+- `evalkit`, the evaluator, compares the tracked regions with the masks
+  drawn by hand, in ATLAS-120k and CholecSeg8k.
+- `trajectory_eval`, the camera trajectory scorer, compares the camera's
+  path with the true path, in StereoMIS and D4D.
 
-[What this release holds](#what-this-release-holds) lists the stages and
-scorers behind them.
+The figure's other measurements are not in this repository.
+[What this release holds](#what-this-release-holds) lists them.
 
 ## Where to start
 
@@ -71,13 +71,14 @@ scorers behind them.
 
 [`evalkit/README.md`](evalkit/README.md) says how the regions are scored.
 [`docs/pipeline.md`, "The StereoMIS camera trajectory scores"](docs/pipeline.md#the-stereomis-camera-trajectory-scores)
-says how the camera's path is scored.
+and ["The D4D camera trajectory scores"](docs/pipeline.md#the-d4d-camera-trajectory-scores)
+say how the camera's path is scored.
 
 | folder | what it holds |
 |---|---|
 | [`evalkit/`](evalkit/) | the evaluator, which scores the regions |
 | [`evalkit/tools/`](evalkit/tools/) | tools that read the scores or the regions: comparisons, tables, statistics |
-| [`trajectory_eval/`](trajectory_eval/) | the camera trajectory scorer, which scores the camera's path; its `tools/` run it on StereoMIS and read the scores |
+| [`trajectory_eval/`](trajectory_eval/) | the camera trajectory scorer, which scores the camera's path; its `tools/` run it on StereoMIS and D4D and read the scores |
 
 Each scorer records a hash of its own code with every score:
 `eval_code_sha` and `trajectory_code_sha`. Two scores are compared only
@@ -95,6 +96,7 @@ itself: no video, frame or point cloud.
 | [`atlas120k_meta/`](atlas120k_meta/) | ATLAS-120k: the clips measured, their crop rectangles and frame ratios |
 | [`cholecseg8k_meta/`](cholecseg8k_meta/) | CholecSeg8k: the clips measured and their crop rectangles |
 | [`d4d_meta/`](d4d_meta/) | D4D: the clips the census measures, and the sides the measurements score |
+| [`stereomis_meta/`](stereomis_meta/) | StereoMIS: the clips the camera trajectory result measures, and each frame's place in the video, ground truth row, time and tissue mask |
 
 ### Show and explain
 
@@ -167,6 +169,9 @@ Yasuto Tamura, Masakazu Iwamura and Koichi Kise. *Toward 4D Surgical Scene
 Understanding Beyond Cholecystectomy: An Assessment of 4D Scene Graph
 Construction and Validation.* Submitted to IPCAI 2027.
 
+Fig. 1 and Fig. 2 above are this paper's figures. The section numbers in
+Fig. 2 point into the submitted manuscript, which is under review.
+
 ## What this release holds
 
 - The pipeline's stages: the extraction of ATLAS-120k, CholecSeg8k,
@@ -181,10 +186,12 @@ Construction and Validation.* Submitted to IPCAI 2027.
 - The viewer, a web page that steps through a clip's point clouds, regions
   and scene graphs.
 
-[`paper/ipcai2027/README.md`](paper/ipcai2027/README.md) lists each of
-the paper's numbers with the command that prints it from the pipeline's
-outputs. [`docs/porting.md`](docs/porting.md) says
-what each part was checked against.
+This release leaves out parts the paper reports: the export stage, which
+builds the scene graphs the viewer reads; the depth scores; the
+reprojection measurements; the counts of a graph's statements; the exits
+told from tracking losses; and the paper's tables.
+[`docs/porting.md`](docs/porting.md) says what each part was checked
+against.
 
 ## License
 

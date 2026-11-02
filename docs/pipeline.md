@@ -35,7 +35,7 @@ a clip holds.
 | | [the experiment plan](#the-experiment-plan) | `pipeline.experiment_plan` | nothing: it checks the plan and prints commands |
 | | [the granularity conditions](#the-granularity-conditions) | `pipeline.per_frame`, `evalkit.tools.kmerge`, `pipeline.track` | conditions merged to K regions |
 | | [D4D: the seed regions of the frame nearest to each side's scan](#the-d4d-depth-and-seed-stages) | `pipeline.d4d_seed` | `--out`: the regions, `.npy`, and their record, `.json`, one pair per side |
-| 4 · the scene graphs | the export stage | — ([Status](../README.md#status)) | in `pc_vis/`: each track's regions and scene graph on each frame, and its graph through time; each frame's hierarchy between two tracks |
+| 4 · the scene graphs | the export stage | — ([What this release holds](../README.md#what-this-release-holds)) | in `pc_vis/`: each track's regions and scene graph on each frame, and its graph through time; each frame's hierarchy between two tracks |
 | 5 · the viewer | [the viewer bundle](#the-viewer-bundle-stage) | `pipeline.viewer_bundle` | `<out>/catalog.json`, `<out>/<clip>/` |
 
 The evaluator scores the labels of step 3, apart from the D4D seed
