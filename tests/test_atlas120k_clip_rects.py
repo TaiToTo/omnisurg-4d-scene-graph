@@ -13,6 +13,7 @@ from pathlib import Path
 import pytest
 
 from surgical_core.atlas120k.clip_rects import MIN_SIDE, load_clip_rects, rect_for
+from surgical_core.atlas120k.cuts import whole_clip
 
 META = Path(__file__).resolve().parent.parent / "atlas120k_meta"
 DEFAULT = (0, 0, 100, 100)
@@ -121,7 +122,7 @@ def test_every_measured_clip_has_a_confirmed_rectangle_in_the_committed_file():
     table = load_clip_rects(str(META / "crop_rects.json"))
     assert len(table) == 494
     for line in (META / "clips.txt").read_text(encoding="utf-8").split():
-        procedure, rest = line.split("__", 1)
+        procedure, rest = whole_clip(line).split("__", 1)
         video, n = rest.rsplit("__gt_", 1)
         _, source = rect_for(table, procedure, video, f"clip_{n}", DEFAULT)
         assert source == "confirmed", line

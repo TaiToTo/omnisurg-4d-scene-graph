@@ -8,14 +8,22 @@ video, frame or mask is here. Which clips a measurement reads is decided by
 
 ## The population
 
-`clips.txt` lists the **315 clips from 91 videos** the paper measures. The
-rule, fixed before the extraction ran: from the 97 videos with an mp4 and a
-clip index, split each clip into runs of consecutive annotated frames, take
-one frame every 0.52 s, and keep every run that still has at least 8. A clip
-with two kept runs would give two clips, `s1` and `s2`; none of the 315 is
-one. Of the 494 clips in the index, 167 were too short after thinning (six
-videos lost every clip), 10 have no mask, and 2 are duplicates of another
-clip. The 10 clips without a mask have none in the release either: their
+`clips.txt` lists the **339 clips from 91 videos** (7 547 frames) the paper
+measures. The rule, fixed before the extraction ran: from the 97 videos
+with an mp4 and a clip index, split each clip into runs of consecutive
+annotated frames, end a run also at each judged cut (below), take one
+frame every 0.52 s from each run's first frame, and keep every run that
+still has at least 8. The step is 0.50 to 0.54 s, as each video's frame
+rate allows. The counts, in two steps:
+
+- **Without the cuts.** Of the 494 clips in the index, 167 are too short
+  after thinning (six videos lose every clip), 10 have no mask, and 2 are
+  duplicates of another clip. That leaves 315 clips.
+- **At the cuts.** Of the 315, 276 hold no cut, 17 keep one piece under
+  their own name, 16 split into 46 pieces named `<clip>s1`, `<clip>s2`,
+  and so on, and 6 lose every piece under 8 frames. That gives 339.
+
+The 10 clips without a mask have none in the release either: their
 folders are missing from its file list (checked on 2026-10-12 against the
 release of 2026-06-30). Nothing is excluded on a score. Crop rectangles
 select nothing. `pipeline/extract_atlas120k.py` applies the rule.
@@ -65,10 +73,8 @@ Of the 433 judged candidates, 72 are cuts, in 39 clips; each falls between
 two frames of its clip. The recheck added three of them, all in
 `hemicolectomy/5YDMlxTl0k8` (`gt_0029` and `gt_0055`). They are small
 changes of scene, and they are listed as cuts like the others: every cut is
-treated the same. The extraction stage of this repository does not read
-`cuts.csv` yet, so `clips.txt` still holds the 39 clips whole. The paper's
-ATLAS-120k run of 2026-10-13 split each clip at its cuts. The change that
-brings that extraction stage also replaces `clips.txt`.
+treated the same. The extraction stage reads `cuts.csv` and ends a run at
+each cut.
 
 `videos/videos.json` is the inventory of the release's tree: all 100 videos
 and their 502 clips. An earlier extraction wrote it, so its `keep`,
@@ -100,21 +106,22 @@ whose ranges intersect, and checks the population against them.
 
 ## Files
 
-| file | what it is | from the workbench |
+| file | what it is | source |
 |---|---|---|
-| `clips.txt` | the population, one `<procedure>__<video>__gt_<n>` per line | `ipcai2027_experiment/frozen/atlas97_clips.txt` |
-| `depth_manifest.json` | per clip, sha256 of depth and intrinsics, frame count, shape | `ipcai2027_experiment/frozen/atlas97_depth_manifest.json` |
+| `clips.txt` | the population, one `<procedure>__<video>__gt_<n>` or `...s<j>` per line | the clips `pipeline/extract_atlas120k.py` writes; their names and frames are those of the workbench's replay of the split, `experiment/crop_necessity/simulate_cut_split.py` at commit `7ffa0774`. Before the split: the workbench's `ipcai2027_experiment/frozen/atlas97_clips.txt` |
+| `depth_manifest.json` | per clip, sha256 of the DA3 depth array's bytes and of the intrinsics as float64, frame count, shape | the depth the paper's measurements read, made by `pipeline/depth`; the 276 clips without a cut keep the entries of the workbench's `ipcai2027_experiment/frozen/atlas97_depth_manifest.json` byte for byte |
 | `crop_rects.json` | per clip, the rectangle to use (`rect`, in `src_size` pixels) and whether the automatic one was accepted (`verdict`); `rect_used` and `via` are history | `experiment/crop_necessity/verdicts/verdicts_latest.json` |
 | `cuts.csv` | per judged candidate inside the population: its clip, its spot and `d_pix`, the pair of adjacent frames judged, whether it is a cut, for a cut the pair it falls between, and whether it was rechecked; all frame numbers are the mp4's | `experiment/crop_necessity/cut_review_spot_targets.csv` |
 | `frame_ratio.json` | per video, the measured ratio between the clip index's frame numbers and the mp4's (1, 2, 3 or 4), with the frame pair it was matched on and their pixel difference; all 97 videos | `outputs/crop_cuts/_align2.json` |
 | `videos/videos.json` | the 100-video tree: per video its mp4, clips, frame counts, why any was dropped | `ipcai2027_experiment/task22_atlas100/out/manifest/videos.json` |
 
-Clip names: `<procedure>__<video>__gt_<n>` in `clips.txt` and
-`depth_manifest.json`, `<procedure>/<video>/clip_<n>` as `key` in
-`crop_rects.json`. `videos.json` gives `procedure`, `video` and `clip` as
-separate fields.
+Clip names: `<procedure>__<video>__gt_<n>`, or `...s<j>` for a piece, in
+`clips.txt` and `depth_manifest.json`; `<procedure>/<video>/clip_<n>` as
+`key` in `crop_rects.json`, where a piece takes its clip's rectangle.
+`videos.json` gives `procedure`, `video` and `clip` as separate fields.
 
-The files are byte copies of the workbench's, except that an absolute path
+`crop_rects.json`, `frame_ratio.json` and `videos/videos.json` are byte
+copies of the workbench's, except that an absolute path
 (`atlas_root` in `videos.json`) was removed and the eight `note` fields of
 `crop_rects.json` were translated from Japanese. Nothing reads the notes.
 `cuts.csv` is rewritten from the workbench's table, which is on its branch

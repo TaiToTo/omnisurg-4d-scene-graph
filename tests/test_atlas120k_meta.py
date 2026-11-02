@@ -18,6 +18,8 @@ from pathlib import Path
 
 import pytest
 
+from surgical_core.atlas120k.cuts import whole_clip
+
 META = Path(__file__).resolve().parent.parent / "atlas120k_meta"
 
 # Anything that looks like a filesystem path on a development machine.
@@ -30,7 +32,8 @@ CJK = re.compile(r"[぀-ヿ一-鿿！-｠]")
 # An e-mail address. None of the files should name a person.
 EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+")
 
-CLIP_NAME = re.compile(r"[a-z_]+__[A-Za-z0-9_-]{11}__gt_\d{4}")
+# A clip of the population, or the `j`th piece of one split at its cuts.
+CLIP_NAME = re.compile(r"[a-z_]+__[A-Za-z0-9_-]{11}__gt_\d{4}(s\d+)?")
 
 # The pairs of clips of one video whose `native_range`s intersect, with the
 # length of the intersection. Two clips share at most that many frames, fewer
@@ -64,12 +67,12 @@ def _clips(meta: Path) -> list[str]:
 
 
 def _key(clip: str) -> str:
-    """`<procedure>__<video>__gt_<n>` → `<procedure>/<video>/clip_<n>`.
+    """`<procedure>__<video>__gt_<n>`, or a piece `...s<j>` of it → `<procedure>/<video>/clip_<n>`.
 
     A video id may itself start with `_`, so the split is on the first `__`
     and then on `__gt_`, never on every `__`.
     """
-    procedure, rest = clip.split("__", 1)
+    procedure, rest = whole_clip(clip).split("__", 1)
     video, n = rest.rsplit("__gt_", 1)
     return f"{procedure}/{video}/clip_{n}"
 
@@ -122,8 +125,10 @@ def _intersections(ranges: dict[tuple[str, str], tuple[int, int]]) -> dict[tuple
 def _check_population_shares_no_frame(meta: Path) -> None:
     # A clip of the population is a run of frames inside one clip of the
     # release, so two whose release ranges are apart share no frame.
+    # The pieces of one clip share its range, and the split keeps them apart,
+    # so each clip of the release is checked once.
     ranges = _release_ranges(meta)
-    keys = [tuple(_key(clip).rsplit("/", 1)) for clip in _clips(meta)]
+    keys = sorted({tuple(_key(clip).rsplit("/", 1)) for clip in _clips(meta)})
     missing = [k for k in keys if k not in ranges]
     assert not missing, f"population clips with no range in videos/videos.json: {missing}"
     intersecting = _intersections({k: ranges[k] for k in keys})

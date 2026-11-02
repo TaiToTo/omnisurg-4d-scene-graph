@@ -3,8 +3,9 @@
 The release holds one video: a synthetic mp4 whose frames all look
 different, its JPEGs, and one clip for each outcome a clip of the index can
 have: kept, split at a gap, a duplicate, too short, without a mask
-directory, without masks. Each refusal has a test that plants its fault,
-and the command's own checks are run through `main`.
+directory, without masks. Cuts are planted where a test needs them. Each
+refusal has a test that plants its fault, and the command's own checks are
+run through `main`.
 """
 
 import json
@@ -17,8 +18,11 @@ import pytest
 from PIL import Image
 
 from evalkit.classes import load_table
-from pipeline.extract_atlas120k import check_population, extract_video, main, stride_for
+from pipeline.extract_atlas120k import (check_cuts_inside, check_population, extract_video, main, split_at_cuts,
+                                        stride_for)
+from pipeline.point_clouds import read_manifest
 from surgical_core.atlas120k.clip_rects import load_clip_rects
+from surgical_core.atlas120k.cuts import COLUMNS
 from surgical_core.atlas120k.frame_ratio import FrameRatios
 
 PROC, VID = "proc", "vid"
@@ -55,7 +59,8 @@ def _ids() -> np.ndarray:
 def release(tmp_path):
     """Write the release, the crop rectangles and the frame ratio; return what `extract_video` takes.
 
-    The tables are `crop_rects.json` and `frame_ratio.json` beside `out`, for the tests that run the command.
+    The tables are `crop_rects.json`, `frame_ratio.json` and a `cuts.csv` with no row beside `out`, for the
+    tests that run the command.
     """
     root = tmp_path / "ATLAS"
     (root / "raw_data" / PROC).mkdir(parents=True)
@@ -100,11 +105,12 @@ def release(tmp_path):
                                   "src_size": list(SIZE), "verdict": "ok"} for c in CLIPS]))
     ratios = tmp_path / "frame_ratio.json"
     ratios.write_text(json.dumps({"match_tol": 8.0, "videos": [{"procedure": PROC, "video": VID, "ratio": 1}]}))
+    (tmp_path / "cuts.csv").write_text(",".join(COLUMNS) + "\n")
     out = tmp_path / "out"
     out.mkdir()
     return dict(atlas_root=root, procedure=PROC, video=VID, out=out, rects=load_clip_rects(str(rects)),
                 ratios=FrameRatios.load(str(ratios)), table=table, step_sec=STEP, min_frames=MIN_FRAMES,
-                long_side=854, step_tol=0.2)
+                long_side=854, step_tol=0.2, cuts={})
 
 
 def _clip(out: Path, n: str) -> Path:
@@ -151,6 +157,8 @@ def test_frames_and_masks_are_cut_to_the_confirmed_rectangle(release):
     man = json.loads((clip / "frame_manifest.json").read_text())
     assert man["crop"] == dict(zip("xywh", RECT)) and man["out_size"] == [w, h]
     assert all(f["has_gt"] and f["is_anchor"] for f in man["frames"])
+    # The point cloud and Pi3X stages refuse a manifest whose `n_frames` is not its number of frames.
+    assert man["n_frames"] == 6 and read_manifest(clip, 6) == man
 
 
 def test_a_frame_is_resized_to_the_long_side(release):
@@ -252,6 +260,69 @@ def test_a_refusal_writes_and_removes_nothing(release):
     assert list(empty.iterdir()) == []
 
 
+def _natives(release, n: str) -> list[int]:
+    manifest = json.loads((_clip(release["out"], n) / "frame_manifest.json").read_text())
+    return [f["native_frame"] for f in manifest["frames"]]
+
+
+def test_a_run_is_split_between_the_two_frames_a_cut_falls_between():
+    run = list(range(10))
+    assert split_at_cuts([run], (4,), 1) == [run[:5], run[5:]]
+    # At ratio 2, index frame 4 is mp4 frame 8 and frame 5 is mp4 frame 10: a cut after 8 or 9 falls between them.
+    assert split_at_cuts([run], (8,), 2) == split_at_cuts([run], (9,), 2) == [run[:5], run[5:]]
+    assert split_at_cuts([run], (7,), 2) == [run[:4], run[4:]]
+    assert split_at_cuts([run], (8, 9), 2) == [run[:5], run[5:]]
+    # A cut in a gap, or outside the runs, splits nothing.
+    runs = [list(range(5)), list(range(10, 15))]
+    assert split_at_cuts(runs, (6, 20), 1) == runs
+
+
+def test_a_cut_outside_the_clip_it_is_listed_for_is_refused():
+    usable = list(range(10, 21))
+    check_cuts_inside("c", (10, 19), usable, 1)
+    check_cuts_inside("c", (39,), usable, 2)
+    for cut, ratio in ((9, 1), (20, 1), (40, 2)):
+        with pytest.raises(ValueError, match=rf"c: the cut\(s\) after mp4 frame\(s\) \[{cut}\] fall outside"):
+            check_cuts_inside("c", (cut,), usable, ratio)
+
+
+def test_each_piece_is_thinned_from_its_first_frame_and_a_short_one_dropped(release):
+    # gt_0001 holds frames 40 to 69. The cut after 51 leaves 40 to 51, thinned to 3 frames and dropped, and 52 to
+    # 69, thinned from 52. clip_0004 holds the same frames: a cut is the mp4's, so it is split too and is still
+    # the same run.
+    assert extract_video(**dict(release, cuts={f"{PROC}__{VID}__gt_0001": (51,)})) == WRITTEN
+    assert _natives(release, "0001") == [52, 57, 62, 67]
+    rows = {r["source_clip"]: r for r in _report(release)["clips"]}
+    assert (rows["clip_0001"]["n_cuts"], rows["clip_0001"]["n_segments"]) == (1, 2)
+    assert rows["clip_0004"]["n_cuts"] == 1 and rows["clip_0004"]["duplicate_of"] == [f"{PROC}__{VID}__gt_0001"]
+
+
+def test_a_cut_can_make_two_clips_of_one_run(release):
+    written = extract_video(**dict(release, min_frames=2, cuts={f"{PROC}__{VID}__gt_0001": (54,)}))
+    assert {f"{PROC}__{VID}__gt_0001s1", f"{PROC}__{VID}__gt_0001s2"} <= set(written)
+    assert (_natives(release, "0001s1"), _natives(release, "0001s2")) == ([40, 45, 50], [55, 60, 65])
+
+
+@pytest.mark.parametrize("cuts, match", [
+    ({f"{PROC}__{VID}__gt_0001": (75,)}, r"gt_0001: the cut\(s\) after mp4 frame\(s\) \[75\] fall outside"),
+    ({f"{PROC}__{VID}__gt_0006": (165,)}, r"have cuts listed but no frame to check them against"),
+    ({f"{PROC}__{VID}__gt_0099": (50,)}, r"have cuts listed but no frame to check them against"),
+])
+def test_a_cut_that_cannot_be_checked_against_its_clip_is_refused_before_writing(release, cuts, match):
+    with pytest.raises(ValueError, match=match):
+        extract_video(**dict(release, cuts=cuts))
+    assert list(release["out"].iterdir()) == []
+
+
+def test_the_command_splits_at_the_cuts_of_its_table(release, monkeypatch):
+    row = dict(clip=f"{PROC}__{VID}__gt_0001", spot_first="50", spot_last="55", d_pix="40.0", boundary_before="51",
+               boundary_after="52", cut="yes", cut_before="51", cut_after="52", rechecked="0")
+    with open(release["out"].parent / "cuts.csv", "a") as f:
+        f.write(",".join(row[c] for c in COLUMNS) + "\n")
+    run_main(monkeypatch, release)
+    assert _natives(release, "0001") == [52, 57, 62, 67]
+
+
 def test_clips_off_the_population_are_refused():
     names = [f"{PROC}__{VID}__gt_0001", f"{PROC}__{VID}__gt_0003s1"]
     population = names + ["other__vid__gt_0001"]
@@ -268,7 +339,7 @@ def run_main(monkeypatch, release, *args):
     monkeypatch.setattr(sys, "argv", [
         "pipeline.extract_atlas120k", "--atlas-root", str(release["atlas_root"]), "--out", str(release["out"]),
         "--clip-rects", str(root / "crop_rects.json"), "--frame-ratios", str(root / "frame_ratio.json"),
-        "--step-sec", str(STEP), "--min-frames", str(MIN_FRAMES), *args])
+        "--cuts", str(root / "cuts.csv"), "--step-sec", str(STEP), "--min-frames", str(MIN_FRAMES), *args])
     main()
 
 

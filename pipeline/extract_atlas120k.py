@@ -1,20 +1,21 @@
 """Extract the annotated clips of ATLAS-120k videos into the clip directories the pipeline reads.
 
 Each clip of a video's `clip_index.json` is split into runs of consecutive
-annotated frames, and each run is thinned to one frame every `--step-sec`
-seconds. A run left with at least `--min-frames` frames is written as
-`<procedure>__<video>__gt_<n>`, holding `input_images/`, `seg_masks/` and
-`frame_manifest.json`. The frames are the release's JPEGs, cut to the clip's
-confirmed rectangle and resized to `--long-side`; the masks hold the class id
-of each pixel. A run with the frames and rectangle of one already written is
-not written again. Each video gets `<procedure>__<video>__extract_report.json`,
-which says what became of every clip of its index. With `--population`, the
-clips to be written must be the population's clips of those videos.
+annotated frames, ended also at every cut of `--cuts`, and each run is
+thinned to one frame every `--step-sec` seconds. A run left with at least
+`--min-frames` frames is written as `<procedure>__<video>__gt_<n>`: the
+release's JPEGs cropped to the clip's confirmed rectangle and resized to
+`--long-side`, the class id of each pixel, and `frame_manifest.json`. A run
+with the frames and rectangle of one already written is not written again.
+`<procedure>__<video>__extract_report.json` says what became of every clip
+of a video's index. With `--population`, the clips to be written must be the
+population's clips of those videos.
 
 Usage:
     python -m pipeline.extract_atlas120k --atlas-root /path/to/ATLAS --out /path/to/clips \\
         --clip-rects atlas120k_meta/crop_rects.json --frame-ratios atlas120k_meta/frame_ratio.json \\
-        [--videos <procedure>/<video> ...] [--population atlas120k_meta/clips.txt] [--overwrite]
+        --cuts atlas120k_meta/cuts.csv [--videos <procedure>/<video> ...] [--population atlas120k_meta/clips.txt] \\
+        [--overwrite]
 """
 
 import argparse
@@ -22,6 +23,7 @@ import json
 import math
 import re
 import shutil
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -32,6 +34,7 @@ from PIL import Image
 from evalkit.classes import ClassTable, load_table
 from evalkit.evaluate import read_population
 from surgical_core.atlas120k.clip_rects import Rect, load_clip_rects
+from surgical_core.atlas120k.cuts import load_cuts
 from surgical_core.atlas120k.frame_ratio import MIN_NATIVE_FRAME, FrameRatios
 
 SPLITS = ("train", "val", "test")
@@ -118,6 +121,40 @@ def contiguous_runs(frames: list[int]) -> list[list[int]]:
     return runs
 
 
+def split_at_cuts(runs: list[list[int]], cuts: Sequence[int], ratio: int) -> list[list[int]]:
+    """Split runs of clip-index frames between the two frames each cut falls between.
+
+    Frame n of the clip index is frame n × `ratio` of the mp4, and a cut after mp4 frame c starts a new scene at
+    c + 1. So the cut falls between index frames n and n + 1 when n × ratio <= c < (n + 1) × ratio. After a cut,
+    a tracking condition's scores would measure the scene change, not the input.
+    """
+    out = []
+    for run in runs:
+        piece = [run[0]]
+        for a, b in zip(run, run[1:]):
+            if any(a * ratio <= c < b * ratio for c in cuts):
+                out.append(piece)
+                piece = []
+            piece.append(b)
+        out.append(piece)
+    return out
+
+
+def check_cuts_inside(name: str, cuts: Sequence[int], usable: list[int], ratio: int) -> None:
+    """Refuse a cut listed for a clip that does not fall between two of the clip's frames.
+
+    Such a cut splits nothing, so a wrong clip name or frame number in the table would go unseen.
+
+    Raises:
+        ValueError: a cut falls before the clip's first frame or after its last.
+    """
+    first, last = usable[0] * ratio, usable[-1] * ratio
+    outside = [c for c in cuts if not first <= c < last]
+    if outside:
+        raise ValueError(f"{name}: the cut(s) after mp4 frame(s) {outside} fall outside its frames, mp4 frames "
+                         f"{first} to {last}")
+
+
 def clip_number(name: str) -> int:
     """Return the number in a clip's name, `clip_0051` -> 51.
 
@@ -175,7 +212,7 @@ def write_frame(dst: Path, jpg: Path, rect: Rect, size: tuple[int, int]) -> None
 
 
 def write_mask(dst: Path, png: Path, rect: Rect, size: tuple[int, int], table: ClassTable) -> None:
-    """Read a mask as class ids, cut it to the rectangle, resize it with the nearest neighbour and write it.
+    """Read a mask as class ids, crop it to the rectangle, resize it with the nearest neighbour and write it.
 
     The release stores most masks as ids and some as colours, both within one video; the class table reads
     either, as the evaluator reads them. Nearest neighbour keeps every pixel a class the mask holds.
@@ -219,24 +256,34 @@ def existing_output(out: Path, procedure: str, video: str) -> list[Path]:
 
 
 def plan_clips(index: dict, gt_dir: Path, digits: int, stride: int, min_frames: int, rects: dict,
-               src_size: tuple[int, int], procedure: str, video: str) -> tuple[list[dict], list[KeptRun]]:
+               src_size: tuple[int, int], procedure: str, video: str, cuts: Mapping[str, Sequence[int]],
+               ratio: int) -> tuple[list[dict], list[KeptRun]]:
     """Decide what becomes of every clip of the index, and return the report's rows and the runs to write.
 
     Nothing is written here. Every check that needs no pixel is made here, so that a refusal leaves the output
-    directory as it was: the rectangle, the JPEG of the first frame, and the size of every frame and mask
-    that would be written.
+    directory as it was: the cuts, the rectangle, the JPEG of the first frame, and the size of every frame and
+    mask that would be written.
+
+    Args:
+        cuts: the video's cuts, per clip name, as `load_cuts` returns them. A cut is a scene change of the mp4,
+            so every clip of the video is split at every cut that falls inside it, listed for it or not.
+        ratio: the video's frame ratio: frame n of the clip index is frame n × `ratio` of the mp4.
 
     Raises:
         KeyError: a kept clip has no confirmed rectangle.
         RuntimeError: a kept clip has no JPEG for its first frame.
-        ValueError: a frame or mask to be written is not the mp4's size.
+        ValueError: a frame or mask to be written is not the mp4's size, or a cut listed for a clip does not
+            fall between two of its frames, or a clip with a listed cut leaves no frame.
     """
+    video_cuts = sorted({c for listed in cuts.values() for c in listed})
+    checked: set[str] = set()
     seen: dict[tuple, str] = {}
     rows, kept = [], []
     for clip in sorted(index["clips"]):
         n = clip_number(clip)
+        base = f"{procedure}__{video}__gt_{n:04d}"
         frames = sorted(int(x) for x in index["clips"][clip])
-        row = dict(source_clip=clip, index=n, n_index=len(frames), n_usable=0, n_segments=0, reason="",
+        row = dict(source_clip=clip, index=n, n_index=len(frames), n_usable=0, n_segments=0, n_cuts=0, reason="",
                    out_clips=[], n_picked=[], dropped_frames=0, duplicate_of=[])
         rows.append(row)
 
@@ -257,8 +304,15 @@ def plan_clips(index: dict, gt_dir: Path, digits: int, stride: int, min_frames: 
             row["reason"] = "no_masks"
             continue
 
-        # Thin each run of consecutive frames, and keep the runs long enough.
-        runs = contiguous_runs(usable)
+        # End a run of consecutive frames at a cut as well, after checking that each cut listed for the clip
+        # falls inside it.
+        check_cuts_inside(base, cuts.get(base, ()), usable, ratio)
+        checked.add(base)
+        gaps = contiguous_runs(usable)
+        runs = split_at_cuts(gaps, video_cuts, ratio)
+        row["n_cuts"] = len(runs) - len(gaps)
+
+        # Thin each run, and keep the runs long enough.
         row["n_segments"] = len(runs)
         keep = [(run, run[::stride]) for run in runs if len(run[::stride]) >= min_frames]
         row["dropped_frames"] = len(frames) - sum(len(run) for run, _ in keep)
@@ -272,7 +326,7 @@ def plan_clips(index: dict, gt_dir: Path, digits: int, stride: int, min_frames: 
         if rect is None:
             raise KeyError(f"{procedure}/{video}/{clip} has no confirmed crop rectangle")
         for j, (_, picked) in enumerate(keep, start=1):
-            name = f"{procedure}__{video}__gt_{n:04d}" + (f"s{j}" if len(keep) > 1 else "")
+            name = base + (f"s{j}" if len(keep) > 1 else "")
             key = (tuple(picked), tuple(rect))
             if key in seen:
                 row["duplicate_of"].append(seen[key])
@@ -289,13 +343,22 @@ def plan_clips(index: dict, gt_dir: Path, digits: int, stride: int, min_frames: 
             kept.append(KeptRun(name, clip, tuple(picked), j, len(keep), rect, mask_dir, img_dir))
         if row["duplicate_of"] and not row["out_clips"]:
             row["reason"] = "duplicate"
+
+    # A clip with a listed cut that left no frame was never checked against its cuts.
+    unchecked = sorted(set(cuts) - checked)
+    if unchecked:
+        raise ValueError(f"{procedure}/{video}: the clip(s) {unchecked} have cuts listed but no frame to check "
+                         "them against")
     return rows, kept
 
 
 def extract_video(atlas_root: Path, procedure: str, video: str, out: Path, rects: dict, ratios: FrameRatios,
                   table: ClassTable, step_sec: float, min_frames: int, long_side: int, step_tol: float,
-                  overwrite: bool = False, population: list[str] | None = None) -> list[str]:
+                  cuts: Mapping[str, Sequence[int]], overwrite: bool = False,
+                  population: list[str] | None = None) -> list[str]:
     """Extract one video's clips, write its report and return the names of the clips written.
+
+    `cuts` holds the cuts of every clip, as `load_cuts` returns them; the video's are read from it.
 
     With `population`, the clips to be written must be the population's clips of the video. Every check below
     is made before anything is written or removed, apart from those made while a clip is written: a mask whose
@@ -305,8 +368,8 @@ def extract_video(atlas_root: Path, procedure: str, video: str, out: Path, rects
         FileNotFoundError: the release has no such video or no mp4 of it.
         KeyError: the video's frame ratio was not measured, or a kept clip has no confirmed rectangle.
         ValueError: the video already has output and `overwrite` is false, the step falls more than `step_tol`
-            off `step_sec`, a frame or mask to be written is not the mp4's size, or the clips to be written are
-            not the population's clips of the video.
+            off `step_sec`, a frame or mask to be written is not the mp4's size, a cut listed for a clip does
+            not fall inside it, or the clips to be written are not the population's clips of the video.
         RuntimeError: a kept clip has no JPEG for its first frame, the frame ratio fails its check, or OpenCV fails
             to read or write a frame.
     """
@@ -334,7 +397,10 @@ def extract_video(atlas_root: Path, procedure: str, video: str, out: Path, rects
     print(f"  {src_size[0]}x{src_size[1]}, {fps:.3f} fps, ratio {ratio}, stride {stride} = {step:.4f} s")
 
     # Decide what becomes of every clip of the index, and check the files each kept run needs.
-    rows, kept = plan_clips(index, gt_dir, digits, stride, min_frames, rects, src_size, procedure, video)
+    prefix = f"{procedure}__{video}__"
+    video_cuts = {name: c for name, c in cuts.items() if name.startswith(prefix)}
+    rows, kept = plan_clips(index, gt_dir, digits, stride, min_frames, rects, src_size, procedure, video,
+                            video_cuts, ratio)
 
     # Compare with the population before the removal below, which deletes what later stages wrote into the clips.
     if population is not None:
@@ -374,7 +440,8 @@ def write_clip(clip_dir: Path, run: KeptRun, digits: int, long_side: int, table:
     """Write one clip's frames, masks and manifest. Every frame of the clip has ground truth and is an anchor.
 
     `meta` holds the manifest's keys before `crop`; its `out_size` is filled in here. The keys and their order
-    are the workbench's, so that a clip extracted here equals one extracted there, byte for byte.
+    are the workbench's, so that a clip extracted here equals one extracted there, byte for byte, but for the
+    last, `n_frames`. The point cloud and Pi3X stages read it; the workbench's point cloud stage writes it.
     """
     size = target_size(run.rect[2], run.rect[3], long_side)
     (clip_dir / "input_images").mkdir(parents=True)
@@ -386,7 +453,7 @@ def write_clip(clip_dir: Path, run: KeptRun, digits: int, long_side: int, table:
                    table)
     manifest = dict(meta, out_size=list(size), crop=dict(zip("xywh", run.rect)), crop_source="confirmed",
                     frames=[{"seq_idx": seq, "native_frame": f, "has_gt": True, "is_anchor": True}
-                            for seq, f in enumerate(run.picked)])
+                            for seq, f in enumerate(run.picked)], n_frames=len(run.picked))
     with open(clip_dir / "frame_manifest.json", "w") as fh:
         json.dump(manifest, fh, indent=2)
 
@@ -414,6 +481,7 @@ def main() -> None:
     ap.add_argument("--out", required=True, help="The directory the clips are written to.")
     ap.add_argument("--clip-rects", required=True, help="The confirmed crop rectangles, crop_rects.json.")
     ap.add_argument("--frame-ratios", required=True, help="The measured frame ratios, frame_ratio.json.")
+    ap.add_argument("--cuts", required=True, help="The judged cuts, cuts.csv; a clip is split at each of its cuts.")
     ap.add_argument("--videos", nargs="*",
                     help="<procedure>/<video> to extract. Default: every video whose frame ratio was measured.")
     ap.add_argument("--population", help="A population file; the clips to be written must be its clips of the videos.")
@@ -432,6 +500,7 @@ def main() -> None:
     ratios = FrameRatios.load(args.frame_ratios)
     table = load_table("atlas120k")
     population = read_population(args.population) if args.population else None
+    cuts = load_cuts(args.cuts)
     videos = [tuple(v.split("/")) for v in args.videos] if args.videos else ratios.videos()
     bad = ["/".join(v) for v in videos if len(v) != 2]
     if bad:
@@ -445,7 +514,7 @@ def main() -> None:
         print(f"{procedure}/{video}")
         try:
             extract_video(Path(args.atlas_root), procedure, video, out, rects, ratios, table, args.step_sec,
-                          args.min_frames, args.long_side, args.step_tol, overwrite=args.overwrite,
+                          args.min_frames, args.long_side, args.step_tol, cuts, overwrite=args.overwrite,
                           population=population)
         except Exception as e:
             print(f"  failed: {type(e).__name__}: {e}")
