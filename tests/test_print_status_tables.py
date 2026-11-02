@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from evalkit.tools import print_status_tables as PST
 from evalkit.tools.paired_stats import sign_only_note
+from legacy.htl import print_status_tables as PST
 
 REPO = Path(__file__).resolve().parent.parent
 
@@ -152,7 +152,7 @@ def _write(tmp_path, name, d):
 
 
 def _run(*args):
-    return subprocess.run([sys.executable, "-m", "evalkit.tools.print_status_tables", *args],
+    return subprocess.run([sys.executable, "-m", "legacy.htl.print_status_tables", *args],
                           capture_output=True, text=True, cwd=REPO)
 
 

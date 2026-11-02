@@ -19,8 +19,8 @@ from evalkit.tools import component_scores
 from evalkit.tools.component_scores import (
     component_objects, main, measure_condition, region_objects, score_view, tool_sha,
 )
-from evalkit.tools.condition_inventory import read_evals
 from evalkit.tools.scores import ruler
+from legacy.htl.condition_inventory import read_evals
 
 TABLE = load_table("atlas120k")
 LIVER, GALLBLADDER, TOOL, EXCLUDED = 12, 14, 1, 42

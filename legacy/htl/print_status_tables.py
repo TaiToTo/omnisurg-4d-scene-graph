@@ -9,7 +9,7 @@ that is not the one it prints, rather than printing it under the wrong
 heading. The tables are pasted as printed, never copied by hand.
 
 Usage:
-    python -m evalkit.tools.print_status_tables --input-track e1_input_track.json --identity e2_track12.json
+    python -m legacy.htl.print_status_tables --input-track e1_input_track.json --identity e2_track12.json
 """
 from __future__ import annotations
 

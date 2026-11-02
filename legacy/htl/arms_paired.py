@@ -9,7 +9,7 @@ direction. A key of direction 0, such as `time_IoU`, is never marked.
 The score JSONs of one table must pass `scores.check_comparable_table`.
 
 Usage:
-    python -m evalkit.tools.arms_paired --eval-dir /path/to/scores \\
+    python -m legacy.htl.arms_paired --eval-dir /path/to/scores \\
         --key F1_50/geometric --pairs rgb:rgb_edge,normal:normal_edge
 """
 from __future__ import annotations

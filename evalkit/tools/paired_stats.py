@@ -238,8 +238,8 @@ def boot_ci(d: np.ndarray, groups: np.ndarray | None = None, rng=None,
 # An interval on fewer than `MIN_VIDEOS_FOR_MARK` videos gives no mark and
 # is read for its sign only. On two or three videos the 95 % interval is
 # the range of the video means, so two videos that agree in sign would give
-# a mark. `leave_one_video_out` leaves a video out only while this many
-# videos remain.
+# a mark. `legacy.htl.leave_one_video_out` leaves a video out only while
+# this many videos remain.
 MIN_VIDEOS_FOR_MARK = 6
 MARK_RULE = (f"the video-level bootstrap 95 % CI, on {MIN_VIDEOS_FOR_MARK} videos or more, does not straddle zero "
              "(p is reported, never decisive)")

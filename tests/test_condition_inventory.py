@@ -18,8 +18,8 @@ from pathlib import Path
 
 import pytest
 
-from evalkit.tools import condition_inventory as CI
 from evalkit.tools.scores import PILOT_EVAL_CODE_SHA
+from legacy.htl import condition_inventory as CI
 
 REPO = Path(__file__).resolve().parent.parent
 CLIPS = ["c1", "c2", "c3"]
@@ -593,7 +593,7 @@ def test_the_matrix_shows_every_condition_in_a_cell_not_the_one_found_first(tree
 
 def test_the_command_sets_the_exit_code_on_a_problem(tree):
     tr, ev = tree
-    cmd = [sys.executable, "-m", "evalkit.tools.condition_inventory", "--root", f"{tr}:{ev}:T"]
+    cmd = [sys.executable, "-m", "legacy.htl.condition_inventory", "--root", f"{tr}:{ev}:T"]
     assert subprocess.run(cmd, capture_output=True, cwd=REPO).returncode == 0
     write_score(ev, "a_normal", pilot_score("track_rgb_a_normal", sha="b" * 64))
     r = subprocess.run(cmd, capture_output=True, text=True, cwd=REPO)

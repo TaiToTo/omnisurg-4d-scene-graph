@@ -96,7 +96,7 @@ def paint_masks(masks: list[np.ndarray], shape: tuple[int, int]) -> np.ndarray:
 def seed_labels_dir(seed_labels: str, clip: str) -> Path:
     """Return the directory of a clip's seed regions: `seed_labels` with `{clip}` replaced by the clip's name.
 
-    Such a directory can be a condition that `evalkit.tools.kmerge` wrote. Without `{clip}`, the directory is
+    Such a directory can be a condition that `legacy.htl.kmerge` wrote. Without `{clip}`, the directory is
     `<seed_labels>/<clip>/`.
     """
     return Path(seed_labels.replace("{clip}", clip)) if "{clip}" in seed_labels else Path(seed_labels) / clip

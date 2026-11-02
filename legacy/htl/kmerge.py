@@ -10,7 +10,7 @@ evaluator is told whether the GT set K (`--gt-informed`), since the record
 does not say.
 
 Usage:
-    python -m evalkit.tools.kmerge --dataset atlas120k --clips atlas120k_meta/clips.txt \\
+    python -m legacy.htl.kmerge --dataset atlas120k --clips atlas120k_meta/clips.txt \\
         --data-root /path/to/clips --tracks-root /path/to/tracks --tag <tag> [--k 10] [--out-tag <tag>_k10]
 """
 from __future__ import annotations

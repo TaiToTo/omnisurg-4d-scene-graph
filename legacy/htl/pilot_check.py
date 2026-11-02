@@ -12,7 +12,7 @@ one the freeze records. The check runs where the pilot evaluator and its
 scores are.
 
 Usage:
-    python -m evalkit.tools.pilot_check --pilot-dir /path/to/the/pilot/scores \\
+    python -m legacy.htl.pilot_check --pilot-dir /path/to/the/pilot/scores \\
         --eval-dir /path/to/the/pilot_mode/scores [--leave-out tags.txt]
 """
 from __future__ import annotations

@@ -12,7 +12,7 @@ interval, and either can change the mark. Each row records both, and the
 printout names no cause.
 
 Usage:
-    python -m evalkit.tools.leave_one_video_out --eval-dir /path/to/scores \\
+    python -m legacy.htl.leave_one_video_out --eval-dir /path/to/scores \\
         --pairs base:cond,base:other --keys inst_F1_50,SQ,boundary_F --out /path/to/left_out.json
 """
 from __future__ import annotations

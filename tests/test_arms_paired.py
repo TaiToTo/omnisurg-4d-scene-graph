@@ -17,9 +17,9 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from evalkit.tools import arms_paired as AP
 from evalkit.tools.paired_stats import MARK_RULE, boot_ci, sign_only_note, video_of
 from evalkit.tools.scores import PILOT_EVAL_CODE_SHA, metric_key
+from legacy.htl import arms_paired as AP
 
 pytest.importorskip("scipy", reason="the Wilcoxon test needs the `tools` extra")
 
@@ -236,7 +236,7 @@ def _write(tmp_path: Path, summaries: dict) -> None:
 
 
 def _run(tmp_path: Path, key: str = "inst_F1_50", pairs=PAIRS) -> subprocess.CompletedProcess:
-    cmd = [sys.executable, "-m", "evalkit.tools.arms_paired", "--eval-dir", str(tmp_path), "--key", key,
+    cmd = [sys.executable, "-m", "legacy.htl.arms_paired", "--eval-dir", str(tmp_path), "--key", key,
            "--pairs", ",".join(f"{b}:{c}" for b, c in pairs)]
     return subprocess.run(cmd, cwd=REPO, capture_output=True, text=True)
 

@@ -18,9 +18,9 @@ from pathlib import Path
 
 import pytest
 
-from evalkit.tools import claims_table as CT
 from evalkit.tools import paired_stats as PS
 from evalkit.tools.scores import PILOT_EVAL_CODE_SHA, metric_key
+from legacy.htl import claims_table as CT
 
 pytest.importorskip("scipy", reason="the Wilcoxon test needs the `tools` extra")
 
@@ -357,7 +357,7 @@ def test_every_claim_names_a_pair_in_every_dataset_and_a_known_stage():
 
 def test_the_command_prints_the_markdown_table(tmp_path):
     dirs = write_table(tmp_path, {("atlas120k", "t5_k10"): 0.05, ("cholecseg8k", "t5_k10"): 0.05})
-    out = subprocess.run([sys.executable, "-m", "evalkit.tools.claims_table", "--key", PILOT_KEY, "--markdown",
+    out = subprocess.run([sys.executable, "-m", "legacy.htl.claims_table", "--key", PILOT_KEY, "--markdown",
                           *[f"--scores={ds}={d}" for ds, d in dirs.items()]],
                          capture_output=True, text=True, cwd=REPO)
     assert out.returncode == 0, out.stderr
@@ -367,7 +367,7 @@ def test_the_command_prints_the_markdown_table(tmp_path):
 
 def test_the_command_exits_non_zero_on_a_cell_not_measured_unless_allowed(tmp_path):
     dirs = write_table(tmp_path, skip={("cholecseg8k", "ch_rgb_center")})
-    cmd = [sys.executable, "-m", "evalkit.tools.claims_table", "--key", PILOT_KEY,
+    cmd = [sys.executable, "-m", "legacy.htl.claims_table", "--key", PILOT_KEY,
            *[f"--scores={ds}={d}" for ds, d in dirs.items()]]
     out = subprocess.run(cmd, capture_output=True, text=True, cwd=REPO)
     assert out.returncode == 1 and "2 row(s) have a cell not measured" in out.stderr
@@ -376,7 +376,7 @@ def test_the_command_exits_non_zero_on_a_cell_not_measured_unless_allowed(tmp_pa
 
 
 def test_the_command_refuses_with_a_message_not_a_traceback(tmp_path):
-    out = subprocess.run([sys.executable, "-m", "evalkit.tools.claims_table", "--key", PILOT_KEY,
+    out = subprocess.run([sys.executable, "-m", "legacy.htl.claims_table", "--key", PILOT_KEY,
                           "--scores", f"atlas120k={tmp_path}"], capture_output=True, text=True, cwd=REPO)
     assert out.returncode != 0 and "Traceback" not in out.stderr
     assert "no directory for ['cholecseg8k']" in out.stderr

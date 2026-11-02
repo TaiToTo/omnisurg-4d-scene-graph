@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from evalkit.tools import pilot_check as PC
 from evalkit.tools.scores import PILOT_DOMAINS, PILOT_EVAL_CODE_SHA, metric_key
+from legacy.htl import pilot_check as PC
 
 REPO = Path(__file__).resolve().parent.parent
 CLIPS = ["VID01_s15_80_crop", "VID02_s15_80_crop"]
@@ -164,7 +164,7 @@ def test_the_command_diffs_every_condition_by_tag(tmp_path):
     for tag in ("a", "b"):
         (pd / f"{tag}.json").write_text(json.dumps(pilot_json()))
         (ed / f"{tag}.json").write_text(json.dumps(ours_json()))
-    cmd = [sys.executable, "-m", "evalkit.tools.pilot_check", "--pilot-dir", str(pd), "--eval-dir", str(ed)]
+    cmd = [sys.executable, "-m", "legacy.htl.pilot_check", "--pilot-dir", str(pd), "--eval-dir", str(ed)]
     r = subprocess.run(cmd, capture_output=True, text=True, cwd=REPO)
     assert r.returncode == 0 and "all 2 conditions" in r.stdout
     # The evaluator's sha is named with the result: it is the one the freeze records.
@@ -186,7 +186,7 @@ def test_a_condition_left_out_is_named_and_not_checked(tmp_path):
         (pd / f"{tag}.json").write_text(json.dumps(pilot_json()))
     (ed / "a.json").write_text(json.dumps(ours_json()))
     (tmp_path / "leave_out.txt").write_text("gt_seeded\n")
-    cmd = [sys.executable, "-m", "evalkit.tools.pilot_check", "--pilot-dir", str(pd), "--eval-dir", str(ed)]
+    cmd = [sys.executable, "-m", "legacy.htl.pilot_check", "--pilot-dir", str(pd), "--eval-dir", str(ed)]
     r = subprocess.run(cmd, capture_output=True, text=True, cwd=REPO)
     assert r.returncode == 1 and "gt_seeded: not scored in pilot mode" in r.stdout
     r = subprocess.run(cmd + ["--leave-out", str(tmp_path / "leave_out.txt")], capture_output=True, text=True, cwd=REPO)
@@ -225,7 +225,7 @@ def test_the_command_refuses_a_directory_scored_by_two_evaluators(tmp_path):
         ours = ours_json()
         ours["eval_code_sha"] = sha
         (ed / f"{tag}.json").write_text(json.dumps(ours))
-    cmd = [sys.executable, "-m", "evalkit.tools.pilot_check", "--pilot-dir", str(pd), "--eval-dir", str(ed)]
+    cmd = [sys.executable, "-m", "legacy.htl.pilot_check", "--pilot-dir", str(pd), "--eval-dir", str(ed)]
     r = subprocess.run(cmd, capture_output=True, text=True, cwd=REPO)
     assert r.returncode != 0 and "made by 2 evaluators" in r.stderr and "Traceback" not in r.stderr
 
@@ -235,7 +235,7 @@ def test_the_command_names_the_tag_it_could_not_check(tmp_path):
     pd.mkdir(), ed.mkdir()
     (pd / "a.json").write_text(json.dumps(pilot_json()))
     (ed / "a.json").write_text(json.dumps(ours_json(pilot=False)))
-    cmd = [sys.executable, "-m", "evalkit.tools.pilot_check", "--pilot-dir", str(pd), "--eval-dir", str(ed)]
+    cmd = [sys.executable, "-m", "legacy.htl.pilot_check", "--pilot-dir", str(pd), "--eval-dir", str(ed)]
     r = subprocess.run(cmd, capture_output=True, text=True, cwd=REPO)
     assert r.returncode != 0 and r.stderr.startswith("a: the JSON given as the evaluator's is not a pilot-mode score")
 
@@ -245,7 +245,7 @@ def test_the_command_names_the_tag_and_the_path_of_a_json_it_cannot_read(tmp_pat
     pd.mkdir(), ed.mkdir()
     (pd / "a.json").write_text(json.dumps(pilot_json()))
     (ed / "a.json").write_text("{not json")
-    cmd = [sys.executable, "-m", "evalkit.tools.pilot_check", "--pilot-dir", str(pd), "--eval-dir", str(ed)]
+    cmd = [sys.executable, "-m", "legacy.htl.pilot_check", "--pilot-dir", str(pd), "--eval-dir", str(ed)]
     r = subprocess.run(cmd, capture_output=True, text=True, cwd=REPO)
     assert r.returncode != 0 and "Traceback" not in r.stderr
     assert r.stderr.startswith(f"a: the pilot-mode JSON {ed / 'a.json'} cannot be read")

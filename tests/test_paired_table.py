@@ -12,9 +12,9 @@ from pathlib import Path
 
 import pytest
 
-from evalkit.tools import paired_table as PT
 from evalkit.tools.paired_stats import sign_only_note
 from evalkit.tools.scores import CLIP_METRICS, FRAME_METRICS, PILOT_EVAL_CODE_SHA, metric_key
+from legacy.htl import paired_table as PT
 
 REPO = Path(__file__).resolve().parent.parent
 VIDEOS = ("adrenalectomy__16GPCUPkXYQ", "appendectomy__41RKDh3INiU", "gastric_surgery__4FHGGFZsPzw",
@@ -294,7 +294,7 @@ def _write(tmp_path, tags):
 
 
 def _run(tmp_path, *args):
-    return subprocess.run([sys.executable, "-m", "evalkit.tools.paired_table", "--eval-dir", str(tmp_path), *args],
+    return subprocess.run([sys.executable, "-m", "legacy.htl.paired_table", "--eval-dir", str(tmp_path), *args],
                           capture_output=True, text=True, cwd=REPO)
 
 

@@ -1,4 +1,4 @@
-"""Test `evalkit.tools.d4d_front_behind` on regions with known depths, and on a made-up clip.
+"""Test `legacy.htl.d4d_front_behind` on regions with known depths, and on a made-up clip.
 
 The made-up clip's view is 64 × 48 pixels, cut into four quadrants of 32 × 24. The scan puts one point in
 each pixel, at 0.1, 0.2, 0.3 and 0.4 m in the four quadrants. Each refusal has a test that plants its fault:
@@ -19,7 +19,7 @@ import numpy as np
 import pytest
 
 import surgical_core.d4d as d4d
-from evalkit.tools import d4d_front_behind as fb
+from legacy.htl import d4d_front_behind as fb
 
 # The regions of the known-depth cases: three columns of 34, 33 and 33 pixels, 100 rows. The scan reaches the
 # top ten rows, at 0.1, 0.2 and 0.3 m.

@@ -1,6 +1,6 @@
 """Compare an answer's front/behind scores with a floor's on the same pairs, and give the verdict.
 
-The tool reads two outputs of `evalkit.tools.d4d_front_behind` on the same regions: an answer, such as `mono`,
+The tool reads two outputs of `legacy.htl.d4d_front_behind` on the same regions: an answer, such as `mono`,
 and a floor, such as `area`. The floor's direction is taken once, over all sides: below 0.5 it is read flipped.
 For sessions, clips and specimens, the tool resamples the units `N_BOOT` times and gives the difference of the
 shares answered right with its 95 % interval. The verdict is `A` when the answer is ahead and no interval
@@ -9,7 +9,7 @@ differ. The tool also gives the difference for moving and static cameras, and th
 It refuses outputs of other regions, other answer pixels, other code, or other pairs.
 
 Usage:
-    python -m evalkit.tools.d4d_front_behind_verdict --answer mono.json --floor area.json \\
+    python -m legacy.htl.d4d_front_behind_verdict --answer mono.json --floor area.json \\
         --population d4d_meta/population.json [--out verdict.json]
 """
 

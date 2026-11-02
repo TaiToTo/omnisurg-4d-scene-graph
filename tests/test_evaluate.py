@@ -28,8 +28,8 @@ from evalkit.frame import score_frame
 from evalkit.inputs import sha_of_files
 from evalkit.keys import CLIP_METRICS, FRAME_METRICS, SIGNS, metric_key
 from evalkit.time_iou import time_iou
-from evalkit.tools.condition_inventory import read_evals
 from evalkit.tools.scores import check_comparable, check_rows, load_scores, metric_keys, ruler
+from legacy.htl.condition_inventory import read_evals
 
 CLIPS = ["VID01_a", "VID02_b"]
 

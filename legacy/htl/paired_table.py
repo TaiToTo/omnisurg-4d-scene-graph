@@ -6,7 +6,7 @@ interval and wins. Every two conditions of the table must pass
 `scores.check_comparable`. The table is pasted as printed, never copied by hand.
 
 Usage:
-    python -m evalkit.tools.paired_table --eval-dir /path/to/scores
+    python -m legacy.htl.paired_table --eval-dir /path/to/scores
 """
 from __future__ import annotations
 

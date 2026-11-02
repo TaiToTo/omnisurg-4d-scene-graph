@@ -10,11 +10,11 @@ import numpy as np
 import pytest
 
 import clip_dirs as C
-import evalkit.tools.kmerge as KM
 from evalkit.evaluate import condition_rule, score_condition
 from evalkit.classes import CLASS_SETS, load_table
 from evalkit.inputs import DEPTH_FILE, read_clip
-from evalkit.tools.kmerge import kmerge, merge_condition
+import legacy.htl.kmerge as KM
+from legacy.htl.kmerge import kmerge, merge_condition
 
 BOTH_WAYS = {"seed_source": "sam", "seed_frame": 1, "bidir": True, "frames": [0, 1, 2]}
 
