@@ -9,7 +9,7 @@ segmenter input or seed labels other than the ones stated, and records that hold
 record cannot be read when `condition_inventory.edge_ring_of` cannot tell its edge ring.
 
 Usage:
-    python -m evalkit.tools.check_provenance --tracks-root /path/to/tracks --tag op_edge_center \\
+    python -m legacy.htl.check_provenance --tracks-root /path/to/tracks --tag op_edge_center \\
         --clips atlas120k_meta/clips.txt --seed-source sam --sam-input normal_edge [--track-base rgb]
 """
 from __future__ import annotations
@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from evalkit.evaluate import SEED_INFO, read_population
-from evalkit.tools.condition_inventory import CUT_FROM_SAM_INPUT, condition_key
+from legacy.htl.condition_inventory import CUT_FROM_SAM_INPUT, condition_key
 
 # The values `seed_source` takes: the segmenter of the tracking stage; seeds made outside the stage
 # (`--seed-labels`); the GT masks of the workbench's `t12_*` conditions and of its controls `t12_paste`,

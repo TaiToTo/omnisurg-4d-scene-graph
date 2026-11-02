@@ -7,7 +7,7 @@ import json
 
 import pytest
 
-from evalkit.tools.region_curves import curves_of, main, matched
+from legacy.htl.region_curves import curves_of, main, matched
 
 CLIPS = ["VID01_a", "VID02_b"]
 KEY = "F1_50/geometric"

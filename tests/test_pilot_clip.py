@@ -22,7 +22,7 @@ from evalkit.inputs import MANIFEST, read_clip
 from evalkit.keys import CLIP_METRICS, FRAME_METRICS, metric_key
 from evalkit.pilot import PILOT_DOMAINS, PILOT_MIN_CC_PX
 from evalkit.pilot_clip import _pilot_colours, pilot_frame, pilot_row, pilot_time_iou, score_pilot_clip
-from evalkit.tools.pilot_check import SHARED
+from legacy.htl.pilot_check import SHARED
 
 TOOLS = frozenset({5, 9})
 

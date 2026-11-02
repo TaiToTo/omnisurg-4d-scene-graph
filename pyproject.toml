@@ -34,11 +34,11 @@ dependencies = ["numpy", "opencv-python", "Pillow"]
 # and `surgical_core.viewer.glb`. Kept out of the base install so that the
 # toolkit still installs on a machine with none of them.
 render = ["matplotlib", "trimesh"]
-# What the tools under `evalkit/tools` need and the evaluator does not: the
-# Wilcoxon test that `paired_stats` and `arms_paired` report beside the
-# bootstrap (scipy) and the per-clip chart `compare_eval` draws on request
-# (matplotlib). The tools import them only where they are used, so reading
-# and checking scores works without the extra.
+# What the tools under `evalkit/tools` and `legacy` need and the evaluator
+# does not: the Wilcoxon test that `paired_stats` and `legacy.htl.arms_paired`
+# report beside the bootstrap (scipy) and the per-clip chart `compare_eval`
+# draws on request (matplotlib). The tools import them only where they are
+# used, so reading and checking scores works without the extra.
 tools = ["scipy", "matplotlib"]
 # What the StereoMIS reader, `surgical_core.stereomis`, needs: scipy turns the
 # ground truth's quaternions into rotation matrices.
@@ -81,14 +81,15 @@ track = [
 [project.urls]
 Homepage = "https://github.com/TaiToTo/omnisurg-4d-scene-graph"
 
-# The install provides six packages: the libraries `surgical_core`,
-# `evalkit` and `trajectory_eval`, the stages in `pipeline`, and the models in
-# `recon3d_wrapper` and `sam3_wrapper`.
+# The install provides seven packages: the libraries `surgical_core`,
+# `evalkit` and `trajectory_eval`, the stages in `pipeline`, the models in
+# `recon3d_wrapper` and `sam3_wrapper`, and the earlier study's tools in
+# `legacy`.
 # A stage runs as `python -m pipeline.<stage>`. The packages are installed
 # rather than run from the clone. A stage then runs the same from any
 # directory, and no script edits `sys.path` to find the other packages.
 [tool.setuptools.packages.find]
-include = ["surgical_core*", "evalkit*", "trajectory_eval*", "pipeline*", "recon3d_wrapper*", "sam3_wrapper*"]
+include = ["surgical_core*", "evalkit*", "trajectory_eval*", "pipeline*", "recon3d_wrapper*", "sam3_wrapper*", "legacy*"]
 
 # The class tables are data the evaluator reads and hashes, so an install
 # without them would score nothing. The table of condition names is data the

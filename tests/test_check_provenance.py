@@ -15,7 +15,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from evalkit.tools.check_provenance import ABSENT, read_provenance, report
+from legacy.htl.check_provenance import ABSENT, read_provenance, report
 
 REPO = Path(__file__).resolve().parents[1]
 CLIPS = ["clip0", "clip1", "clip2"]
@@ -279,7 +279,7 @@ def test_the_command_exits_non_zero_on_a_problem_and_zero_otherwise(tmp_path):
     write(tmp_path / "tracks", "track_rgb_op_edge_center", {c: TRACKED for c in CLIPS})
     population = tmp_path / "clips.txt"
     population.write_text("\n".join(CLIPS) + "\n")
-    cmd = [sys.executable, "-m", "evalkit.tools.check_provenance", "--tracks-root", str(tmp_path / "tracks"),
+    cmd = [sys.executable, "-m", "legacy.htl.check_provenance", "--tracks-root", str(tmp_path / "tracks"),
            "--tag", "op_edge_center", "--clips", str(population)]
     ok = subprocess.run([*cmd, "--seed-source", "sam", "--sam-input", "normal_edge"], cwd=REPO, capture_output=True,
                         text=True)

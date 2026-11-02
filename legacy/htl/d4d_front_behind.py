@@ -9,7 +9,7 @@ specimens, and `front_behind_code_sha`. It refuses a side it cannot score, depth
 seed regions whose record names another depth.
 
 Usage:
-    python -m evalkit.tools.d4d_front_behind --root /path/to/D4D/extracted --population d4d_meta/population.json \\
+    python -m legacy.htl.d4d_front_behind --root /path/to/D4D/extracted --population d4d_meta/population.json \\
         --answer mono --regions ours --depth-dir /path/to/d4d_depth --seed-dir /path/to/d4d_seed --out mono.json \\
         [--answer-pixels all] [--jobs 8]
 """

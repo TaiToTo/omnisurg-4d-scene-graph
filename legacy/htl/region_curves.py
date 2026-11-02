@@ -11,7 +11,7 @@ comparable: one evaluator, dataset, class set and tool, one rule, which is
 the one named, and one set of clips.
 
 Usage:
-    python -m evalkit.tools.region_curves --scores-dir <dir> --key F1_50/geometric \\
+    python -m legacy.htl.region_curves --scores-dir <dir> --key F1_50/geometric \\
         [--min-px 300] [--rule centre] [--seed sam] [--depth da3] [--out curves.json]
 """
 from __future__ import annotations

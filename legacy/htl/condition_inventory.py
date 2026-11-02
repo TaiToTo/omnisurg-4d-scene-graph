@@ -12,10 +12,10 @@ exits non-zero on any of these problems:
 Terms as in `docs/evaluation.md`.
 
 Usage:
-    python -m evalkit.tools.condition_inventory \\
+    python -m legacy.htl.condition_inventory \\
         --root '/data/tracks/seed:/data/scores:seed stage' \\
         --root '/data/tracks/propagated::propagation stage'
-    python -m evalkit.tools.condition_inventory --root '...' --matrix
+    python -m legacy.htl.condition_inventory --root '...' --matrix
 """
 from __future__ import annotations
 

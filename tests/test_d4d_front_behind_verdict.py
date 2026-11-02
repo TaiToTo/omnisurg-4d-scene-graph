@@ -1,4 +1,4 @@
-"""Test `evalkit.tools.d4d_front_behind_verdict` on made-up outputs of `d4d_front_behind`.
+"""Test `legacy.htl.d4d_front_behind_verdict` on made-up outputs of `d4d_front_behind`.
 
 Each refusal has a test that plants its fault: outputs scored on other regions, over other answer pixels or by
 other code, and outputs whose sides hold other pairs.
@@ -8,7 +8,7 @@ import json
 
 import pytest
 
-from evalkit.tools import d4d_front_behind_verdict as v
+from legacy.htl import d4d_front_behind_verdict as v
 
 # Six clips in three sessions of two specimens; the first clip's camera moves.
 KEYS = ["s1/a/c1", "s1/a/c2", "s1/b/c1", "s1/b/c2", "s2/c/c1", "s2/c/c2"]

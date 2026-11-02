@@ -11,10 +11,10 @@ measured", and the command exits non-zero unless `--allow-unmeasured`.
 What the table refuses is listed under `build`.
 
 Usage:
-    python -m evalkit.tools.claims_table --key F1_50/geometric \\
+    python -m legacy.htl.claims_table --key F1_50/geometric \\
         --scores atlas120k=/path/to/atlas120k/scores --scores cholecseg8k=/path/to/cholecseg8k/scores
     # the workbench's table, on the pilot evaluator's JSONs, as markdown
-    python -m evalkit.tools.claims_table --key inst_F1_50_labeled --markdown --scores ...
+    python -m legacy.htl.claims_table --key inst_F1_50_labeled --markdown --scores ...
 """
 from __future__ import annotations
 

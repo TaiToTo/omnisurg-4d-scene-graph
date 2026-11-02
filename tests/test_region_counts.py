@@ -5,9 +5,9 @@ import numpy as np
 import pytest
 
 import clip_dirs as C
-from evalkit.tools import region_counts
 from evalkit.tools.component_scores import tool_sha
-from evalkit.tools.region_counts import count_clip, count_condition, frame_count, main
+from legacy.htl import region_counts
+from legacy.htl.region_counts import count_clip, count_condition, frame_count, main
 
 
 def labels(s: str) -> np.ndarray:

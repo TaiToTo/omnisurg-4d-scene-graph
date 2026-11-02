@@ -8,7 +8,7 @@ key it is drawn against. The JSON records each clip's count and the hash of
 this file.
 
 Usage:
-    python -m evalkit.tools.region_counts --clips atlas120k_meta/clips.txt --tracks-root <dir of predictions> \\
+    python -m legacy.htl.region_counts --clips atlas120k_meta/clips.txt --tracks-root <dir of predictions> \\
         --tag <label directory> --out <condition>.regions.json
 """
 from __future__ import annotations

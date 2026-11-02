@@ -9,9 +9,9 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from evalkit.tools import leave_one_video_out as LV
 from evalkit.tools import paired_stats as PS
 from evalkit.tools.scores import CLIP_METRICS, FRAME_METRICS, PILOT_EVAL_CODE_SHA, metric_key
+from legacy.htl import leave_one_video_out as LV
 
 pytest.importorskip("scipy", reason="paired_stats needs the `tools` extra")
 
@@ -258,7 +258,7 @@ def _write(tmp_path, **summaries):
 
 
 def _run(tmp_path, *args):
-    return subprocess.run([sys.executable, "-m", "evalkit.tools.leave_one_video_out", "--eval-dir", str(tmp_path),
+    return subprocess.run([sys.executable, "-m", "legacy.htl.leave_one_video_out", "--eval-dir", str(tmp_path),
                            *args], capture_output=True, text=True, cwd=REPO)
 
 
@@ -304,7 +304,7 @@ def test_the_command_refuses_a_pair_on_six_videos_with_a_message(tmp_path):
 def test_out_takes_a_bare_file_name(tmp_path):
     base, cond = pilot_pair()
     _write(tmp_path, base=base, cond=cond)
-    run = subprocess.run([sys.executable, "-m", "evalkit.tools.leave_one_video_out", "--eval-dir", ".",
+    run = subprocess.run([sys.executable, "-m", "legacy.htl.leave_one_video_out", "--eval-dir", ".",
                           "--pairs", "base:cond", "--keys", "inst_F1_50", "--out", "left_out.json"],
                          capture_output=True, text=True, cwd=tmp_path, env={**os.environ, "PYTHONPATH": str(REPO)})
     assert run.returncode == 0, run.stderr
