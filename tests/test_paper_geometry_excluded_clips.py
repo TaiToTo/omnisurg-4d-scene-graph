@@ -21,6 +21,7 @@ H, W, N = 64, 80, 12
 
 @pytest.fixture(scope="module")
 def rule():
+    pytest.importorskip("scipy", reason="the StereoMIS reader needs the `stereomis` extra")
     spec = importlib.util.spec_from_file_location("excluded_clips", SCRIPT)
     module = importlib.util.module_from_spec(spec)
     sys.modules["excluded_clips"] = module
