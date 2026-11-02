@@ -101,6 +101,7 @@ omnisurg-4d-scene-graph/
 ├── d4d_meta/          census clip list, scored sides; no frame or point cloud
 ├── stereomis_meta/    clip list: frames, rows, times, masks, usable or not; no video
 ├── viewer/
+├── paper/            ipcai2027/: the scripts and clip lists behind the IPCAI 2027 paper's numbers
 ├── docs/              evaluation.md, pilot_evaluator.md, pipeline.md, porting.md,
 │                      review.md
 ├── tests/
