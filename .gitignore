@@ -16,25 +16,32 @@ outputs/
 # Node / viewer
 node_modules/
 viewer/dist/
-viewer/.vite/
 
 # NFS silly-rename leftovers (appear when an open file is deleted on NFS)
 .nfs[0-9a-f]*
 
-# Working material dropped at the repo root. Anchored, so figures kept
-# under docs/ are still tracked.
+# Working material dropped at the repo root: notes, drafts, figures.
+# Anchored, so documents and figures under docs/ are still tracked. A new
+# document at the root needs its own ! line.
+/*.md
+!/AGENTS.md
+!/CLAUDE.md
+!/README.md
+/*.tex
 /*.pdf
 /*.png
 /*.jpg
 /*.svg
 
-# IDE / OS / secrets
+# Claude Code: only the shared settings and hooks are tracked
 .claude/*
 !.claude/settings.json
 !.claude/hooks/
+
+# IDE / OS / secrets
 .vscode/
 .env
-**/.DS_Store
+.DS_Store
 *.orig
 
 # Machine-specific notes (paths, usernames) — not portable, never committed
